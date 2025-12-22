@@ -3,53 +3,179 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# Parsing args ------------------------------------------------------------------------------------
-if [ "$#" -lt 7 ]; then
-    echo "Usage: $0 <perturbation_id> <task_id> <repeats> <max_steps> <model> <ckpt_path> <environment>" 
-    echo "    - perturbation_id: [0-15]"
-    echo "          0: Default"
-    echo "          1: V-AUG"
-    echo "          2: V-VIEW"
-    echo "          3: V-SC"
-    echo "          4: V-LIGHT"
-    echo "          5: S-PROP"
-    echo "          6: S-LANG"
-    echo "          7: S-MO"
-    echo "          8: S-AFF"
-    echo "          9: S-INT"
-    echo "          10: B-HOBJ"
-    echo "          11: SB-NOUN"
-    echo "          12: SB-VRB"
-    echo "          13: VB-POSE"
-    echo "          14: VB-MOBJ"
-    echo "          15: VSB-NOBJ"
-    echo "    - task_id: [0-9]"
-    echo "          0: put_green_block_in_bowl"
-    echo "          1: put_banana_into_box"
-    echo "          2: rotate_marker"
-    echo "          3: rotate_mug"
-    echo "          4: pick_spoon"
-    echo "          5: pick_water_bottle"
-    echo "          6: stack_cubes"
-    echo "          7: push_switch"
-    echo "          8: open_drawer"
-    echo "          9: close_drawer"
-    echo "    - repeats: number of episodes"
-    echo "    - max_steps: maximum number steps in one episode before termination"
-    echo "    - model: either a string (pi0|pi0_FAST|GR00T) of implemented model"
-    echo "          or path to the script which start model server"
-    echo "    - ckpt_path: host path to the model checkpoint"
-    echo "    - environment: (singularity|docker|current) through which environment the evaluation will run"
-  exit 1
-fi
+# --------------------------------------------------------------------------------------
+# Help / usage
+# --------------------------------------------------------------------------------------
+print_help() {
+    cat <<EOF
+Usage: $(basename "$0") -c PATH [OPTIONS]
 
-PERTURBATION_ID="$1"
-TASK_ID="$2"
-REPEATS="$3" #25
-MAX_STEPS="$4" #1
-MODEL="$5" #"pi0"
-CKPT_PATH="$6"
-EVAL_ENV="$7"
+Required:
+    -c, --ckpt-path PATH       Host path to the model checkpoint
+
+Rest of options:
+  -p, --perturbation-id ID   Perturbation ID [0–15]. Default: 0
+                               0: Default
+                               1: V-AUG
+                               2: V-VIEW
+                               3: V-SC
+                               4: V-LIGHT
+                               5: S-PROP
+                               6: S-LANG
+                               7: S-MO
+                               8: S-AFF
+                               9: S-INT
+                              10: B-HOBJ
+                              11: SB-NOUN
+                              12: SB-VRB
+                              13: VB-POSE
+                              14: VB-MOBJ
+                              15: VSB-NOBJ
+
+  -t, --task-id ID           Task ID [0–9]. Default: 0
+                               0: put_green_block_in_bowl
+                               1: put_banana_into_box
+                               2: rotate_marker
+                               3: rotate_mug
+                               4: pick_spoon
+                               5: pick_water_bottle
+                               6: stack_cubes
+                               7: push_switch
+                               8: open_drawer
+                               9: close_drawer
+
+  -r, --repeats N            Number of episodes. Default: 25
+  -s, --max-steps N          Max steps per episode before termination. Default: 500
+
+  -m, --model MODEL          Either:
+                               - one of: pi0 | pi0_FAST | GR00T
+                               - or path to an executable script that starts a model server
+                             Default: pi0
+
+  -e, --environment ENV      Evaluation environment: singularity | docker | current
+                             Default: singularity
+
+Other:
+  -h, --help                 Show this help and exit
+
+Examples:
+  # pi0 evaluation with default settings on 'put_green_block_in_bowl' task
+  $0 -c /path/to/pi0/checkpoint
+  # Small run of GR00T evaluation on 'rotate_marker' task with 'V-SC' (distractors) visual perturbation through docker
+  $0 -p 3 -t 2 -r 1 -s 50 -m GR00T -c /path/to/gr00t/checkpoint -e docker
+  # Standard run of pi0_FAST evaluation on 'stark_cubes' task with 'S_MO' (spatial ref.) semantic perturbation through docker
+  $0 -p 7 -t 6 -m pi0_FAST -c /path/to/pi0_FAST/checkpoint
+  # Custom model run
+  $0 -m /path/to/model/server/script -c /path/to/checkpoint
+
+
+EOF
+}
+
+# --------------------------------------------------------------------------------------
+# Defaults
+# --------------------------------------------------------------------------------------
+PERTURBATION_ID=0
+TASK_ID=0
+REPEATS=25
+MAX_STEPS=500
+MODEL="pi0"
+CKPT_PATH=""             # required
+EVAL_ENV="singularity"
+
+# --------------------------------------------------------------------------------------
+# Parse flag arguments
+# --------------------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -p|--perturbation-id)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --perturbation-id requires a value" >&2
+                exit 1
+            fi
+            PERTURBATION_ID="$2"
+            shift 2
+            ;;
+        -t|--task-id)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --task-id requires a value" >&2
+                exit 1
+            fi
+            TASK_ID="$2"
+            shift 2
+            ;;
+        -r|--repeats)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --repeats requires a value" >&2
+                exit 1
+            fi
+            REPEATS="$2"
+            shift 2
+            ;;
+        -s|--max-steps)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --max-steps requires a value" >&2
+                exit 1
+            fi
+            MAX_STEPS="$2"
+            shift 2
+            ;;
+        -m|--model)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --model requires a value" >&2
+                exit 1
+            fi
+            MODEL="$2"
+            shift 2
+            ;;
+        -c|--ckpt-path)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --ckpt-path requires a value" >&2
+                exit 1
+            fi
+            CKPT_PATH="$2"
+            shift 2
+            ;;
+        -e|--environment)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --environment requires a value" >&2
+                exit 1
+            fi
+            EVAL_ENV="$2"
+            shift 2
+            ;;
+        -h|--help)
+            print_help
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Error: Unknown option '$1'" >&2
+            echo
+            print_help
+            exit 1
+            ;;
+        *)
+            echo "Error: Unexpected positional argument '$1'" >&2
+            echo
+            print_help
+            exit 1
+            ;;
+    esac
+done
+
+# --------------------------------------------------------------------------------------
+# Required argument checks after parsing
+# --------------------------------------------------------------------------------------
+if [[ -z "$CKPT_PATH" ]]; then
+    echo "Error: --ckpt-path is required." >&2
+    echo
+    print_help
+    exit 1
+fi
 
 # Validating args -----------------------------------------------------------------------------------
 if ! [[ "$PERTURBATION_ID" =~ ^[0-9]+$ ]] || [ "$PERTURBATION_ID" -lt 0 ] || [ "$PERTURBATION_ID" -gt 15 ]; then
@@ -81,7 +207,7 @@ case "$MODEL" in
     pi0|pi0_FAST|GR00T)
         ;;
     *)
-        echo "$MODEL is not in (pi0|pi0_FAST|GR00T). Assuming that it is executable file." 
+        echo "$MODEL is not in (pi0|pi0_FAST|GR00T). Assuming that it is an executable file."
         if [ ! -e "$MODEL" ]; then
             echo "Error: MODEL '$MODEL' does not exist."
             exit 1
@@ -320,7 +446,7 @@ cleanup() {
 trap cleanup EXIT
 
 # TODO: OPENPI_ROOT, GR00T_ROOT, should be a script which setup these models
-#   ideally inside setup.sh invoking setup_pi.sh and setup_gr00t.sh 
+#   ideally inside setup.sh invoking setup_pi.sh and setup_gr00t.sh
 # TODO: replace this if statement by running external model script.
 #   Implemented models should have own sh script.
 PORT=$(choose_model_port)
@@ -414,7 +540,7 @@ elif [ "$MODEL" == "GR00T" ]; then
     # capture process group of the server
     SERVER_PGID="$SERVER_PID"
 else
-    # MODEL script must take CKPT_PATH and PORT as args 
+    # MODEL script must take CKPT_PATH and PORT as args
     setsid bash "$MODEL" "$CKPT_PATH" "$PORT" & SERVER_PID=$!
     # capture process group of the server
     SERVER_PGID="$SERVER_PID"
@@ -424,7 +550,7 @@ fi
 
 : "${MODEL_SERVER_TIMEOUT:=180}"
 
-echo "Waiting for the model server to start (maximum: ${MODEL_SERVER_TIMEOUT}s)" 
+echo "Waiting for the model server to start (maximum: ${MODEL_SERVER_TIMEOUT}s)"
 if wait_for_port "$PORT" "$MODEL_SERVER_TIMEOUT"; then
     echo "Server is listening on port ${PORT}"
 else
