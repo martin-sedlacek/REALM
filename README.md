@@ -48,9 +48,8 @@ cd REALM
 ```
 
 > ❗ **Please note that running with apptainer is currently not stable.**
-> We noticed that on some systems with newer NVIDIA GPUs / cuda versions, 
-> that the apptainer scripts can crash inexplicably. We recommend using the 
-> stable Docker container if possible.
+> We noticed that the apptainer can crash inexplicably on some systems. 
+> It is recommended to use the stable Docker container if possible.
 
 # Easy run 🏃
 TBA
