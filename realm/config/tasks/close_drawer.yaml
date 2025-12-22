@@ -1,0 +1,135 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "close_drawer"
+instruction: "close the top drawer"
+instruction_obj_to_replace: "close drawer"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "close"
+
+supported_scenes:
+  Pomaria_1_int:
+    - "Drawers_Near_Table"
+
+camera_extrinsics:
+  cam1: "ep_001042_cam1"
+  cam2: "ep_001042_cam2"
+
+reset_joint_pos: [0, -0.628, 0, -2.512, -0.75, 1.884, 0.0]
+#[ 0.0055956,  -0.46229482, -0.10837201, -2.22445,   -0.02223617,  1.6368663, -0.28468588]
+
+main_objects:
+#    - type: "DatasetObject"
+#      name: "drawer"
+#      category: "bottom_cabinet"
+#      model: "nddvba"
+#      bounding_box: [ 0.45, 0.43, 0.41  ]
+#      relative_bbox_position: [0.15, 0.1, 0.11]
+#      fixed_base: True
+    - type: "USDObject"
+      usd_path: "/app/custom_assets/impact_drawer/usd/test_v2.usd"
+      name: "drawer"
+      relative_bbox_position: [ 0.15, 0.2, -0.25 ]
+      orientation: [ 0.704416, 0.0616284, 0.0616284, 0.704416 ]
+      bounding_box: [ 0.40, 0.61, 0.54 ]
+      fixed_base: True
+
+
+target_objects: []
+
+immutables:
+    - type: "DatasetObject"
+      name: "breakfast_table_support"
+      category: "breakfast_table"
+      model: "uhrsex"
+      bounding_box: [ 1.0, 1.0, 0.75 ]
+      relative_bbox_position: [0.3, 0.3, -0.33]
+      fixed_base: True
+#    - type: "LightObject"
+#      name: "light2"
+#      light_type: "Sphere"
+#      radius: 0.1
+#      intensity: 30000 #10000
+#      bounding_box: [ 0.1, 0.1, 0.1 ]
+#      relative_bbox_position: [ -0.15, -0.6, 0.125 ]
+    - type: "LightObject"
+      name: "light_over_table"
+      light_type: "Disk"
+      radius: 1
+      intensity: 2000 #12500
+      orientation: [ 0.0871557, 0, 0, 0.9961947 ]
+      bounding_box: [ 0.1, 0.1, 0.1 ]
+      relative_bbox_position: [ 0.1, -0.7, 1.5 ]
+
+cached_semantic_perturbations:
+  S-LANG:
+    - "Shut the uppermost drawer."
+    - "Push the top-most drawer fully in."
+    - "Return the highest sliding compartment to its sealed position."
+    - "Bring the upper drawer to a closed state."
+    - "Seal the topmost receptacle."
+    - "Retract the highest storage container completely."
+    - "Cause the top drawer to be shut."
+    - "Perform the action of closing the highest drawer."
+    - "Slide the top drawer back in."
+    - "Push the highest storage unit until it is flush."
+  S-AFF:
+    - "Close the top drawer after retrieving an item."
+    - "Shut the top drawer to make the area neat."
+    - "Close the top drawer to prevent a tripping hazard."
+    - "Close the top drawer to protect its contents from dust."
+    - "Push the top drawer in as part of tidying up the room."
+    - "Close the drawer that is easiest to reach and currently open."
+    - "Close the top drawer to maintain the intended use of the cabinet as a flat surface."
+    - "Shut the drawer to prevent pets or children from accessing its contents."
+    - "Close the drawer to secure the items inside."
+    - "Return the highest drawer to its closed position for safety."
+  S-INT:
+    - "Close the top, horizontally sliding box of the furniture unit."
+    - "Shut the uppermost rectangular compartment of the cabinet."
+    - "Push in the top wooden, metal, or plastic storage unit."
+    - "Close the highest sliding mechanism designed for containing objects."
+    - "Retract the top container, typically having a handle, used for organization."
+    - "Slide the highest furniture component that moves on runners or glides back into the main frame."
+    - "Seal the top storage vessel that is part of a larger cabinet structure."
+    - "Push the highest mobile tray component of the desk or dresser completely back."
+    - "Actuate the closing of the top portion of the stacked storage modules."
+    - "Cover the interior of the highest retractable furniture element."
+  S-PROP:
+    - "Push the currently open, light brown drawer back into the cabinet."
+    - "Close the rectangular drawer that has a silver horizontal handle."
+    - "Retract the visibly extended top wooden drawer."
+    - "Push the opened top drawer, which is a dark wood color, until it is shut."
+    - "Slide the top drawer that is currently jutting out back to its closed position."
+    - "Shut the drawer with the single silver pull bar."
+    - "Close the drawer that has an exposed interior surface."
+    - "Push the open drawer component of the dark furniture unit in."
+    - "Fully close the drawer that has a rectangular face and is currently open."
+    - "Push the open, uppermost drawer of the storage unit until it is flush with the cabinet face."
+  S-MO:
+    - "Close the drawer that is hanging over the wooden table."
+    - "Shut the drawer that is closest to the camera and extended over the light-colored wooden surface."
+    - "Close the top drawer of the cabinet situated near the chairs and the table."
+    - "Retract the open drawer that is positioned to the right of the main dining table."
+    - "Push in the drawer of the cabinet that is located across from the kitchen island with the black cooktop."
+    - "Close the drawer on the unit that is to the left of the other dark vertical object."
+    - "Close the open top drawer of the cabinet that is near the orange chairs."
+    - "Push the drawer back into the cabinet that is separate from the main kitchen counter."
+    - "Close the drawer whose bottom edge casts a shadow on the table."
+    - "Shut the drawer on the dark cabinet that is positioned behind the dining table."
+
+synonyms:
+  close:
+  - shut
+  - retract
+  - push in
+  top:
+  - highest
+  - topmost
+  - upmost
+  - upper
+  drawer:
+  - compartment
+  - drawer

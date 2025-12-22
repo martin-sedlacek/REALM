@@ -1,0 +1,29 @@
+external_sensors:
+  - name: "external_sensor0"
+    sensor_type: "VisionSensor"
+    relative_prim_path: "/external_sensor0"
+    modalities: ["rgb"]
+    sensor_kwargs:
+      image_height: 720
+      image_width: 1280
+      focal_length: 9.825
+    pose_frame: "parent"
+  - name: "external_sensor1"
+    sensor_type: "VisionSensor"
+    relative_prim_path: "/external_sensor1"
+    modalities: [ "rgb" ]
+    sensor_kwargs:
+      image_height: 720
+      image_width: 1280
+      focal_length: 9.825
+    pose_frame: "parent"
+# TODO: use a flag
+#  - name: "external_sensor2_overview_demo_cam"
+#    sensor_type: "VisionSensor"
+#    relative_prim_path: "/external_sensor2_overview_demo_cam"
+#    modalities: [ "rgb" ]
+#    sensor_kwargs:
+#      image_height: 720
+#      image_width: 1280
+#      focal_length: 20.0 #26.0
+#    pose_frame: "parent"

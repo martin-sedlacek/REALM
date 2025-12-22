@@ -1,0 +1,22 @@
+models:
+  pi0_fast_extra_prompts_subgoals_aw_1.0:
+    base_port: 2000
+    checkpoint_version: 99999
+  pi0_fast_extra_prompts_subgoals_aw_3.0:
+    base_port: 3000
+    checkpoint_version: 99999
+  pi0_fast_extra_prompts:
+    base_port: 4000
+    checkpoint_version: 99999
+  pi0_fast_orig_100k:
+    base_port: 5000
+    checkpoint_version: 100000
+  pi0_fast_orig_180k:
+    base_port: 6000
+    checkpoint_version: 180000
+  pi0_fast_orig_200k:
+    base_port: 7010
+    checkpoint_version: 200000
+  pi0_fast_orig_240k:
+    base_port: 8010
+    checkpoint_version: 239999

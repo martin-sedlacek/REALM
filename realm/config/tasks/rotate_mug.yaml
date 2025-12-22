@@ -1,0 +1,147 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "rotate"
+instruction: "rotate the mug"
+instruction_obj_to_replace: "mug"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "rotate"
+
+supported_scenes:
+  office_cubicles_left:
+    - "Office_Desk"
+
+camera_extrinsics:
+  cam1: "ep_070045_cam1"
+  cam2: "ep_070045_cam2"
+
+reset_joint_pos: [-0.12872958, -0.3024,    -0.1587609,  -1.9855824,  -0.01000371,  1.4275427, -0.02166059]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "mug"
+      category: "mug"
+      model: "waqrdy"
+      bounding_box: [0.12, 0.08, 0.14] #[ 0.05, 0.15, 0.09 ]
+      #orientation: [ -0.7071068, 0, 0, 0.7071068 ]
+      relative_bbox_position: [0.2, 0.35, 0.15]
+
+target_objects: []
+
+distractors:
+    - type: "DatasetObject"
+      name: "chocolate_bar"
+      category: "chocolate_bar"
+      model: "eqfznz"
+      bounding_box: [ 0.18, 0.11, 0.01 ]
+      relative_bbox_position: [0.175, 0.1, 0.05 ]
+    - type: "DatasetObject"
+      name: "tea_bag"
+      category: "tea_bag"
+      model: "kmvcrb"
+      bounding_box: [ 0.05, 0.04, 0.03 ]
+      relative_bbox_position: [0.3, 0.45, 0.03 ]
+    - type: "DatasetObject"
+      name: "bag_of_cookies"
+      category: "bag_of_cookies"
+      model: "bbyvsc"
+      bounding_box: [ 0.17, 0.11, 0.03 ]
+      relative_bbox_position: [0.2, 0.5, 0.0 ]
+
+#immutables:
+#    - type: "DatasetObject"
+#      name: "plate"
+#      category: "plate"
+#      model: "qbxfmv"
+#      bounding_box: [ 0.26, 0.26, 0.02 ]
+#      relative_bbox_position: [0.09, 0.075, 0.0 ]
+
+
+cached_semantic_perturbations:
+  "S-LANG":
+    - "Turn the mug."
+    - "Spin the mug."
+    - "Twist the mug."
+    - "Revolve the mug."
+    - "Pivot the mug."
+    - "Cause the mug to undergo rotation."
+    - "Change the orientation of the mug."
+    - "Swivel the mug."
+    - "Make the mug turn about its vertical axis."
+    - "Do a rotation on the coffee cup."
+  "S-AFF":
+    - "Turn the drinking vessel."
+    - "Spin the handle of the mug toward you."
+    - "Orient the mug to drink from it."
+    - "Adjust the handle's position on the common beverage container."
+    - "Twist the coffee cup for a better grip."
+    - "Rotate the mug to face the label forward."
+    - "Turn the mug as you would before pouring a drink."
+    - "Pivot the cylindrical object you drink tea from."
+    - "Change the position of the mug for a daily routine."
+    - "Spin the object used to hold a hot liquid."
+  "S-INT":
+    - "Rotate the cylindrical vessel with a handle."
+    - "Turn the object typically made of ceramic or porcelain."
+    - "Revolve the item categorized as a piece of drinkware."
+    - "Change the orientation of the cup often used for hot beverages."
+    - "Spin the vessel with a thick wall."
+    - "Rotate the common kitchen item."
+    - "Turn the object whose internal structure is designed for liquid volume."
+    - "Pivot the common type of heavy cup."
+    - "Twist the item of pottery used for drinking."
+    - "Adjust the position of the mug, which holds a unit of volume."
+  "S-PROP":
+    - "Turn the tall, cylindrical drinking vessel."
+    - "Spin the gray-and-white container."
+    - "Pivot the object that is standing upright on the desk."
+    - "Change the orientation of the ceramic coffee cup."
+    - "Revolve the handle-less, tubular item."
+    - "Twist the small, light-colored cup."
+    - "Rotate the smooth-sided object used for holding liquids."
+    - "Adjust the yaw of the tallest object on the desk."
+    - "Swivel the mostly vertical container."
+    - "Maneuver the uniform gray vessel."
+  "S-MO":
+    - "Rotate the mug that is between the two chocolate items."
+    - "Turn the object to the left of the large yellow chocolate bar."
+    - "Spin the container closest to the small piece of wrapper."
+    - "Change the orientation of the mug near the center of the wooden desk."
+    - "Revolve the mug farthest from the grey chair."
+    - "Twist the mug that is next to the loose piece of chocolate."
+    - "Rotate the drinking vessel on the far side of the robot arm."
+    - "Adjust the mug closer to the robot than the large chocolate bar."
+    - "Swivel the object to the right of the small wrapper piece."
+    - "Maneuver the mug in the area with the two chocolate pieces."
+#    S-LANG:
+#      - "Place the banana in the box."
+#      - "Put the banana inside the box."
+#      - "Insert the banana into the box."
+#      - "Drop the banana in the box."
+#      - "Put banana in box."
+#    S-AFF:
+#      - "Put the banana somewhere I might store fruit."
+#      - "Place the banana in a container someone could use for packing food."
+#      - "Put the banana where a person might keep snacks."
+#      - "Insert the banana into something you’d use to carry groceries."
+#      - "Put the banana in an object typically used to hold items for transport."
+#    S-INT:
+#      - "Put the banana into a rectangular container commonly used for storage."
+#      - "Insert the banana into a cardboard or plastic box."
+#      - "Place the banana in a container with a lid, often used for keeping items."
+#      - "Put the banana in something classified as a storage box on shopping websites."
+#      - "Insert the banana into a container often used for organizing household goods."
+#    S-PROP:
+#      - "Place the yellow banana with a brown tip into the wooden box."
+#      - "Insert the curved fruit into the rectangular tray."
+#      - "Put the banana-shaped object into the shallow wooden container."
+#      - "Drop the long, yellow item into the box on the right."
+#      - "Move the banana with the green end into the open-top box."
+#    S-MO:
+#      - "Put the banana to the left of the box inside it."
+#      - "Place the object near the robotic gripper into the box."
+#      - "Insert the banana that’s outside the tray into it."
+#      - "Move the item closest to the robot into the box on the right."
+#      - "Put the fruit that is on the left side of the table into the box."

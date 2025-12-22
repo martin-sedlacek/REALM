@@ -1,0 +1,139 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "put"
+instruction: "put the green block in the bowl"
+instruction_obj_to_replace: "green block"
+instruction_target_to_replace: "bowl"
+instruction_verb_to_replace: "put"
+
+supported_scenes:
+  Pomaria_1_int:
+    - "Table"
+
+camera_extrinsics:
+  cam1: "ep_001042_cam1"
+  cam2: "ep_001042_cam2"
+
+reset_joint_pos: [ 0.0055956,  -0.46229482, -0.10837201, -2.22445,   -0.02223617,  1.6368663, -0.28468588]
+
+main_objects:
+    - type: "PrimitiveObject"
+      name: "cube"
+      primitive_type: "Cube"
+      rgba: [ 0.1953125, 0.65625, 0.3203125, 1.0 ]
+      bounding_box: [ 0.03, 0.03, 0.03 ]
+      scale: [ 0.03, 0.03, 0.03 ]
+      relative_bbox_position: [0.17, 0.26, 0.125]
+
+target_objects:
+    - type: "DatasetObject"
+      name: "bowl"
+      category: "bowl"
+      model: "jpvcjv"
+      bounding_box: [ 0.20, 0.20, 0.07 ]
+      relative_bbox_position: [0.2, 0.55, 0 ]
+
+distractors:
+    - type: "DatasetObject"
+      name: "corkscrew"
+      category: "corkscrew"
+      model: "gqocna"
+      bounding_box: [ 0.02, 0.09, 0.11 ]
+      relative_bbox_position: [0.325, 0.075, 0.03 ]
+    - type: "DatasetObject"
+      name: "table_knife"
+      category: "table_knife"
+      model: "eebpap"
+      bounding_box: [ 0.27, 0.03, 0.01 ]
+      relative_bbox_position: [0.25, 0.4, 0 ]
+      orientation: [ 0, 0, -0.3826834, 0.9238795 ]
+    - type: "DatasetObject"
+      name: "wineglass" #"wineglass"
+      category: "wineglass"
+      model: "hxccge"
+      bounding_box: [ 0.08, 0.08, 0.16  ] #[ 0.09, 0.09, 0.16 ]
+      relative_bbox_position: [ 0.225, 0.05, 0.04 ]
+    - type: "DatasetObject"
+      name: "water_glass" #"wineglass"
+      category: "water_glass"
+      model: "lvqgvn"
+      bounding_box: [0.06, 0.06, 0.15] #[ 0.09, 0.09, 0.16 ]
+      relative_bbox_position: [0.05, 0.48, 0.04 ]
+    - type: "DatasetObject"
+      name: "bottle_of_wine"
+      category: "bottle_of_wine"
+      model: "tisclo"  #"hnkiog"
+      bounding_box: [0.075, 0.075, 0.24 ] #[  0.07, 0.07, 0.24  ]
+      relative_bbox_position: [0.425, 0.175, 0.125]
+      #orientation: [ 0, 0.2840153, 0, 0.9588197 ] #[ 0, 0.5, 0, 0.8660254 ] #[ 0, 0.3826834, 0, 0.9238795 ]
+      #visual_only: True
+
+
+#immutables:
+#    - type: "PrimitiveObject"
+#      name: "cube3"
+#      primitive_type: "Cube"
+#      rgba: [ 0.1953125, 0.65625, 0.3203125, 1.0 ]
+#      bounding_box: [ 0.03, 0.03, 0.03 ]
+#      scale: [ 0.03, 0.03, 0.03 ]
+#      relative_bbox_position: [0.225, 0.2, 0]
+
+cached_semantic_perturbations:
+    S-LANG:
+      - "Place the emerald colored cube inside the container."
+      - "Transfer the green block into the bowl."
+      - "Set the verdant brick down inside the receiving dish."
+      - "Move the block that is green into the vessel."
+      - "Deposit the green piece into the bowl."
+      - "Relocate the green block to the interior of the bowl."
+      - "Drop the green block in the bowl."
+      - "Insert the green cube into the container."
+      - "Shift the block, which is green, to the bowl."
+      - "The task is to position the green block within the bowl."
+    S-AFF:
+      - "Put the green block in the bowl where you would keep keys."
+      - "Put the green block in the bowl, as if clearing a table."
+      - "Toss the green block into the bowl like you would store change."
+      - "Put the green block in the bowl for safekeeping."
+      - "Deposit the green block in the bowl for later use."
+      - "Put the green block in the bowl as you would a piece of fruit."
+      - "Move the green block into the bowl to organize the workspace."
+      - "Place the green block in the bowl for serving."
+      - "Set the green block in the bowl before starting dinner."
+      - "Put the green block in the bowl as if cleaning up a toy area."
+    S-INT:
+      - "Put the green plastic toy in the ceramic dish."
+      - "Place the cube-shaped object in the hemispherical container."
+      - "Put the synthetic block in the bowl often used for food."
+      - "Put the solid object, which is green, into the receiving vessel."
+      - "Insert the green polyhedral shape into the common kitchen ware."
+      - "Put the block, likely made of wood, in the dish."
+      - "Place the angular green item into the round container."
+      - "Put the block in the bowl used for holding liquids."
+      - "Put the green object that is rigid in the rounded container."
+      - "Move the green item into the bowl, typically made of glass or wood."
+    S-PROP:
+      - "Place the small green cube inside the brown textured bowl."
+      - "Pick up the light green block and drop it into the large round bowl on the table."
+      - "Move the green-colored object into the woven-looking bowl."
+      - "Put the cube-shaped green item into the deep bowl."
+      - "Place the mint-green block in the patterned bowl on the tabletop."
+      - "Insert the green cube into the bowl with a rough brown surface."
+      - "Drop the small, bright-green object into the big brown bowl."
+      - "Place the cube with the green surface into the ceramic bowl on the table."
+      - "Move the green block into the bowl that’s closest to the edge of the table."
+      - "Put the green cube-shaped object into the wide, shallow bowl."
+    S-MO:
+      - "Place the green block into the item that’s next to the knife."
+      - "Put the green cube into the item near the center of the table."
+      - "Move the green object into the item that’s beside the bottle."
+      - "Drop the green block into the item closest to the robot arm."
+      - "Put the green block into the item that’s in front of the chairs."
+      - "Place the green cube into the item positioned between the knife and the bottle."
+      - "Put the green block into the item on the right side of the table."
+      - "Insert the green cube into the item opposite the robot arm."
+      - "Move the green block into the item that sits across from the small bottle."
+      - "Drop the green cube into the item located near the table’s edge."

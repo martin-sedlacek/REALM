@@ -1,0 +1,128 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "rotate"
+instruction: "rotate the marker"
+instruction_obj_to_replace: "marker"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "rotate"
+
+supported_scenes:
+#  office_large:
+#    - "Circular_Table"
+  Benevolence_1_int:
+    - "Kitchen_Counter"
+    #- "Dining_Table"
+
+camera_extrinsics:
+  cam1: "ep_032740_cam1"
+  cam2: "ep_032740_cam2"
+
+reset_joint_pos: [-0.01373833, -0.5032997,  -0.11150811, -2.2225301,   0.15665062,  1.4554586, -0.08681711]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "marker"
+      category: "marker"
+      model: "rsxbso"
+      orientation: [ -0.7071068, 0, 0, 0.7071068 ]
+      bounding_box: [ 0.02, 0.02, 0.17] #[ 0.17, 0.02, 0.02]
+      relative_bbox_position: [0.05, 0.3, 0] #[0.225, 0.3, 0]
+
+target_objects: []
+
+distractors:
+    - type: "DatasetObject"
+      name: "ticket"
+      category: "ticket"
+      model: "ahknpi"
+      bounding_box: [ 0.08, 0.04, 0.0025 ]
+      #orientation: [ 0, 0, -0.258819, 0.9659258 ]
+      relative_bbox_position: [0.22, 0.2, 0.0 ]
+    - type: "DatasetObject"
+      name: "bowl"
+      category: "bowl"
+      model: "mspdar"
+      bounding_box: [ 0.12, 0.10, 0.06 ]
+      relative_bbox_position: [0.3, 0.1, 0.0 ]
+      #orientation: [ 0, 0, 0.4226183, 0.9063078 ]
+    - type: "DatasetObject"
+      name: "jar_of_puree"
+      category: "jar_of_puree"
+      model: "raagvm"
+      bounding_box: [ 00.07, 0.07, 0.08  ]
+      relative_bbox_position: [0.375, 0.35, 0.025 ]
+    - type: "DatasetObject"
+      name: "teaspoon"
+      category: "teaspoon"
+      model: "prbhag"
+      bounding_box: [ 0.13, 0.03, 0.02  ]
+      #orientation: [ 0, 0, -0.258819, 0.9659258 ]
+      relative_bbox_position: [0.325, 0.25, 0.0 ]
+
+immutables:
+    - type: "DatasetObject"
+      name: "plate"
+      category: "plate"
+      model: "ntedfx"
+      bounding_box: [  0.15, 0.15, 0.03 ]
+      relative_bbox_position: [0.25, 0.45, 0.0 ]
+
+cached_semantic_perturbations:
+  "S-LANG":
+    - "Turn the marker."
+    - "Spin the marker."
+    - "Twist the marker."
+    - "Revolve the marker."
+    - "Pivot the marker."
+    - "Cause the marker to undergo rotation."
+    - "Make the marker turn about its axis."
+    - "Change the orientation of the marker."
+    - "Swivel the marker."
+    - "Do a rotation on the marker."
+  "S-AFF":
+    - "Turn the writing utensil."
+    - "Orient the marker so it's ready to write."
+    - "Spin the marker for use."
+    - "Adjust the grip on the coloring tool."
+    - "Flip the marker to the cap-up position."
+    - "Turn the marker to present the tip."
+    - "Rotate the marker as you would before drawing."
+    - "Move the marker so you can grasp it comfortably."
+    - "Twist the object used for labeling or drawing."
+    - "Spin the pen-like object used for permanent marks."
+  "S-INT":
+    - "Rotate the felt-tip pen."
+    - "Turn the object typically composed of a plastic casing and fiber reservoir."
+    - "Revolve the item categorized as a writing instrument."
+    - "Change the orientation of the stationery item."
+    - "Spin the cylindrical object containing ink."
+    - "Rotate the device used for making broad lines."
+    - "Turn the object whose internal structure holds colored liquid."
+    - "Pivot the marker, a type of implement from the stationery category."
+    - "Twist the office supply item."
+    - "Adjust the position of the object designed for producing pigmented marks."
+  "S-PROP":
+    - "Turn the cylindrical writing utensil."
+    - "Spin the object that is white and black with a tapered end."
+    - "Pivot the long, thin office supply."
+    - "Change the orientation of the pen-like object."
+    - "Revolve the plastic item on the desk."
+    - "Twist the small, stick-shaped object."
+    - "Rotate the writing tool that is mostly white."
+    - "Adjust the yaw of the capped drawing tool."
+    - "Swivel the light-colored item that is not a dish."
+    - "Maneuver the small object with a constant diameter."
+  "S-MO":
+    - "Rotate the marker to the left of the yellow eraser."
+    - "Turn the object closest to the robot arm's base (among the small items)."
+    - "Spin the marker farthest away from the blue chair."
+    - "Change the orientation of the object between the robot base and the white plate."
+    - "Revolve the marker that is to the left of the small teal bowl."
+    - "Twist the writing utensil closest to the edge of the desk."
+    - "Rotate the object that is near the yellow eraser."
+    - "Adjust the marker's position near the corner of the black platform."
+    - "Swivel the object to the left of the smallest container."
+    - "Maneuver the marker closer to the robot's left than the white plate."

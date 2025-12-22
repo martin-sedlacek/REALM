@@ -1,0 +1,113 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "push"
+instruction: "push the light switch"
+instruction_obj_to_replace: "light switch"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "push"
+
+supported_scenes:
+  Pomaria_1_int:
+    - "Light_Switch"
+    #- "Table"
+
+camera_extrinsics:
+  cam1: "ep_001505_cam1"
+  cam2: "ep_001505_cam2"
+
+reset_joint_pos:  [-0.04819933, -0.51226175,  0.05805873, -2.5092928,  -0.21693854,  2.1945348, 0.02541593]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "electric_switch"
+      category: "electric_switch"
+      model: "oedwla" #"strbnw"
+      bounding_box: [ 0.025, 0.06, 0.12 ]
+      relative_bbox_position: [0.2, 0.3, 0.0]
+      fixed_base: True
+      orientation: [ 0, 0, -0.7071068, 0.7071068 ]
+      #orientation: [ 0.113039, -0.4957224, -0.0652631, 0.8586164 ] # [15, -60, 0]
+
+target_objects: []
+
+distractors: []
+#    - type: "DatasetObject"
+#      name: "screwdriver"
+#      category: "screwdriver"
+#      model: "irtslw"
+#      bounding_box: [ 0.20, 0.03, 0.03 ]
+#      orientation: [ 0, 0, -0.258819, 0.9659258 ]
+#      relative_bbox_position: [0.15, 0.2, 0.0 ]
+#    - type: "DatasetObject"
+#      name: "power_drill"
+#      category: "power_drill"
+#      model: "hdvnxd"
+#      bounding_box: [ 0.29, 0.08, 0.23 ]
+#      relative_bbox_position: [0.35, 0.1, 0.1 ]
+#      orientation: [ 0, 0, 0.4226183, 0.9063078 ]
+#    - type: "DatasetObject"
+#      name: "shears"
+#      category: "shears"
+#      model: "iizidc"
+#      bounding_box: [ 0.05, 0.13, 0.02 ]
+#      relative_bbox_position: [0.3, 0.52, 0.0 ]
+
+cached_semantic_perturbations:
+  "S-LANG":
+    - "Flick the light switch."
+    - "Activate the light switch."
+    - "Press the light switch."
+    - "Move the light switch."
+    - "Engage the light switch."
+    - "Operate the light switch."
+    - "Depress the light switch."
+    - "Toggle the light switch."
+    - "Turn on the light using the switch."
+    - "Make the light switch move."
+  "S-AFF":
+    - "Turn on the lights in the room."
+    - "Change the current state of illumination."
+    - "Apply pressure to the mechanism that controls the room lighting."
+    - "Operate the device used to brighten the area."
+    - "Engage the mechanism to prevent stumbling in the dark."
+    - "Make the room no longer dark."
+    - "Use the typical means of changing the room's electric status."
+    - "Flick the device that saves you from needing a flashlight."
+    - "Control the overhead fixture."
+    - "Interact with the wall-mounted controller for the lamp."
+  "S-INT":
+    - "Push the electrical circuit interrupter."
+    - "Activate the wall-mounted control device."
+    - "Operate the mechanism connected to the electrical wiring."
+    - "Toggle the component that controls an electrical load."
+    - "Press the button-like device for electrical flow."
+    - "Engage the item typically mounted inside a junction box."
+    - "Move the small mechanical device designed to control a circuit."
+    - "Interact with the electrical device designed for manual operation."
+    - "Control the power flow to the lighting fixture."
+    - "Depress the switch, a type of manually actuated actuator."
+  "S-PROP":
+    - "toggle the white wall switch"
+    - "press the rectangular light control"
+    - "flip the vertically oriented switch"
+    - "actuate the plastic-covered switch"
+    - "push the rectangular switch on the wall"
+    - "toggle the switch that has a matte surface finish"
+    - "press the light switch with your end effector"
+    - "flip the small, white wall-mounted lever"
+    - "actuate the single-gang switch plate"
+    - "push the only visible switch"
+  "S-MO":
+    - "push the light switch next to the wooden countertop"
+    - "toggle the switch on the wall near the door frame"
+    - "press the switch above the dark cabinet"
+    - "flip the switch that is closest to the left wall corner"
+    - "actuate the switch below the robotic arm"
+    - "push the switch that is between the door and the counter"
+    - "toggle the switch to the right of the door opening"
+    - "press the switch on the beige wall"
+    - "flip the switch closest to the floor"
+    - "actuate the switch beneath the framed picture"

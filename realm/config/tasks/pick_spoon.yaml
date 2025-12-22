@@ -1,0 +1,124 @@
+task:
+  type: "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "pick"
+instruction: "pick up the spoon"
+
+instruction_obj_to_replace: "spoon"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "pick up"
+
+supported_scenes:
+  Merom_1_int:
+    - "Table"
+
+camera_extrinsics:
+  cam1: "ep_000697_cam2" # these are swapped on purpose so the right side is first like usual
+  cam2: "ep_000697_cam1"
+
+reset_joint_pos: [-0.11952213, -0.5059374,  -0.28497612, -2.4112132,  -0.18034634,  1.9153982, -0.43432593]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "teaspoon"
+      category: "teaspoon"
+      model: "eilfij"
+      bounding_box: [ 0.04, 0.19, 0.01 ]
+      relative_bbox_position: [0.15, 0.47, 0.1]
+      orientation: [ 0, 0, 0.7071068, 0.7071068 ] #[ 0, 0, 0.6087614, 0.7933533 ]
+
+target_objects: []
+
+distractors:
+    - type: "DatasetObject"
+      name: "can_of_soda"
+      category: "can_of_soda"
+      model: "itolcg"
+      bounding_box: [ 0.08, 0.08, 0.13 ]
+      relative_bbox_position: [0.28, 0.0, 0 ]
+    - type: "DatasetObject"
+      name: "half_apple"
+      category: "half_apple"
+      model: "sguztn"
+      bounding_box: [ 0.04, 0.09, 0.10  ] #[ 0.10, 0.09, 0.04  ]
+      relative_bbox_position: [0.15, 0.25, 0.05 ]
+    - type: "DatasetObject"
+      name: "beaker"
+      category: "beaker"
+      model: "exzsal"
+      bounding_box: [ 0.10, 0.10, 0.10  ]
+      relative_bbox_position: [0.18, 0.05, 0 ]
+
+
+immutables:
+    - type: "DatasetObject"
+      name: "plate"
+      category: "plate"
+      model: "ntedfx"
+      bounding_box: [ 0.2, 0.2, 0.03 ]
+      relative_bbox_position: [0.15, 0.25, 0.0 ]
+    - type: "DatasetObject"
+      name: "tray"
+      category: "tray"
+      model: "vxbtax"
+      bounding_box: [ 0.33, 0.48, 0.09 ]
+      relative_bbox_position: [0.55, 0.25, 0.0 ]
+
+cached_semantic_perturbations:
+  "S-LANG":
+    - "Grasp the spoon."
+    - "Get hold of the spoon."
+    - "Take the spoon."
+    - "Lift the spoon."
+    - "Acquire the spoon."
+    - "Grab the spoon."
+    - "Seize the spoon."
+    - "Retrieve the spoon."
+    - "Hold the spoon."
+    - "Clutch the spoon."
+  "S-AFF":
+    - "Ready the utensil for eating."
+    - "Take the instrument used for stirring liquid."
+    - "Get the flatware used for soup or cereal."
+    - "Pick up the item you would use to serve a small portion."
+    - "Take the cutlery piece that is not a knife or fork."
+    - "Prepare to eat with the spoon."
+    - "Get the spoon for a daily meal."
+    - "Lift the spoon off the table."
+    - "Take the item used to measure baking soda."
+    - "Grasp the object you would feed a baby with."
+  "S-INT":
+    - "Pick up the object typically made of metal."
+    - "Get the item with a shallow bowl and a handle."
+    - "Take the common kitchen implement."
+    - "Pick up the piece of silverware."
+    - "Acquire the common serving tool."
+    - "Lift the spoon, a form of table service."
+    - "Grasp the tool often made from stainless steel."
+    - "Take the object that is a type of cutlery."
+    - "Get the utensil that is concave."
+    - "Pick up the item that is categorized as flatware."
+  "S-PROP":
+    - "Grasp the silver utensil."
+    - "Lift the metal utensil."
+    - "Acquire the utensil with the oval-shaped bowl."
+    - "Get the utensil that's resting on the marble surface."
+    - "Pick up the item used for eating that is small and shiny."
+    - "Grasp the utensil that is mostly flat and silver."
+    - "Retrieve the small, curved eating implement."
+    - "Take the object with the long handle and scoop."
+    - "Collect the reflective utensil from the table."
+    - "Lift the silver object near the center of the plate."
+  "S-MO":
+    - "Pick up the item next to the white plate."
+    - "Grasp the utensil to the right of the white plate."
+    - "Lift the object between the tray and the white plate."
+    - "Acquire the item that is furthest from to the tray."
+    - "Get the item furthest away from the orange can."
+    - "Pick up the utensil closest to the center of the table."
+    - "Grasp the item on the table surface but not in the tray."
+    - "Retrieve the item near the edge of the plate."
+    - "Collect the object to the left of the tray."
+    - "Take the item near the right side of the white plate."

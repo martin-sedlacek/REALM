@@ -1,0 +1,197 @@
+# ----- Lis of approx. 40cm x 60cm bboxes for spawning objects -----
+Pomaria_0_int:
+  Coffee_Table:
+    x_min: -11.0
+    x_max: -10.5
+    y_min: 0.30
+    y_max: 0.75
+    z: 0.8
+    pos: [-10.85, 0, 0]
+    rot: [0, 0, 90]
+    reset_joint_pos: [0, 1, 0,  -2, 0, 3, 0.0]
+  Bathroom_Faucet:
+    pos: [-1.16, 3.13, 0]
+    rot: [0, 0, 90]
+    reset_joint_pos: [0, -0.62832, 0,  -2.25, 0, 1.885, 0.0]
+  Shelves_Drawers:
+    pos: [-5.99221, -1.20281, 0]
+    rot: [0, 0, 0]
+    reset_joint_pos: [0, -0.62832, 0,  -2.5133, 0, 1.885, 0.0]
+
+Pomaria_1_int:
+  Kitchen_Counter:
+    x_min: -4.7
+    x_max: -4.3
+    y_min: -2
+    y_max: -1.5
+    z: 1.05
+    pos: [ -3.878437961350043, -1.785, 0 ]
+    rot: [ 0, 0, 180 ]
+  Kitchen_Top_Doors:
+    doors:
+      - "top_cabinet_dmwxyl_1"
+      - "top_cabinet_dmwxyl_2"
+    pos: [-3.878437961350043, -1.785, 0]
+    rot: [0, 0, 180]
+    reset_joint_pos: [0, -1, 0,  -2, 0, 2, 0.0]
+    prim_names: [top_cabinet_dmwxyl_1, top_cabinet_dmwxyl_2]
+  Kitchen_Faucet:
+    pos: [-3.5675, -2.05909, 0]
+    rot: [0, 0, -90]
+    reset_joint_pos: [0, -0.62832, 0,  -2, 0, 1.885, 0.0]
+  Kitchen_Stove:
+    pos: [-3.11266, -1.51807, 0]
+    rot: [0, 0, 0]
+  Kitchen_Oven_Microwave:
+    pos: [-3.25, -0.25, 0]
+    rot: [0, 0, 90]
+    reset_joint_pos: [0, -1, 0,  -2, 0, 2, 0.0]
+  Table:
+    x_min: -0.45
+    x_max: -0.05
+    y_min: -2.30
+    y_max: -1.65
+    z: 0.85
+    to_remove:
+      - "straight_chair_pmpwwi_0"
+    to_fix:
+      - "breakfast_table_uhrsex_0"
+    pos: [ 0.30842, -1.90319, 0 ]
+    rot: [ 0, 0, 180 ]
+  Drawers_Near_Table:
+    x_min: -0.6 #-0.6
+    x_max: 0.10 #-0.05
+    y_min: -1.30
+    y_max: -0.50 #-0.75
+    z: 0.8
+    to_remove:
+      - "straight_chair_pmpwwi_0"
+    to_fix:
+      - "breakfast_table_uhrsex_0"
+    pos: [ 0.30842, -1.90319, 0 ]
+    rot: [ 0, 0, 180 ]
+  Shelves:
+    x_min: -5.3
+    x_max: -5
+    y_min: -2.2
+    y_max: -1.7
+    z: 1.55
+    pos: [ -5.80782, -1.96522, 0 ]
+    rot: [ 0, 0, 0 ]
+    reset_joint_pos: [ 0, -1, 0,  -2, 0, 2, 0.0 ]
+    tmp_shelve_pos: [ -5.22584, -2.28384, 1.52406 ]
+  Door_Drawer_Countertop:
+    x_min: 0.5
+    x_max: 0.7
+    y_min: -0.28
+    y_max: 0.28
+    z: 1.05
+    drawers:
+      - "bottom_cabinet_no_top_pluwfl_0"
+    pos: [ -0.25, 0, 0 ]
+    rot: [ 0, 0, 0 ]
+    reset_joint_pos: [ 0, -0.62832, 0,  -2.5133, 0, 2.3, 0.0 ]
+  Light_Switch:
+    x_min: -1.2
+    x_max: -0.8
+    y_min: 0.5375
+    y_max: 1.1375
+    z: 1.2
+    to_remove:
+      - "electric_switch_wseglt_1"
+    pos: [ -1.0, 0.18, 0 ]
+    rot: [ 0, 0, 90 ]
+
+
+Pomaria_2_int:
+  Bedside_Table:
+    pos: [-1.65812, -1.94711, 0]
+    rot: [0, 0, 270]
+  Bathroom_Faucet_Drawers:
+    pos: [0.06094, 2.525, 0]
+    rot: [0, 0, 0]
+    reset_joint_pos: [0, -0.62832, 0,  -2.25, 0, 1.885, 0.0]
+  Bathroom_Table_Drawers:
+    pos: [-0.3932, 2.45, 0]
+    rot: [0, 0, 270]
+
+Merom_1_int:
+  Table:
+    x_min: -0.7
+    x_max: -0.3
+    y_min: 7.50
+    y_max: 8.00
+    z: 1.0
+    to_remove:
+      - "armchair_qplklw_0"
+    pos: [ 0.0, 7.75, 0.0 ]
+    rot: [ 0, 0, 180 ]
+
+
+office_cubicles_left:
+  Circular_Table:
+    x_min: -15.7
+    x_max: -15.1
+    y_min: 12.8
+    y_max: 13.3
+    z: 0.5
+    to_remove:
+      - "eames_chair_hpwusn_0"
+      - "eames_chair_hpwusn_1"
+      - "eames_chair_hpwusn_2"
+      - "eames_chair_hpwusn_3"
+    pos: [ -14.85, 13.16, -0.325 ]
+    rot: [ 0, 0, 180 ]
+  Office_Desk:
+    x_min: -10.9
+    x_max: -10.5
+    y_min: -10.3
+    y_max: -9.70
+    z: 0.9
+    pos: [ -11.25, -10.0, 0.0 ]
+    rot: [ 0, 0, 0 ]
+
+office_large:
+  Circular_Table:
+    x_min: 8.55
+    x_max: 8.95
+    y_min: 10.1
+    y_max: 10.7
+    z: 0.9
+    pos: [ 8.5, 9.85, 0.0 ]
+    rot: [ 0, 0, 45 ]
+
+Wainscott_0_int:
+  Dining_Table:
+    x_min: 4.9
+    x_max: 5.4
+    y_min: 6.4
+    y_max: 7.0
+    z: 0.87
+    to_fix:
+      - "pot_plant_kxmvco_0"
+    pos: [ 5.7, 7.2, 0.0 ]
+    rot: [ 0, 0, 225 ]
+
+Benevolence_1_int:
+  Kitchen_Counter:
+    x_min: -0.4
+    x_max: 0.2
+    y_min: -0.8
+    y_max: -0.4
+    z: 1.0
+    pos: [ -0.1, 0.05, 0.0 ]
+    rot: [ 0, 0, 270 ]
+  Dining_Table:
+    x_min: -0.4
+    x_max: 0.2
+    y_min: -2.55
+    y_max: -2.15
+    z: 0.9
+    pos: [ -0.1, -1.75, 0.0 ]
+    rot: [ 0, 0, 270 ]
+
+IMPACT:
+  default:
+    pos: [-0.45, 0, 0.73] #0.71]
+    rot: [0, 0, 0]

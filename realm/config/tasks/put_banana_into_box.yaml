@@ -1,0 +1,130 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "put"
+instruction: "put the banana in the box"
+instruction_obj_to_replace: "banana"
+instruction_target_to_replace: "box"
+instruction_verb_to_replace: "put"
+
+supported_scenes:
+  office_cubicles_left:
+    - "Circular_Table"
+
+camera_extrinsics:
+  cam1: "ep_024104_cam1"
+  cam2: "ep_024104_cam2"
+
+reset_joint_pos: [-7.7723307e-03, -6.0262549e-01, -1.6363382e-03, -2.5171406e+00, -1.3347155e-02,  1.9000646e+00, -2.2239132e-02]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "banana"
+      category: "banana"
+      model: "vvyyyv"
+      bounding_box: [0.15, 0.03, 0.09] #[ 0.05, 0.15, 0.09 ]
+      orientation: [ -0.7071068, 0, 0, 0.7071068 ]
+      relative_bbox_position: [0.2, 0.35, 0.15]
+
+target_objects:
+    - type: "DatasetObject"
+      name: "box"
+      category: "tray"
+      model: "xzcnjq"
+      bounding_box: [0.23, 0.35, 0.05]
+      orientation: [ 0, 0, -0.3826834, 0.9238795 ] #[ 0, 0, 0.7071068, 0.7071068 ]
+      relative_bbox_position: [0.175, 0.05, 0 ]
+
+distractors:
+    - type: "DatasetObject"
+      name: "orange"
+      category: "orange"
+      model: "ucstpm"
+      bounding_box: [ 0.08, 0.09, 0.08 ]
+      relative_bbox_position: [0.175, 0.1, 0.05 ]
+    - type: "DatasetObject"
+      name: "lemon"
+      category: "lemon"
+      model: "asdada"
+      bounding_box: [ 0.05, 0.07, 0.05 ]
+      relative_bbox_position: [0.3, 0.45, 0.03 ]
+    - type: "DatasetObject"
+      name: "toy_dice1"
+      category: "toy_dice"
+      model: "eqwazv"
+      bounding_box: [ 0.05, 0.05, 0.05 ]
+      relative_bbox_position: [0.2, 0.5, 0.0 ]
+    - type: "DatasetObject"
+      name: "toy_dice2"
+      category: "toy_dice"
+      model: "gcevml"
+      bounding_box: [ 0.05, 0.05, 0.05 ]
+      relative_bbox_position: [0.2, 0.5, 0.06 ]
+
+#immutables:
+#    - type: "DatasetObject"
+#      name: "plate"
+#      category: "plate"
+#      model: "qbxfmv"
+#      bounding_box: [ 0.26, 0.26, 0.02 ]
+#      relative_bbox_position: [0.09, 0.075, 0.0 ]
+
+
+cached_semantic_perturbations:
+  S-LANG:
+    - "place the banana inside the box"
+    - "drop the banana into the box"
+    - "deposit the banana in the box"
+    - "insert the banana into the container"
+    - "transfer the banana to the box"
+    - "move the banana to the box's interior"
+    - "set the banana down within the box"
+    - "convey the banana into the box"
+    - "have the banana enter the box"
+    - "place the fruit in the storage container"
+  S-AFF:
+    - "put the snack in the container"
+    - "store the yellow fruit in the box"
+    - "put the peelable food item in the box"
+    - "place the fresh fruit in the container"
+    - "put the thing you eat for breakfast in the box"
+    - "store the item often used for smoothies in the box"
+    - "place the item you peel before eating in the container"
+    - "put the convenient grab-and-go food in the box"
+    - "place the item used for quick energy in the box"
+    - "put the object that spoils quickly in the container"
+  S-INT:
+    - "put the curved fruit in the box"
+    - "place the potassium source in the box"
+    - "deposit the typically long yellow object in the rectangular prism"
+    - "insert the item categorized as a berry into the container"
+    - "move the crescent-shaped food into the box"
+    - "put the fruit of the genus *Musa* in the container"
+    - "place the long, soft object in the rigid container"
+    - "put the tropical crop in the box"
+    - "deposit the high-fiber item in the storage unit"
+    - "transfer the food that grows in bunches into the container"
+  S-PROP:
+    - "put the long yellow fruit in the wooden container"
+    - "place the long, curved item in the brown tray"
+    - "deposit the long yellow object in the box that contains the orange"
+    - "put the banana in the dark brown container"
+    - "transfer the non-spherical fruit into the rectangular box"
+    - "move the banana onto the surface of the wooden box"
+    - "place the long fruit in the object made of wood"
+    - "deposit the long yellow item into the container with raised edges"
+    - "put the banana in the rectangular box"
+    - "transfer the fruit onto the tray with the largest item"
+  S-MO:
+    - "put the banana in the object containing the orange"
+    - "place the banana in the container closest to the camera"
+    - "deposit the banana into the object next to the orange"
+    - "put the banana in the container furthest from the packaged item"
+    - "transfer the banana to the object that is on the bottom left"
+    - "move the banana into the object that is near the table's edge"
+    - "put the banana in the object that is closer to the orange than the lemon"
+    - "place the banana in the container to the left of the packaged item"
+    - "deposit the banana in the object that is not holding the lemon"
+    - "put the banana in the container closest to the bottom edge of the image"

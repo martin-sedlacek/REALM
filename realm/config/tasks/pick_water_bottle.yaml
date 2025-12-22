@@ -1,0 +1,117 @@
+task:
+  type: "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "pick"
+instruction: "pick up the water bottle"
+instruction_obj_to_replace: "water bottle"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "pick up"
+
+supported_scenes:
+  Wainscott_0_int:
+    - "Dining_Table"
+
+camera_extrinsics:
+  cam1: "ep_002603_cam1"
+  cam2: "ep_002603_cam2"
+
+#reset_joint_pos: [ 0.09350606, -0.25773016,  0.00879556, -2.0061238,  0.22410661,  1.5134796, -0.11005055]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "bottle_of_water"
+      category: "bottle_of_water"
+      model: "eeaimz" #"lkpaas" #"emquat"
+      bounding_box: [0.07, 0.07, 0.17] #[ 0.05, 0.15, 0.09 ]
+      #orientation: [ -0.7071068, 0, 0, 0.7071068 ]
+      relative_bbox_position: [0.2, 0.25, 0.05]
+
+target_objects: []
+
+distractors:
+    - type: "DatasetObject"
+      name: "lid"
+      category: "lid"
+      model: "gerjlh"
+      bounding_box: [ 0.2, 0.2, 0.07 ]
+      relative_bbox_position: [0.15, 0.6, 0.03 ]
+    - type: "DatasetObject"
+      name: "orange"
+      category: "orange"
+      model: "ucstpm"
+      bounding_box: [ 0.08, 0.09, 0.08 ]
+      relative_bbox_position: [0.3, 0.45, 0.0 ]
+    - type: "DatasetObject"
+      name: "bowl"
+      category: "bowl"
+      model: "adciys"
+      bounding_box: [ 0.15, 0.15, 0.06 ]
+      relative_bbox_position: [0.1, 0.03, 0.0 ]
+
+immutables:
+    - type: "DatasetObject"
+      name: "frying_pan"
+      category: "frying_pan"
+      model: "aewpzn"
+      bounding_box: [ 0.37, 0.24, 0.08 ]
+      relative_bbox_position: [0.2, 0.25, 0.0 ]
+
+
+cached_semantic_perturbations:
+  "S-LANG":
+    - "Grasp the water bottle."
+    - "Get hold of the water bottle."
+    - "Take the water bottle."
+    - "Lift the water bottle."
+    - "Acquire the water bottle."
+    - "Grab the bottle."
+    - "Seize the hydration container."
+    - "Retrieve the water bottle."
+    - "Hold the bottle in hand."
+    - "Clutch the water bottle."
+  "S-AFF":
+    - "Take the object used for portable hydration."
+    - "Get the item you would drink from on a hike."
+    - "Pick up the container that typically holds drinking liquid."
+    - "Grasp the bottle for a daily routine."
+    - "Ready the container for a sip."
+    - "Lift the bottle you would put in a cup holder."
+    - "Grab the object often used at the gym."
+    - "Secure the water bottle before leaving."
+    - "Get the portable vessel for quenching thirst."
+    - "Take the container you would refill."
+  "S-INT":
+    - "Pick up the object commonly made of plastic or metal."
+    - "Get the cylindrical container with a screw cap."
+    - "Take the item categorized as a beverage container."
+    - "Lift the vessel designed to be spill-proof."
+    - "Acquire the reusable liquid storage item."
+    - "Grab the object whose primary function is to store H2O."
+    - "Seize the hydration product."
+    - "Retrieve the bottle that is a type of flask."
+    - "Take the household item for holding water."
+    - "Grasp the personal liquid dispenser."
+  "S-PROP":
+    - "grasp the tall, cylindrical white object"
+    - "lift the plastic container"
+    - "pick up the white bottle"
+    - "retrieve the object shaped like a slender cylinder"
+    - "grab the white container on the table"
+    - "lift the water bottle with the blue label"
+    -  "grasp the item that is mostly white in color"
+    - "pick up the tall bottle"
+    - "retrieve the cylindrical object with a cap"
+    - "grab the tall, thin item"
+  "S-MO":
+    - "pick up the bottle that is to the left of the orange"
+    - "grasp the water bottle next to the small white bowl"
+    - "lift the bottle in front of the brown cabinets"
+    - "retrieve the water bottle on the black table"
+    - "grab the bottle that is closest to the small bowl"
+    - "pick up the bottle on the table but not the pan"
+    - "grasp the water bottle near the center of the table"
+    - "lift the bottle to the left of the houseplant in the white pot"
+    - "retrieve the bottle between the bowl and the pan handle"
+    - "grab the bottle that is furthest from the edge of the table"

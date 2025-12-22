@@ -1,0 +1,135 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "stack"
+instruction: "stack the green block on the yellow block"
+instruction_obj_to_replace: "green block"
+instruction_target_to_replace: "yellow block"
+instruction_verb_to_replace: "stack"
+
+supported_scenes:
+#  office_cubicles_left:
+#    - "Circular_Table"
+  Benevolence_1_int:
+    - "Dining_Table"
+    #- "Kitchen_Counter"
+
+camera_extrinsics:
+  cam1: "ep_002212_cam1"
+  cam2: "ep_002212_cam2"
+
+reset_joint_pos: [-0.03046161, -0.83144855, -0.02833514, -2.5433972,   0.12348143,  2.0132568, 0.11008344]
+
+main_objects:
+    - type: "PrimitiveObject"
+      name: "cube"
+      primitive_type: "Cube"
+      rgba: [ 0.1953125, 0.65625, 0.3203125, 1.0 ]
+      bounding_box: [ 0.03, 0.03, 0.03 ]
+      scale: [ 0.03, 0.03, 0.03 ]
+      relative_bbox_position: [0.3, 0.2, 0] # Transformed from [0.2, 0.3, 0]
+
+target_objects:
+    - type: "PrimitiveObject"
+      name: "cube2"
+      primitive_type: "Cube"
+      rgba: [0.8, 0.8, 0.2, 1.0]
+      bounding_box: [ 0.03, 0.03, 0.03 ]
+      scale: [ 0.03, 0.03, 0.03 ]
+      relative_bbox_position: [0.425, 0.35, 0] # Transformed from [0.25, 0.425, 0]
+
+distractors:
+    - type: "DatasetObject"
+      name: "toy_dice2"
+      category: "toy_dice"
+      model: "gcevml"
+      bounding_box: [ 0.05, 0.05, 0.05 ]
+      relative_bbox_position: [0.5, 0.3, 0.06] # Transformed from [0.2, 0.5, 0.06]
+    - type: "PrimitiveObject"
+      name: "cube4"
+      primitive_type: "Cube"
+      rgba: [0.0, 0.0, 1.0, 1.0]
+      bounding_box: [ 0.03, 0.03, 0.03 ]
+      scale: [ 0.03, 0.03, 0.03 ]
+      relative_bbox_position: [0.2, 0.35, 0.1] # Transformed from [0.25, 0.2, 0.1]
+
+immutables:
+    - type: "DatasetObject"
+      name: "toy_dice1"
+      category: "toy_dice"
+      model: "eqwazv"
+      bounding_box: [ 0.05, 0.05, 0.05 ]
+      relative_bbox_position: [0.5, 0.3, 0.0] # Transformed from [0.2, 0.5, 0.0]
+    - type: "PrimitiveObject"
+      name: "cube3"
+      primitive_type: "Cube"
+      rgba: [ 1.0, 0.5, 0.0, 1.0 ]
+      bounding_box: [ 0.03, 0.03, 0.03 ]
+      scale: [ 0.03, 0.03, 0.03 ]
+      relative_bbox_position: [0.2, 0.35, 0] # Transformed from [0.25, 0.2, 0]
+#    - type: "LightObject"
+#      name: "light2"
+#      light_type: "Sphere"
+#      radius: 0.1
+#      intensity: 10000 #10000
+#      bounding_box: [ 0.03, 0.03, 0.03 ]
+#      relative_bbox_position: [1.25, 0.3, 0.7]
+
+cached_semantic_perturbations:
+  "S-LANG":
+    - "Place the green block atop the yellow block."
+    - "Put the green block directly above the yellow block."
+    - "Build a tower with the green block on top of the yellow block."
+    - "Lay the green block upon the yellow block."
+    - "Set the green block on the surface of the yellow block."
+    - "Position the green block above the yellow block."
+    - "Place the green block as the upper item of the two blocks."
+    - "Make the green block rest on the yellow block."
+    - "Set the green block down onto the yellow block."
+    - "Put the green block in contact with the top face of the yellow block."
+  "S-AFF":
+    - "Place the green toy piece on the yellow one."
+    - "Build a simple structure with the blocks."
+    - "Put the green building piece on the yellow base."
+    - "Place the green block on the yellow one to make a two-block tower."
+    - "Put the block of one color on the block of the other color."
+    - "Create a vertical arrangement using the two small, graspable items."
+    - "Place the green block on the yellow block for tidiness."
+    - "Set the stackable play item onto its counterpart."
+    - "Put the item you would use for construction on top of the other."
+    - "Move the green block onto the stable platform of the yellow block."
+  "S-INT":
+    - "Place the green cuboid object on top of the yellow cuboid object."
+    - "Stack the green polyhedral item on the yellow polyhedral item."
+    - "Put the rectilinear object of one color on the rectilinear object of the other color."
+    - "Deposit the green solid geometric shape onto the yellow solid geometric shape."
+    - "Place the green building component on the yellow base component."
+    - "Set the green object with six square faces on the yellow object with six square faces."
+    - "Place the upper block onto the lower block."
+    - "Put the block of green hue onto the block of yellow hue."
+    - "Transfer the green item onto the item made of plastic or wood."
+    - "Build a column using the green block resting on the yellow block."
+  "S-PROP":
+    - "Place the small, grassy-colored cube atop the bright, canary-colored cube."
+    - "Lift the emerald-colored block and position it directly over the golden block."
+    - "Put the matte green object on top of the square yellow object."
+    - "Arrange the small cube that is green on the equally small cube that is yellow."
+    - "Set the bright green building block onto the mustard yellow one."
+    - "Deposit the cube with the six green faces onto the cube with the six yellow faces."
+    - "Move the uniformly green object to rest on the smooth, yellow block."
+    - "Make the green cube the top piece, using the yellow cube as the base."
+    - "Place the small item that is green on the square item that is yellow."
+    - "Build a column by placing the green cube on the yellow cube."
+  "S-MO":
+    - "Stack the green block to the right of the wooden block on the yellow block."
+    - "Place the block next to the wooden R-block onto the block to its immediate right."
+    - "Arrange the green block onto the yellow block that is to the left of the blue block."
+    - "Move the block second from the left onto the block third from the left."
+    - "Deposit the green block onto the yellow block that is closest to the blue block."
+    - "Set the block between the wooden R-block and the yellow block onto the yellow block."
+    - "Stack the green cube onto the yellow cube that is furthest from the wooden R-block (among the yellow/green)."
+    - "Place the green block onto the yellow block that is closest to the robot's base (among the colored blocks)."
+    - "Put the green block to the right of the R-block onto the yellow block."
+    - "Lift the green block to the left of the yellow block and place it on top of the yellow block."

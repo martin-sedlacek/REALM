@@ -1,0 +1,128 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "open_drawer"
+instruction: "open the top drawer"
+instruction_obj_to_replace: "top drawer"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "open"
+
+supported_scenes:
+  Pomaria_1_int:
+    - "Drawers_Near_Table"
+
+camera_extrinsics:
+  cam1: "CP3" #"ep_001042_cam1"
+  cam2: "default" #"ep_001042_cam2"
+
+reset_joint_pos: [0, -0.628, 0, -2.512, -0.75, 1.884, 0.0]
+#[ 0.0055956,  -0.46229482, -0.10837201, -2.22445,   -0.02223617,  1.6368663, -0.28468588]
+
+main_objects:
+#    - type: "DatasetObject"
+#      name: "drawer"
+#      category: "bottom_cabinet"
+#      model: "nddvba"
+#      bounding_box: [ 0.45, 0.43, 0.41 ]
+#      relative_bbox_position: [0.15, 0.0, 0.11]
+#      fixed_base: True
+    - type: "USDObject"
+      usd_path: "/app/custom_assets/impact_drawer/usd/test_v2.usd"
+      name: "drawer"
+      relative_bbox_position: [0.15, 0.06, -0.3]
+      orientation: [ 0.704416, 0.0616284, 0.0616284, 0.704416 ]
+      bounding_box: [0.40, 0.61, 0.54]
+      fixed_base: True
+
+target_objects: []
+
+immutables:
+    - type: "DatasetObject"
+      name: "breakfast_table_support"
+      category: "breakfast_table"
+      model: "uhrsex"
+      bounding_box: [ 1.0, 1.0, 0.75 ]
+      relative_bbox_position: [0.3, 0.3, -0.33]
+      fixed_base: True
+    - type: "LightObject"
+      name: "light_over_table"
+      light_type: "Disk"
+      radius: 1
+      intensity: 2000 #12500
+      orientation: [ 0.0871557, 0, 0, 0.9961947 ]
+      bounding_box: [ 0.1, 0.1, 0.1 ]
+      relative_bbox_position: [ 0.1, -0.7, 1.5 ]
+
+
+cached_semantic_perturbations:
+  S-LANG:
+    - "Pull open the uppermost drawer."
+    - "Get the top-most drawer into the open position."
+    - "Initiate the opening action on the upper sliding compartment."
+    - "Unseal the topmost receptacle."
+    - "Extend the uppermost cabinet receptacle."
+    - "Draw out the highest storage container."
+    - "Cause the top drawer to be open."
+    - "Perform the action of opening the highest drawer."
+    - "Slide the top drawer out."
+    - "Unlock and extend the highest storage unit."
+  S-AFF:
+    - "Open the top drawer to access the personal items stored inside."
+    - "Open the top drawer to retrieve a common office tool, like a pen."
+    - "Open the top drawer, typically used for frequently accessed small supplies."
+    - "Access the contents of the highest storage drawer for a quick need."
+    - "Open the top drawer so it can be utilized for temporary storage."
+    - "Open the top drawer where one keeps their essential daily supplies."
+    - "Slide out the top drawer to organize its contents."
+    - "Open the drawer that requires the least vertical effort to reach."
+    - "Open the top drawer, often the default place for new items."
+    - "Make the highest drawer usable for either storage or retrieval."
+  S-INT:
+    - "Open the top, horizontally sliding box of the furniture unit."
+    - "Open the uppermost rectangular compartment of the cabinet."
+    - "Pull out the top wooden, metal, or plastic storage unit."
+    - "Open the highest sliding mechanism designed for containing objects."
+    - "Extend the top container, typically having a handle, used for organization."
+    - "Slide the highest furniture component that moves on runners or glides."
+    - "Open the top storage vessel that is part of a larger cabinet structure."
+    - "Access the highest mobile tray component of the desk or dresser."
+    - "Actuate the opening of the top portion of the stacked storage modules."
+    - "Uncover the interior of the highest retractable furniture element."
+  S-PROP:
+    - "Open the uppermost wood-colored drawer."
+    - "Pull out the drawer that has a light surface directly above it."
+    - "Open the top drawer with the silver handle."
+    - "Extend the topmost rectangular drawer of the cabinet."
+    - "Grasp the handle and open the highest of the three stacked drawers."
+    - "Open the only drawer that is currently closest to the robot hand."
+    - "Slide open the drawer directly beneath the tabletop."
+    - "Open the drawer that is physically highest on the storage unit."
+    - "Open the top compartment of the three-drawer cabinet."
+    - "Pull out the highest drawer on the wooden unit."
+  S-MO:
+    - "Open the drawer below the countertop."
+    - "Open the drawer closest to the robot's gripper."
+    - "Open the drawer that is above the middle drawer."
+    - "Open the top drawer of the cabinet next to the other wooden furniture on the left."
+    - "Open the drawer on the cabinet positioned near the corner formed by the two other objects."
+    - "Open the drawer on the cabinet that is to the right of the lighter wooden cupboard."
+    - "Open the drawer above the one with the handle that is second from the top."
+    - "Open the top drawer on the cabinet that is partially occluded by the dark object on the right."
+    - "Open the drawer on the cabinet whose top edge is near the bottom of the robot's arm."
+    - "Open the drawer on the cabinet which is directly below the object the robot is currently over."
+
+synonyms:
+  close:
+  - open
+  - pull
+  - move
+  top:
+  - highest
+  - topmost
+  - upmost
+  - upper
+  drawer:
+  - compartment
+  - drawer

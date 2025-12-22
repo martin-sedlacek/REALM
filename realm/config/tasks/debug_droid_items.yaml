@@ -1,0 +1,71 @@
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "put"
+instruction: "put the banana in the box"
+instruction_obj_to_replace: "banana"
+instruction_target_to_replace: "box"
+instruction_verb_to_replace: "put"
+
+supported_scenes:
+  office_cubicles_left:
+    - "Circular_Table"
+
+camera_extrinsics:
+  cam1: "ep_024104_cam1"
+  cam2: "ep_024104_cam2"
+
+reset_joint_pos: [-7.7723307e-03, -6.0262549e-01, -1.6363382e-03, -2.5171406e+00, -1.3347155e-02,  1.9000646e+00, -2.2239132e-02]
+
+main_objects:
+    - type: "DatasetObject"
+      name: "banana"
+      category: "banana"
+      model: "vvyyyv"
+      bounding_box: [0.15, 0.03, 0.09] #[ 0.05, 0.15, 0.09 ]
+      orientation: [ -0.7071068, 0, 0, 0.7071068 ]
+      relative_bbox_position: [0.2, 0.35, 0.15]
+
+target_objects:
+    - type: "DatasetObject"
+      name: "box"
+      category: "tray"
+      model: "xzcnjq"
+      bounding_box: [0.23, 0.35, 0.05]
+      orientation: [ 0, 0, -0.3826834, 0.9238795 ] #[ 0, 0, 0.7071068, 0.7071068 ]
+      relative_bbox_position: [0.175, 0.05, 0 ]
+
+distractors:
+    - type: "DatasetObject"
+      name: "orange"
+      category: "orange"
+      model: "ucstpm"
+      bounding_box: [ 0.08, 0.09, 0.08 ]
+      relative_bbox_position: [0.175, 0.1, 0.05 ]
+    - type: "DatasetObject"
+      name: "lemon"
+      category: "lemon"
+      model: "asdada"
+      bounding_box: [ 0.05, 0.07, 0.05 ]
+      relative_bbox_position: [0.3, 0.45, 0.03 ]
+    - type: "DatasetObject"
+      name: "toy_dice1"
+      category: "toy_dice"
+      model: "eqwazv"
+      bounding_box: [ 0.05, 0.05, 0.05 ]
+      relative_bbox_position: [0.2, 0.5, 0.0 ]
+    - type: "DatasetObject"
+      name: "toy_dice2"
+      category: "toy_dice"
+      model: "gcevml"
+      bounding_box: [ 0.05, 0.05, 0.05 ]
+      relative_bbox_position: [0.2, 0.5, 0.06 ]
+
+cached_semantic_perturbations:
+  S-LANG: []
+  S-AFF: []
+  S-INT: []
+  S-PROP: []
+  S-MO: []
