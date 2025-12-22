@@ -56,7 +56,7 @@ def eval(
         "push_switch", #7
         "open_drawer", #8
         "close_drawer", #9
-    ] # TODO: infer from yamls in task config folder
+    ]
 
     SUPPORTED_PERTURBATIONS = [
         'Default', #0
@@ -146,23 +146,6 @@ def eval(
         instruction = env.instruction
         print(instruction)
 
-        # TODO: figure out what to do with drawer opening, this cannot be here at scale:
-        # if env.task_type == "close_drawer":
-        #     target_obj = env.omnigibson_env.scene.object_registry("name", "drawer_cabinet")
-        #     relevant_joints = _get_relevant_joints(target_obj)[1]
-        #     #joint = relevant_joints[1]
-        #
-        #     for i in range(len(relevant_joints)):
-        #         if i == 2: continue
-        #         relevant_joints[i].keep_still()
-        #     joint = relevant_joints[2]
-        #
-        #     current_position = joint.get_state()[0][0]
-        #     joint.set_pos(joint.lower_limit + (joint.upper_limit - joint.lower_limit) * 0.5)
-        #     # joint_range = joint.upper_limit - joint.lower_limit
-        #     # openness_fraction = (current_position - joint.lower_limit) / joint_range
-        #     # print(openness_fraction)
-
         # -------------------- Rollout loop --------------------
         obs, rew, terminated, truncated, info = env.warmup(obs)
 
@@ -172,21 +155,6 @@ def eval(
         terminal_steps = 15
         while t < max_steps and terminal_steps > 0:
             base_im, base_im_second, wrist_im, robot_state, gripper_state = extract_from_obs(obs)
-
-            # TODO: tmp for making figures
-            # if t == 4:
-            #     img = Image.fromarray(base_im.astype('uint8'))
-            #     if perturbations[0] == "V-VIEW":
-            #         img = Image.fromarray(base_im_second.astype('uint8'))
-            #     img.save(f"/app/{perturbations[0]}.png")
-            #     #assert 1 > 2
-            # if t == 0:
-            #     im = Image.fromarray(base_im.astype('uint8'))
-            #     im.save(f"/app/logs/debug_ims/gen_{task}_{perturbations[0]}_{run_id}_cam1.png")
-                # im = Image.fromarray(base_im_second.astype('uint8'))
-                # im.save(f"/app/logs/gen_{task}_cam2.png")
-                # im = Image.fromarray(wrist_im.astype('uint8'))
-                # im.save(f"/app/logs/debug_ims/gen_{task}_{perturbations[0]}_{run_id}_cam3.png")
 
             if action_buffer.empty():
                 # TODO: how to adjust it to work with any model?

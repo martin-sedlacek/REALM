@@ -15,16 +15,6 @@ in robotic manipulation. It supports 7 distinct manipulation skills and stress-t
 against 15 perturbations. Through empirical validation, we show that evaluation results 
 in simulation are strongly correlated to real-world performance. 
 
-# 🚧 Roadmap
-- [x] Streamlined installation
-- [x] Example scripts for getting started
-- [ ] Improved benchmarking UX:
-  - [ ] End-to-end scripts for producing result plots and tables
-- [ ] Extended documentation
-- [ ] Performance:
-  - [ ] Support vectorized environments
-  - [ ] Improve parallelism and overall execution speed
-
 # Installation 🛠️
 1. Clone the project repository:
 ```
@@ -52,12 +42,60 @@ cd REALM
 > It is recommended to use the stable Docker container if possible.
 
 
-# Easy run 🏃
+# Example Workflow: Pi0 evaluation
+> ⚠️ This example is provided for a single evaluation run on local hardware using an NVIDIA GPU with at least 16GB of VRAM. 
+> This is required to run both the VLA model and underlying isaacsim on the same card.
 
-TBA
+
+1. Setup pi0 from openpi (https://github.com/Physical-Intelligence/openpi):
+```
+git clone https://github.com/Physical-Intelligence/openpi.git
+cd openpi
+uv sync
+```
+The add s3 to the uv environment and add (or create) your AWS credentials:
+```
+uv add s3fs
+```
+Run the model:
+```
+XLA_PYTHON_CLIENT_MEM_FRACTION=0.5 uv run scripts/serve_policy.py policy:checkpoint --policy.config=pi0_fast_droid_jointpos --policy.dir=s3://openpi-assets-simeval/pi0_fast_droid_jointpos
+```
+> ❗ Set XLA_PYTHON_CLIENT_MEM_FRACTION such that you have at least 8GB+ free on the GPU for isaacsim.
+
+> ⚠️ In general, make sure you are using models that output **absolute joint configurations** as REALM currently expects action to be in this format.
+
+2. From REALM project root, open the containerized environment:
+```
+# [RECOMMENDED OPTION] Docker:
+source ./scripts/run_docker.sh
+
+# [UNSTABLE] Apptainer:
+source ./scripts/run_apptainer.sh
+```
+
+3. Inside the container run:
+```
+python /app/examples/01_pi0_eval.py
+```
+
+This should produce a rollout video and a report numpy file with the evaluation results in logs.
 
 # Benchmarking models in REALM
-TBA
+
+Instructions on using REALM for benchmarking custom models and how to systematically test on all tasks and 
+preturbations will be provided soon.
+
+# 🚧 Roadmap
+- [x] Streamlined installation
+- [x] Example scripts for getting started
+- [ ] Improved benchmarking UX:
+  - [ ] End-to-end scripts for producing result plots and tables
+- [ ] Extended documentation
+- [ ] Performance:
+  - [ ] Support vectorized environments
+  - [ ] Improve parallelism and overall execution speed
+
 
 # Acknowledgments and Licensing
 We build on top of essential simulation tooling and the dataset from BEHAVIOR-1K and adhere to their licensing and terms of usage. 
