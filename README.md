@@ -1,12 +1,13 @@
+# REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation
 
 <p align="center">
   <a href="https://martin-sedlacek.com/realm"><img src="https://img.shields.io/badge/project-page-brightgreen" alt="Project Page"></a>
   <a href="https://arxiv.org/"><img src="https://img.shields.io/badge/paper-preprint-red" alt="arXiv"></a>
+  <a href="https://github.com/martin-sedlacek/REALM/wiki"><img src="https://img.shields.io/badge/doc-page-orange" alt="Documentation"></a>
   <a href="https://github.com/martin-sedlacek/REALM/issues"><img src="https://img.shields.io/github/issues/martin-sedlacek/REALM?color=yellow" alt="Issues"></a>
   <a href="https://github.com/martin-sedlacek/REALM/discussions"><img src="https://img.shields.io/github/discussions/martin-sedlacek/REALM?color=blueviolet" alt="Discussions"></a>
 </p>
 
-# REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation
 ![](./images/realm_overview_fig.png)
 
 REALM is a large-scale realistic simulation environment and benchmark for generalization 
