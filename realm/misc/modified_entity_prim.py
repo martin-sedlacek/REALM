@@ -1,3 +1,8 @@
+####################################################################################################################
+# This file was taken from the Omnigibson source code verbatim and only modified to remove specific assertions on  #
+# robot kinematic trees that made our USD file incompatible. We acknowledge the original attribution of this file  #
+# to the BEHAVIOR-1K team.                                                                                         #
+####################################################################################################################
 import math
 from functools import cached_property
 from typing import Literal
