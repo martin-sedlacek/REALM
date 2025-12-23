@@ -132,9 +132,9 @@ through the e- INFRA CZ (ID:90254) and by the European Union's Horizon Europe pr
 If you use REALM or found our results useful for your research, please consider citing this work:
 ```
 @article{sedlacek2025realm,
-         title={TBA},
-         author={TBA},
-         journal = {arXiv preprint arXiv:TBA},
+         title={REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation},
+         author={Martin Sedlacek and Pavlo Yefanov and Georgy Ponimatkin and Jai Bardhan and Simon Pilc and Mederic Fourmy and Evangelos Kazakos and Cees G. M. Snoek and Josef Sivic and Vladimir Petrik},
+         journal = {arXiv preprint arXiv:2512.19562},
          year={2025}
 }
 ```
