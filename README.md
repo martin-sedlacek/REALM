@@ -110,6 +110,7 @@ Each number in the table is obtained by averaging the results over 10 tasks wher
 - [x] Example scripts for getting started
 - [ ] Improved benchmarking UX:
   - [ ] End-to-end scripts for producing result plots and tables
+- [ ] Upload tabular results for all tasks / models / perturbations to ease reproducibility 
 - [ ] Extended documentation
 - [ ] Performance:
   - [ ] Support vectorized environments
