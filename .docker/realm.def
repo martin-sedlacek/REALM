@@ -1,0 +1,52 @@
+Bootstrap: docker
+From: stanfordvl/omnigibson:1.1.1
+
+%files
+    realm/misc/modified_entity_prim.py /opt/modified_entity_prim.py
+    packages/openpi-client /opt/openpi-client
+
+%post
+# CRITICAL FIX 1: Remove Isaac Sim's bundled typing_extensions to allow update
+    rm -rf /isaac-sim/exts/omni.pip.cloud/pip_prebundle/typing_extensions*
+
+    /bin/bash -c '
+        set -e
+        export MAMBA_ROOT_PREFIX="/micromamba"
+
+        # CRITICAL FIX 2: Install Pydantic via Conda (not Pip)
+        # This ensures the Rust-based pydantic-core binary is correctly installed.
+        micromamba install -n omnigibson -y -c conda-forge "pydantic=2.8.0" moviepy
+
+        # Install custom client
+        micromamba run -n omnigibson pip install /opt/openpi-client
+
+        # Resolve dependency hell with pinned versions via Pip
+        micromamba run -n omnigibson pip install \
+            "lxml==4.9.4" \
+            "imageio==2.33.1" \
+            "imageio-ffmpeg==0.4.9" \
+            "triton==2.2.0" \
+            "usd-core==23.11"
+    '
+    cp /opt/modified_entity_prim.py /omnigibson-src/omnigibson/prims/entity_prim.py
+    rm /opt/modified_entity_prim.py
+
+%environment
+    export OMNIGIBSON_DATASET_PATH=/data/og_dataset
+    export OMNIGIBSON_ASSET_PATH=/data/assets
+    export GIBSON_DATASET_PATH=/data/g_dataset
+    export OMNIGIBSON_KEY_PATH=/data/omnigibson.key
+    export PYTHONPATH=$PYTHONPATH:/app
+    export MAMBA_ROOT_PREFIX=/micromamba
+    export PATH="$MAMBA_ROOT_PREFIX/bin:$PATH"
+    export CONDA_ACT_FILE="/micromamba/envs/omnigibson/etc/conda/activate.d/env_vars.sh"
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    export PWD=/omnigibson-src
+
+%runscript
+    if [ $# -eq 0 ]; then
+        exec micromamba run -n omnigibson /bin/bash --login
+    else
+        exec micromamba run -n omnigibson "$@"
+    fi
