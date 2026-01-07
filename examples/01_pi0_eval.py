@@ -229,7 +229,7 @@ if __name__ == "__main__":
         task_id=1,
         perturbation_id=0,
         repeats=1,
-        max_steps=15,
+        max_steps=500,
         model_type="pi0",
         port=8000
     )
