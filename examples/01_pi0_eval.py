@@ -4,6 +4,7 @@ from queue import Queue
 import datetime
 import argparse
 import os
+import csv
 from PIL import Image
 import random
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
@@ -186,15 +187,23 @@ def eval(
 
     # ------------------------------------------------------------------------------
 
-    np_results = np.stack(results)
     file_uuid = str(uuid.uuid1())[:6]
     if model_type not in ("pi0", "pi0_FAST", "GR00T"):
         script_filename = model_type.split("/")[-1]
         model_type = ".".join(script_filename.split(".")[:-1])
-    np_results_filename = f"/app/logs/{global_timestamp}_{model_type}_gen_eval_rollout_{task}_{perturbations[0]}_{file_uuid}_report"
-    np.save(np_results_filename, np_results)
 
-    print(f"Saved run report to {np_results_filename}")
+    log_dir = "/app/logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type}_gen_eval_rollout_{task}_{perturbations[0]}_{file_uuid}_report.csv"
+    if len(results) > 0:
+        keys = results[0].keys()
+        with open(csv_results_filename, 'w', newline='') as output_file:
+            dict_writer = csv.DictWriter(output_file, fieldnames=keys)
+            dict_writer.writeheader()
+            dict_writer.writerows(results)
+
+    print(f"Saved run report to {csv_results_filename}")
     print("Done!")
 
 if __name__ == "__main__":
