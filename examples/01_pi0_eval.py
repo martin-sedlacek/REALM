@@ -27,7 +27,8 @@ def eval(
         max_steps=500,
         horizon=8,
         model_type="pi0_FAST",
-        port=8000
+        port=8000,
+        log_dir="/app/logs"
 ):
     # ---------------------------------------- sim config ----------------------------------------
     gm.DEFAULT_SIM_STEP_FREQ = 15
@@ -79,6 +80,8 @@ def eval(
     # -------------------- Create the environment + pi0 client --------------------
     task = SUPPORTED_TASKS[task_id]
     perturbations = [SUPPORTED_PERTURBATIONS[perturbation_id]]
+
+    os.makedirs(log_dir, exist_ok=True)
 
     print("Connecting to pi0 server...")
     client = websocket_client_policy.WebsocketClientPolicy(
@@ -210,9 +213,6 @@ def eval(
         script_filename = model_type.split("/")[-1]
         model_type = ".".join(script_filename.split(".")[:-1])
 
-    log_dir = "/app/logs"
-    os.makedirs(log_dir, exist_ok=True)
-
     csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type}_gen_eval_rollout_{task}_{perturbations[0]}_{file_uuid}_report.csv"
     if len(results) > 0:
         keys = results[0].keys()
@@ -229,7 +229,7 @@ if __name__ == "__main__":
         task_id=1,
         perturbation_id=0,
         repeats=1,
-        max_steps=500,
+        max_steps=15,
         model_type="pi0",
         port=8000
     )
