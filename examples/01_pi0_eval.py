@@ -4,7 +4,9 @@ from queue import Queue
 import datetime
 import argparse
 import os
+import csv
 from PIL import Image
+import omnigibson.lazy as lazy
 import random
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
@@ -25,7 +27,8 @@ def eval(
         max_steps=500,
         horizon=8,
         model_type="pi0_FAST",
-        port=8000
+        port=8000,
+        log_dir="/app/logs"
 ):
     # ---------------------------------------- sim config ----------------------------------------
     gm.DEFAULT_SIM_STEP_FREQ = 15
@@ -78,6 +81,8 @@ def eval(
     task = SUPPORTED_TASKS[task_id]
     perturbations = [SUPPORTED_PERTURBATIONS[perturbation_id]]
 
+    os.makedirs(log_dir, exist_ok=True)
+
     print("Connecting to pi0 server...")
     client = websocket_client_policy.WebsocketClientPolicy(
         host="localhost",
@@ -90,6 +95,23 @@ def eval(
         task=task,
         perturbations=perturbations
     )
+
+    def enable_interactive_path_tracing(carb_settings, samples_per_pixel=16):
+        carb_settings.set("/rtx/rendermode", "PathTracing")
+        if samples_per_pixel is not None:
+            carb_settings.set_int("/rtx/pathtracing/spp", samples_per_pixel)
+            carb_settings.set_int("/rtx/pathtracing/totalSpp", samples_per_pixel)
+            carb_settings.set_int(
+                "/rtx/pathtracing/useDirectLightingCache", False
+            )
+        carb_settings.set_bool("/rtx/pathtracing/optixDenoiser/enabled", True)
+
+    carb_settings = lazy.carb.settings.get_settings()
+    #carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing", True)
+    carb_settings.set("/rtx/post/dlss/execMode", 0)
+    carb_settings.set("/rtx/pathtracing/optixDenoiser/enabled", True)
+    carb_settings.set("/rtx/pathtracing/maxBounces", 4)
+    #enable_interactive_path_tracing(carb_settings, samples_per_pixel=1)
 
     def extract_from_obs(obs: dict):
         base_im = obs['external']['external_sensor0']['rgb'].cpu().numpy()[..., :3]
@@ -186,15 +208,20 @@ def eval(
 
     # ------------------------------------------------------------------------------
 
-    np_results = np.stack(results)
     file_uuid = str(uuid.uuid1())[:6]
     if model_type not in ("pi0", "pi0_FAST", "GR00T"):
         script_filename = model_type.split("/")[-1]
         model_type = ".".join(script_filename.split(".")[:-1])
-    np_results_filename = f"/app/logs/{global_timestamp}_{model_type}_gen_eval_rollout_{task}_{perturbations[0]}_{file_uuid}_report"
-    np.save(np_results_filename, np_results)
 
-    print(f"Saved run report to {np_results_filename}")
+    csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type}_gen_eval_rollout_{task}_{perturbations[0]}_{file_uuid}_report.csv"
+    if len(results) > 0:
+        keys = results[0].keys()
+        with open(csv_results_filename, 'w', newline='') as output_file:
+            dict_writer = csv.DictWriter(output_file, fieldnames=keys)
+            dict_writer.writeheader()
+            dict_writer.writerows(results)
+
+    print(f"Saved run report to {csv_results_filename}")
     print("Done!")
 
 if __name__ == "__main__":

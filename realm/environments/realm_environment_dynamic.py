@@ -1003,7 +1003,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
         self.omnigibson_env.scene.remove_object(obj)
 
-        if len(included_categories) == 1 and "bottom_cabinet" in included_categories:
+        if not (included_categories is None) and len(included_categories) == 1 and "bottom_cabinet" in included_categories:
             bottom_cabinet_models = [
                 "bamfsz",
                 "dsbcxl",
