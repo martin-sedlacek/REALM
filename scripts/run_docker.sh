@@ -62,6 +62,8 @@ docker run \
     -e DISPLAY=${DOCKER_DISPLAY} \
     -e OMNIGIBSON_HEADLESS=${OMNIGIBSON_HEADLESS} \
     -e OMNI_KIT_ALLOW_ROOT=1 \
+    -e TORCH_CUDA_ARCH_LIST="12.0" \
+    -e CUDA_FORCE_PTX_JIT=1 \
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
     -v $(pwd):/app:rw \
     -v $REALM_DATA_PATH/datasets:/data \
@@ -74,4 +76,5 @@ docker run \
     -v $REALM_DATA_PATH/isaac-sim/config:/root/.nvidia-omniverse/config:rw \
     -v $REALM_DATA_PATH/isaac-sim/data:/root/.local/share/ov/data:rw \
     -v $REALM_DATA_PATH/isaac-sim/documents:/root/Documents:rw \
+    -v /usr/share/nvidia/nvoptix.bin:/usr/share/nvidia/nvoptix.bin:ro \
     --network=host --rm -it realm

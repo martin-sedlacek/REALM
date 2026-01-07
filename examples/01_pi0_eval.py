@@ -6,6 +6,7 @@ import argparse
 import os
 import csv
 from PIL import Image
+import omnigibson.lazy as lazy
 import random
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
@@ -91,6 +92,23 @@ def eval(
         task=task,
         perturbations=perturbations
     )
+
+    def enable_interactive_path_tracing(carb_settings, samples_per_pixel=16):
+        carb_settings.set("/rtx/rendermode", "PathTracing")
+        if samples_per_pixel is not None:
+            carb_settings.set_int("/rtx/pathtracing/spp", samples_per_pixel)
+            carb_settings.set_int("/rtx/pathtracing/totalSpp", samples_per_pixel)
+            carb_settings.set_int(
+                "/rtx/pathtracing/useDirectLightingCache", False
+            )
+        carb_settings.set_bool("/rtx/pathtracing/optixDenoiser/enabled", True)
+
+    carb_settings = lazy.carb.settings.get_settings()
+    #carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing", True)
+    carb_settings.set("/rtx/post/dlss/execMode", 0)
+    carb_settings.set("/rtx/pathtracing/optixDenoiser/enabled", True)
+    carb_settings.set("/rtx/pathtracing/maxBounces", 4)
+    #enable_interactive_path_tracing(carb_settings, samples_per_pixel=1)
 
     def extract_from_obs(obs: dict):
         base_im = obs['external']['external_sensor0']['rgb'].cpu().numpy()[..., :3]
