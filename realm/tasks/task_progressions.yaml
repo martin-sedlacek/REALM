@@ -1,0 +1,48 @@
+put:
+  - REACH
+  - GRASP
+  - LIFT_SLIGHT
+  - MOVE_CLOSE
+  - PLACE_INTO
+pick:
+  - REACH
+  - GRASP
+  - LIFT_LARGE
+rotate:
+  - REACH
+  - GRASP
+  - ROTATED
+push:
+  - REACH
+  - TOUCH
+  - TOGGLED_ON
+stack:
+  - REACH
+  - GRASP
+  - LIFT_SLIGHT
+  - MOVE_CLOSE
+  - PLACE_ONTO
+open_drawer:
+  - REACH
+  - TOUCH_AND_MOVE_JOINT
+  - OPEN_JOINT_SMALL
+  - OPEN_JOINT_LARGE
+  - OPEN_JOINT_FULL
+close_drawer:
+  - REACH
+  - TOUCH_AND_MOVE_JOINT
+  - CLOSE_JOINT_SMALL
+  - CLOSE_JOINT_LARGE
+  - CLOSE_JOINT_FULL
+pour:
+  - REACH
+  - GRASP
+  - LIFT_SLIGHT
+  - MOVE_CLOSE
+  - POUR
+turn_faucet:
+  - REACH
+  - TOUCH_AND_MOVE_JOINT
+  - MOVE_JOINT_SMALL
+  - MOVE_JOINT_LARGE
+  - MOVE_JOINT_FULL
