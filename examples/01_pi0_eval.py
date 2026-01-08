@@ -4,6 +4,7 @@ from queue import Queue
 import datetime
 import argparse
 import os
+import shutil
 import csv
 from PIL import Image
 import omnigibson.lazy as lazy
@@ -127,7 +128,12 @@ def eval(
     for run_id in range(repeats):
         # ------------------------ pre-configure each run --------------------------------
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
-        video = []
+
+        # Create temp directory for video frames
+        temp_frame_dir = os.path.join(log_dir, f"{timestamp}_frames_{run_id}")
+        os.makedirs(temp_frame_dir, exist_ok=True)
+        frame_filenames = []
+
         qpos = []
         actions = []
         action_buffer = Queue()
@@ -166,10 +172,23 @@ def eval(
                 else:
                     action_buffer.put(pred_action_chunk)
 
-            video.append(np.concatenate((
+            # Save frame to disk
+            frame_img = np.concatenate((
                 base_im,
                 wrist_im,
-            ), axis=1))
+            ), axis=1)
+
+            # Ensure proper format for PIL
+            if frame_img.dtype.kind == 'f':
+                 # Assuming float images are 0-1, scale to 0-255
+                 frame_img = (frame_img * 255).astype(np.uint8)
+            elif frame_img.dtype != np.uint8:
+                 frame_img = frame_img.astype(np.uint8)
+
+            frame_path = os.path.join(temp_frame_dir, f"frame_{t:05d}.png")
+            Image.fromarray(frame_img).save(frame_path)
+            frame_filenames.append(frame_path)
+
             qpos.append(np.concatenate((robot_state, np.atleast_1d(np.array(gripper_state)))))
 
             action = action_buffer.get()
@@ -202,9 +221,11 @@ def eval(
             "binary_SR": 1.0 if task_progression == 1.0 else 0.0
         })
 
-        video = np.stack(video)
-        save_filename = f"/app/logs/{timestamp}_{model_type}_rollout_{task}_{perturbations}_{run_id}"
-        ImageSequenceClip(list(video), fps=15).write_videofile(save_filename + ".mp4", codec="libx264")
+        save_filename = os.path.join(log_dir, f"{timestamp}_{model_type}_rollout_{task}_{perturbations}_{run_id}")
+        ImageSequenceClip(frame_filenames, fps=15).write_videofile(save_filename + ".mp4", codec="libx264")
+
+        # Clean up frames
+        shutil.rmtree(temp_frame_dir)
 
     # ------------------------------------------------------------------------------
 
