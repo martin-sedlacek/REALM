@@ -154,7 +154,7 @@ def compute_rot_diff_magnitude(initial_quat,final_quat):
     return rotvec[2]
 
 def _load_categories_from_yaml():
-    yaml_path = os.path.join(os.path.dirname(__file__), "categories.yaml")
+    yaml_path = os.path.join(os.path.dirname(__file__), "config/objects/categories.yaml")
     with open(yaml_path, 'r') as f:
         return yaml.safe_load(f)
 

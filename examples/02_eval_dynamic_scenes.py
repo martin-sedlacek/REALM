@@ -10,13 +10,9 @@ import random
 import omnigibson as og
 from omnigibson.macros import gm
 from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+from realm.inference import InferenceClient, SUPPORTED_TASKS, SUPPORTED_PERTURBATIONS, extract_from_obs
+from realm.logging_utils import VideoRecorder, save_results_to_csv
 
-# Import shared module
-try:
-    import shared
-except ImportError:
-    # Fallback if running from root without examples in pythonpath
-    from examples import shared
 
 def eval(
         task_id=0,
@@ -46,8 +42,8 @@ def eval(
     torch.backends.cudnn.benchmark = False
 
     # -------------------- Create the environment + client --------------------
-    task = shared.SUPPORTED_TASKS[task_id]
-    perturbations = [shared.SUPPORTED_PERTURBATIONS[perturbation_id]]
+    task = SUPPORTED_TASKS[task_id]
+    perturbations = [SUPPORTED_PERTURBATIONS[perturbation_id]]
 
     if "push" in task and perturbations[0] in ['V-SC', 'B-HOBJ', 'SB-NOUN', 'SB-VRB', 'VB-MOBJ', 'VSB-NOBJ']:
         raise NotImplementedError()
@@ -56,7 +52,7 @@ def eval(
     elif ("open_drawer" in task or "close_drawer" in task) and perturbations[0] in ['VB-MOBJ', 'SB-VRB']:
         raise NotImplementedError()
 
-    client = shared.InferenceClient(model_type, port)
+    client = InferenceClient(model_type, port)
 
     env = RealmEnvironmentDynamic(
         config_path="/app/realm/config",
@@ -80,7 +76,7 @@ def eval(
         # if task_id >= 8: ... save video
         # I'll enable it for all or follow logic? The prompt says "isolate... logic".
         # I'll just use the VideoRecorder. It handles cleanup.
-        video_recorder = shared.VideoRecorder(log_dir, timestamp, run_id)
+        video_recorder = VideoRecorder(log_dir, timestamp, run_id)
 
         qpos = []
         actions = []
@@ -98,7 +94,7 @@ def eval(
         task_progression_timestamps = []
         terminal_steps = 15
         while t < max_steps and terminal_steps > 0:
-            base_im, base_im_second, wrist_im, robot_state, gripper_state = shared.extract_from_obs(obs)
+            base_im, base_im_second, wrist_im, robot_state, gripper_state = extract_from_obs(obs)
 
             if action_buffer.empty():
                 pred_action_chunk = client.infer(
@@ -160,7 +156,7 @@ def eval(
         video_recorder.cleanup()
 
     # ------------------------------------------------------------------------------
-    shared.save_results_to_csv(results, log_dir, global_timestamp, model_type, task, perturbations[0])
+    save_results_to_csv(results, log_dir, global_timestamp, model_type, task, perturbations[0])
     print("Done!")
 
 if __name__ == "__main__":
