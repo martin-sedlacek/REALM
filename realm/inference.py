@@ -3,39 +3,6 @@ from PIL import Image
 from openpi_client import websocket_client_policy, image_tools
 
 
-SUPPORTED_TASKS = [
-    "put_green_block_in_bowl", #0
-    "put_banana_into_box", #1
-    "rotate_marker", #2
-    "rotate_mug", #3
-    "pick_spoon", #4
-    "pick_water_bottle", #5
-    "stack_cubes", #6
-    "push_switch", #7
-    "open_drawer", #8
-    "close_drawer", #9
-]
-
-SUPPORTED_PERTURBATIONS = [
-    'Default', #0
-    'V-AUG', # 1
-    'V-VIEW', # 2
-    'V-SC', # 3
-    'V-LIGHT', # 4
-    'S-PROP', # 5
-    'S-LANG', # 6
-    'S-MO', # 7
-    'S-AFF', # 8
-    'S-INT', # 9
-    'B-HOBJ', # 10
-    'SB-NOUN', # 11
-    'SB-VRB', # 12
-    'VB-POSE', # 13
-    'VB-MOBJ', # 14
-    'VSB-NOBJ' # 15
-]
-
-
 def extract_from_obs(obs: dict):
     base_im = obs['external']['external_sensor0']['rgb'].cpu().numpy()[..., :3]
     base_im_second = obs['external']['external_sensor1']['rgb'].cpu().numpy()[..., :3]

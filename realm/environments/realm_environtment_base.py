@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from realm.tasks.task_progressions import TASK_PROGRESSIONS
+from realm.environments.task_progressions import TASK_PROGRESSIONS
 from realm.helpers import compute_rot_diff_magnitude
 from realm.robots.droid_joint_controller import IndividualJointPDController
 from realm.robots.droid_gripper_controller import MultiFingerGripperController

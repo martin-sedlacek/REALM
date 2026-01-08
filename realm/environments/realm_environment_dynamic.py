@@ -5,16 +5,11 @@ import yaml
 import random
 import copy
 import os
-import time
 
-from realm.robots.droid_joint_controller import IndividualJointPDController
-from realm.robots.droid_gripper_controller import MultiFingerGripperController
-
-from realm.tasks.task_progressions import TASK_PROGRESSIONS
+from realm.environments.task_progressions import TASK_PROGRESSIONS
 from realm.helpers import (calculate_new_camera_pose_mixed_rotations, add_rotation_noise,
                            get_non_colliding_positions_for_objects_v2, apply_blur_and_contrast,
                            get_non_droid_categories, get_droid_categories_by_theme,
-                           find_and_remove_category, process_droid_categories,
                            get_objects_by_names, get_default_objects_cfg)
 
 import omnigibson as og
@@ -48,6 +43,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             from realm.robots.franka_robotiq_mounted import FrankaPandaRobotiq
         else:
             from realm.robots.franka_robotiq import FrankaPandaRobotiq
+
 
         self.task = task
         self.config_path = config_path
