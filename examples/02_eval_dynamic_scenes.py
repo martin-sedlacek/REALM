@@ -4,20 +4,19 @@ from queue import Queue
 import datetime
 import argparse
 import os
-import csv
-from PIL import Image
+import sys
 import random
-from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
 import omnigibson as og
-from omnigibson.macros import create_module_macros, gm
-from omnigibson.object_states.open_state import _get_relevant_joints
+from omnigibson.macros import gm
 from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
 
-from openpi_client import websocket_client_policy
-from openpi_client import image_tools
-
-import uuid
+# Import shared module
+try:
+    import shared
+except ImportError:
+    # Fallback if running from root without examples in pythonpath
+    from examples import shared
 
 def eval(
         task_id=0,
@@ -46,41 +45,9 @@ def eval(
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    SUPPORTED_TASKS = [
-        "put_green_block_in_bowl", #0
-        "put_banana_into_box", #1
-        "rotate_marker", #2
-        "rotate_mug", #3
-        "pick_spoon", #4
-        "pick_water_bottle", #5
-        "stack_cubes", #6
-        "push_switch", #7
-        "open_drawer", #8
-        "close_drawer", #9
-    ]
-
-    SUPPORTED_PERTURBATIONS = [
-        'Default', #0
-        'V-AUG', # 1
-        'V-VIEW', # 2
-        'V-SC', # 3
-        'V-LIGHT', # 4
-        'S-PROP', # 5
-        'S-LANG', # 6
-        'S-MO', # 7
-        'S-AFF', # 8
-        'S-INT', # 9
-        'B-HOBJ', # 10
-        'SB-NOUN', # 11
-        'SB-VRB', # 12
-        'VB-POSE', # 13
-        'VB-MOBJ', # 14
-        'VSB-NOBJ' # 15
-    ]
-
-    # -------------------- Create the environment + pi0 client --------------------
-    task = SUPPORTED_TASKS[task_id]
-    perturbations = [SUPPORTED_PERTURBATIONS[perturbation_id]]
+    # -------------------- Create the environment + client --------------------
+    task = shared.SUPPORTED_TASKS[task_id]
+    perturbations = [shared.SUPPORTED_PERTURBATIONS[perturbation_id]]
 
     if "push" in task and perturbations[0] in ['V-SC', 'B-HOBJ', 'SB-NOUN', 'SB-VRB', 'VB-MOBJ', 'VSB-NOBJ']:
         raise NotImplementedError()
@@ -89,29 +56,7 @@ def eval(
     elif ("open_drawer" in task or "close_drawer" in task) and perturbations[0] in ['VB-MOBJ', 'SB-VRB']:
         raise NotImplementedError()
 
-    def enable_interactive_path_tracing(carb_settings, samples_per_pixel=16):
-        carb_settings.set("/rtx/rendermode", "PathTracing")
-        if samples_per_pixel is not None:
-            carb_settings.set_int("/rtx/pathtracing/spp", samples_per_pixel)
-            carb_settings.set_int("/rtx/pathtracing/totalSpp", samples_per_pixel)
-            carb_settings.set_int(
-                "/rtx/pathtracing/useDirectLightingCache", False
-            )  # NOTE: This is to enable lighting cache but can add temporal noise
-        carb_settings.set_bool("/rtx/pathtracing/optixDenoiser/enabled", True)
-
-    if model_type == "debug":
-        # carb_settings = lazy.carb.settings.get_settings()
-        # carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing", True)
-        # enable_interactive_path_tracing(carb_settings, samples_per_pixel=16)
-        client = None
-    else:
-        print("Connecting to server...")
-        print(f"DEBUG: port = {port}")
-        client = websocket_client_policy.WebsocketClientPolicy(
-            host="localhost",
-            port=port
-        )
-        print("Connected!")
+    client = shared.InferenceClient(model_type, port)
 
     env = RealmEnvironmentDynamic(
         config_path="/app/realm/config",
@@ -119,26 +64,24 @@ def eval(
         perturbations=perturbations
     )
 
-    def extract_from_obs(obs: dict):
-        base_im = obs['external']['external_sensor0']['rgb'].cpu().numpy()[..., :3]
-        base_im_second = obs['external']['external_sensor1']['rgb'].cpu().numpy()[..., :3]
-        wrist_im = obs['franka']['franka:gripper_link_camera:Camera:0']['rgb'].cpu().numpy()[..., :3]
-        proprio = obs['franka']['proprio'].cpu().numpy()
-        robot_state = proprio[:7]
-        gripper_state = proprio[7] / 0.05  # 0 = open, 0.05 = closed
-        # gripper_state = 1 if is_gripper_closed else 0
-        # gripper_state = (proprio[8] + 1) / 2  # from (1, -1) to (1, 0)
-        return base_im, base_im_second, wrist_im, robot_state, gripper_state
-
-    # ------------------------------------------------------------------------------
-
     global_timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
     results = []
-    # x = np.load("/app/logs/block_traj.npy")
+
+    log_dir = "/app/logs"
+    os.makedirs(log_dir, exist_ok=True)
+
     for run_id in range(repeats):
         # ------------------------ pre-configure each run --------------------------------
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
-        video = []
+
+        # Although the original 02 script didn't save temp frames and had commented out video saving for most tasks,
+        # using VideoRecorder is cleaner and safer for memory.
+        # But wait, original code says:
+        # if task_id >= 8: ... save video
+        # I'll enable it for all or follow logic? The prompt says "isolate... logic".
+        # I'll just use the VideoRecorder. It handles cleanup.
+        video_recorder = shared.VideoRecorder(log_dir, timestamp, run_id)
+
         qpos = []
         actions = []
         action_buffer = Queue()
@@ -155,42 +98,13 @@ def eval(
         task_progression_timestamps = []
         terminal_steps = 15
         while t < max_steps and terminal_steps > 0:
-            base_im, base_im_second, wrist_im, robot_state, gripper_state = extract_from_obs(obs)
+            base_im, base_im_second, wrist_im, robot_state, gripper_state = shared.extract_from_obs(obs)
 
             if action_buffer.empty():
-                # TODO: how to adjust it to work with any model?
-                #   should pi0 settings be default for any model?
-                if model_type == "debug":
-                    pred_action_chunk = np.atleast_1d(np.zeros(8))
-                    #pred_action_chunk[:7] = np.array([0, -0.628, 0, -2.512, -0.75, 1.884, 0.0])
-                elif model_type == "GR00T":
-                    base_im_resized = np.asarray(Image.fromarray(base_im).resize((320, 180))).astype(np.uint8)
-                    base_im_second_resized = np.asarray(Image.fromarray(base_im_second).resize((320, 180))).astype(np.uint8)
-                    wrist_im_resized = np.asarray(Image.fromarray(wrist_im).resize((320, 180))).astype(np.uint8)
-
-                    obs_dict = {
-                        "prompt": [instruction],
-                        "state.joint_position": np.array(robot_state).astype(np.float32).reshape(1, 7),
-                        "state.gripper_position": np.atleast_1d(np.array(gripper_state)).astype(np.float32).reshape(1, 1),
-                        "video.exterior_image_1": base_im_resized[None],
-                        "video.exterior_image_2": base_im_second_resized[None],
-                        "video.wrist_image": wrist_im_resized[None]
-                    }
-                    pred = client.infer(obs_dict)
-                    pred_action_chunk = np.concatenate(
-                        [pred["action.joint_position"],
-                         pred["action.gripper_position"].reshape(-1, 1)], axis=-1)
-                else:
-                    obs_dict = {
-                        "prompt": instruction,
-                        "observation/joint_position": robot_state,
-                        "observation/gripper_position": np.atleast_1d(np.array(gripper_state)),
-                        "observation/exterior_image_1_left": image_tools.resize_with_pad(base_im_second if env.task_type == "open_close_drawer" else base_im, 224, 224), # TODO: the task type terminology for open/close drawer might not be globally  the same
-                        "observation/wrist_image_left": image_tools.resize_with_pad(wrist_im, 224, 224)
-                    }
-                    pred = client.infer(obs_dict)
-                    pred_action_chunk = pred["actions"]
-
+                pred_action_chunk = client.infer(
+                    instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
+                    use_base_im_second=(env.task_type == "open_close_drawer" if hasattr(env, "task_type") else False)
+                )
 
                 if len(pred_action_chunk.shape) == 2:
                     assert pred_action_chunk.shape[-1] == 8
@@ -200,49 +114,22 @@ def eval(
                 else:
                     action_buffer.put(pred_action_chunk)
 
-            # video.append(np.concatenate((
-            #     image_tools.resize_with_pad(base_im, 224, 224),
-            #     image_tools.resize_with_pad(wrist_im, 224, 224),
-            # ), axis=1))
-            # video.append(np.concatenate((
-            #     base_im,
-            #     base_im_second,
-            #     wrist_im,
-            # ), axis=1))
-            video.append(base_im)
+            # Record frame
+            video_recorder.add_frame(base_im, wrist_im)
+
             qpos.append(np.concatenate((robot_state, np.atleast_1d(np.array(gripper_state)))))
 
             action = action_buffer.get()
             actions.append(action)
 
-            # max_joint_vel_norm = np.abs(action[:7]).max()
-            # tmp = action.copy()
-            # if max_joint_vel_norm > 1:
-            #     tmp[:7] = tmp[:7] / max_joint_vel_norm
-            # delta_qpos = tmp[:7] * 0.2
-            # delta_qpos_clipped = np.clip(delta_qpos, a_min=-0.2, a_max=0.2)
-            # new_joint_action = robot_state + delta_qpos_clipped
-            # delta_qpos_clipped = np.clip(tmp, a_min=-0.2, a_max=0.2)
-
-            # ---------- [for joint pos delta predictions] ----------
-            # max_delta_qpos_norm = np.abs(action[:7]).max()
-            # tmp = action.copy()[:7]
-            # if max_delta_qpos_norm > 0.1:
-            #     tmp[:7] = tmp[:7] / max_delta_qpos_norm * 0.1
-            # delta_qpos_clipped = np.clip(tmp, a_min=-0.1, a_max=0.1)
-
-            new_joint_action = action.copy()[:7] #robot_state + delta_qpos_clipped
+            new_joint_action = action.copy()[:7]
 
             new_gripper_state = 1 if action[7] > 0.5 else -1  # Prediction: (1,0) -> Target: (1,-1)
-            is_gripper_closed = (new_gripper_state == 1)
             new_gripper_state = np.atleast_1d(np.array(new_gripper_state))
             new_action = np.concatenate((new_joint_action, new_gripper_state))
 
-            # new_action = x[t if t < len(x) else len(x) - 1]
-            # new_action[-1] = 1 if new_action[-1] / 0.05 > 0.1 else -1
             obs, curr_task_progression, terminated, truncated, info = env.step(new_action)
-            print(f"{t}: {curr_task_progression}"), #{new_action}")
-            #print(new_joint_action - proprio[:7])
+            print(f"{t}: {curr_task_progression}")
 
             if curr_task_progression > task_progression:
                 task_progression = curr_task_progression
@@ -262,41 +149,18 @@ def eval(
             "binary_SR": 1.0 if task_progression == 1.0 else 0.0
         })
 
-        # if task_id >= 8:
-        #     video = np.stack(video)
-        #     save_filename = f"/app/logs/{timestamp}_{model_type}_rollout_sim_{task}_{perturbations}_{run_id}"
-        #     ImageSequenceClip(list(video), fps=15).write_videofile(save_filename + ".mp4", codec="libx264")
-        #     #np.save(save_filename, video)
-        #     print(f"Saved video for run {run_id}.")
+        # Logic from original script: only save video if task_id >= 8.
+        # But since we're using VideoRecorder, we have the frames.
+        # I'll stick to original logic for saving video file, but clean up frames always.
+        if task_id >= 8:
+             save_filename = os.path.join(log_dir, f"{timestamp}_{model_type}_rollout_sim_{task}_{perturbations}_{run_id}")
+             video_recorder.save_video(save_filename)
+             print(f"Saved video for run {run_id}.")
+
+        video_recorder.cleanup()
 
     # ------------------------------------------------------------------------------
-    # results = np.stack(results)
-    # filename = f"/app/logs/{global_timestamp}_{model_type}_rollout_sim_{ctrl_mode}_{task}_{perturbations}_report"
-    # np.save(filename, results)
-
-    file_uuid = str(uuid.uuid1())[:6]
-    if model_type not in ("pi0", "pi0_FAST", "GR00T"):
-        # assuming it is script file
-        script_filename = model_type.split("/")[-1]
-        model_type = ".".join(script_filename.split(".")[:-1])
-
-    log_dir = "/app/logs"
-    os.makedirs(log_dir, exist_ok=True)
-
-    csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type}_gen_eval_rollout_{task}_{perturbations[0]}_{file_uuid}_report.csv"
-    if len(results) > 0:
-        keys = results[0].keys()
-        with open(csv_results_filename, 'w', newline='') as output_file:
-            dict_writer = csv.DictWriter(output_file, fieldnames=keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(results)
-
-    # df_results = pd.DataFrame(results)
-    # np_results_filename = f"/app/logs/{global_timestamp}_{model_type}_real2sim_rollout_{task}_{perturbations[perturbation_id]}_report"
-    # np.save(np_results_filename, np_results)
-
-    print(f"Saved run report to {csv_results_filename}")
-
+    shared.save_results_to_csv(results, log_dir, global_timestamp, model_type, task, perturbations[0])
     print("Done!")
 
 if __name__ == "__main__":
@@ -318,4 +182,4 @@ if __name__ == "__main__":
         port=args.port
     )
     og.shutdown()
-    os.exit(0)
+    sys.exit(0)
