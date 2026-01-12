@@ -53,6 +53,9 @@ class VideoRecorder:
     def save_video(self, save_filename, fps=15):
         if not self.frame_filenames:
             return
+        save_dir = os.path.dirname(save_filename)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
         ImageSequenceClip(self.frame_filenames, fps=fps).write_videofile(save_filename + ".mp4", codec="libx264")
 
     def cleanup(self):
