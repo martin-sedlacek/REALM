@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import pandas as pd
 import glob
+import json
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -94,36 +95,18 @@ def get_videos(experiment_path):
         return []
     return sorted(glob.glob(os.path.join(videos_path, "*.mp4")))
 
-def parse_experiment_name(name):
-    """
-    Parses experiment name like 't1_3_p0_1_2_s15_r3' to extract tasks, perturbations, and repeats.
-    """
-    parts = name.split('_')
-    tasks = []
-    perturbations = []
-    repeats = 0
+def load_experiment_metadata(experiment_path):
+    """Loads metadata.json from the experiment directory."""
+    metadata_path = os.path.join(experiment_path, "metadata.json")
+    if not os.path.exists(metadata_path):
+        return None, f"Metadata file not found at {metadata_path}"
 
-    mode = None # 't', 'p', 's', 'r'
-
-    for part in parts:
-        if part.startswith('t') and part[1:].isdigit():
-            mode = 't'
-            tasks.append(int(part[1:]))
-        elif part.startswith('p') and part[1:].isdigit():
-            mode = 'p'
-            perturbations.append(int(part[1:]))
-        elif part.startswith('s') and part[1:].isdigit():
-            mode = 's'
-        elif part.startswith('r') and part[1:].isdigit():
-            mode = 'r'
-            repeats = int(part[1:])
-        elif part.isdigit():
-            if mode == 't':
-                tasks.append(int(part))
-            elif mode == 'p':
-                perturbations.append(int(part))
-
-    return tasks, perturbations, repeats
+    try:
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+        return metadata, None
+    except Exception as e:
+        return None, f"Error reading metadata: {e}"
 
 def check_experiment_status(df, tasks_indices, perts_indices, required_repeats):
     if df is None:
@@ -275,18 +258,37 @@ if st.session_state.selected_experiment and os.path.exists(st.session_state.sele
     # Experiment Status Section (New)
     st.header("Experiment Status")
     try:
-        # Parse requirements from experiment name (folder name)
-        target_exp_string = os.path.basename(selected_path)
-        tasks_indices, perts_indices, required_repeats = parse_experiment_name(target_exp_string)
+        # Resolve experiment directory from selected_path
+        # selected_path is logs/Experiment/Model/Run or similar.
+        # We need logs/Experiment.
+        # Use relative path parts to find Experiment root.
+        rel_path = os.path.relpath(selected_path, LOGS_DIR)
+        parts = rel_path.split(os.sep)
 
-        st.write(f"**Target Configuration:** Tasks: {tasks_indices}, Perturbations: {perts_indices}, Repeats: {required_repeats}")
+        if len(parts) > 0:
+            experiment_name = parts[0]
+            experiment_path = os.path.join(LOGS_DIR, experiment_name)
 
-        status, msg = check_experiment_status(df, tasks_indices, perts_indices, required_repeats)
+            metadata, err = load_experiment_metadata(experiment_path)
 
-        if status:
-            st.success("✅ " + msg)
+            if metadata:
+                tasks_indices = metadata.get("task_ids", [])
+                perts_indices = metadata.get("perturbation_ids", [])
+                required_repeats = metadata.get("repeats", 0)
+
+                st.write(f"**Target Configuration (from {experiment_name}/metadata.json):** Tasks: {tasks_indices}, Perturbations: {perts_indices}, Repeats: {required_repeats}")
+
+                status, msg = check_experiment_status(df, tasks_indices, perts_indices, required_repeats)
+
+                if status:
+                    st.success("✅ " + msg)
+                else:
+                    st.error("❌ " + msg)
+            else:
+                st.warning(err)
         else:
-            st.error("❌ " + msg)
+            st.warning("Could not determine experiment directory.")
+
     except Exception as e:
         st.error(f"Error in Experiment Status: {e}")
 
