@@ -58,8 +58,7 @@ def get_videos(experiment_path):
     return sorted(glob.glob(os.path.join(videos_path, "*.mp4")))
 
 def render_tree(path, depth=0):
-    """Recursive function to render the directory tree."""
-    # Safety break for recursion depth
+    """Recursive function to render the directory tree using expanders."""
     if depth > 5:
         return
 
@@ -70,95 +69,36 @@ def render_tree(path, depth=0):
     for d in subdirs:
         full_path = os.path.join(path, d)
         is_exp = is_experiment_folder(full_path)
-        has_subdirs = len(get_subdirectories(full_path)) > 0
 
         # Unique key for widgets
         key_base = full_path
 
-        # Layout: Indentation + Widget
-        # We use columns to simulate the tree layout: [Indent, Expand/Label, SelectButton]
+        sub_subdirs = get_subdirectories(full_path)
+        has_children = len(sub_subdirs) > 0
 
-        # Calculate indentation
-        # Streamlit doesn't support fine-grained indentation easily.
-        # We'll use a container or simple markdown for visual hierarchy?
-        # Actually, standard approach is just to render widgets.
-        # But we need visual hierarchy.
+        if has_children:
+            label = f"📁 {d}" if not is_exp else f"🔬 {d}"
 
-        # Using checkboxes for expansion (acting as folders)
-        # If it has subdirs, it can be expanded.
-        # If it is an experiment, it can be selected.
+            with st.sidebar.expander(label, expanded=False):
+                # If this node itself is selectable
+                if is_exp:
+                    if st.button(f"👉 Select {d}", key=f"btn_{key_base}_inner"):
+                        st.session_state.selected_experiment = full_path
 
-        # Label generation
-        icon = "📂" if has_subdirs else "📄"
-        if is_exp:
-            icon = "🔬"
-
-        label = f"{icon} {d}"
-
-        # To create a "tree" feel, sub-items are only shown if parent is expanded.
-        # We use st.checkbox to handle expansion state.
-
-        # Note: Nested checkboxes work fine.
-
-        # Indent using markdown? No, checkbox has to be the toggle.
-        # We can't easily indent the checkbox itself.
-        # Workaround: Use unicode spaces in label? '    ' * depth
-        indent_spaces = '\u2003' * depth # Em spaces
-        display_label = f"{indent_spaces}{label}"
-
-        # If it has subdirectories, we use a checkbox to expand/collapse.
-        # If it is ONLY an experiment (leaf), we might just show it?
-        # But an experiment might also have subdirectories (if structure is weird).
-
-        # Logic:
-        # 1. Render a row.
-        # 2. If allow selection, show a button.
-
-        # To put checkbox and button on same line is hard in sidebar (columns are cramped).
-        # We'll try:
-        # Checkbox for expansion (if has subdirs or just always?).
-        # If checked -> show children.
-
-        expanded = False
-
-        # If we are strictly implementing "click + to expand", checkbox is the closest native "toggle".
-        # But if we also want "click to select", we need a separate action.
-
-        # Let's try this:
-        # Use columns.
-
-        # Problem: 'st.columns' inside sidebar inside loop works, but width is small.
-
-        if has_subdirs:
-             # Checkbox for expansion
-             expanded = st.sidebar.checkbox(display_label, key=f"chk_{key_base}")
+                # Recurse
+                render_tree(full_path, depth + 1)
         else:
-             st.sidebar.markdown(display_label)
-
-        # If it is an experiment, we need a way to select it.
-        # If we used a checkbox for expansion, how do we select?
-        # Add a small button underneath? Or next to it?
-
-        if is_exp:
-            # Add a select button.
-            # To make it look associated, maybe indent it or put it right below.
-            # Using a button with a unique key.
-            # "Select [d]"
-            btn_label = f"Select {d}"
-            # Indent the button slightly more
-            btn_col1, btn_col2 = st.sidebar.columns([0.1 + (0.05 * depth), 0.9 - (0.05 * depth)])
-            with btn_col2:
-                if st.button(f"👉 Load {d}", key=f"btn_{key_base}"):
+            # Leaf node
+            if is_exp:
+                # Leaf experiment button
+                if st.sidebar.button(f"🔬 {d}", key=f"btn_{key_base}_leaf"):
                     st.session_state.selected_experiment = full_path
-                    # Force rerun? Streamlit reruns on button click anyway.
-
-        # Recursion
-        if expanded:
-            render_tree(full_path, depth + 1)
+            else:
+                 # It's a folder but has no subdirectories and isn't an experiment?
+                 st.sidebar.markdown(f"📁 {d}")
 
 # Sidebar
 st.sidebar.title("Experiment Browser")
-st.sidebar.write("Expand folders and click 'Load' to view.")
 render_tree(LOGS_DIR)
 
 # Main Content
@@ -169,18 +109,14 @@ if st.session_state.selected_experiment and os.path.exists(st.session_state.sele
     rel_path = os.path.relpath(selected_path, LOGS_DIR)
     path_parts = rel_path.split(os.sep)
 
-    # Safe unpacking
-    experiment_name = path_parts[0] if len(path_parts) > 0 else "N/A"
-    model_name = path_parts[1] if len(path_parts) > 1 else "N/A"
-    run_id = path_parts[2] if len(path_parts) > 2 else "N/A"
+    # User requested: "label the thing at the top it should be one level deeper that oyu currently display"
+    # Indices: 1, 2, 3.
 
-    # Display Metadata
+    experiment_name = path_parts[1] if len(path_parts) > 1 else "N/A"
+    model_name = path_parts[2] if len(path_parts) > 2 else "N/A"
+    run_id = path_parts[3] if len(path_parts) > 3 else "N/A"
+
     st.title("Experiment Dashboard")
-
-    # Using columns for the "Three different rows at the top" - wait, user said "three different rows".
-    # "Experiment, model/ and run id in three different rows at the top"
-    # Rows usually means vertical stack.
-    # "Metric" style is good for this.
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Experiment", experiment_name)
