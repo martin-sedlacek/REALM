@@ -5,7 +5,7 @@
 #SBATCH --mem=120G
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-gpu=32
-#SBATCH --time 00-04:30:00
+#SBATCH --time 00-08:00:00
 
 #---------------------------------------------------------------------------------
 
@@ -31,7 +31,6 @@ REALM_ROOT=$(pwd)
 
 #---------------------------------------------------------------------------------
 
-# TODO: try commenting these out to see if it runs faster on clara??
 export HF_HOME=$REALM_ROOT/hf_cache
 export HUGGINGFACE_HUB_CACHE=$REALM_ROOT/hf_cache
 [[ -d "$HF_HOME" ]] || mkdir -p "$HF_HOME"

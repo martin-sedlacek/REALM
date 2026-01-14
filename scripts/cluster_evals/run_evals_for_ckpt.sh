@@ -11,6 +11,12 @@ REPEATS=25
 RUN_ID=$(date +%Y%m%d_%H%M%S)
 DEBUG=false
 
+expand_ids() {
+  echo "$1" | tr ',' '\n' | while read -r r; do
+    [[ "$r" =~ - ]] && seq "${r%-*}" "${r#*-}" || echo "$r"
+  done
+}
+
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     --policy_config) POLICY_CONFIG="$2"; shift 2 ;;
@@ -20,8 +26,8 @@ while [[ "$#" -gt 0 ]]; do
     --max_steps) MAX_STEPS="$2"; shift 2 ;;
     --repeats) REPEATS="$2"; shift 2 ;;
     --experiment_name) EXPERIMENT_NAME="$2"; shift 2 ;;
-    --task_ids) T_RAW="$2"; IFS=',' read -ra TASK_IDS <<< "$2"; shift 2 ;;
-    --perturbation_ids) P_RAW="$2"; IFS=',' read -ra PERT_IDS <<< "$2"; shift 2 ;;
+    --task_ids) T_RAW="$2"; mapfile -t TASK_IDS < <(expand_ids "$2"); shift 2 ;;
+    --perturbation_ids) P_RAW="$2"; mapfile -t PERT_IDS < <(expand_ids "$2"); shift 2 ;;
     --debug) DEBUG=true; shift 1;;
     *) shift ;;
   esac
