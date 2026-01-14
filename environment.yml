@@ -6,3 +6,4 @@ dependencies:
   - python=3.10
   - streamlit
   - pandas
+  - matplotlib

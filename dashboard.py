@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import pandas as pd
 import glob
+import matplotlib.pyplot as plt
+import numpy as np
 
 st.set_page_config(layout="wide", page_title="Experiment Dashboard")
 
@@ -129,9 +131,43 @@ if st.session_state.selected_experiment and os.path.exists(st.session_state.sele
     st.header("Aggregated Reports")
     df = load_reports(selected_path)
     if df is not None:
-        st.table(df)
+        st.dataframe(df, height=300)
     else:
         st.info("No reports found.")
+
+    # Plots Section
+    st.header("Plots")
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.subheader("Performance under Perturbations")
+        # Placeholder: Radar plot
+        categories = ['Perturbation A', 'Perturbation B', 'Perturbation C', 'Perturbation D', 'Perturbation E']
+        values = [4, 3, 2, 5, 4]
+
+        N = len(categories)
+        angles = [n / float(N) * 2 * np.pi for n in range(N)]
+        values += values[:1]
+        angles += angles[:1]
+
+        fig, ax = plt.subplots(figsize=(4, 4), subplot_kw=dict(polar=True))
+        ax.plot(angles, values, linewidth=1, linestyle='solid')
+        ax.fill(angles, values, 'b', alpha=0.1)
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(categories)
+        st.pyplot(fig)
+
+    with c2:
+        st.subheader("Binary Success Rate")
+        # Placeholder: Binary SR
+        tasks = ['Task 1', 'Task 2', 'Task 3']
+        sr = [0.85, 0.60, 0.95]
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        ax.bar(tasks, sr, color=['green', 'orange', 'blue'])
+        ax.set_ylim(0, 1)
+        ax.set_ylabel("Success Rate")
+        st.pyplot(fig)
 
     # Videos Section
     st.header("Videos")
