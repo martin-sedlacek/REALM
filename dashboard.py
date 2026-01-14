@@ -8,24 +8,25 @@ st.set_page_config(layout="wide", page_title="Experiment Dashboard")
 # Define the logs directory
 LOGS_DIR = "logs"
 
-def get_experiments():
-    """Recursively finds all subdirectories in the LOGS_DIR."""
-    if not os.path.exists(LOGS_DIR):
+def get_subdirectories(path):
+    if not os.path.exists(path):
         return []
-    
-    experiment_dirs = []
-    for dirpath, _, _ in os.walk(LOGS_DIR):
-        rel_path = os.path.relpath(dirpath, LOGS_DIR)
-        if rel_path != ".":
-            experiment_dirs.append(rel_path)
-    return sorted(experiment_dirs)
+    # Only return directories
+    try:
+        return sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))])
+    except OSError:
+        return []
+
+def is_experiment_folder(path):
+    """Check if the folder contains 'reports' or 'videos' subdirectories."""
+    return os.path.isdir(os.path.join(path, "reports")) or os.path.isdir(os.path.join(path, "videos"))
 
 def load_reports(experiment_path):
-    """Loads all CSV reports from the selected experiment directory."""
-    if not os.path.exists(experiment_path):
+    reports_path = os.path.join(experiment_path, "reports")
+    if not os.path.exists(reports_path):
         return None
 
-    csv_files = glob.glob(os.path.join(experiment_path, "*.csv"))
+    csv_files = glob.glob(os.path.join(reports_path, "*.csv"))
     if not csv_files:
         return None
 
@@ -50,28 +51,63 @@ def load_reports(experiment_path):
         return None
 
 def get_videos(experiment_path):
-    """Gets all videos from the selected experiment directory."""
-    if not os.path.exists(experiment_path):
+    videos_path = os.path.join(experiment_path, "videos")
+    if not os.path.exists(videos_path):
         return []
-    return sorted(glob.glob(os.path.join(experiment_path, "*.mp4")))
+    return sorted(glob.glob(os.path.join(videos_path, "*.mp4")))
 
-# Sidebar
-st.sidebar.title("Experiments")
-experiments = get_experiments()
+# Sidebar Navigation
+st.sidebar.title("Navigation")
 
-if not experiments:
-    st.sidebar.warning("No experiments found in 'logs' folder.")
-    selected_experiment = None
-else:
-    selected_experiment = st.sidebar.radio("Select Experiment", experiments)
+current_path = LOGS_DIR
+selected_experiment = None
 
+# Max depth logic:
+# The user said "stop at depth 4 - e.g. ./logs/something/something/something"
+# logs is depth 0.
+# loop for depth 1, 2, 3, 4.
+
+# We will traverse down. If a selection is made, we go deeper.
+# If at any point the current path is an experiment folder, we flag it.
+# However, user might have nested experiments? Let's assume leaf-ish nodes are experiments.
+
+cols_depth = 4
+found_experiment = False
+
+# Store the path components for display
+path_components = []
+
+for depth in range(cols_depth):
+    subdirs = get_subdirectories(current_path)
+
+    if not subdirs:
+        break
+
+    # Add a selectbox for this level
+    # Use key to make it unique per level
+    selection = st.sidebar.selectbox(f"Level {depth + 1}", [""] + subdirs, key=f"level_{depth}")
+
+    if selection and selection != "":
+        current_path = os.path.join(current_path, selection)
+        path_components.append(selection)
+
+        # Check if this is an experiment
+        if is_experiment_folder(current_path):
+            selected_experiment = current_path
+            found_experiment = True
+    else:
+        # Stop traversing if user hasn't selected anything at this level
+        break
+
+# Main Content
 if selected_experiment:
-    st.title(f"Experiment: {selected_experiment}")
-    exp_path = os.path.join(LOGS_DIR, selected_experiment)
+    # Display the relative path from LOGS_DIR
+    rel_path = os.path.relpath(selected_experiment, LOGS_DIR)
+    st.title(f"Experiment: {rel_path}")
 
     # Reports Section
     st.header("Aggregated Reports")
-    df = load_reports(exp_path)
+    df = load_reports(selected_experiment)
     if df is not None:
         st.table(df)
     else:
@@ -79,7 +115,7 @@ if selected_experiment:
 
     # Videos Section
     st.header("Videos")
-    videos = get_videos(exp_path)
+    videos = get_videos(selected_experiment)
     if videos:
         # Tiled viewer with 3 columns
         cols = st.columns(3)
@@ -90,4 +126,8 @@ if selected_experiment:
     else:
         st.info("No videos found.")
 else:
-    st.write("Please select an experiment from the sidebar.")
+    if not os.path.exists(LOGS_DIR):
+         st.error(f"Logs directory '{LOGS_DIR}' not found.")
+    else:
+        st.write("Please select an experiment directory using the sidebar.")
+        st.write("Navigate through the folders until you reach an experiment (folder containing 'reports' or 'videos').")
