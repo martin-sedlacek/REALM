@@ -31,6 +31,19 @@ if [ -z "$EXPERIMENT_NAME" ]; then
   EXPERIMENT_NAME="t${T_RAW//,/_}_p${P_RAW//,/_}_s${MAX_STEPS}_r${REPEATS}"
 fi
 
+METADATA_DIR="logs/$EXPERIMENT_NAME"
+mkdir -p "$METADATA_DIR"
+METADATA_FILE="$METADATA_DIR/metadata.json"
+
+{
+  echo "{"
+  echo "  \"max_steps\": $MAX_STEPS,"
+  echo "  \"repeats\": $REPEATS,"
+  echo "  \"task_ids\": [${T_RAW}],"
+  echo "  \"perturbation_ids\": [${P_RAW}]"
+  echo "}"
+} > "$METADATA_FILE"
+
 #---------------------------------------------------------------------------------
 
 for i in "${TASK_IDS[@]}"; do

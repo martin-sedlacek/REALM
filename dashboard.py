@@ -196,9 +196,9 @@ if st.session_state.selected_experiment and os.path.exists(st.session_state.sele
     rel_path = os.path.relpath(selected_path, LOGS_DIR)
     path_parts = rel_path.split(os.sep)
 
-    experiment_name = path_parts[1] if len(path_parts) > 1 else "N/A"
-    model_name = path_parts[2] if len(path_parts) > 2 else "N/A"
-    run_id = path_parts[3] if len(path_parts) > 3 else "N/A"
+    experiment_name = path_parts[0] if len(path_parts) > 0 else "N/A"
+    model_name = path_parts[1] if len(path_parts) > 1 else "N/A"
+    run_id = path_parts[2] if len(path_parts) > 2 else "N/A"
 
     st.title("Experiment Dashboard")
 
