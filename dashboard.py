@@ -9,17 +9,23 @@ st.set_page_config(layout="wide", page_title="Experiment Dashboard")
 LOGS_DIR = "logs"
 
 def get_experiments():
+    """Recursively finds all subdirectories in the LOGS_DIR."""
     if not os.path.exists(LOGS_DIR):
         return []
-    # List subdirectories
-    return sorted([d for d in os.listdir(LOGS_DIR) if os.path.isdir(os.path.join(LOGS_DIR, d))])
+    
+    experiment_dirs = []
+    for dirpath, _, _ in os.walk(LOGS_DIR):
+        rel_path = os.path.relpath(dirpath, LOGS_DIR)
+        if rel_path != ".":
+            experiment_dirs.append(rel_path)
+    return sorted(experiment_dirs)
 
 def load_reports(experiment_path):
-    reports_path = os.path.join(experiment_path, "reports")
-    if not os.path.exists(reports_path):
+    """Loads all CSV reports from the selected experiment directory."""
+    if not os.path.exists(experiment_path):
         return None
 
-    csv_files = glob.glob(os.path.join(reports_path, "*.csv"))
+    csv_files = glob.glob(os.path.join(experiment_path, "*.csv"))
     if not csv_files:
         return None
 
@@ -44,10 +50,10 @@ def load_reports(experiment_path):
         return None
 
 def get_videos(experiment_path):
-    videos_path = os.path.join(experiment_path, "videos")
-    if not os.path.exists(videos_path):
+    """Gets all videos from the selected experiment directory."""
+    if not os.path.exists(experiment_path):
         return []
-    return sorted(glob.glob(os.path.join(videos_path, "*.mp4")))
+    return sorted(glob.glob(os.path.join(experiment_path, "*.mp4")))
 
 # Sidebar
 st.sidebar.title("Experiments")
