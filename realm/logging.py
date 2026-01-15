@@ -8,17 +8,21 @@ from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import omnigibson as og
 
 
-def save_results_to_csv(results, log_dir, global_timestamp, model_type, task, perturbation):
-    file_uuid = str(uuid.uuid1())[:6]
-    # Handle cleaning up model_type string for filename if it's a path
-    if model_type not in ("pi0", "pi0_FAST", "GR00T"):
-        script_filename = model_type.split("/")[-1]
-        model_type_str = ".".join(script_filename.split(".")[:-1])
-    else:
-        model_type_str = model_type
+def save_results_to_csv(results, log_dir, global_timestamp, model_type, task, perturbation, filename=None):
+    if filename is None:
+        file_uuid = str(uuid.uuid1())[:6]
+        # Handle cleaning up model_type string for filename if it's a path
+        if model_type not in ("pi0", "pi0_FAST", "GR00T"):
+            script_filename = model_type.split("/")[-1]
+            model_type_str = ".".join(script_filename.split(".")[:-1])
+        else:
+            model_type_str = model_type
 
-    os.makedirs(log_dir, exist_ok=True)
-    csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type_str}_gen_eval_rollout_{task}_{perturbation}_{file_uuid}_report.csv"
+        os.makedirs(log_dir, exist_ok=True)
+        csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type_str}_gen_eval_rollout_{task}_{perturbation}_{file_uuid}_report.csv"
+    else:
+        csv_results_filename = filename
+        os.makedirs(os.path.dirname(csv_results_filename), exist_ok=True)
 
     if len(results) > 0:
         keys = results[0].keys()
@@ -27,6 +31,7 @@ def save_results_to_csv(results, log_dir, global_timestamp, model_type, task, pe
             dict_writer.writeheader()
             dict_writer.writerows(results)
     og.log.info(f"Saved run report to {csv_results_filename}")
+    return csv_results_filename
 
 class VideoRecorder:
     def __init__(self, log_dir, timestamp, run_id):

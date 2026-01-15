@@ -4,6 +4,8 @@ from queue import Queue
 import datetime
 import os
 import random
+import glob
+import csv
 import omnigibson as og
 from omnigibson.macros import gm
 from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
@@ -69,7 +71,8 @@ def evaluate(
         horizon=8,
         model="pi0_FAST",
         port=8000,
-        log_dir="/app/logs"
+        log_dir="/app/logs",
+        resume_run_id=None
 ):
     start = time.perf_counter()
     og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
@@ -92,11 +95,39 @@ def evaluate(
     )
     og.log.info(f"DEBUG: Env created: {time.perf_counter() - start:.4f}s")
 
-    global_timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
-    results = []
+    if resume_run_id:
+        # find matching file
+        search_pattern = os.path.join(log_dir, "reports", f"{resume_run_id}*report.csv")
+        matches = glob.glob(search_pattern)
+        if not matches:
+            raise ValueError(f"Could not find run report to resume with ID {resume_run_id}")
+        csv_filename = matches[0]
+        # read existing results
+        with open(csv_filename, 'r') as f:
+            reader = csv.DictReader(f)
+            existing_results = list(reader)
+        results = existing_results
+        start_repeat = len(results)
+        global_timestamp = resume_run_id
+        og.log.info(f"Resuming run {resume_run_id} from repeat {start_repeat}. Using file: {csv_filename}")
+    else:
+        global_timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
+        results = []
+        start_repeat = 0
+        csv_filename = None
 
     for run_id in range(repeats):
         # ------------------------ pre-configure each run --------------------------------
+        # Seeding: ensure deterministic behavior per run, independent of previous runs
+        seed = 1234 + run_id
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+        if run_id < start_repeat:
+            continue
+
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
 
         video_recorder = VideoRecorder(log_dir, timestamp, run_id)
@@ -171,7 +202,8 @@ def evaluate(
         video_recorder.save_video(save_filename)
         video_recorder.cleanup()
 
+        csv_filename = save_results_to_csv(results, log_dir+"/reports", global_timestamp, model, task, perturbations[0], filename=csv_filename)
+
     # ------------------------------------------------------------------------------
-    save_results_to_csv(results, log_dir+"/reports", global_timestamp, model, task, perturbations[0])
     og.log.info("Done!")
     og.log.info(f"DEBUG: CLEAN-UP done: {time.perf_counter() - start:.4f}s")
