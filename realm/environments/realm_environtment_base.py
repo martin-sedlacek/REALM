@@ -236,8 +236,10 @@ class RealmEnvironmentBase:
                     else:
                          impulse_vec = impulse_val
                     
-                    if np.linalg.norm(impulse_vec) < 1e-4:
+                    if np.linalg.norm(impulse_vec) < 1e-3:
                         continue
+                else:
+                    continue
 
                 if contact.body0 == link.prim_path:
                     other_path = contact.body1
