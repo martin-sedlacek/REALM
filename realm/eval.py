@@ -147,6 +147,8 @@ def evaluate(
         ee_poses = []
         collisions_self = 0
         collisions_env = 0
+        is_self_col_active = False
+        is_env_col_active = False
         drops = 0
         was_grasping = False
 
@@ -158,10 +160,13 @@ def evaluate(
             ee_poses.append(ee_pos)
 
             is_self_col, is_env_col = env.check_collisions()
-            if is_self_col:
+            if is_self_col and not is_self_col_active:
                 collisions_self += 1
-            if is_env_col:
+            is_self_col_active = is_self_col
+
+            if is_env_col and not is_env_col_active:
                 collisions_env += 1
+            is_env_col_active = is_env_col
 
             is_grasping = env.check_grasp_condition(obs)
             if was_grasping and not is_grasping:
