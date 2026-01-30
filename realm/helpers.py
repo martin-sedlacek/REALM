@@ -178,7 +178,7 @@ def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: li
         this_cfg = {
             "category": obj.category,
             "pos": obj.aabb_center,
-            "ori": obj.get_orientation(),
+            "ori": obj.get_position_orientation()[1],
             "relative_prim_path": obj._relative_prim_path
         }
 

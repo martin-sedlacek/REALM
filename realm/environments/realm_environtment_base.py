@@ -194,7 +194,7 @@ class RealmEnvironmentBase:
     def get_ee_pose(self):
         ee_link_name = self.robot.eef_link_names[self.robot.default_arm]
         ee_link = self.robot.links[ee_link_name]
-        return ee_link.get_position(), ee_link.get_orientation()
+        return ee_link.get_position_orientation()
 
     def check_collisions(self):
         self_collision = False
@@ -204,13 +204,17 @@ class RealmEnvironmentBase:
         robot_link_paths = set(l.prim_path for l in robot_links)
 
         for link in robot_links:
-            if ContactBodies in link.states:
-                contacts = link.states[ContactBodies].get_value()
-                for contact in contacts:
-                    if contact.prim_path in robot_link_paths:
-                        self_collision = True
-                    else:
-                        env_collision = True
+            contacts = link.contact_list()
+            for contact in contacts:
+                if contact.body0 == link.prim_path:
+                    other_path = contact.body1
+                else:
+                    other_path = contact.body0
+
+                if other_path in robot_link_paths:
+                    self_collision = True
+                else:
+                    env_collision = True
 
             if self_collision and env_collision:
                 break

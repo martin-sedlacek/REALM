@@ -548,7 +548,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
                     new_rot = add_rotation_noise(tmp, (0, 0, 0.12), [-3.14, -3.14, 0], [3.14, 3.14, 0.57], (0, 0, 0.25))
                     o.set_orientation(new_rot)
                 else:
-                    tmp = o.get_orientation() # TODO: also from orig rot?
+                    tmp = o.get_position_orientation()[1] # TODO: also from orig rot?
                     o.set_orientation(add_rotation_noise(tmp, (0, 0, 3.14)))
             og.sim.play()
             self.reset_joints()
