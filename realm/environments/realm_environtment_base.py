@@ -191,6 +191,32 @@ class RealmEnvironmentBase:
         else:
             self.mo_joint = None
 
+    def get_ee_pose(self):
+        ee_link_name = self.robot.eef_link_names[self.robot.default_arm]
+        ee_link = self.robot.links[ee_link_name]
+        return ee_link.get_position(), ee_link.get_orientation()
+
+    def check_collisions(self):
+        self_collision = False
+        env_collision = False
+
+        robot_links = list(self.robot.links.values())
+        robot_link_paths = set(l.prim_path for l in robot_links)
+
+        for link in robot_links:
+            if ContactBodies in link.states:
+                contacts = link.states[ContactBodies].get_value()
+                for contact in contacts:
+                    if contact.prim_path in robot_link_paths:
+                        self_collision = True
+                    else:
+                        env_collision = True
+
+            if self_collision and env_collision:
+                break
+
+        return self_collision, env_collision
+
     # ============================== [SUCCESS METRICS] ==============================
     def is_grasping(self, obs, candidate_obj):
         finger_joints = obs['franka']['proprio'][7:9].cpu().numpy()
