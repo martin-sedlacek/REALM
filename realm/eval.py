@@ -143,8 +143,30 @@ def evaluate(
         task_progression = 0.0
         task_progression_timestamps = []
         terminal_steps = 15
+
+        ee_poses = []
+        collisions_self = 0
+        collisions_env = 0
+        drops = 0
+        was_grasping = False
+
         while t < max_steps and terminal_steps > 0:
             base_im, base_im_second, wrist_im, robot_state, gripper_state = extract_from_obs(obs)
+
+            # Metrics collection
+            ee_pos, ee_rot = env.get_ee_pose()
+            ee_poses.append(ee_pos)
+
+            is_self_col, is_env_col = env.check_collisions()
+            if is_self_col:
+                collisions_self += 1
+            if is_env_col:
+                collisions_env += 1
+
+            is_grasping = env.check_grasp_condition(obs)
+            if was_grasping and not is_grasping:
+                drops += 1
+            was_grasping = is_grasping
 
             if action_buffer.empty():
                 pred_action_chunk = client.infer(
@@ -184,6 +206,42 @@ def evaluate(
 
         og.log.info(f"DEBUG: Run finished: {time.perf_counter() - start:.4f}s")
         # ------------------------------------------------------------------------------
+
+        # Metrics calculation
+        dt = 1.0 / 15.0  # Control freq is 15Hz by default
+
+        qpos_arr = np.stack(qpos)  # (N, 8)
+        qpos_joints = qpos_arr[:, :7]
+
+        # Joint space metrics
+        if len(qpos_joints) > 4:
+            joint_vel = np.diff(qpos_joints, axis=0) / dt
+            joint_acc = np.diff(joint_vel, axis=0) / dt
+            joint_jerk = np.diff(joint_acc, axis=0) / dt
+
+            joint_vel_var = np.mean(np.var(joint_vel, axis=0))
+            joint_acc_var = np.mean(np.var(joint_acc, axis=0))
+            joint_jerk_metric = np.mean(np.linalg.norm(joint_jerk, axis=1))
+            joint_path_length = np.sum(np.linalg.norm(np.diff(qpos_joints, axis=0), axis=1))
+        else:
+            joint_vel_var = 0.0
+            joint_acc_var = 0.0
+            joint_jerk_metric = 0.0
+            joint_path_length = 0.0
+
+        # Cartesian space metrics
+        ee_pos_arr = np.stack(ee_poses)
+        if len(ee_pos_arr) > 4:
+            cart_vel = np.diff(ee_pos_arr, axis=0) / dt
+            cart_acc = np.diff(cart_vel, axis=0) / dt
+            cart_jerk = np.diff(cart_acc, axis=0) / dt
+
+            cart_path_length = np.sum(np.linalg.norm(np.diff(ee_pos_arr, axis=0), axis=1))
+            cart_jerk_metric = np.mean(np.linalg.norm(cart_jerk, axis=1))
+        else:
+            cart_path_length = 0.0
+            cart_jerk_metric = 0.0
+
         results.append({
             "run_id": run_id,
             "task": task,
@@ -194,7 +252,16 @@ def evaluate(
             "env": "REALM",
             "task_progression": task_progression,
             "task_progression_timestamps": task_progression_timestamps,
-            "binary_SR": 1.0 if task_progression == 1.0 else 0.0
+            "binary_SR": 1.0 if task_progression == 1.0 else 0.0,
+            "joint_vel_var": joint_vel_var,
+            "joint_acc_var": joint_acc_var,
+            "joint_jerk": joint_jerk_metric,
+            "joint_path_length": joint_path_length,
+            "cart_path_length": cart_path_length,
+            "cart_jerk": cart_jerk_metric,
+            "collisions_self": collisions_self,
+            "collisions_env": collisions_env,
+            "object_drops": drops
         })
 
         video_filename = os.path.join(log_dir, "videos", f"{task}_{perturbations[0]}_{run_id}")

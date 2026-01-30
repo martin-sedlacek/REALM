@@ -16,7 +16,7 @@ def save_results_to_csv(results, log_dir, task, perturbation, filename=None):
         os.makedirs(os.path.dirname(csv_results_filename), exist_ok=True)
 
     if len(results) > 0:
-        keys = results[0].keys()
+        keys = results[-1].keys()
         with open(csv_results_filename, 'w', newline='') as output_file:
             dict_writer = csv.DictWriter(output_file, fieldnames=keys)
             dict_writer.writeheader()
