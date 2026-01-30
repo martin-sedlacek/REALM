@@ -2,23 +2,18 @@ import numpy as np
 import os
 import csv
 import shutil
-import uuid
 from PIL import Image
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import omnigibson as og
 
 
-def save_results_to_csv(results, log_dir, global_timestamp, model_type, task, perturbation):
-    file_uuid = str(uuid.uuid1())[:6]
-    # Handle cleaning up model_type string for filename if it's a path
-    if model_type not in ("pi0", "pi0_FAST", "GR00T"):
-        script_filename = model_type.split("/")[-1]
-        model_type_str = ".".join(script_filename.split(".")[:-1])
+def save_results_to_csv(results, log_dir, task, perturbation, filename=None):
+    if filename is None:
+        os.makedirs(log_dir, exist_ok=True)
+        csv_results_filename = f"{log_dir}/{task}_{perturbation}.csv"
     else:
-        model_type_str = model_type
-
-    os.makedirs(log_dir, exist_ok=True)
-    csv_results_filename = f"{log_dir}/{global_timestamp}_{model_type_str}_gen_eval_rollout_{task}_{perturbation}_{file_uuid}_report.csv"
+        csv_results_filename = filename
+        os.makedirs(os.path.dirname(csv_results_filename), exist_ok=True)
 
     if len(results) > 0:
         keys = results[0].keys()
@@ -27,6 +22,7 @@ def save_results_to_csv(results, log_dir, global_timestamp, model_type, task, pe
             dict_writer.writeheader()
             dict_writer.writerows(results)
     og.log.info(f"Saved run report to {csv_results_filename}")
+    return csv_results_filename
 
 class VideoRecorder:
     def __init__(self, log_dir, timestamp, run_id):
@@ -47,6 +43,7 @@ class VideoRecorder:
              frame_img = frame_img.astype(np.uint8)
 
         frame_path = os.path.join(self.temp_frame_dir, f"frame_{self.count:05d}.png")
+        os.makedirs(os.path.dirname(frame_path), exist_ok=True)
         Image.fromarray(frame_img).save(frame_path)
         self.frame_filenames.append(frame_path)
         self.count += 1
