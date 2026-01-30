@@ -165,7 +165,17 @@ def evaluate(
 
             is_grasping = env.check_grasp_condition(obs)
             if was_grasping and not is_grasping:
-                drops += 1
+                is_placed = False
+                if hasattr(env, "task_type") and env.task_type in ["put", "stack"] and len(env.target_objects) > 0:
+                    mo = env.main_objects[0]
+                    target = env.target_objects[0]
+                    inside = mo.states[og.object_states.Inside].get_value(target)
+                    on_top = mo.states[og.object_states.OnTop].get_value(target)
+                    if inside or on_top:
+                        is_placed = True
+
+                if not is_placed:
+                    drops += 1
             was_grasping = is_grasping
 
             if action_buffer.empty():
@@ -219,8 +229,8 @@ def evaluate(
             joint_acc = np.diff(joint_vel, axis=0) / dt
             joint_jerk = np.diff(joint_acc, axis=0) / dt
 
-            joint_vel_var = np.mean(np.var(joint_vel, axis=0))
-            joint_acc_var = np.mean(np.var(joint_acc, axis=0))
+            joint_vel_var = np.mean(np.var(joint_vel, axis=0) * len(joint_vel))
+            joint_acc_var = np.mean(np.var(joint_acc, axis=0) * len(joint_acc))
             joint_jerk_metric = np.mean(np.linalg.norm(joint_jerk, axis=1))
             joint_path_length = np.sum(np.linalg.norm(np.diff(qpos_joints, axis=0), axis=1))
         else:
@@ -236,8 +246,8 @@ def evaluate(
             cart_acc = np.diff(cart_vel, axis=0) / dt
             cart_jerk = np.diff(cart_acc, axis=0) / dt
 
-            cart_path_length = np.sum(np.linalg.norm(np.diff(ee_pos_arr, axis=0), axis=1))
             cart_jerk_metric = np.mean(np.linalg.norm(cart_jerk, axis=1))
+            cart_path_length = np.sum(np.linalg.norm(np.diff(ee_pos_arr, axis=0), axis=1))
         else:
             cart_path_length = 0.0
             cart_jerk_metric = 0.0
@@ -250,6 +260,9 @@ def evaluate(
                     break
         else:
             stage_to_log = "N/A"
+
+        if task_progression == 1.0 and hasattr(env, "task_type") and env.task_type in ["put", "stack"]:
+            drops = max(0, drops - 1)
 
         results.append({
             "run_id": run_id,

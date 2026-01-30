@@ -4,8 +4,8 @@ external_sensors:
     relative_prim_path: "/external_sensor0"
     modalities: ["rgb"]
     sensor_kwargs:
-      image_height: 720
-      image_width: 1280
+      image_height: 243 #720
+      image_width: 432 #1280
       focal_length: 9.825
     pose_frame: "parent"
   - name: "external_sensor1"
@@ -13,8 +13,8 @@ external_sensors:
     relative_prim_path: "/external_sensor1"
     modalities: [ "rgb" ]
     sensor_kwargs:
-      image_height: 720
-      image_width: 1280
+      image_height: 243 #720
+      image_width: 432 #1280
       focal_length: 9.825
     pose_frame: "parent"
 # TODO: use a flag

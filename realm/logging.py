@@ -32,15 +32,42 @@ class VideoRecorder:
         self.count = 0
 
     def add_frame(self, base_im, wrist_im):
+        # Ensure images are uint8
+        if base_im.dtype.kind == 'f':
+            base_im = (base_im * 255).astype(np.uint8)
+        elif base_im.dtype != np.uint8:
+            base_im = base_im.astype(np.uint8)
+
+        if wrist_im.dtype.kind == 'f':
+            wrist_im = (wrist_im * 255).astype(np.uint8)
+        elif wrist_im.dtype != np.uint8:
+            wrist_im = wrist_im.astype(np.uint8)
+
+        # Check if resizing is needed
+        if base_im.shape[:2] != wrist_im.shape[:2]:
+            base_pixels = base_im.shape[0] * base_im.shape[1]
+            wrist_pixels = wrist_im.shape[0] * wrist_im.shape[1]
+
+            if base_pixels > wrist_pixels:
+                # Resize base to match wrist
+                new_size = (wrist_im.shape[1], wrist_im.shape[0])
+                base_im = np.array(Image.fromarray(base_im).resize(new_size))
+            else:
+                # Resize wrist to match base
+                new_size = (base_im.shape[1], base_im.shape[0])
+                wrist_im = np.array(Image.fromarray(wrist_im).resize(new_size))
+
         frame_img = np.concatenate((
             base_im,
             wrist_im,
         ), axis=1)
 
-        if frame_img.dtype.kind == 'f':
-             frame_img = (frame_img * 255).astype(np.uint8)
-        elif frame_img.dtype != np.uint8:
-             frame_img = frame_img.astype(np.uint8)
+        # Ensure dimensions are even for H.264 compatibility
+        h, w = frame_img.shape[:2]
+        if h % 2 != 0 or w % 2 != 0:
+            new_h = h if h % 2 == 0 else h - 1
+            new_w = w if w % 2 == 0 else w - 1
+            frame_img = np.array(Image.fromarray(frame_img).resize((new_w, new_h)))
 
         frame_path = os.path.join(self.temp_frame_dir, f"frame_{self.count:05d}.png")
         os.makedirs(os.path.dirname(frame_path), exist_ok=True)

@@ -109,6 +109,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
         assert len(self.omnigibson_env.robots) == 1  # assumes single robot, single arm
         self.robot = self.omnigibson_env.robots[0]
+        
         self.robot_finger_links = {self.robot._links[link] for link in self.robot.finger_link_names[self.robot.default_arm]}
 
         self.instruction = self.cfg["instruction"]
@@ -199,6 +200,14 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             torch.tensor(robot_rot, dtype=torch.float32)).tolist()
         cfg_robot["robots"][0]["fixed_base"] = True
         cfg_robot["robots"][0]["reset_joint_pos"] = reset_joint_pos
+
+        # Update robot camera resolution to match external cameras
+        cfg_external_sensors = yaml.load(open(f"{self.config_path}/env/external_sensors/camera_config.yaml", "r"), Loader=yaml.FullLoader)
+        target_h = cfg_external_sensors["external_sensors"][0]["sensor_kwargs"]["image_height"]
+        target_w = cfg_external_sensors["external_sensors"][0]["sensor_kwargs"]["image_width"]
+        if "sensor_config" in cfg_robot["robots"][0] and "VisionSensor" in cfg_robot["robots"][0]["sensor_config"]:
+            cfg_robot["robots"][0]["sensor_config"]["VisionSensor"]["sensor_kwargs"]["image_height"] = target_h
+            cfg_robot["robots"][0]["sensor_config"]["VisionSensor"]["sensor_kwargs"]["image_width"] = target_w
 
         if self.common_freq is not None:
             cfg_robot["robots"][0]["control_freq"] = self.common_freq

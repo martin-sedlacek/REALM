@@ -200,21 +200,59 @@ class RealmEnvironmentBase:
         self_collision = False
         env_collision = False
 
+        # Cache adjacent links to ignore self-collisions between connected bodies
+        if not hasattr(self, "_robot_adjacent_links"):
+            self._robot_adjacent_links = set()
+            if hasattr(self.robot, "joints"):
+                for joint in self.robot.joints.values():
+                    b0 = joint.body0
+                    b1 = joint.body1
+                    if b0 and b1:
+                        self._robot_adjacent_links.add(frozenset((b0, b1)))
+
         robot_links = list(self.robot.links.values())
         robot_link_paths = set(l.prim_path for l in robot_links)
 
+        # Objects to ignore for environment collision (manipulation targets)
+        ignore_env_paths = set()
+        for obj in self.main_objects + self.target_objects:
+            ignore_env_paths.add(obj.prim_path)
+            for link in obj.links.values():
+                ignore_env_paths.add(link.prim_path)
+
         for link in robot_links:
+            # Skip root link (usually touching mount/floor)
+            if link.name == self.robot.root_link_name:
+                continue
+
             contacts = link.contact_list()
             for contact in contacts:
+                # Filter by impulse if available (ignore resting/negligible contacts)
+                if hasattr(contact, "impulse"):
+                    impulse_val = contact.impulse
+                    # Handle structured array if necessary (based on error message)
+                    if impulse_val.dtype.names is not None:
+                         impulse_vec = np.array([impulse_val['x'], impulse_val['y'], impulse_val['z']])
+                    else:
+                         impulse_vec = impulse_val
+                    
+                    if np.linalg.norm(impulse_vec) < 1e-4:
+                        continue
+
                 if contact.body0 == link.prim_path:
                     other_path = contact.body1
                 else:
                     other_path = contact.body0
 
                 if other_path in robot_link_paths:
+                    # Ignore collisions between adjacent links
+                    if frozenset((link.prim_path, other_path)) in self._robot_adjacent_links:
+                        continue
                     self_collision = True
                 else:
-                    env_collision = True
+                    # Check if it's an allowed environment contact
+                    if other_path not in ignore_env_paths:
+                        env_collision = True
 
             if self_collision and env_collision:
                 break
