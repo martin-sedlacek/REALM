@@ -242,6 +242,15 @@ def evaluate(
             cart_path_length = 0.0
             cart_jerk_metric = 0.0
 
+        stage_to_log = "SUCCESS"
+        if env.task_progression is not None:
+            for stage, is_completed in env.task_progression.items():
+                if not is_completed:
+                    stage_to_log = stage
+                    break
+        else:
+            stage_to_log = "N/A"
+
         results.append({
             "run_id": run_id,
             "task": task,
@@ -252,6 +261,7 @@ def evaluate(
             "env": "REALM",
             "task_progression": task_progression,
             "task_progression_timestamps": task_progression_timestamps,
+            "stage": stage_to_log,
             "binary_SR": 1.0 if task_progression == 1.0 else 0.0,
             "joint_vel_var": joint_vel_var,
             "joint_acc_var": joint_acc_var,
