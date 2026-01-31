@@ -212,13 +212,11 @@ class RealmEnvironmentBase:
 
         robot_links = list(self.robot.links.values())
         robot_link_paths = set(l.prim_path for l in robot_links)
+        robot_prim_path = self.robot.prim_path
 
         # Objects to ignore for environment collision (manipulation targets)
-        ignore_env_paths = set()
-        for obj in self.main_objects + self.target_objects:
-            ignore_env_paths.add(obj.prim_path)
-            for link in obj.links.values():
-                ignore_env_paths.add(link.prim_path)
+        # We use prefixes to catch links and geoms belonging to these objects
+        ignore_obj_roots = [obj.prim_path for obj in self.main_objects + self.target_objects]
 
         for link in robot_links:
             # Skip root link (usually touching mount/floor)
@@ -246,14 +244,20 @@ class RealmEnvironmentBase:
                 else:
                     other_path = contact.body0
 
-                if other_path in robot_link_paths:
+                # Check if other_path belongs to the robot
+                is_robot = other_path in robot_link_paths or other_path.startswith(robot_prim_path)
+
+                if is_robot:
                     # Ignore collisions between adjacent links
-                    if frozenset((link.prim_path, other_path)) in self._robot_adjacent_links:
-                        continue
+                    # Only applicable if we have exact link paths; otherwise assume it's a valid self-collision
+                    if other_path in robot_link_paths:
+                        if frozenset((link.prim_path, other_path)) in self._robot_adjacent_links:
+                            continue
                     self_collision = True
                 else:
-                    # Check if it's an allowed environment contact
-                    if other_path not in ignore_env_paths:
+                    # Check if it's an allowed environment contact (belongs to main/target objects)
+                    is_ignored = any(other_path.startswith(root) for root in ignore_obj_roots)
+                    if not is_ignored:
                         env_collision = True
 
             if self_collision and env_collision:
