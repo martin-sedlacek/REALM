@@ -22,7 +22,7 @@ while [[ "$#" -gt 0 ]]; do
     --task_id) TASK_ID="$2"; shift 2 ;;
     --perturbation_id) PERTURBATION_ID="$2"; shift 2 ;;
     --run_id) RUN_ID="$2"; shift 2 ;;
-    --debug) DEBUG=true; shift 1;;
+    --debug) DEBUG="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
