@@ -207,7 +207,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
 
-        self.cfg = cfg
+        self.cfg = copy.deepcopy(cfg)
         self.task_type = self.cfg["task_type"]
         self.instruction = self.cfg["instruction"]
 
