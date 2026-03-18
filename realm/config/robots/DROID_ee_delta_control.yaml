@@ -1,0 +1,39 @@
+robots:
+  - name: "DROID"
+    type: "DROID"
+    ee_control: true
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    control_freq: 15
+    action_normalize: False
+    action_type: "continuous"
+    friction: [ 0.05, 0.10, 0.05, 0.10, 0.75, 0.425, 0.20 ]
+    armature: [ 0.25, 0.50, 0.25, 0.50, 0.25, 0.150, 0.00 ]
+    controller_name: "DroidEndEffectorController"
+    controller_config:
+        arm_0:
+            name: "DroidEndEffectorController"
+            mode: "pose_delta_ori"
+            motor_type: "position"
+            control_freq: 15
+            use_delta_commands: False
+            use_impedances: True
+            use_gravity_compensation: False
+            use_cc_compensation: False
+            Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
+            Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
+            Kx: [ 400, 400, 400, 15, 15, 15 ]
+            Kxd: [ 37, 37, 37, 2, 2, 2 ]
+            command_output_limits: null
+            command_input_limits: null
+            max_effort: [ 87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0 ]
+            min_effort: [ -87.0, -87.0, -87.0, -87.0, -12.0, -12.0, -12.0 ]
+        gripper_0:
+          name: "CustomGripperController"
+          mode: "binary"
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          focal_length: 2.8

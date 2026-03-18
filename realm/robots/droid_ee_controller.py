@@ -197,7 +197,8 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
                 action_dict["cartesian_velocity"] = th.cat([goal_dict["target_cartesian_pos_vel"], goal_dict["target_cartesian_rot_vel"]])
                 action_dict["cartesian_delta"] = self._ik_solver.cartesian_velocity_to_delta(action_dict["cartesian_velocity"])
             elif self.mode == "pose_delta_ori":
-                action_dict["cartesian_delta"] = th.cat([goal_dict["target_pos_relative"], goal_dict["target_rpy_relative"]])
+                dpos = goal_dict["target_pos"] - goal_dict["target_pos_relative"]
+                action_dict["cartesian_delta"] = th.cat([dpos, goal_dict["target_rpy_relative"]])
                 cartesian_velocity = self._ik_solver.cartesian_delta_to_velocity(action_dict["cartesian_delta"])
                 action_dict["cartesian_velocity"] = cartesian_velocity.tolist()
             elif self.mode == "absolute_pose":

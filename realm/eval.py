@@ -83,6 +83,7 @@ def evaluate(
         horizon=8,
         model_type="pi0_FAST",
         port=8000,
+        host="127.0.0.1",
         log_dir="/app/logs",
         resume=False,
         multi_view=False,
@@ -111,7 +112,7 @@ def evaluate(
     os.makedirs(log_dir, exist_ok=True)
 
     model_type = model_type # TODO: infer type from model name, rn this will just default to a pi model inference inside the client
-    client = InferenceClient(model_type, port)
+    client = InferenceClient(model_type, host=host, port=port)
     og.log.info(f"DEBUG: Client connected: {time.perf_counter() - start:.4f}s")
 
     env = RealmEnvironmentDynamic(
@@ -235,7 +236,13 @@ def evaluate(
             actions.append(action)
 
             new_action = action.copy()
-            new_action[-1] = 1 if action[-1] > 0.5 else -1  # Prediction: (1,0) -> Target: (1,-1)
+            if model_type in ["openpi", "GR00T", "GR00T_N16"]:
+                new_action[-1] = 1 if action[-1] > 0.5 else -1  # Prediction: (1,0) -> Target: (1,-1)
+            elif model_type == "molmoact":
+                new_action[-1] = 1 if action[-1] < 0.5 else -1  # Prediction: (0,1) -> Target: (1,-1)
+            else:
+                raise NotImplementedError()
+
 
             # new_gripper_state = 1 if action[-1] > 0.5 else -1  # Prediction: (1,0) -> Target: (1,-1)
             # new_gripper_state = np.atleast_1d(np.array(new_gripper_state))
