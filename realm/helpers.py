@@ -9,6 +9,7 @@ from omnigibson.objects import DatasetObject
 from omnigibson.utils.asset_utils import get_all_object_category_models
 import yaml
 import os
+import copy
 
 def quaternion_xyzw_to_rotation_matrix(quaternion_xyzw):
     """
@@ -156,10 +157,10 @@ def _get_categories_data():
     return _CATEGORIES_DATA
 
 def get_non_droid_categories():
-    return _get_categories_data()["non_droid_categories"]
+    return list(_get_categories_data()["non_droid_categories"])
 
 def get_droid_categories_by_theme():
-    return _get_categories_data()["droid_categories_by_theme"]
+    return copy.deepcopy(_get_categories_data()["droid_categories_by_theme"])
 
 
 def get_objects_by_names(scene: InteractiveTraversableScene, names: list[str]) -> list[DatasetObject]:
