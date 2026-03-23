@@ -689,18 +689,20 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         synonyms: dict[str, list[str]] = self.cfg.get("synonyms", None)
         if synonyms is None:
             self.apply_cached_semantic_perturbations("S-LANG")
+            return
+
         n_synonyms_comb = np.prod([(len(v) + 1) for v in synonyms.values()]) - 1
         s_langs = self.cfg["cached_semantic_perturbations"].get("S-LANG", None)
         if s_langs is not None:
             n_s_langs = len(s_langs)
             if np.random.random() < n_s_langs / (n_synonyms_comb + n_s_langs):
                 self.apply_cached_semantic_perturbations("S-LANG")
+                return
 
         orig_instruction: str = self.cfg["instruction"]
         instruction = orig_instruction.lower()
         instruction_words = instruction.split()
 
-        synonyms: dict[str, list[str]] = self.cfg["synonyms"]
         number_words_which_can_be_replaced = len(synonyms)
         # Picking with 50% which words to replace with synonyms
         word_idx_to_replace = np.random.randint(2, size=number_words_which_can_be_replaced)

@@ -2,6 +2,7 @@ import time
 import base64
 import re
 import os
+import uuid
 import cv2
 import numpy as np
 from PIL import Image
@@ -146,15 +147,15 @@ class HamsterClient:
     MODEL_NAME = "Hamster_dev"
 
     def __init__(self, host=None, port=8000, ip_file="./ip_eth0.txt"):
-        if host is None:
-            if os.path.exists(ip_file):
-                with open(ip_file, "r") as f:
-                    self.server_ip = f.read().strip()
-            else:
-                self.server_ip = "127.0.0.1"
-        else:
-            self.server_ip = host
-
+        # if host is None:
+        #     if os.path.exists(ip_file):
+        #         with open(ip_file, "r") as f:
+        #             self.server_ip = f.read().strip()
+        #     else:
+        #         self.server_ip = "127.0.0.1"
+        # else:
+        #     self.server_ip = host
+        self.server_ip = "127.0.0.1"
         self.base_url = f"http://{self.server_ip}:{port}/v1"
         self.client = OpenAI(base_url=self.base_url, api_key="fake-key")
         og.log.info(f"Connected to HAMSTER server at {self.base_url}")
@@ -257,6 +258,62 @@ class HamsterClient:
             og.log.info(f"Request failed: {e}")
             return []
 
+    def reset(self):
+        """No-op for HamsterClient"""
+        pass
+
+
+class DreamZeroClient:
+    """
+    Client for the DreamZero server.
+    """
+    def __init__(self, host="localhost", port=5000):
+        # DreamZero uses a specific WebsocketClientPolicy
+        # We try to import it from eval_utils, fallback to openpi_client
+        try:
+            from eval_utils.policy_client import WebsocketClientPolicy
+        except ImportError:
+            from openpi_client.websocket_client_policy import WebsocketClientPolicy
+
+        og.log.info(f"Connecting to DreamZero server at {host}:{port}...")
+        self.client = WebsocketClientPolicy(host=host, port=port)
+        self.session_id = str(uuid.uuid4())
+        
+        # Optional: Validate connection
+        try:
+            metadata = self.client.get_server_metadata()
+            og.log.info(f"Connected to DreamZero! Server metadata: {metadata}")
+        except Exception as e:
+            og.log.info(f"Warning: Could not fetch DreamZero metadata: {e}")
+
+    def infer(self, obs_dict):
+        obs_dict["session_id"] = self.session_id
+        # FIX: Add endpoint directly to the flat dict so openpi_client sends it properly
+        obs_dict["endpoint"] = "infer"
+        return self.client.infer(obs_dict)
+
+    def reset(self):
+        """Tells the server to flush buffers and saves the generated video prediction to disk"""
+        reset_obs = {"session_id": self.session_id}
+        
+        try:
+            import inspect
+            if hasattr(self.client, "reset"):
+                sig = inspect.signature(self.client.reset)
+                # If reset takes arguments (besides self), pass the reset_obs
+                if len(sig.parameters) > 0:
+                    self.client.reset(reset_obs)
+                else:
+                    # openpi_client version takes 0 args and sends {"endpoint": "reset"}
+                    self.client.reset()
+            else:
+                reset_obs["endpoint"] = "reset"
+                self.client.infer(reset_obs)
+        except Exception as e:
+            og.log.info(f"Warning: DreamZero reset failed: {e}")
+            
+        self.session_id = str(uuid.uuid4())
+
 
 class InferenceClient:
     def __init__(self, model_type, port, host="127.0.0.1"):
@@ -268,6 +325,9 @@ class InferenceClient:
             self.client = ExternalRobotInferenceClient(host=self.host, port=self.port)
         elif model_type == "hamster":
             self.client = HamsterClient(host=self.host, port=self.port)
+        elif model_type == "dreamzero":
+            self.client = DreamZeroClient(host="192.168.0.1", port=5000)
+            #self.client = DreamZeroClient(host=self.host, port=self.port)
         elif model_type != "debug":
             og.log.info("Connecting to server...")
             self.client = websocket_client_policy.WebsocketClientPolicy(
@@ -348,6 +408,33 @@ class InferenceClient:
             trajectory = self.client.infer(img_bgr, instruction)
             og.log.info(f"[hamster] inference time: {time.perf_counter() - _t0:.3f}s")
             return np.array(trajectory)
+        elif self.model_type == "dreamzero":
+            # DreamZero expects 180x320 RGB and strictly numpy arrays
+            # H=180, W=320. Initial frames MUST be strictly 3D (H, W, 3) np.ndarray
+            base_im_resized = np.array(Image.fromarray(base_im).resize((320, 180)), dtype=np.uint8)
+            wrist_im_resized = np.array(Image.fromarray(wrist_im).resize((320, 180)), dtype=np.uint8)
+
+            obs_dict = { # TODO: fix cartesian and pass second image
+                "observation/exterior_image_0_left": base_im_resized,
+                "observation/wrist_image_left": wrist_im_resized,
+                "observation/joint_position": np.array(robot_state, dtype=np.float32),
+                "observation/cartesian_position": np.zeros(6, dtype=np.float32),
+                "observation/gripper_position": np.array(np.atleast_1d(gripper_state), dtype=np.float32),
+                "prompt": instruction
+            }
+            
+            # Add second camera if available, otherwise PAD WITH ZEROS to prevent crashes
+            if base_im_second is not None:
+                base_im_second_resized = np.array(Image.fromarray(base_im_second).resize((320, 180)), dtype=np.uint8)
+                obs_dict["observation/exterior_image_1_left"] = base_im_second_resized
+            else:
+                # The server strictly requires this key.
+                obs_dict["observation/exterior_image_1_left"] = np.zeros_like(base_im_resized)
+
+            _t0 = time.perf_counter()
+            pred_action_chunk = self.client.infer(obs_dict)
+            og.log.info(f"[dreamzero] inference time: {time.perf_counter() - _t0:.3f}s")
+            return pred_action_chunk
         else:
             img_to_use = base_im_second if use_base_im_second else base_im
 
@@ -361,3 +448,8 @@ class InferenceClient:
             pred = self.client.infer(obs_dict)
             pred_action_chunk = pred["actions"]
             return pred_action_chunk
+
+    def reset(self):
+        if hasattr(self.client, "reset"):
+            self.client.reset()
+

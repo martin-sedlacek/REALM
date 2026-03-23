@@ -236,7 +236,7 @@ def evaluate(
             actions.append(action)
 
             new_action = action.copy()
-            if model_type in ["openpi", "GR00T", "GR00T_N16", "debug"]:
+            if model_type in ["debug", "openpi", "GR00T", "GR00T_N16", "dreamzero"]: # TODO: use a model config
                 new_action[-1] = 1 if action[-1] > 0.5 else -1  # Prediction: (1,0) -> Target: (1,-1)
             elif model_type == "molmoact":
                 new_action[-1] = 1 if action[-1] < 0.5 else -1  # Prediction: (0,1) -> Target: (1,-1)
@@ -342,6 +342,8 @@ def evaluate(
         actions_filename = os.path.join(log_dir, "actions", f"{task}_{perturbations[0]}_{run_id}")
         os.makedirs(log_dir + "/actions", exist_ok=True)
         np.save(actions_filename, np.stack(actions))
+
+        client.reset()
 
         csv_filename = save_results_to_csv(results, log_dir + "/reports", task, perturbations[0], filename=csv_filename)
 
