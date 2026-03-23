@@ -6,13 +6,14 @@ import random
 import csv
 import numpy as np
 import torch
+import pandas as pd
 
 import omnigibson as og
 from omnigibson.macros import gm
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.inference import InferenceClient, extract_from_obs
-from realm.logging import VideoRecorder, save_results_to_csv
+from realm.logging import VideoRecorder, save_results, append_trajectory
 
 
 
@@ -91,7 +92,8 @@ def evaluate(
         no_render=False,
         rendering_mode=None,
         task_cfg_path=None,
-        robot="DROID"
+        robot="DROID",
+        use_parquet=True
 ):
     start = time.perf_counter()
     og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
@@ -128,22 +130,29 @@ def evaluate(
 
     results = []
     start_repeat = 0
-    csv_filename = None
+    results_filename = None
 
     if resume:
         # find matching file
-        potential_filename = os.path.join(log_dir, "reports", f"{task}_{perturbations[0]}.csv")
-        if os.path.exists(potential_filename):
-            csv_filename = potential_filename
+        potential_parquet = os.path.join(log_dir, "reports", f"{task}_{perturbations[0]}.parquet")
+        potential_csv = os.path.join(log_dir, "reports", f"{task}_{perturbations[0]}.csv")
+        if use_parquet and os.path.exists(potential_parquet):
+            results_filename = potential_parquet
+            df = pd.read_parquet(results_filename)
+            results = df.to_dict('records')
+            start_repeat = len(results)
+            og.log.info(f"Resuming run from repeat {start_repeat}. Using file: {results_filename}")
+        elif os.path.exists(potential_csv):
+            results_filename = potential_csv
             # read existing results
-            with open(csv_filename, 'r') as f:
+            with open(results_filename, 'r') as f:
                 reader = csv.DictReader(f)
                 existing_results = list(reader)
             results = existing_results
             start_repeat = len(results)
-            og.log.info(f"Resuming run from repeat {start_repeat}. Using file: {csv_filename}")
+            og.log.info(f"Resuming run from repeat {start_repeat}. Using file: {results_filename}")
         else:
-            og.log.info(f"Resume requested but no report found at {potential_filename}. Starting fresh.")
+            og.log.info(f"Resume requested but no report found. Starting fresh.")
 
     for run_id in range(repeats):
         # ------------------------ pre-configure each run --------------------------------
@@ -307,7 +316,7 @@ def evaluate(
         if task_progression == 1.0 and hasattr(env, "task_type") and env.task_type in ["put", "stack"]:
             drops = max(0, drops - 1)
 
-        results.append({
+        result_entry = {
             "run_id": run_id,
             "task": task,
             "perturbation": perturbations[0],
@@ -328,27 +337,32 @@ def evaluate(
             "collisions_self": collisions_self,
             "collisions_env": collisions_env,
             "object_drops": drops
-        })
+        }
+
+        if use_parquet:
+            result_entry["qpos"] = np.stack(qpos).tolist()
+            result_entry["actions"] = np.stack(actions).tolist()
+            if not no_record:
+                result_entry["video"] = video_recorder.get_video_bytes()
+        
+        results.append(result_entry)
+
+        if not use_parquet:
+            if not no_record:
+                video_filename = os.path.join(log_dir, "videos", f"{task}_{perturbations[0]}_{run_id}")
+                video_recorder.save_video(video_filename)
+
+            append_trajectory(log_dir, task, perturbations[0], run_id, np.stack(qpos), np.stack(actions))
 
         if not no_record:
-            video_filename = os.path.join(log_dir, "videos", f"{task}_{perturbations[0]}_{run_id}")
-            video_recorder.save_video(video_filename)
             video_recorder.cleanup()
-
-        qpos_filename = os.path.join(log_dir, "qpos", f"{task}_{perturbations[0]}_{run_id}")
-        os.makedirs(log_dir + "/qpos", exist_ok=True)
-        np.save(qpos_filename, np.stack(qpos))
-
-        actions_filename = os.path.join(log_dir, "actions", f"{task}_{perturbations[0]}_{run_id}")
-        os.makedirs(log_dir + "/actions", exist_ok=True)
-        np.save(actions_filename, np.stack(actions))
 
         client.reset()
 
-        csv_filename = save_results_to_csv(results, log_dir + "/reports", task, perturbations[0], filename=csv_filename)
+        results_filename = save_results(results, log_dir + "/reports", task, perturbations[0], filename=results_filename, use_parquet=use_parquet)
 
     # ------------------------------------------------------------------------------
-    save_results_to_csv(results, log_dir+"/reports", task, perturbations[0])
+    save_results(results, log_dir+"/reports", task, perturbations[0], use_parquet=use_parquet)
     og.log.info("Done!")
     og.log.info(f"DEBUG: Done: {time.perf_counter() - start:.4f}s")
 

@@ -2,27 +2,73 @@ import numpy as np
 import os
 import csv
 import shutil
+import pandas as pd
 from PIL import Image
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import omnigibson as og
 
 
-def save_results_to_csv(results, log_dir, task, perturbation, filename=None):
+def save_results(results, log_dir, task, perturbation, filename=None, use_parquet=True):
     if filename is None:
         os.makedirs(log_dir, exist_ok=True)
-        csv_results_filename = f"{log_dir}/{task}_{perturbation}.csv"
+        base_filename = f"{log_dir}/{task}_{perturbation}"
     else:
-        csv_results_filename = filename
-        os.makedirs(os.path.dirname(csv_results_filename), exist_ok=True)
+        base_filename = os.path.splitext(filename)[0]
+        os.makedirs(os.path.dirname(base_filename), exist_ok=True)
 
-    if len(results) > 0:
-        keys = results[-1].keys()
-        with open(csv_results_filename, 'w', newline='') as output_file:
-            dict_writer = csv.DictWriter(output_file, fieldnames=keys)
-            dict_writer.writeheader()
-            dict_writer.writerows(results)
-    og.log.info(f"Saved run report to {csv_results_filename}")
-    return csv_results_filename
+    if use_parquet:
+        parquet_filename = f"{base_filename}.parquet"
+        df = pd.DataFrame(results)
+        df.to_parquet(parquet_filename)
+        og.log.info(f"Saved run report to {parquet_filename}")
+        return parquet_filename
+    else:
+        csv_filename = f"{base_filename}.csv"
+        if len(results) > 0:
+            # Filter out large data from CSV
+            csv_results = []
+            for r in results:
+                csv_row = {k: v for k, v in r.items() if k not in ["qpos", "actions", "video"]}
+                csv_results.append(csv_row)
+
+            if csv_results:
+                keys = csv_results[-1].keys()
+                with open(csv_filename, 'w', newline='') as output_file:
+                    dict_writer = csv.DictWriter(output_file, fieldnames=keys)
+                    dict_writer.writeheader()
+                    dict_writer.writerows(csv_results)
+        og.log.info(f"Saved run report to {csv_filename}")
+        return csv_filename
+
+
+def save_results_to_csv(results, log_dir, task, perturbation, filename=None):
+    return save_results(results, log_dir, task, perturbation, filename=filename, use_parquet=False)
+
+
+def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr):
+    """Append one repeat's qpos and actions to consolidated parquets in log_dir.
+
+    Each parquet has columns: task, perturbation, repeat, data (as nested list).
+    This replaces saving individual .npy files per repeat.
+    """
+    for subdir, arr in [("qpos", qpos_arr), ("actions", actions_arr)]:
+        parquet_path = os.path.join(log_dir, subdir, "data.parquet")
+        os.makedirs(os.path.join(log_dir, subdir), exist_ok=True)
+
+        new_row = pd.DataFrame([{
+            "task": task,
+            "perturbation": perturbation,
+            "repeat": repeat,
+            "data": arr.tolist(),
+        }])
+
+        if os.path.exists(parquet_path):
+            existing = pd.read_parquet(parquet_path)
+            combined = pd.concat([existing, new_row], ignore_index=True)
+        else:
+            combined = new_row
+
+        combined.to_parquet(parquet_path, index=False)
 
 class VideoRecorder:
     def __init__(self, log_dir, timestamp, run_id, task=None, perturbation=None, disk_mode=False):
@@ -112,11 +158,36 @@ class VideoRecorder:
         if self.disk_mode:
             if not self.frame_filenames:
                 return
-            ImageSequenceClip(self.frame_filenames, fps=fps).write_videofile(save_filename + ".mp4", codec="libx264")
+            clip = ImageSequenceClip(self.frame_filenames, fps=fps)
         else:
             if not self.frames:
                 return
-            ImageSequenceClip(self.frames, fps=fps).write_videofile(save_filename + ".mp4", codec="libx264")
+            clip = ImageSequenceClip(self.frames, fps=fps)
+        
+        clip.write_videofile(save_filename + ".mp4", codec="libx264")
+
+    def get_video_bytes(self, fps=15):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp_name = tmp.name
+        
+        try:
+            if self.disk_mode:
+                if not self.frame_filenames:
+                    return None
+                clip = ImageSequenceClip(self.frame_filenames, fps=fps)
+            else:
+                if not self.frames:
+                    return None
+                clip = ImageSequenceClip(self.frames, fps=fps)
+            
+            clip.write_videofile(tmp_name, codec="libx264", logger=None)
+            with open(tmp_name, "rb") as f:
+                video_bytes = f.read()
+            return video_bytes
+        finally:
+            if os.path.exists(tmp_name):
+                os.remove(tmp_name)
 
     def cleanup(self):
         if self.disk_mode and os.path.exists(self.temp_frame_dir):
