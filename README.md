@@ -119,8 +119,8 @@ Example using the cluster script:
 |:----------------| :--- |:------------------------------------------------------------------------------------------------| :--- |
 | 0               | **Default** | Testing a skill under no specific perturbations.                                                | General |
 | 1               | **V-AUG** | Randomize *blur* and *contrast*.                                                                | Visual |
-| 2               | **V-SC** | Randomly spawn *new distractors* in the scene.                                                  | Visual |
-| 3               | **V-VIEW** | Random shifts to external *camera pose*.                                                        | Visual |
+| 2               | **V-VIEW** | Random shifts to external *camera pose*.                                                        | Visual |
+| 3               | **V-SC** | Randomly spawn *new distractors* in the scene.                                                  | Visual |
 | 4               | **V-LIGHT** | Randomize illumination *color* and *intensity*.                                                 | Visual |
 | 5               | **S-PROP** | Reference objects based on their properties.                                                    | Semantic |
 | 6               | **S-LANG** | Reference similar verbs and remove articles.                                                    | Semantic |
@@ -128,10 +128,10 @@ Example using the cluster script:
 | 8               | **S-AFF** | Reference human needs and use cases.                                                            | Semantic |
 | 9               | **S-INT** | Reference facts about the world that typically require knowledge from Internet-scale text data. | Semantic |
 | 10              | **B-HOBJ** | Randomize manipulated object *mass*.                                                            | Behavioral |
-| 11              | **VB-POSE** | Randomize manipulated *object pose*.                                                            | Visual + Behavioral |
-| 12              | **VB-MOBJ** | Randomize object *size* and *shape*.                                                            | Visual + Behavioral |
-| 13              | **SB-NOUN** | Reference *another known object* in the scene.                                                  | Semantic + Behavioral |
-| 14              | **SB-VRB** | Change the *tested skill* for another compatible one.                                           | Semantic + Behavioral |
+| 11              | **SB-NOUN** | Reference *another known object* in the scene.                                                  | Semantic + Behavioral |
+| 12              | **SB-VRB** | Change the *tested skill* for another compatible one.                                           | Semantic + Behavioral |
+| 13              | **VB-POSE** | Randomize manipulated *object pose*.                                                            | Visual + Behavioral |
+| 14              | **VB-MOBJ** | Randomize object *size* and *shape*.                                                            | Visual + Behavioral |
 | 15              | **VSB-NOBJ** | Sample a *new unseen manipulated object*.                                                       | Visual + Semantic + Behavioral |
 
 | TASK_ID | Task |
