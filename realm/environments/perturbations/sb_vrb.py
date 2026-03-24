@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 import omnigibson as og
 from omnigibson.objects import DatasetObject
 from realm.helpers import get_non_colliding_positions_for_objects
-from realm.environments.task_progressions import TASK_PROGRESSIONS
+from realm.environments.utils import load_task_progressions
+TASK_PROGRESSIONS = load_task_progressions()
 from realm.environments.perturbations._helpers import replace_obj, sample_objects
 
 if TYPE_CHECKING:

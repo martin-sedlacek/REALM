@@ -13,7 +13,7 @@ from omnigibson.macros import gm
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.inference import InferenceClient, extract_from_obs
-from realm.logging import VideoRecorder, save_results, append_trajectory
+from realm.realm_logging import VideoRecorder, save_results, append_trajectory
 
 
 
