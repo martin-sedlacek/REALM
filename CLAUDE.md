@@ -54,6 +54,8 @@ REALM/
     ├── eval.sh                       # Comprehensive eval runner
     ├── run_docker.sh                 # Docker container launcher
     ├── run_apptainer.sh              # Apptainer container launcher
+    ├── consolidate_npy_to_parquet.py # Batch-convert per-repeat npy → parquet (deletes npy on success)
+    ├── csv_to_parquet.py             # Batch-convert reports/*.csv → .parquet
     └── cluster_evals/                # SLURM cluster evaluation scripts
         ├── run_evals_for_ckpt.sh
         └── run_single_eval.sh
@@ -210,6 +212,54 @@ Per-episode metrics collected in `eval.py`:
 - **Joint dynamics**: `joint_vel_var`, `joint_acc_var`, `joint_jerk`, `joint_path_length`
 - **Cartesian dynamics**: `cart_path_length`, `cart_jerk`
 - **Safety**: `collisions_self`, `collisions_env`, `object_drops`
+
+## Log Storage & Parquet Conversion
+
+Per-repeat trajectory data is written as individual `.npy` files during evaluation, then consolidated offline into parquet format. After successful consolidation the original `.npy` files are deleted by the script.
+
+### Storage format
+
+```
+logs/{experiment}/{model}/{run_id}/
+├── videos/              # MP4 rollout recordings
+├── reports/             # CSV (raw) and .parquet (converted) metrics
+├── qpos/
+│   ├── {task}_{perturbation}_{repeat}.npy   # raw (deleted after consolidation)
+│   └── data.parquet                          # consolidated; columns: task, perturbation, repeat, data
+└── actions/
+    ├── {task}_{perturbation}_{repeat}.npy
+    └── data.parquet
+```
+
+Filename pattern for npy files: `{task}_{perturbation}_{repeat}.npy`
+- perturbation names use hyphens (e.g. `V-SC`), never underscores → `rsplit('_', 2)` is safe to parse
+
+### Conversion scripts (run outside container, no GPU needed)
+
+```bash
+# Consolidate per-repeat npy → data.parquet (deletes npy files on success)
+python scripts/consolidate_npy_to_parquet.py --logs logs/
+python scripts/consolidate_npy_to_parquet.py --logs logs/ --dry-run  # preview only
+
+# Convert reports/*.csv → .parquet (skips already-converted by default)
+python scripts/csv_to_parquet.py --logs logs/
+python scripts/csv_to_parquet.py --logs logs/ --dry-run
+python scripts/csv_to_parquet.py --logs logs/ --no-skip  # overwrite existing
+```
+
+### Cleaning up orphaned npy files
+
+If a remote sync re-introduces `.npy` files into directories that already have `data.parquet`, delete them with:
+
+```bash
+# Dry run — count affected files
+find logs/ -name "data.parquet" -exec dirname {} \; | sort -u | xargs -I{} find {} -name "*.npy" | wc -l
+
+# Delete
+find logs/ -name "data.parquet" -exec dirname {} \; | sort -u | xargs -I{} find {} -name "*.npy" -delete
+```
+
+Note: `.npy` files outside `actions/` and `qpos/` (e.g. `optimize_physics_ur5/best_params.npy`) are physics-optimization artifacts with no parquet equivalent — do **not** delete them.
 
 ## Build & Container Setup
 
