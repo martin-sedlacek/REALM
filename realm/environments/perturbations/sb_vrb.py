@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING
 
 import omnigibson as og
 from omnigibson.objects import DatasetObject
-from realm.helpers import get_non_colliding_positions_for_objects_v2
+from realm.helpers import get_non_colliding_positions_for_objects
 from realm.environments.task_progressions import TASK_PROGRESSIONS
 from realm.environments.perturbations._helpers import replace_obj, sample_objects
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
@@ -74,7 +74,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
                     if "bounding_box" not in cfg:
                         cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
 
-        env.cfg["objects"] = get_non_colliding_positions_for_objects_v2(
+        env.cfg["objects"] = get_non_colliding_positions_for_objects(
             xmin=env.spawn_bbox[0],
             xmax=env.spawn_bbox[1],
             ymin=env.spawn_bbox[2],

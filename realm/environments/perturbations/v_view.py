@@ -8,7 +8,7 @@ import omnigibson as og
 import omnigibson.utils.transform_utils as omnigibson_transform_utils
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def v_view(env: "RealmEnvironmentDynamic") -> None:

@@ -4,10 +4,10 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 import omnigibson as og
-from realm.helpers import get_non_colliding_positions_for_objects_v2, add_rotation_noise
+from realm.helpers import get_non_colliding_positions_for_objects, add_rotation_noise
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def vb_pose(env: "RealmEnvironmentDynamic") -> None:
@@ -33,7 +33,7 @@ def vb_pose(env: "RealmEnvironmentDynamic") -> None:
                     if "bounding_box" not in cfg:
                         cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
 
-        env.cfg["objects"] = get_non_colliding_positions_for_objects_v2(
+        env.cfg["objects"] = get_non_colliding_positions_for_objects(
             xmin=env.spawn_bbox[0],
             xmax=env.spawn_bbox[1],
             ymin=env.spawn_bbox[2],

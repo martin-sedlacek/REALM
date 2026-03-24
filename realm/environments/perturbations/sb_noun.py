@@ -5,7 +5,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def sb_noun(env: "RealmEnvironmentDynamic") -> None:

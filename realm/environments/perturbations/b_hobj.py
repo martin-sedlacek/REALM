@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from omnigibson.prims.joint_prim import JointPrim
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def b_hobj(env: "RealmEnvironmentDynamic") -> None:

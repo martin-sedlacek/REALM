@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import omnigibson as og
 from realm.helpers import (
-    get_non_colliding_positions_for_objects_v2,
+    get_non_colliding_positions_for_objects,
     get_droid_categories_by_theme,
     get_objects_by_names,
     get_default_objects_cfg,
@@ -14,7 +14,7 @@ from realm.helpers import (
 from realm.environments.perturbations._helpers import replace_obj
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def v_sc(env: "RealmEnvironmentDynamic") -> None:
@@ -35,7 +35,7 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
     env.cfg["objects"] = None
     num_distractors = len(obj_cfgs) - num_mo_to
 
-    env.cfg["objects"] = get_non_colliding_positions_for_objects_v2(
+    env.cfg["objects"] = get_non_colliding_positions_for_objects(
         xmin=env.spawn_bbox[0],
         xmax=env.spawn_bbox[1],
         ymin=env.spawn_bbox[2],

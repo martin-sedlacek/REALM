@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from realm.environments.perturbations._helpers import apply_cached_semantic_perturbations
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def s_prop(env: "RealmEnvironmentDynamic") -> None:

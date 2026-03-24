@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import omnigibson.lazy as lazy
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def v_light(env: "RealmEnvironmentDynamic", intensity=None) -> None:

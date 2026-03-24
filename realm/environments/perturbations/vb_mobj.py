@@ -9,7 +9,7 @@ from omnigibson.objects import DatasetObject, PrimitiveObject, USDObject
 from realm.helpers import get_default_objects_cfg
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def vb_mobj(env: "RealmEnvironmentDynamic") -> None:

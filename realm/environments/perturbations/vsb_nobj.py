@@ -7,7 +7,7 @@ import omnigibson as og
 from realm.environments.perturbations._helpers import replace_obj
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def vsb_nobj(env: "RealmEnvironmentDynamic") -> None:

@@ -10,7 +10,7 @@ from omnigibson.objects import DatasetObject
 from omnigibson.utils.asset_utils import get_all_object_models
 
 if TYPE_CHECKING:
-    from realm.environments.realm_environment_dynamic import RealmEnvironmentDynamic
+    from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
 def apply_cached_semantic_perturbations(env: "RealmEnvironmentDynamic", perturbation: str) -> None:
