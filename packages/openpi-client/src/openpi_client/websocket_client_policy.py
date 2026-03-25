@@ -15,26 +15,23 @@ class WebsocketClientPolicy(_base_policy.BasePolicy):
     See WebsocketPolicyServer for a corresponding server implementation.
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8000, timeout: float = 150.0) -> None:
+    def __init__(self, host: str = "0.0.0.0", port: int = 8000) -> None:
         self._uri = f"ws://{host}:{port}"
         self._packer = msgpack_numpy.Packer()
-        self._ws, self._server_metadata = self._wait_for_server(timeout=timeout)
+        self._ws, self._server_metadata = self._wait_for_server()
 
     def get_server_metadata(self) -> Dict:
         return self._server_metadata
 
-    def _wait_for_server(self, timeout: float) -> Tuple[websockets.sync.client.ClientConnection, Dict]:
+    def _wait_for_server(self) -> Tuple[websockets.sync.client.ClientConnection, Dict]:
         logging.info(f"Waiting for server at {self._uri}...")
-        start_time = time.time()
         while True:
             try:
                 conn = websockets.sync.client.connect(self._uri, compression=None, max_size=None)
                 metadata = msgpack_numpy.unpackb(conn.recv())
                 return conn, metadata
-            except (ConnectionRefusedError, OSError):
-                if time.time() - start_time > timeout:
-                    raise TimeoutError(f"Could not connect to server at {self._uri} within {timeout} seconds.")
-                logging.info(f"Still waiting for server (elapsed: {time.time() - start_time:.1f}s)...")
+            except ConnectionRefusedError:
+                logging.info("Still waiting for server...")
                 time.sleep(5)
 
     @override

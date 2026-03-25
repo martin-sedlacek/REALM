@@ -8,7 +8,7 @@ from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import omnigibson as og
 
 
-def save_results(results, log_dir, task, perturbation, filename=None, use_parquet=True):
+def save_results(results, log_dir, task, perturbation, filename=None):
     if filename is None:
         os.makedirs(log_dir, exist_ok=True)
         base_filename = f"{log_dir}/{task}_{perturbation}"
@@ -16,33 +16,22 @@ def save_results(results, log_dir, task, perturbation, filename=None, use_parque
         base_filename = os.path.splitext(filename)[0]
         os.makedirs(os.path.dirname(base_filename), exist_ok=True)
 
-    if use_parquet:
-        parquet_filename = f"{base_filename}.parquet"
-        df = pd.DataFrame(results)
-        df.to_parquet(parquet_filename)
-        og.log.info(f"Saved run report to {parquet_filename}")
-        return parquet_filename
-    else:
-        csv_filename = f"{base_filename}.csv"
-        if len(results) > 0:
-            # Filter out large data from CSV
-            csv_results = []
-            for r in results:
-                csv_row = {k: v for k, v in r.items() if k not in ["qpos", "actions", "video"]}
-                csv_results.append(csv_row)
+    csv_filename = f"{base_filename}.csv"
+    if len(results) > 0:
+        # Filter out large data from CSV
+        csv_results = []
+        for r in results:
+            csv_row = {k: v for k, v in r.items() if k not in ["qpos", "actions", "video"]}
+            csv_results.append(csv_row)
 
-            if csv_results:
-                keys = csv_results[-1].keys()
-                with open(csv_filename, 'w', newline='') as output_file:
-                    dict_writer = csv.DictWriter(output_file, fieldnames=keys)
-                    dict_writer.writeheader()
-                    dict_writer.writerows(csv_results)
-        og.log.info(f"Saved run report to {csv_filename}")
-        return csv_filename
-
-
-def save_results_to_csv(results, log_dir, task, perturbation, filename=None):
-    return save_results(results, log_dir, task, perturbation, filename=filename, use_parquet=False)
+        if csv_results:
+            keys = csv_results[-1].keys()
+            with open(csv_filename, 'w', newline='') as output_file:
+                dict_writer = csv.DictWriter(output_file, fieldnames=keys)
+                dict_writer.writeheader()
+                dict_writer.writerows(csv_results)
+    og.log.info(f"Saved run report to {csv_filename}")
+    return csv_filename
 
 
 def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr):

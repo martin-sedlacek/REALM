@@ -24,8 +24,6 @@ if __name__ == "__main__":
     parser.add_argument('--no_record', action='store_true', help='Do not record videos from runs.')
     parser.add_argument('--no_render', action='store_true', help='Disable rendering completely')
     parser.add_argument('--robot', type=str, required=False, default="DROID", help='Robot type')
-    parser.add_argument('--use_parquet', action='store_true', default=True, help='Use Parquet for logging instead of multiple folders')
-    parser.add_argument('--no_parquet', action='store_false', dest='use_parquet', help='Disable Parquet logging')
     args = parser.parse_args()
 
     assert args.model_name is not None
@@ -53,8 +51,7 @@ if __name__ == "__main__":
         no_render=args.no_render,
         rendering_mode=args.rendering_mode,
         task_cfg_path=args.task_cfg_path,
-        robot=args.robot,
-        use_parquet=args.use_parquet
+        robot=args.robot
     )
     og.shutdown()
     sys.exit(0)

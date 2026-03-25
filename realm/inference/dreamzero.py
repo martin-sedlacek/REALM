@@ -8,7 +8,7 @@ class DreamZeroClient:
     """
     Client for the DreamZero server.
     """
-    def __init__(self, host="localhost", port=5000, timeout=150.0):
+    def __init__(self, host="localhost", port=5000):
         # DreamZero uses a specific WebsocketClientPolicy
         # We try to import it from eval_utils, fallback to openpi_client
         try:
@@ -17,7 +17,7 @@ class DreamZeroClient:
             from openpi_client.websocket_client_policy import WebsocketClientPolicy
 
         og.log.info(f"Connecting to DreamZero server at {host}:{port}...")
-        self.client = WebsocketClientPolicy(host=host, port=port, timeout=timeout)
+        self.client = WebsocketClientPolicy(host=host, port=port)
         self.session_id = str(uuid.uuid4())
 
         # Optional: Validate connection
