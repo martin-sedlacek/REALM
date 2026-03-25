@@ -97,6 +97,8 @@ def evaluate(
 ):
     start = time.perf_counter()
     og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
+    if rendering_mode is None:
+        rendering_mode = "rt"
     set_sim_config(rendering_mode=rendering_mode, robot=robot)
 
     # -------------------- Create the environment + client --------------------
