@@ -167,10 +167,6 @@ custom_assets/
 singularity/
 isaac-sim/
 .claude/
-Makefile
-GEMINI.md
-scripts/clara/
-scripts/karolina/
 realm-container.skill
 scripts/consolidate_npy_to_parquet.py
 scripts/csv_to_parquet.py
