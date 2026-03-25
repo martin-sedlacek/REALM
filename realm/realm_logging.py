@@ -70,6 +70,32 @@ def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr
 
         combined.to_parquet(parquet_path, index=False)
 
+
+def append_video(log_dir, task, perturbation, repeat, video_bytes):
+    """Append one repeat's video bytes to a consolidated parquet in log_dir/videos.
+    """
+    if video_bytes is None:
+        return
+
+    parquet_path = os.path.join(log_dir, "videos", "data.parquet")
+    os.makedirs(os.path.join(log_dir, "videos"), exist_ok=True)
+
+    new_row = pd.DataFrame([{
+        "task": task,
+        "perturbation": perturbation,
+        "repeat": repeat,
+        "video": video_bytes,
+    }])
+
+    if os.path.exists(parquet_path):
+        existing = pd.read_parquet(parquet_path)
+        combined = pd.concat([existing, new_row], ignore_index=True)
+    else:
+        combined = new_row
+
+    combined.to_parquet(parquet_path, index=False)
+
+
 class VideoRecorder:
     def __init__(self, log_dir, timestamp, run_id, task=None, perturbation=None, disk_mode=False):
         self.disk_mode = disk_mode

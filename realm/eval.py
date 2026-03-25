@@ -13,7 +13,7 @@ from omnigibson.macros import gm
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.inference import InferenceClient, extract_from_obs
-from realm.realm_logging import VideoRecorder, save_results, append_trajectory
+from realm.realm_logging import VideoRecorder, save_results, append_trajectory, append_video
 
 
 
@@ -339,20 +339,18 @@ def evaluate(
             "object_drops": drops
         }
 
-        if use_parquet:
-            result_entry["qpos"] = np.stack(qpos).tolist()
-            result_entry["actions"] = np.stack(actions).tolist()
-            if not no_record:
-                result_entry["video"] = video_recorder.get_video_bytes()
+        result_entry["qpos"] = np.stack(qpos).tolist()
+        result_entry["actions"] = np.stack(actions).tolist()
+        if not no_record:
+            video_bytes = video_recorder.get_video_bytes()
+            result_entry["video"] = video_bytes
         
         results.append(result_entry)
 
-        if not use_parquet:
-            if not no_record:
-                video_filename = os.path.join(log_dir, "videos", f"{task}_{perturbations[0]}_{run_id}")
-                video_recorder.save_video(video_filename)
+        if not no_record:
+            append_video(log_dir, task, perturbations[0], run_id, video_bytes)
 
-            append_trajectory(log_dir, task, perturbations[0], run_id, np.stack(qpos), np.stack(actions))
+        append_trajectory(log_dir, task, perturbations[0], run_id, np.stack(qpos), np.stack(actions))
 
         if not no_record:
             video_recorder.cleanup()
