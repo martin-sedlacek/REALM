@@ -11,7 +11,7 @@ from realm.inference.dreamzero import DreamZeroClient
 
 
 class InferenceClient:
-    def __init__(self, model_type, port, host="127.0.0.1"):
+    def __init__(self, model_type, port, host="127.0.0.1", timeout=150.0):
         self.model_type = model_type
         self.host = host
         self.port = port
@@ -21,12 +21,13 @@ class InferenceClient:
             self.client = HamsterClient(host=self.host, port=self.port)
         elif model_type == "dreamzero":
             #self.client = DreamZeroClient(host="192.168.0.1", port=5000)
-            self.client = DreamZeroClient(host=self.host, port=self.port)
+            self.client = DreamZeroClient(host=self.host, port=self.port, timeout=timeout)
         elif model_type == "openpi":
             og.log.info("Connecting to server...")
             self.client = websocket_client_policy.WebsocketClientPolicy(
                 host=host,
-                port=port
+                port=port,
+                timeout=timeout
             )
         elif model_type == "debug":
             self.client = None
