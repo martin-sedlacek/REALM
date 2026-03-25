@@ -6,7 +6,7 @@ import random
 import csv
 import numpy as np
 import torch
-import pandas as pd
+from scipy.spatial.transform import Rotation as Rot
 
 import omnigibson as og
 from omnigibson.macros import gm
@@ -92,8 +92,7 @@ def evaluate(
         no_render=False,
         rendering_mode=None,
         task_cfg_path=None,
-        robot="DROID",
-        use_parquet=True
+        robot="DROID"
 ):
     start = time.perf_counter()
     og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
@@ -135,18 +134,9 @@ def evaluate(
     results_filename = None
 
     if resume:
-        # find matching file
-        potential_parquet = os.path.join(log_dir, "reports", f"{task}_{perturbations[0]}.parquet")
         potential_csv = os.path.join(log_dir, "reports", f"{task}_{perturbations[0]}.csv")
-        if use_parquet and os.path.exists(potential_parquet):
-            results_filename = potential_parquet
-            df = pd.read_parquet(results_filename)
-            results = df.to_dict('records')
-            start_repeat = len(results)
-            og.log.info(f"Resuming run from repeat {start_repeat}. Using file: {results_filename}")
-        elif os.path.exists(potential_csv):
+        if os.path.exists(potential_csv):
             results_filename = potential_csv
-            # read existing results
             with open(results_filename, 'r') as f:
                 reader = csv.DictReader(f)
                 existing_results = list(reader)
@@ -223,10 +213,18 @@ def evaluate(
             was_grasping = is_grasping
 
             if action_buffer.empty():
+                # Compute robot-relative cartesian position for models that need it (e.g. DreamZero)
+                _ee_pos = ee_pos.cpu().numpy() if hasattr(ee_pos, 'cpu') else np.array(ee_pos)
+                _ee_rot = ee_rot.cpu().numpy() if hasattr(ee_rot, 'cpu') else np.array(ee_rot)
+                _ee_euler = Rot.from_quat(_ee_rot).as_euler('xyz')
+                _ee_pose_world = np.concatenate([_ee_pos, _ee_euler])
+                cartesian_position = env._world2robot(_ee_pose_world).astype(np.float32)
+
                 pred_action_chunk = client.infer(
                     env.instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
                     use_base_im_second=(env.task_type == "open_close_drawer" if hasattr(env, "task_type") else False),
-                    ee_control=env.ee_control
+                    ee_control=env.ee_control,
+                    cartesian_position=cartesian_position
                 )
 
                 if len(pred_action_chunk.shape) == 2:
@@ -359,10 +357,10 @@ def evaluate(
 
         client.reset()
 
-        results_filename = save_results(results, log_dir + "/reports", task, perturbations[0], filename=results_filename, use_parquet=use_parquet)
+        results_filename = save_results(results, log_dir + "/reports", task, perturbations[0], filename=results_filename)
 
     # ------------------------------------------------------------------------------
-    save_results(results, log_dir+"/reports", task, perturbations[0], use_parquet=use_parquet)
+    save_results(results, log_dir+"/reports", task, perturbations[0])
     og.log.info("Done!")
     og.log.info(f"DEBUG: Done: {time.perf_counter() - start:.4f}s")
 
