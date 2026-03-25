@@ -69,9 +69,9 @@ def run_test():
         
         checks = {
             "report_parquet": os.path.join(task_log_dir, "reports", f"{task_name}_{pert_name}.parquet"),
-            "qpos_parquet": os.path.join(task_log_dir, "qpos", "data.parquet"),
-            "actions_parquet": os.path.join(task_log_dir, "actions", "data.parquet"),
-            "video_parquet": os.path.join(task_log_dir, "videos", "data.parquet"),
+            "qpos_parquet": os.path.join(task_log_dir, "qpos", f"{task_name}.parquet"),
+            "actions_parquet": os.path.join(task_log_dir, "actions", f"{task_name}.parquet"),
+            "video_parquet": os.path.join(task_log_dir, "videos", f"{task_name}.parquet"),
         }
         
         pert_results = {}

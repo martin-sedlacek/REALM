@@ -48,11 +48,11 @@ def save_results_to_csv(results, log_dir, task, perturbation, filename=None):
 def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr):
     """Append one repeat's qpos and actions to consolidated parquets in log_dir.
 
-    Each parquet has columns: task, perturbation, repeat, data (as nested list).
-    This replaces saving individual .npy files per repeat.
+    Each parquet is named after the task (e.g., task_name.parquet) and has 
+    columns: task, perturbation, repeat, data (as nested list).
     """
     for subdir, arr in [("qpos", qpos_arr), ("actions", actions_arr)]:
-        parquet_path = os.path.join(log_dir, subdir, "data.parquet")
+        parquet_path = os.path.join(log_dir, subdir, f"{task}.parquet")
         os.makedirs(os.path.join(log_dir, subdir), exist_ok=True)
 
         new_row = pd.DataFrame([{
@@ -73,11 +73,12 @@ def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr
 
 def append_video(log_dir, task, perturbation, repeat, video_bytes):
     """Append one repeat's video bytes to a consolidated parquet in log_dir/videos.
+    Each parquet is named after the task (e.g., task_name.parquet).
     """
     if video_bytes is None:
         return
 
-    parquet_path = os.path.join(log_dir, "videos", "data.parquet")
+    parquet_path = os.path.join(log_dir, "videos", f"{task}.parquet")
     os.makedirs(os.path.join(log_dir, "videos"), exist_ok=True)
 
     new_row = pd.DataFrame([{
