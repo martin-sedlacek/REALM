@@ -168,5 +168,3 @@ singularity/
 isaac-sim/
 .claude/
 realm-container.skill
-scripts/consolidate_npy_to_parquet.py
-scripts/csv_to_parquet.py
