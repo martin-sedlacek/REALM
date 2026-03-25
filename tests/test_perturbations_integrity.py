@@ -51,9 +51,8 @@ def run_test():
             "--port", str(port),
             "--experiment_name", experiment_name,
             "--run_id", run_id,
-            "--log_dir", base_log_dir,
-            "--no_render" 
-        ]
+            "--log_dir", base_log_dir
+        ] # "--no_render"
         
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(PROJECT_ROOT))

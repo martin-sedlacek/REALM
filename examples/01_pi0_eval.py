@@ -8,7 +8,7 @@ if __name__ == "__main__":
         perturbation_id=0,
         repeats=1,
         max_steps=500,
-        model_type="pi0",
+        model_type="openpi",
         port=8000
     )
     og.shutdown()
