@@ -53,17 +53,12 @@ git clone https://github.com/Physical-Intelligence/openpi.git
 cd openpi
 uv sync
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.5 uv run scripts/serve_policy.py policy:checkpoint \
-    --policy.config=pi0_fast_droid_jointpos_polaris \
-    --policy.dir=gs://openpi-assets/checkpoints/pi0_fast_droid_jointpos
-
-# [ALTERNATIVE] running the latest pi0.5 in jointpos mode:
-XLA_PYTHON_CLIENT_MEM_FRACTION=0.5 uv run scripts/serve_policy.py policy:checkpoint \
-    --policy.config=pi05_droid_jointpos_polaris \
-    --policy.dir=gs://openpi-assets/checkpoints/polaris/pi05_droid_jointpos_polaris
+    --policy.config=pi05_full_droid_finetune \
+    --policy.dir=gs://openpi-assets/checkpoints/pi05_droid_jointpos
 ```
 > ❗ Set XLA_PYTHON_CLIENT_MEM_FRACTION such that you have at least 8GB+ free on the GPU for isaacsim.
 
-> ⚠️ In general, make sure you are using models that output **absolute joint configurations** as REALM currently expects action to be in this format.
+> ⚠️ Note that the default control mode for REALM is **absolute joint configurations**.
 
 2. From the REALM project root, open the containerized environment:
 ```
