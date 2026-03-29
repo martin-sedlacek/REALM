@@ -14,7 +14,7 @@ def run_test():
     """
     Integration test for Pi0-FAST.
     1. Runs examples/01_pi0_eval.py (which uses task_id=1, perturbation_id=0, model_type='openpi', port=8000)
-    2. Checks that reports/put_banana_into_box_Default.parquet exists
+    2. Checks that reports/put_banana_into_box_Default.csv exists
     3. Checks that task_progression > 0
     """
     experiment_name = "pi0_integration_test"
@@ -29,7 +29,7 @@ def run_test():
     # In the bash script, we will bind a local directory to /app/logs.
     
     log_dir = "/app/logs"
-    report_path = os.path.join(log_dir, "reports", "put_banana_into_box_Default.parquet")
+    report_path = os.path.join(log_dir, "reports", "put_banana_into_box_Default.csv")
     
     print("Starting Pi0-FAST integration test...")
     
@@ -51,13 +51,12 @@ def run_test():
         sys.exit(1)
         
     try:
-        df = pd.read_parquet(report_path)
+        df = pd.read_csv(report_path)
         if df.empty:
             print("FAIL: Report is empty")
             sys.exit(1)
-            
+
         # Check task progression
-        # Assuming the parquet has a 'task_progression' column
         progression = df['task_progression'].iloc[-1]
         print(f"Task progression: {progression}")
         

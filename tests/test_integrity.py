@@ -71,19 +71,19 @@ def run_test():
         task_log_dir = os.path.join(base_log_dir, experiment_name, model_name, run_id)
         
         checks = {
-            "report_parquet": os.path.join(task_log_dir, "reports", f"{task_name}_Default.parquet"),
+            "report_csv": os.path.join(task_log_dir, "reports", f"{task_name}_Default.csv"),
             "qpos_parquet": os.path.join(task_log_dir, "qpos", f"{task_name}.parquet"),
             "actions_parquet": os.path.join(task_log_dir, "actions", f"{task_name}.parquet"),
             "video_parquet": os.path.join(task_log_dir, "videos", f"{task_name}.parquet"),
         }
-        
+
         task_results = {}
         for key, path in checks.items():
             exists = os.path.exists(path)
             valid = False
             if exists:
                 try:
-                    df = pd.read_parquet(path)
+                    df = pd.read_csv(path) if key.endswith("_csv") else pd.read_parquet(path)
                     if not df.empty:
                         valid = True
                 except Exception as e:
