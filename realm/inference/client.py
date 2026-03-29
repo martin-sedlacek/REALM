@@ -20,7 +20,6 @@ class InferenceClient:
         elif model_type == "hamster":
             self.client = HamsterClient(host=self.host, port=self.port)
         elif model_type == "dreamzero":
-            #self.client = DreamZeroClient(host="192.168.0.1", port=5000)
             self.client = DreamZeroClient(host=self.host, port=self.port)
         elif model_type == "openpi":
             og.log.info("Connecting to server...")
@@ -33,7 +32,7 @@ class InferenceClient:
         else:
             raise NotImplementedError()
 
-    def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state, use_base_im_second=False, ee_control=False, ee_pos=None, ee_rot=None, cartesian_position=None):
+    def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state, use_base_im_second=False, ee_control=False, cartesian_position=None):
         if self.model_type == "debug":
             if ee_control:
                 pred_action_chunk = np.array([0.41402626, -0.13211727, 0.57253086, -3.09742367, 0.2580259, -0.24700592, -1])
@@ -129,9 +128,7 @@ class InferenceClient:
                 "prompt": instruction
             }
 
-            _t0 = time.perf_counter()
             pred_action_chunk = self.client.infer(obs_dict)
-            og.log.info(f"[dreamzero] inference time: {time.perf_counter() - _t0:.3f}s")
             return pred_action_chunk
 
         else:

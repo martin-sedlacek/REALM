@@ -10,6 +10,7 @@ if __name__ == "__main__":
     parser.add_argument('--task_id', type=int, required=False, default=0)
     parser.add_argument('--repeats', type=int, required=False, default=5)
     parser.add_argument('--max_steps', type=int, required=False, default=500)
+    parser.add_argument('--horizon', type=int, required=False, default=8)
     parser.add_argument('--task_cfg_path', type=str, required=False, default=None)
     parser.add_argument('--model_name', type=str, required=True, default=None)
     parser.add_argument('--model_type', type=str, required=True, default=None)
@@ -41,6 +42,7 @@ if __name__ == "__main__":
         perturbation_id=args.perturbation_id,
         repeats=args.repeats,
         max_steps=args.max_steps,
+        horizon=args.horizon,
         model_type=args.model_type,
         port=args.port,
         host=args.host,
