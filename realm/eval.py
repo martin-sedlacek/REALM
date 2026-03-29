@@ -33,8 +33,8 @@ SUPPORTED_TASKS = [
 SUPPORTED_PERTURBATIONS = [
     'Default', #0
     'V-AUG', # 1
-    'V-SC', # 2
-    'V-VIEW',  # 3
+    'V-VIEW',  # 2
+    'V-SC', # 1
     'V-LIGHT', # 4
     'S-PROP', # 5
     'S-LANG', # 6
@@ -42,10 +42,10 @@ SUPPORTED_PERTURBATIONS = [
     'S-AFF', # 8
     'S-INT', # 9
     'B-HOBJ', # 10
-    'VB-POSE',  # 11
-    'VB-MOBJ',  # 12
-    'SB-NOUN', # 13
-    'SB-VRB', # 14
+    'SB-NOUN', # 11
+    'SB-VRB', # 12
+    'VB-POSE',  # 13
+    'VB-MOBJ',  # 14
     'VSB-NOBJ' # 15
 ]
 
