@@ -14,14 +14,14 @@ supported_scenes:
     - "Drawers_Near_Table"
 
 camera_extrinsics:
-  cam1: "CP3" #"ep_001042_cam1"
-  cam2: "default" #"ep_001042_cam2"
+  cam1: "CP3"
+  cam2: "default"
 
 reset_joint_pos: [0, -0.628, 0, -2.512, -0.75, 1.884, 0.0]
 
 main_objects:
     - type: "USDObject"
-      usd_path: "/app/custom_assets/impact_drawer/usd/test_v2.usd"
+      usd_path: "/app/custom_assets/impact_drawer/usd/cabinet.usd"
       name: "drawer"
       relative_bbox_position: [0.15, 0.06, -0.3]
       orientation: [ 0.704416, 0.0616284, 0.0616284, 0.704416 ]
@@ -42,7 +42,7 @@ immutables:
       name: "light_over_table"
       light_type: "Disk"
       radius: 1
-      intensity: 2000 #12500
+      intensity: 2000
       orientation: [ 0.0871557, 0, 0, 0.9961947 ]
       bounding_box: [ 0.1, 0.1, 0.1 ]
       relative_bbox_position: [ 0.1, -0.7, 1.5 ]

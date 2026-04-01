@@ -67,7 +67,14 @@ def get_target_drawer_joint(cabinet: DatasetObject, target_drawer_loc: str) -> J
         link = path2link[drawer_link_path]
         z = link.aabb_center[-1].item()
         drawer_heights.append((j, z))
-    drawer_heights = drawer_heights[-3:] # take max top 3 drawers, on the default nddvba this drops the hidden bottom one
+    drawer_heights = sorted(drawer_heights, key=lambda x: x[1], reverse=True)[:3]  # take top 3 drawers by height
+    if len(drawer_heights) == 0:
+        all_joint_types = [(j.joint_name, j.joint_type) for j in joints]
+        raise ValueError(
+            f"No prismatic (drawer) joints found in cabinet '{cabinet.name}'. "
+            f"Available joints: {all_joint_types}. "
+            f"Check that the asset has drawer joints (not just revolute/door joints)."
+        )
     if  len(drawer_heights) == 2:
         if target_drawer_loc == "top":
             target_joint = max(drawer_heights, key=lambda x: x[1])[0]

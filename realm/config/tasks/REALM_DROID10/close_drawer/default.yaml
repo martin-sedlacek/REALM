@@ -18,18 +18,10 @@ camera_extrinsics:
   cam2: "ep_001042_cam2"
 
 reset_joint_pos: [0, -0.628, 0, -2.512, -0.75, 1.884, 0.0]
-#[ 0.0055956,  -0.46229482, -0.10837201, -2.22445,   -0.02223617,  1.6368663, -0.28468588]
 
 main_objects:
-#    - type: "DatasetObject"
-#      name: "drawer"
-#      category: "bottom_cabinet"
-#      model: "nddvba"
-#      bounding_box: [ 0.45, 0.43, 0.41  ]
-#      relative_bbox_position: [0.15, 0.1, 0.11]
-#      fixed_base: True
     - type: "USDObject"
-      usd_path: "/app/custom_assets/impact_drawer/usd/test_v2.usd"
+      usd_path: "/app/custom_assets/impact_drawer/usd/cabinet.usd"
       name: "drawer"
       relative_bbox_position: [ 0.15, 0.2, -0.25 ]
       orientation: [ 0.704416, 0.0616284, 0.0616284, 0.704416 ]
@@ -47,13 +39,6 @@ immutables:
       bounding_box: [ 1.0, 1.0, 0.75 ]
       relative_bbox_position: [0.3, 0.3, -0.33]
       fixed_base: True
-#    - type: "LightObject"
-#      name: "light2"
-#      light_type: "Sphere"
-#      radius: 0.1
-#      intensity: 30000 #10000
-#      bounding_box: [ 0.1, 0.1, 0.1 ]
-#      relative_bbox_position: [ -0.15, -0.6, 0.125 ]
     - type: "LightObject"
       name: "light_over_table"
       light_type: "Disk"

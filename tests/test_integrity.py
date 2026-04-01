@@ -31,13 +31,11 @@ def run_test():
         shutil.rmtree(base_log_dir)
     os.makedirs(base_log_dir, exist_ok=True)
 
-    print(f"Starting integrity test for tasks 0-7...")
+    print(f"Starting integrity test for tasks 0-9...")
     
     results = {}
 
-    # TODO for Martin: Tasks 8 (open_drawer) and 9 (close_drawer) are currently not working 
-    # and need to be addressed later. Restricting test to 0-7 for now.
-    for task_id in range(8):
+    for task_id in range(10):
         task_name = SUPPORTED_TASKS[task_id]
         print(f"\n--- Testing Task {task_id}: {task_name} ---")
         
