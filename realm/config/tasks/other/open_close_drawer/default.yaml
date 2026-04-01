@@ -22,7 +22,7 @@ camera_extrinsics:
 
 main_objects:
     - type: "USDObject"
-      usd_path: "/app/custom_assets/impact_drawer/usd/test_v2.usd"
+      usd_path: "/app/custom_assets/impact_drawer/usd/cabinet.usd"
       name: "cabinet"
       position: [0.00, -0.645, 0.41] #[0.16, -0.76, 0.41]
       orientation: [ 0.0769805, -0.702904, -0.702904, 0.0769805 ] #[ -0.1227878, 0.6963642, 0.6963642, -0.1227878 ] #[ 0, 0.7071068, 0.7071068, 0 ]
