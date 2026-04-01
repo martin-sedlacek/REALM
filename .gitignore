@@ -163,7 +163,6 @@ pip_cache/
 mamba_cache/
 slurm-*.out
 real2sim_perf_data/
-custom_assets/
 singularity/
 isaac-sim/
 .claude/
