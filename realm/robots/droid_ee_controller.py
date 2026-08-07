@@ -265,7 +265,7 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
             target_pos=pos_relative,
             target_quat=quat_relative,
             target_rpy=rpy_relative,
-            target_pos_relative=th.zeros(3, dtype=th.float32, device=pos_relative.device),
+            target_pos_relative=pos_relative.clone(),
             target_quat_relative=quat_relative,
             target_rpy_relative=th.zeros(3, dtype=th.float32, device=pos_relative.device),
             target_cartesian_pos_vel=th.zeros(3, dtype=th.float32, device=pos_relative.device),
