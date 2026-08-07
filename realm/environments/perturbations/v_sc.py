@@ -76,5 +76,9 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
     og.sim.play()
     env.reset_joints()
     # fake rest to get to original pose after stopping sim
-    for _ in range(30):
-        env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+    # Nothing reads a camera here, so skip the render pass on each step. gm.HEADLESS does NOT do
+    # this -- og.sim.step() renders every call regardless; only this context actually suppresses it.
+    # Object states and contact caching still update normally inside it.
+    with og.sim.render_on_step(False):
+        for _ in range(30):
+            env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))

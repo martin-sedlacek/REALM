@@ -7,7 +7,9 @@ from omnigibson.controllers.controller_base import (
     LocomotionController,
     ManipulationController,
 )
+from omnigibson.utils.backend_utils import _compute_backend as cb
 from omnigibson.utils.ui_utils import create_module_logger
+from omnigibson.utils.usd_utils import ControllableObjectViewAPI
 import omnigibson as og  # For og.sim.device
 from omnigibson.macros import gm
 import numpy as np
@@ -33,7 +35,8 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             use_delta_commands=False,  # Delta commands are less common for torque control
             compute_delta_in_quat_space=None,  # Delta commands are less common for torque control
             max_effort=None,
-            min_effort=None
+            min_effort=None,
+            **kwargs,
     ):
         motor_type = "effort"
 
@@ -58,59 +61,73 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
 
         self.cached_torque = None
 
-    def _update_goal(self, command, control_dict):
-        target_joint_pos = command.to(og.sim.device)
+    def _get_joint_positions(self):
+        """(N, control_dim) current positions of this controller's DOFs, one row per group member."""
+        rows = self.view_row_indices
+        return ControllableObjectViewAPI.get_all_joint_positions(self.routing_path)[rows, :][:, self.dof_idx]
+
+    def _get_joint_velocities(self):
+        """(N, control_dim) current velocities of this controller's DOFs, one row per group member."""
+        rows = self.view_row_indices
+        return ControllableObjectViewAPI.get_all_joint_velocities(self.routing_path, estimate=True)[rows, :][
+            :, self.dof_idx
+        ]
+
+    def _update_goal(self, controller_idx, command):
+        target_joint_pos = cb.to_torch(command).to(og.sim.device)
 
         target_joint_pos = target_joint_pos.clip(
-            self._control_limits[ControlType.get_type("position")][0][self.dof_idx],
-            self._control_limits[ControlType.get_type("position")][1][self.dof_idx],
+            cb.to_torch(self._control_limits[ControlType.get_type("position")][0][self.dof_idx]).to(og.sim.device),
+            cb.to_torch(self._control_limits[ControlType.get_type("position")][1][self.dof_idx]).to(og.sim.device),
         )
 
-        current_joint_pos = control_dict["joint_position"][self.dof_idx].to(og.sim.device)
         target_joint_vel = th.zeros_like(target_joint_pos)
 
-        return dict(target_joint_pos=target_joint_pos, target_joint_vel=target_joint_vel)
+        return dict(
+            target_joint_pos=cb.from_torch(target_joint_pos),
+            target_joint_vel=cb.from_torch(target_joint_vel),
+        )
 
-    def compute_control(self, goal_dict, control_dict):
-        current_joint_pos = control_dict["joint_position"][self.dof_idx].to(og.sim.device)
-        current_joint_vel = control_dict["joint_velocity"][self.dof_idx].to(og.sim.device)
+    def compute_control(self, goals):
+        """
+        Scalar-gain joint PD. Unlike the DROID controller this needs no Jacobian, so the whole
+        batch is computed at once.
 
-        joint_pos_desired = goal_dict["target_joint_pos"].to(og.sim.device)
-        joint_vel_desired = goal_dict["target_joint_vel"].to(og.sim.device)
+        Args:
+            goals (Dict[str, Array]): batched goals of shape (N, control_dim); must include
+                "target_joint_pos" and "target_joint_vel"
 
-        u_feedback = self.kp * (joint_pos_desired - current_joint_pos) + self.kd * (joint_vel_desired - current_joint_vel)
-        u_feedforward = th.zeros_like(u_feedback)
-        u = u_feedback + self._to_tensor(u_feedforward[:7]).to(og.sim.device)
+        Returns:
+            Array: (N, control_dim) outputted (non-clipped!) control signal to deploy
+        """
+        current_joint_pos = cb.to_torch(self._get_joint_positions()).to(og.sim.device)  # (N, ctrl_dim)
+        current_joint_vel = cb.to_torch(self._get_joint_velocities()).to(og.sim.device)  # (N, ctrl_dim)
+
+        joint_pos_desired = cb.to_torch(goals["target_joint_pos"]).to(og.sim.device)  # (N, ctrl_dim)
+        joint_vel_desired = cb.to_torch(goals["target_joint_vel"]).to(og.sim.device)  # (N, ctrl_dim)
+
+        u = self.kp * (joint_pos_desired - current_joint_pos) + self.kd * (joint_vel_desired - current_joint_vel)
 
         if self.min_effort is not None and self.max_effort is not None:
-            assert u.shape == self.max_effort.shape == self.min_effort.shape
-            u = u.clip(
-                self.min_effort,
-                self.max_effort,
-            )
+            assert u.shape[-1] == self.max_effort.shape[-1] == self.min_effort.shape[-1]
+            u = u.clip(self.min_effort, self.max_effort)
 
-        return u
+        return cb.from_torch(u)  # (N, control_dim)
 
-    def clip_control(self, control):
-        clipped_control = control.clip(
-            self._control_limits[self.control_type][0][self.dof_idx],
-            self._control_limits[self.control_type][1][self.dof_idx],
-        )
+    # NOTE: the pre-3.9.1 clip_control override clipped to the same control limits and copied every
+    # index back, making it equivalent to the (now batched) base implementation. Dropped.
 
-        idx = [True] * self.control_dim
-
-        control_copy = control.clone()
-        control_copy[idx] = clipped_control[idx]
-        return control_copy
-
-    def compute_no_op_goal(self, control_dict):
-        target_joint_pos = control_dict["joint_position"][self.dof_idx].to(og.sim.device)
+    def compute_no_op_goal(self, controller_idx):
+        target_joint_pos = cb.to_torch(self._get_joint_positions()[controller_idx]).to(og.sim.device)
         target_joint_vel = th.zeros_like(target_joint_pos)
 
-        return dict(target_joint_pos=target_joint_pos, target_joint_vel=target_joint_vel)
+        return dict(
+            target_joint_pos=cb.from_torch(target_joint_pos),
+            target_joint_vel=cb.from_torch(target_joint_vel),
+        )
 
-    def _compute_no_op_action(self, control_dict):
-        return th.zeros(self.command_dim, device=og.sim.device)
+    def _compute_no_op_command(self, controller_idx):
+        return cb.zeros(self.command_dim)
 
     def _get_goal_shapes(self):
         return dict(
@@ -132,7 +149,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         else:
             raise ValueError(f"Gain tensor must be 1D or 2D, but got {gain.dim()}D.")
 
-    def is_grasping(self):
+    def is_grasping(self, controller_idx):
         return IsGraspingState.UNKNOWN
 
     @property

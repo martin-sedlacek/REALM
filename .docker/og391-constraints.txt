@@ -1,0 +1,7 @@
+# Pins that must not be disturbed by anything REALM installs on top of the
+# stanfordvl/behavior:3.9.1 base image (OmniGibson requires numpy<2.0.0,>=1.23.5,
+# and the isaacsim 5.1 wheels are built against this exact torch build).
+numpy==1.26.0
+torch==2.7.0+cu128
+pydantic==2.11.10
+pandas==2.3.3

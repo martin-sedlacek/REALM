@@ -65,7 +65,10 @@ def set_sim_config(rendering_mode=None, robot="DROID"):
     gm.ENABLE_TRANSITION_RULES = False # this needs to be off to avoid bug with sludge state during collision: https://github.com/StanfordVL/BEHAVIOR-1K/issues/1201
     gm.ENABLE_OBJECT_STATES = True # this needs to be on because push_switch task usees the ToggledOn state
     gm.RENDER_VIEWER_CAMERA=False
-    gm.ENABLE_HQ_RENDERING = False if rendering_mode == "r" else True
+    # OG 3.9.1 asserts that isosurface HQ rendering runs at >=60 FPS, but REALM renders at 5-30 Hz
+    # (see above), so enabling it aborts at env creation. Disabled unconditionally until the
+    # rendering frequency is raised to 60.
+    gm.ENABLE_HQ_RENDERING = False
 
     seed = 1234
     random.seed(seed)

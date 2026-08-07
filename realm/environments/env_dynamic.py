@@ -18,8 +18,9 @@ from realm.environments.perturbations.sb_vrb import sb_vrb as _pert_sb_vrb
 from realm.environments.perturbations.vb_pose import vb_pose as _pert_vb_pose
 from realm.environments.perturbations.vb_mobj import vb_mobj as _pert_vb_mobj
 from realm.environments.perturbations.vsb_nobj import vsb_nobj as _pert_vsb_nobj
-from realm.robots.widowx import WidowX
-from realm.robots.ur import UR
+# OG 3.9.1: robots are no longer Python classes. DROID/UR are declared as RobotDefinition YAMLs
+# under realm/robots/definitions/ and instantiated by OmniGibson's single Robot class via
+# `model: <name>`; WidowX uses OmniGibson's stock `vx300s` definition. Nothing to import here.
 from realm.helpers import (
     calculate_new_camera_pose_mixed_rotations,
     add_rotation_noise,
@@ -195,11 +196,6 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         for perturbation in self.active_perturbations:
             assert perturbation in self.supported_pertrubations.keys()
 
-        if self.use_droid_with_base:
-            from realm.robots.droid_arm_mounted import DROID
-        else:
-            from realm.robots.droid_arm import DROID
-
         camera_extrinsics_path = f"{self.config_path}/env/external_sensors/camera_extrinsics.yaml"
         self.cfg_camera_extrinsics = yaml.load(open(camera_extrinsics_path, "r"), Loader=yaml.FullLoader)
 
@@ -312,6 +308,14 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         cfg_robot["robots"][0]["orientation"] = omnigibson_transform_utils.euler2quat(
             torch.tensor(robot_rot, dtype=torch.float32)).tolist()
         cfg_robot["robots"][0]["fixed_base"] = True
+
+        # OG 3.9.1 selects a robot by `model` (a RobotDefinition YAML name), not by Python class.
+        # The base-mounted DROID used to be chosen by importing a different module; it is now a
+        # separate definition. `type` in the REALM robot configs is still accepted -- OmniGibson
+        # lowercases it into `model` -- but we set `model` explicitly so the mounted variant works.
+        if "DROID" in self.robot_name:
+            cfg_robot["robots"][0].pop("type", None)
+            cfg_robot["robots"][0]["model"] = "droid_mounted" if self.use_droid_with_base else "droid"
 
         reset_joint_pos = np.zeros(cfg_robot["robots"][0]["dof"] if "dof" in cfg_robot["robots"][0] else DROID_DEFAULT_DOF)
         if "DROID" in self.robot_name:
@@ -442,21 +446,25 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         armature = np.array(self.cfg["robots"][0]["armature"])
 
         joint_names = self.robot.arm_joint_names
-        for idx in range(7):
-            prim_path = f"{self.robot.prim_path}/panda_link{idx}/{joint_names['0'][idx]}"
-            joint_prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(prim_path)
-            assert joint_prim.IsValid()
-            joint_prim.GetAttribute("physxJoint:jointFriction").Set(friction[idx])
-            joint_prim.GetAttribute("physxJoint:armature").Set(armature[idx])
+        # OG 3.9.1 runs under the Fabric Scene Delegate, where raw USD edits are not automatically
+        # propagated to Fabric; every USD write must happen inside this context (which synchronizes
+        # on exit) or OmniGibson aborts. The context must not be nested, so all edits go in one block.
+        with og.sim.editing_usd():
+            for idx in range(7):
+                prim_path = f"{self.robot.prim_path}/panda_link{idx}/{joint_names['0'][idx]}"
+                joint_prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(prim_path)
+                assert joint_prim.IsValid()
+                joint_prim.GetAttribute("physxJoint:jointFriction").Set(friction[idx])
+                joint_prim.GetAttribute("physxJoint:armature").Set(armature[idx])
 
-        # Fix triangle mesh collision approximation for dynamic bodies
-        for link_name, link in self.robot.links.items():
-            for collision_mesh in link.collision_meshes.values():
-                prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(collision_mesh.prim_path)
-                if prim.IsValid() and prim.HasAttribute("physxMeshCollision:approximation"):
-                    approx = prim.GetAttribute("physxMeshCollision:approximation").Get()
-                    if approx in ["none", "meshSimplification"]:
-                        prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
+            # Fix triangle mesh collision approximation for dynamic bodies
+            for link_name, link in self.robot.links.items():
+                for collision_mesh in link.collision_meshes.values():
+                    prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(collision_mesh.prim_path)
+                    if prim.IsValid() and prim.HasAttribute("physxMeshCollision:approximation"):
+                        approx = prim.GetAttribute("physxMeshCollision:approximation").Get()
+                        if approx in ["none", "meshSimplification"]:
+                            prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
 
     def apply_scene_fixes_from_cfg(self):
         spawn_cfg = yaml.load(open(f"{self.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)

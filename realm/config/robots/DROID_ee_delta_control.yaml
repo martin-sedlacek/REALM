@@ -37,3 +37,8 @@ robots:
           image_height: 720
           image_width: 1280
           focal_length: 2.8
+          # Must be set explicitly for OG >= 3.9.1: VisionSensor now writes horizontalAperture
+          # at init (defaulting to 20.995) instead of leaving whatever the camera prim authored.
+          # The wrist camera in droid.usd authors 5.376 x 3.024, i.e. an 87.7 deg HFOV; letting
+          # OmniGibson default it blows the wrist view up to ~150 deg.
+          horizontal_aperture: 5.376

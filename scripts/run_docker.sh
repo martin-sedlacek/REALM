@@ -4,6 +4,9 @@ set -e -o pipefail
 BYellow='\033[1;33m'
 Color_Off='\033[0m'
 
+# Image built from .docker/realm_og391.Dockerfile (base: stanfordvl/behavior:3.9.1).
+REALM_IMAGE="${REALM_IMAGE:-realm:og391}"
+
 # Parse the command line arguments.
 GUI=true
 
@@ -55,6 +58,9 @@ mkdir -p $REALM_DATA_PATH/isaac-sim/logs
 mkdir -p $REALM_DATA_PATH/isaac-sim/config
 mkdir -p $REALM_DATA_PATH/isaac-sim/data
 mkdir -p $REALM_DATA_PATH/isaac-sim/documents
+# OMNIGIBSON_APPDATA_PATH=/cache/appdata in the 3.9.1 image -- persist it so shader/asset
+# caches survive across runs instead of landing in a throwaway anonymous volume.
+mkdir -p $REALM_DATA_PATH/cache
 
 docker run \
     --gpus all \
@@ -67,6 +73,7 @@ docker run \
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
     -v $(pwd):/app:rw \
     -v $REALM_DATA_PATH/datasets:/data \
+    -v $REALM_DATA_PATH/cache:/cache:rw \
     -v $REALM_DATA_PATH/isaac-sim/cache/kit:/isaac-sim/kit/cache/Kit:rw \
     -v $REALM_DATA_PATH/isaac-sim/cache/ov:/root/.cache/ov:rw \
     -v $REALM_DATA_PATH/isaac-sim/cache/pip:/root/.cache/pip:rw \
@@ -77,4 +84,4 @@ docker run \
     -v $REALM_DATA_PATH/isaac-sim/data:/root/.local/share/ov/data:rw \
     -v $REALM_DATA_PATH/isaac-sim/documents:/root/Documents:rw \
     -v /usr/share/nvidia/nvoptix.bin:/usr/share/nvidia/nvoptix.bin:ro \
-    --network=host --rm -it realm
+    --network=host --rm -it ${REALM_IMAGE}

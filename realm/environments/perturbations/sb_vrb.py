@@ -107,8 +107,10 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
         env.cfg['instruction_target_to_replace'] = nobj_cfg["category"]
         og.sim.play()
         # fake rest to get to original pose after stopping sim
-        for _ in range(30):
-            env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+        # No camera is read here; skip the per-step render pass (see og.sim.render_on_step docs).
+        with og.sim.render_on_step(False):
+            for _ in range(30):
+                env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
 
     if new_verb_for_task in ["rotate", "push", "pick", "open", "close"]:
         tmp = "pick up" if new_verb_for_task == "pick" else new_verb_for_task

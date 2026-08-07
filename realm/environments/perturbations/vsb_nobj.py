@@ -30,12 +30,16 @@ def vsb_nobj(env: "RealmEnvironmentDynamic") -> None:
         env.main_objects[0].set_orientation(np.array([0, 0, 0.7071068, 0.7071068]))
     og.sim.play()
     og.sim.step()
-    env.omnigibson_env.scene.update_initial_state()
+    env.omnigibson_env.scene.update_initial_file()  # renamed from update_initial_state() in OG 3.9.1
     env.reset_joints()
 
     if og.object_states.ToggledOn in nobj.states:
         nobj.states[og.object_states.ToggledOn].visual_marker.visible = False
 
     # fake rest to get to original pose after stopping sim
-    for _ in range(30):
-        env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+    # Nothing reads a camera here, so skip the render pass on each step. gm.HEADLESS does NOT do
+    # this -- og.sim.step() renders every call regardless; only this context actually suppresses it.
+    # Object states and contact caching still update normally inside it.
+    with og.sim.render_on_step(False):
+        for _ in range(30):
+            env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))

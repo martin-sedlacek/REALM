@@ -30,8 +30,10 @@ def vb_mobj(env: "RealmEnvironmentDynamic") -> None:
         scale = torch.tensor([s1, s2, s3])
         mo.scale = torch.tensor(env.mo_bbox_orig) * scale
         og.sim.play()
-        for _ in range(30):
-            env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+        # No camera is read here; skip the per-step render pass (see og.sim.render_on_step docs).
+        with og.sim.render_on_step(False):
+            for _ in range(30):
+                env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
     else:
         obj_name = mo.name
         obj_relative_prim_path = mo._relative_prim_path
@@ -69,5 +71,5 @@ def vb_mobj(env: "RealmEnvironmentDynamic") -> None:
         env.main_objects = [new_obj]
         og.sim.play()
         og.sim.step()
-        env.omnigibson_env.scene.update_initial_state()
+        env.omnigibson_env.scene.update_initial_file()  # renamed from update_initial_state() in OG 3.9.1
         env.reset_joints()

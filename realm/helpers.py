@@ -186,7 +186,15 @@ def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: li
         far_pos = np.random.random((3,)) * 3 + np.array([0, 0, 20])
         obj.set_position(far_pos)
         obj.set_orientation([0, 0, 0, 1])
-        og.sim.step()
+        # The step here only exists to flush the pose change before reading the AABB -- it is not a
+        # physics settle. OG 3.9.1 asserts `is_playing()` inside step(), and callers such as the V-SC
+        # perturbation run this while the simulator is stopped (it has to be stopped to add/remove
+        # objects), which used to be tolerated. Render instead when stopped: it propagates the
+        # transform without advancing physics, and 3.9.1 computes aabb from live collision points.
+        if og.sim.is_playing():
+            og.sim.step()
+        else:
+            og.sim.render()
         this_cfg["bounding_box"] = obj.aabb_extent
 
         obj.set_position_orientation(this_cfg["pos"], this_cfg["ori"])

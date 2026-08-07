@@ -3,12 +3,10 @@ import torch
 
 from realm.environments.utils import *
 from realm.helpers import compute_rot_diff_magnitude
-from realm.robots.droid_joint_controller import IndividualJointPDController as DROIDJointPDController
-from realm.robots.droid_gripper_controller import MultiFingerGripperController as DROIDGripperController
-from realm.robots.custom_joint_controller import IndividualJointPDController
-from realm.robots.droid_ee_controller import DroidEndEffectorController
+from realm.environments.contact_utils import get_impulse_contacts
+from realm.robots.controller_registry import register_realm_controllers
 import omnigibson as og
-from omnigibson.object_states.contact_bodies import ContactBodies
+from omnigibson.utils.usd_utils import RigidContactAPI  # replaces the ContactBodies object state, removed in OG 3.9.1
 from omnigibson.controllers import REGISTERED_CONTROLLERS
 from omnigibson.object_states.open_state import _get_relevant_joints
 from omnigibson.utils.object_utils import compute_base_aligned_bboxes, compute_bbox_offset
@@ -17,10 +15,9 @@ from omnigibson.prims.rigid_prim import RigidPrim
 from omnigibson.objects.dataset_object import DatasetObject
 
 
-REGISTERED_CONTROLLERS["IndividualJointPDController"] = IndividualJointPDController
-REGISTERED_CONTROLLERS["DroidEndEffectorController"] = DroidEndEffectorController
-REGISTERED_CONTROLLERS["CustomJointController"] = DROIDJointPDController
-REGISTERED_CONTROLLERS["CustomGripperController"] = DROIDGripperController
+# OG 3.9.1 also requires a default controller config entry per custom controller, not just a
+# REGISTERED_CONTROLLERS entry -- see realm/robots/controller_registry.py.
+register_realm_controllers()
 INIT_OPENNESS_FRACTION = 1.0 #0.5
 TASK_PROGRESS_RUBRICS = load_task_progressions()
 
@@ -96,13 +93,16 @@ class RealmEnvironmentBase:
             self.joint_range = self.mo_joint.upper_limit - self.mo_joint.lower_limit
             self.init_openness_fraction = (self.mo_joint.get_state()[0][
                                                0] - self.mo_joint.lower_limit) / self.joint_range
-            for _ in range(30):
-                og.sim.step()
-            for j in cabinet.joints.values():
-                j: JointPrim
-                j.keep_still()
-            for _ in range(10):
-                og.sim.step()
+            # Pure settle -- no camera is read, so skip the render pass on all 40 steps.
+            # (gm.HEADLESS only removes the window; step() still renders without this context.)
+            with og.sim.render_on_step(False):
+                for _ in range(30):
+                    og.sim.step()
+                for j in cabinet.joints.values():
+                    j: JointPrim
+                    j.keep_still()
+                for _ in range(10):
+                    og.sim.step()
 
         else:
             self.mo_joint = None
@@ -135,32 +135,14 @@ class RealmEnvironmentBase:
         # We use prefixes to catch links and geoms belonging to these objects
         ignore_obj_roots = [obj.prim_path for obj in self.main_objects + self.target_objects]
 
-        for link in robot_links:
-            # Skip root link (usually touching mount/floor)
-            if link.name == self.robot.root_link_name:
-                continue
+        # Skip the root link (usually touching mount/floor). OG 3.9.1 removed RigidPrim.contact_list(),
+        # so contacts (and their impulses) are read from the contact matrix instead -- one batched
+        # query for all links rather than a per-link call. See realm/environments/contact_utils.py.
+        queried_links = [link for link in robot_links if link.name != self.robot.root_link_name]
+        contacts_by_link = get_impulse_contacts(self.robot.scene.idx, queried_links)
 
-            contacts = link.contact_list()
-            for contact in contacts:
-                # Filter by impulse if available (ignore resting/negligible contacts)
-                if hasattr(contact, "impulse"):
-                    impulse_val = contact.impulse
-                    # Handle structured array if necessary (based on error message)
-                    if impulse_val.dtype.names is not None:
-                         impulse_vec = np.array([impulse_val['x'], impulse_val['y'], impulse_val['z']])
-                    else:
-                         impulse_vec = impulse_val
-                    
-                    if np.linalg.norm(impulse_vec) < 1e-3:
-                        continue
-                else:
-                    continue
-
-                if contact.body0 == link.prim_path:
-                    other_path = contact.body1
-                else:
-                    other_path = contact.body0
-
+        for link in queried_links:
+            for other_path in contacts_by_link.get(link.prim_path, ()):
                 # Check if other_path belongs to the robot
                 is_robot = other_path in robot_link_paths or other_path.startswith(robot_prim_path)
 
@@ -186,8 +168,16 @@ class RealmEnvironmentBase:
     def is_grasping(self, obs, candidate_obj):
         finger_joints = obs[self.robot.name]['proprio'][7:9].cpu().numpy()
         is_either_finger_closing = (0.45 - finger_joints[0] > 1e-3 or 0.45 - finger_joints[1] > 1e-3)
-        is_both_fingers_touching_obj = len(
-            candidate_obj.states[ContactBodies].get_value().intersection(self.robot_finger_links)) == 2
+        # OG 3.9.1 removed the ContactBodies object state; query the contact matrix directly instead.
+        # get_contact_pairs returns (query_prim_path, with_prim_path) tuples, so the second element of
+        # each pair is the finger link that candidate_obj is touching.
+        contact_pairs = RigidContactAPI.get_contact_pairs(
+            scene_idx=candidate_obj.scene.idx,
+            query_set={candidate_obj},
+            with_set=self.robot_finger_links,
+            current_only=True,
+        )
+        is_both_fingers_touching_obj = len({finger_path for _, finger_path in contact_pairs}) == 2
         is_robot_touching_obj = self.is_touching(obs, candidate_obj)
 
         if is_both_fingers_touching_obj and is_robot_touching_obj and is_either_finger_closing:

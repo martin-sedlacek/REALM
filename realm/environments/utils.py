@@ -32,16 +32,18 @@ def reset_joints(
     if reset_states is None:
         reset_states = [-1.0 for _ in joints]
     assert len(joints) == len(reset_states), f"{len(joints)=}, {len(reset_states)=}"
-    for step in range(closing_steps):
-        for j, target_state in zip(joints, reset_states):
-            j.set_pos(target_state, normalized=True)
-            j.set_vel(0)
-            j.set_effort(0)
-        og.sim.step()
-    for step in range(still_steps):
-        for j in joints:
-            j.keep_still()
-        og.sim.step()
+    # Pure settle -- no camera is read, so skip the render pass on every step.
+    with og.sim.render_on_step(False):
+        for step in range(closing_steps):
+            for j, target_state in zip(joints, reset_states):
+                j.set_pos(target_state, normalized=True)
+                j.set_vel(0)
+                j.set_effort(0)
+            og.sim.step()
+        for step in range(still_steps):
+            for j in joints:
+                j.keep_still()
+            og.sim.step()
 
 
 def get_openable_joints(cabinet: DatasetObject) -> list[JointPrim]:

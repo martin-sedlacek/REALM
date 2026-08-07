@@ -1,3 +1,4 @@
+import argparse
 import os
 import subprocess
 import pandas as pd
@@ -11,17 +12,21 @@ sys.path.append(str(PROJECT_ROOT))
 
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 
-def run_test():
+def run_test(task_id=0, repeats=1, max_steps=1):
     """
-    Integrity test that runs a single step for all perturbations (on Task 0)
-    to ensure that data logging works correctly.
+    Integrity test that runs a short rollout for all perturbations to ensure that every
+    perturbation still applies cleanly and that data logging works correctly.
+
+    Args:
+        task_id (int): which task from SUPPORTED_TASKS to exercise
+        repeats (int): rollouts per perturbation -- >1 also exercises the per-repeat reset path
+        max_steps (int): steps per rollout
     """
     experiment_name = "pert_integrity_test"
     model_name = "debug"
     model_type = "debug"
     port = 8000
     run_id = "test_run"
-    task_id = 0
     task_name = SUPPORTED_TASKS[task_id]
     
     base_log_dir = os.path.join(PROJECT_ROOT, "logs/pert_integrity_test_tmp")
@@ -31,7 +36,8 @@ def run_test():
         shutil.rmtree(base_log_dir)
     os.makedirs(base_log_dir, exist_ok=True)
 
-    print(f"Starting perturbation integrity test for Task {task_id} ({task_name})...")
+    print(f"Starting perturbation integrity test for Task {task_id} ({task_name}), "
+          f"{repeats} repeat(s) x {max_steps} step(s)...")
     print(f"Testing {len(SUPPORTED_PERTURBATIONS)} perturbations...")
     
     results = {}
@@ -39,13 +45,13 @@ def run_test():
     for pert_id, pert_name in enumerate(SUPPORTED_PERTURBATIONS):
         print(f"\n--- Testing Perturbation {pert_id}: {pert_name} ---")
         
-        # Run 02_evaluate.py for 1 step, 1 repeat
+        # Run 02_evaluate.py for the requested repeats / steps
         cmd = [
             "python", str(PROJECT_ROOT / "examples/02_evaluate.py"),
             "--task_id", str(task_id),
             "--perturbation_id", str(pert_id),
-            "--repeats", "1",
-            "--max_steps", "1",
+            "--repeats", str(repeats),
+            "--max_steps", str(max_steps),
             "--model_name", model_name,
             "--model_type", model_type,
             "--port", str(port),
@@ -112,4 +118,9 @@ def run_test():
         sys.exit(1)
 
 if __name__ == "__main__":
-    run_test()
+    parser = argparse.ArgumentParser(description="Run every perturbation for a short rollout.")
+    parser.add_argument("--task_id", type=int, default=0)
+    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--max_steps", type=int, default=1)
+    args = parser.parse_args()
+    run_test(task_id=args.task_id, repeats=args.repeats, max_steps=args.max_steps)

@@ -1,6 +1,6 @@
 import omnigibson as og
 from omnigibson.macros import gm
-from omnigibson.utils.asset_utils import get_available_og_scenes
+from omnigibson.utils.asset_utils import get_available_behavior_1k_scenes  # renamed from get_available_og_scenes in OG 3.9.1
 
 import omnigibson.utils.transform_utils as T
 import sys
@@ -10,20 +10,13 @@ import math
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
 USE_DROID_WITH_BASE = True
-if USE_DROID_WITH_BASE:
-    from realm.robots.droid_arm_mounted import DROID
-else:
-    from realm.robots.droid_arm import DROID
+# OG 3.9.1: no DROID class to import -- select the RobotDefinition by model name instead.
+DROID_MODEL = "droid_mounted" if USE_DROID_WITH_BASE else "droid"
 
-from omnigibson.controllers import REGISTERED_CONTROLLERS
 from realm.helpers import flip_pose_pointing_down
-from realm.robots.droid_joint_controller import IndividualJointPDController
-from realm.robots.droid_ee_controller import DroidEndEffectorController
-if "CustomJointController" not in REGISTERED_CONTROLLERS:
-    REGISTERED_CONTROLLERS["EEController"] = DroidEndEffectorController #IndividualJointPDController
-from realm.robots.droid_gripper_controller import MultiFingerGripperController
-if "CustomGripperController" not in REGISTERED_CONTROLLERS:
-    REGISTERED_CONTROLLERS["CustomGripperController"] = MultiFingerGripperController
+# Registers REALM's controllers *and* their default configs, which OG 3.9.1 requires separately.
+from realm.robots.controller_registry import register_realm_controllers
+register_realm_controllers()
 
 freq = 15 #60
 gm.DEFAULT_SIM_STEP_FREQ = freq
@@ -45,7 +38,7 @@ cfg = dict()
 
 # Define scene
 scene_id = 0
-scenes = get_available_og_scenes()
+scenes = get_available_behavior_1k_scenes()
 scene_model = list(scenes)[scene_id]
 cfg["scene"] = {
      "type": "Scene",
@@ -55,7 +48,7 @@ cfg["scene"] = {
 cfg["robots"] = [
     {
         "name": "DROID",
-        "type": "DROID",
+        "model": DROID_MODEL,
         "obs_modalities": ["proprio"], #"rgb",
         "proprio_obs": ["joint_qpos"],
         "position": [0, 0, 0], #0.87],
