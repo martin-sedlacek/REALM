@@ -1,0 +1,94 @@
+Bootstrap: docker
+From: stanfordvl/behavior:3.9.1
+
+# Apptainer counterpart of .docker/realm_og391.Dockerfile -- keep the two in sync.
+#
+# Differences from the 1.1.1 realm.def this replaces:
+#   - base image ships conda (env "behavior", python 3.11) instead of micromamba ("omnigibson", 3.10)
+#   - OmniGibson lives at /behavior-src/OmniGibson, not /omnigibson-src, and is a PEP-660 editable install
+#   - one OMNIGIBSON_DATA_PATH=/data replaces the four separate dataset/asset/key path variables
+#   - the entity_prim patch is a diff instead of a whole-file copy, and a second patch is needed
+#   - dm-robotics is pinned to 0.9.0 (0.10.0 requires numpy>=2, which OmniGibson 3.9.1 forbids)
+
+%files
+    realm/misc/entity_prim_og391.patch /opt/entity_prim_og391.patch
+    realm/misc/usd_object_og391.patch /opt/usd_object_og391.patch
+    .docker/og391-constraints.txt /opt/og391-constraints.txt
+    packages/openpi-client /opt/openpi-client
+
+%post
+    set -e
+
+    # Relax the OmniGibson kinematic-tree assertions that reject our custom robot USDs.
+    # Fails the build loudly if a patch no longer applies to this OmniGibson version.
+    patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch
+    patch -p1 -d /behavior-src/OmniGibson < /opt/usd_object_og391.patch
+    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch
+
+    CONDA_PIP=/opt/conda/envs/behavior/bin/pip
+
+    # dm_control / dm_robotics stack. Pinned to 0.9.0 because 0.10.0 requires numpy>=2,
+    # which OmniGibson 3.9.1 forbids (numpy<2.0.0,>=1.23.5). 0.9.0 pulls dm-control 1.0.15.
+    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+        dm-robotics-transformations==0.9.0 \
+        dm-robotics-geometry==0.9.0 \
+        dm-robotics-controllers==0.9.0
+
+    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+        dm-robotics-moma==0.9.0 \
+        dm-robotics-manipulation==0.9.0
+
+    # Remaining REALM runtime deps not present in the base image.
+    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+        wandb moviepy openai fastparquet
+
+    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt /opt/openpi-client
+
+%environment
+    # The base image's OMNIGIBSON_DATA_PATH=/data and OMNIGIBSON_APPDATA_PATH=/cache/appdata come
+    # through from the Docker layer; only our own source tree has to be added.
+    export PYTHONPATH=/app:$PYTHONPATH
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    # omnigibson.utils.transform_utils_np decorates with @jit(..., cache=True), and numba writes
+    # that cache next to the source file. A sif is read-only, so `import omnigibson` dies with
+    # "cannot cache function '_quat_multiply': no locator available" unless the cache is redirected
+    # somewhere writable. This never shows up under Docker, where the layer is writable.
+    export NUMBA_CACHE_DIR="${NUMBA_CACHE_DIR:-/tmp/numba_cache}"
+
+%runscript
+    # Docker's ENTRYPOINT (/entrypoint.sh, which activates the conda env) is not honoured by
+    # Apptainer, so the environment is activated here instead.
+    . /opt/conda/etc/profile.d/conda.sh
+    conda activate behavior
+    if [ $# -eq 0 ]; then
+        exec /bin/bash --login
+    else
+        exec "$@"
+    fi
+
+%test
+    # Without this, a failing check below is masked by the later commands' exit status and the
+    # build reports success anyway.
+    set -e
+    . /opt/conda/etc/profile.d/conda.sh
+    conda activate behavior
+    # %environment is not applied during %test, so the numba cache redirect is repeated here.
+    export NUMBA_CACHE_DIR=/tmp/numba_cache
+    # NOTE: omnigibson deliberately is NOT imported here. `omnigibson.macros` asserts at import time
+    # that gm.DATA_PATH exists, and nothing is bound to /data during a build, so importing it can
+    # never succeed at this point. Its presence is checked via installed metadata instead; a real
+    # import check needs the dataset bound, e.g.
+    #     apptainer test --bind <datasets>:/data realm_og391.sif
+    python - <<'PY'
+from importlib.metadata import version
+import dm_control, dm_robotics.moma, openpi_client, wandb, moviepy, fastparquet, numpy, torch
+assert version("omnigibson") == "3.9.1", version("omnigibson")
+assert numpy.__version__.startswith("1.26"), numpy.__version__
+print("omnigibson", version("omnigibson"), "| numpy", numpy.__version__, "| torch", torch.__version__)
+print("dm_control", version("dm-control"), "| dm-robotics-moma", version("dm-robotics-moma"))
+PY
+    # The two REALM patches must be baked in, or custom robot USDs fail their kinematic-tree checks.
+    grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py
+    grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/objects/usd_object.py
+    echo "REALM patches present"

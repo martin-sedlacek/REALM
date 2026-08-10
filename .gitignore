@@ -167,3 +167,11 @@ singularity/
 isaac-sim/
 .claude/
 realm-container.skill
+
+# Apptainer/Singularity images -- 9-13 GB each, built from .docker/*.def
+*.sif
+# Thumbnail caches written by USD tooling
+.thumbs/
+
+# Session scratch (logs, probe scripts, extracted frames)
+tmp/
