@@ -20,7 +20,7 @@
 #   sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   TASK_ID=1 REPEATS=5 sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   MULTI_VIEW=1 sbatch scripts/clara/run_og391_smoke_pi05.sh   # second video panel for review only
-#   RENDER_ON_DEMAND=1 sbatch scripts/clara/run_og391_smoke_pi05.sh  # skip renders between chunks (no measured gain)
+#   RENDER_ON_DEMAND=0 sbatch scripts/clara/run_og391_smoke_pi05.sh  # render every step (full-rate video)
 #
 #SBATCH --job-name realm-og391-smoke-pi05
 #SBATCH --partition l40s
@@ -67,16 +67,18 @@ MULTI_VIEW_FLAG=""
 [ "$MULTI_VIEW" = "1" ] && MULTI_VIEW_FLAG="--multi-view"
 # Render only on the steps whose observation feeds inference (1 in HORIZON); physics-only on the
 # rest, via OG 3.9.1's native og.sim.render_on_step().
-# OFF by default because MEASURED IT BUYS NOTHING: job 187532 vs 187497, same task/perturbation,
-# 419 vs 422 ms/control-step (0.7%) with identical SR 0.400 / TP 0.520 -- and that was with the
-# second camera also removed. Rendering is simply not the per-step bottleneck here; physics +
-# _non_physics_step() + the obs copy are. Meanwhile it costs video frame rate (38 frames per
-# 300-step rollout instead of 299), so leaving it on trades footage for no speed.
-# Kept as a flag because 3.9.1's blind path issues n_physics_timesteps_per_render (8) separate
-# _sim_context.step(render=False) calls where the render path issues one combined call, so it
-# swaps a render for 7 extra step round-trips. A cheaper single-shot blind step (as OG-lite had)
-# would change this verdict -- re-measure then.
-RENDER_ON_DEMAND=${RENDER_ON_DEMAND:-0}
+# ON by default. Microbenchmark (tmp/dbg_session/bench_step2.py, interleaved medians, 1 exterior +
+# 1 wrist camera at 1280x720, rt):
+#     env.step render ON  + obs      348.8 ms
+#     env.step render OFF + obs      242.3 ms   -> render costs ~106 ms, ~30% of a step
+#     get_obs() alone                  5.4 ms   -> the obs/annotator read is NOT the cost
+#     blind step + extract_from_obs   263.3 ms
+#   => 7-of-8 blind predicts 348.8 -> 274 ms/step, about -21%.
+# NOTE: an earlier end-to-end A/B (jobs 187497 vs 187532, 422 vs 419 ms/step) appeared to show no
+# gain and this defaulted off. That comparison was UNDERPOWERED, not a null: per-rollout ms/step
+# scatters +/-90 ms run to run, against a ~75 ms expected effect. Do not re-flip this off on the
+# strength of a handful of rollouts -- instrument per-step wall time inside the loop instead.
+RENDER_ON_DEMAND=${RENDER_ON_DEMAND:-1}
 ROD_FLAG=""
 [ "$RENDER_ON_DEMAND" = "1" ] && ROD_FLAG="--render_on_demand"
 RUN_ID=${RUN_ID:-$(date +%Y%m%d_%H%M%S)}
