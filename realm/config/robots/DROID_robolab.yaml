@@ -1,0 +1,63 @@
+# DROID with the robolab Franka + Robotiq 2F-85 asset (compliant, mimic-joint gripper).
+#
+# Same arm and same controllers as DROID.yaml -- the only differences come from the gripper being a
+# single actuated revolute joint with five mimic followers instead of four independently driven
+# joints. See realm/robots/definitions/droid_robolab/droid_robolab.yaml for the asset details.
+#
+# `model` is set explicitly (rather than relying on the legacy `type`) so env_dynamic does not
+# rewrite it to the stock droid/droid_mounted definition.
+
+robots:
+  - name: "DROID_robolab"
+    model: "droid_robolab"
+    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
+    dof: 13
+    # The robolab asset is the bare arm: panda_link0 sits at z=0, whereas droid_mounted.usd includes
+    # the base column and puts panda_link0 at z=0.8629. On a REALM_DROID10 task the scene position is
+    # the *bottom of the column*, so spawning this asset there buries the arm in the table and the
+    # contact forces NaN the sim within a few steps. env_dynamic raises the spawn point by
+    # DROID_BASE_HEIGHT when this is false, which lands the arm origin exactly where the mounted
+    # variant's would be -- so all the robot<->world frame maths stays unchanged.
+    has_base_column: false
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    control_freq: 15
+    action_normalize: False
+    action_type: "continuous"
+    friction: [ 0.05, 0.10, 0.05, 0.10, 0.75, 0.425, 0.20 ]
+    armature: [ 0.25, 0.50, 0.25, 0.50, 0.25, 0.150, 0.00 ]
+    controller_name: "CustomJointController"
+    controller_config:
+        arm_0:
+            name: "CustomJointController"
+            "motor_type": "position"
+            control_freq: 15
+            use_delta_commands: False
+            use_impedances: True
+            use_gravity_compensation: False,
+            use_cc_compensation: False,
+            Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
+            Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
+            Kx: [ 400, 400, 400, 15, 15, 15 ]
+            Kxd: [ 37, 37, 37, 2, 2, 2 ]
+            command_output_limits: null
+            command_input_limits: null
+            max_effort: [ 87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0 ]
+            min_effort: [ -87.0, -87.0, -87.0, -87.0, -12.0, -12.0, -12.0 ]
+        gripper_0:
+          name: "CustomGripperController"
+          mode: "binary"
+          # No open_qpos/closed_qpos override needed: finger_joint's lower limit (0 rad) is the
+          # closed pose and its upper limit (0.7854 rad) the open one, which is already what
+          # MultiFingerGripperController assumes. Verified by driving it both ways -- pad separation
+          # goes 2.8 mm closed / 85.1 mm open, matching the 2F-85's real stroke.
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          focal_length: 2.8
+          # As in DROID.yaml: OG >= 3.9.1 writes horizontalAperture at init (default 20.995) instead
+          # of honouring the camera prim, which would widen the wrist view to ~150 deg. The robolab
+          # cameras author the same 5.376 x 3.024 sensor as droid.usd.
+          horizontal_aperture: 5.376

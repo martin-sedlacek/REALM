@@ -168,6 +168,29 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
                 ControllableObjectViewAPI.get_all_coriolis_and_centrifugal_compensation_forces(self.routing_path)
             ).to(og.sim.device)[rows, :]
 
+        # Gravity compensation. The pre-3.9.1 controller accepted `use_gravity_compensation` but never
+        # applied it -- only the Coriolis term was ever added -- so with it left False (as the stock
+        # DROID config does) a pure PD law carries a steady-state droop proportional to the gravity
+        # torque. That is tolerable for droid.usd's link masses but not for heavier assets: the
+        # robolab arm settles 0.2968 rad off the commanded panda_joint5 without this.
+        if self._use_gravity_compensation:
+            rows = self.view_row_indices
+            grav_forces = cb.to_torch(
+                ControllableObjectViewAPI.get_all_gravity_compensation_forces(self.routing_path)
+            ).to(og.sim.device)[rows, :]
+
+        # Indices into the generalized-force vectors for this controller's DOFs. The offset accounts
+        # only for extra *base* DOFs on floating-base robots, so it is measured against the robot's
+        # total joint count -- NOT against control_dim, which would shift the arm's slice by
+        # (n_joints - n_arm_joints) and silently feed it the gripper's terms instead. On a 13-DOF
+        # robolab DROID that mis-indexing demanded torques far past the wrist's +-12 Nm limit, so the
+        # wrist saturated and settled ~0.29 rad off command.
+        n_joint_dof = ControllableObjectViewAPI.get_all_joint_positions(self.routing_path).shape[-1]
+        if self._use_cc_compensation or self._use_gravity_compensation:
+            ref = cc_forces if self._use_cc_compensation else grav_forces
+            base_dof_offset = max(ref.shape[-1] - n_joint_dof, 0)
+            comp_idx = [idx + base_dof_offset for idx in self.dof_idx]
+
         us = []
         for i in range(current_joint_pos.shape[0]):
             jacobian = jacobians[i]
@@ -184,8 +207,11 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
 
             # Add Coriolis / centrifugal compensation
             if self._use_cc_compensation:
-                base_dof_offset = max(cc_forces.shape[-1] - current_joint_pos.shape[-1], 0)
-                u = u + cc_forces[i][[idx + base_dof_offset for idx in self.dof_idx]]
+                u = u + cc_forces[i][comp_idx]
+
+            # Add gravity compensation
+            if self._use_gravity_compensation:
+                u = u + grav_forces[i][comp_idx]
 
             if self.min_effort is not None and self.max_effort is not None:
                 assert u.shape == self.max_effort.shape == self.min_effort.shape

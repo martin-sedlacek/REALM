@@ -304,7 +304,14 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
         cfg_robot = yaml.load(open(f"{self.config_path}/robots/{self.robot_name}.yaml", "r"), Loader=yaml.FullLoader)
         self.ee_control = cfg_robot["robots"][0].get("ee_control", False)
-        cfg_robot["robots"][0]["position"] = robot_pos
+        # Assets without the DROID base column have their origin at the arm base rather than at the
+        # bottom of the column, so on base-mounted tasks they must be raised by the column's height.
+        # self.robot_pos deliberately stays at the scene value: _robot2world/_world2robot already add
+        # DROID_BASE_HEIGHT themselves, so only the spawn point needs adjusting.
+        spawn_pos = list(robot_pos)
+        if self.use_droid_with_base and not cfg_robot["robots"][0].pop("has_base_column", True):
+            spawn_pos[2] += DROID_BASE_HEIGHT
+        cfg_robot["robots"][0]["position"] = spawn_pos
         cfg_robot["robots"][0]["orientation"] = omnigibson_transform_utils.euler2quat(
             torch.tensor(robot_rot, dtype=torch.float32)).tolist()
         cfg_robot["robots"][0]["fixed_base"] = True
@@ -313,7 +320,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         # The base-mounted DROID used to be chosen by importing a different module; it is now a
         # separate definition. `type` in the REALM robot configs is still accepted -- OmniGibson
         # lowercases it into `model` -- but we set `model` explicitly so the mounted variant works.
-        if "DROID" in self.robot_name:
+        # A config that names its own `model` (e.g. DROID_robolab.yaml) is left alone -- only the
+        # stock DROID configs, which still carry the legacy `type: DROID`, get the mounted/unmounted
+        # definition chosen for them here.
+        if "DROID" in self.robot_name and "model" not in cfg_robot["robots"][0]:
             cfg_robot["robots"][0].pop("type", None)
             cfg_robot["robots"][0]["model"] = "droid_mounted" if self.use_droid_with_base else "droid"
 
@@ -439,7 +449,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         return base_cam_pos, base_cam_rot
 
     def update_robot_physics(self):
-        if not self.robot_name == "DROID":
+        # Every DROID variant, not just the config literally named "DROID". The robolab asset was
+        # silently skipped here, so its arm ran with zero armature -- no rotor inertia against a
+        # stiff impedance law -- and the wrist would not hold a commanded pose.
+        if not self.robot_name.startswith("DROID"):
             return
 
         friction = np.array(self.cfg["robots"][0]["friction"])
@@ -453,9 +466,17 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             for idx in range(7):
                 prim_path = f"{self.robot.prim_path}/panda_link{idx}/{joint_names['0'][idx]}"
                 joint_prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(prim_path)
-                assert joint_prim.IsValid()
-                joint_prim.GetAttribute("physxJoint:jointFriction").Set(friction[idx])
-                joint_prim.GetAttribute("physxJoint:armature").Set(armature[idx])
+                assert joint_prim.IsValid(), f"no joint prim at {prim_path}"
+                # Create the attributes if the asset never authored them -- droid.usd ships them,
+                # the robolab asset does not, and GetAttribute(...).Set() on a missing attribute is
+                # a silent no-op, which would leave armature at zero without any error.
+                lazy.pxr.PhysxSchema.PhysxJointAPI.Apply(joint_prim)
+                for attr_name, value in (("physxJoint:jointFriction", friction[idx]),
+                                         ("physxJoint:armature", armature[idx])):
+                    attr = joint_prim.GetAttribute(attr_name)
+                    if not attr:
+                        attr = joint_prim.CreateAttribute(attr_name, lazy.pxr.Sdf.ValueTypeNames.Float)
+                    attr.Set(float(value))
 
             # Fix triangle mesh collision approximation for dynamic bodies
             for link_name, link in self.robot.links.items():
