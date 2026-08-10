@@ -1,0 +1,64 @@
+# RobotDefinition for the DROID platform (Franka Panda + Robotiq 2F-85, wrist camera), base-mounted
+# variant WITH the base column (droid_mounted.usd). Ported from the pre-3.9.1 `realm/robots/droid_arm_mounted.py`, which
+# encoded all of this as Python properties on a `ManipulationRobot` subclass; OmniGibson 3.9.1 has a
+# single `Robot` class driven by this schema instead (see omnigibson/robots/definition_schema.py).
+#
+# Reachable because `<robot-assets>/models/droid_mounted` is a symlink to this directory, so OmniGibson finds
+# `models/droid_mounted/droid_mounted.yaml` where it expects a registered robot. `REGISTERED_ROBOTS` is built by
+# globbing `<data>/*/models/*/*.yaml` for files whose stem matches their parent directory, which is
+# why this file must keep the name `droid_mounted.yaml`.
+#
+# `usd_path` is absolute on purpose: OmniGibson joins it onto the robot-assets root with os.path.join,
+# and an absolute second argument wins, so the asset is taken straight from the repo bound at /app.
+# The pre-3.9.1 class did exactly the same thing.
+
+raw_controller_order: ["arm_0", "gripper_0"]
+default_controllers:
+  arm_0: CustomJointController
+  gripper_0: CustomGripperController
+
+usd_path: "/app/realm/robots/panda_robotiq/droid_mounted.usd"
+self_collisions: true
+
+# 7 arm joints + the 4 gripper joints listed under finger_joint_names, in DOF order (= 11, matching
+# DROID_DEFAULT_DOF in realm/environments/env_dynamic.py). Values are the measured DROID rest pose
+# carried over verbatim from droid_arm_mounted.py; env_dynamic overwrites the first 7 per task anyway.
+default_joint_pos: [
+  0.143628523,
+  -0.597331285,
+  0.00201173499,
+  -2.38619041,
+  0.267941624,
+  1.97807848,
+  -0.0898026153,
+  0.0, 0.0, 0.0, 0.0,
+]
+
+manipulation:
+  arm_link_names:
+    "0": ["panda_link0", "panda_link1", "panda_link2", "panda_link3", "panda_link4", "panda_link5", "panda_link6", "panda_link7"]
+  arm_joint_names:
+    "0": ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+  eef_link_names:
+    "0": "panda_link8"
+  finger_link_names:
+    "0": ["gripper_link_left_inner_finger", "gripper_link_right_inner_finger"]
+  # Order matters and is depended on downstream: droid_gripper_controller.compute_control maps
+  # dof_idx[:2] (the two prismatic inner-finger joints) onto dof_idx[2:] (the two revolute ones).
+  # `gripper_control_idx` is derived from these names, reproducing the old hardcoded arange(7, 11):
+  # the six remaining non-fixed gripper joints close kinematic loops in the 2F-85 four-bar linkage
+  # and so contribute no articulation DOFs.
+  finger_joint_names:
+    "0": [
+      "left_inner_finger_prismatic_joint",
+      "right_inner_finger_prismatic_joint",
+      "left_inner_finger_joint",
+      "right_inner_finger_joint",
+    ]
+  teleop_rotation_offset:
+    "0": [-1, 0, 0, 0]
+
+# Assisted-grasp points are deliberately omitted. REALM evaluates with the default grasping_mode
+# "physical", so they are never consulted, and the pre-3.9.1 class pointed them at `panda_leftfinger`
+# / `panda_rightfigner` (sic) -- links that do not exist in droid_mounted.usd at all. Declaring nonexistent
+# links here would turn dead config into a load-time failure.
