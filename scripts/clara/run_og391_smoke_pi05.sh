@@ -19,6 +19,7 @@
 # Usage (from the REALM_og391 root):
 #   sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   TASK_ID=1 REPEATS=5 sbatch scripts/clara/run_og391_smoke_pi05.sh
+#   MULTI_VIEW=1 sbatch scripts/clara/run_og391_smoke_pi05.sh   # second video panel for review only
 #
 #SBATCH --job-name realm-og391-smoke-pi05
 #SBATCH --partition l40s
@@ -52,6 +53,17 @@ EXPERIMENT=${EXPERIMENT:-og391_smoke_pi05}
 MODEL_NAME=${MODEL_NAME:-checkpoints_pi05_droid_jointpos}
 POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 RENDERING_MODE=${RENDERING_MODE:-rt}
+# pi0.5 reads ONE exterior camera. realm/inference/client.py's openpi branch sends only
+# observation/exterior_image_1_left (= base_im = external_sensor0) plus the wrist image; the second
+# exterior view is never passed. The one path that would use it, use_base_im_second in eval.py:228,
+# tests `task_type == "open_close_drawer"`, a value no task config declares (the drawer tasks say
+# "open_drawer" / "close_drawer"), so it never fires for any REALM_DROID10 task.
+# So --multi-view only renders a second 1280x720 camera per step and adds a video panel. Off by
+# default; set MULTI_VIEW=1 when you want the second panel for reviewing footage. Do NOT copy this
+# default into a cosmos3 / DreamZero / GR00T launcher -- those DO consume the second view.
+MULTI_VIEW=${MULTI_VIEW:-0}
+MULTI_VIEW_FLAG=""
+[ "$MULTI_VIEW" = "1" ] && MULTI_VIEW_FLAG="--multi-view"
 RUN_ID=${RUN_ID:-$(date +%Y%m%d_%H%M%S)}
 # Local cache -- compute nodes have NO outbound internet, so never point at gs:// here.
 CKPT=${CKPT:-/home/sedlam56/.cache/openpi/openpi-assets/checkpoints/pi05_droid_jointpos}
@@ -137,7 +149,7 @@ apptainer run --userns --nv --writable-tmpfs \
     --experiment_name "$EXPERIMENT" \
     --run_id "$RUN_ID" \
     --log_dir /logs \
-    --multi-view \
+    $MULTI_VIEW_FLAG \
     --rendering_mode "$RENDERING_MODE"
 EXIT=$?
 
