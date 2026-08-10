@@ -25,6 +25,10 @@ if __name__ == "__main__":
     parser.add_argument('--no_record', action='store_true', help='Do not record videos from runs.')
     parser.add_argument('--no_render', action='store_true', help='Disable rendering completely')
     parser.add_argument('--robot', type=str, required=False, default="DROID", help='Robot type')
+    parser.add_argument('--render_on_demand', action='store_true',
+                        help='Render only on steps whose observation feeds inference; run physics '
+                             'only on the rest. Native in OG 3.9.1 (og.sim.render_on_step); this is '
+                             'what OG-lite used to provide. Video drops to ~1 frame per action chunk.')
     args = parser.parse_args()
 
     assert args.model_name is not None
@@ -53,7 +57,8 @@ if __name__ == "__main__":
         no_render=args.no_render,
         rendering_mode=args.rendering_mode,
         task_cfg_path=args.task_cfg_path,
-        robot=args.robot
+        robot=args.robot,
+        render_on_demand=args.render_on_demand,
     )
     og.shutdown()
     sys.exit(0)

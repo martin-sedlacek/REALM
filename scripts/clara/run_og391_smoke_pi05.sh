@@ -20,6 +20,7 @@
 #   sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   TASK_ID=1 REPEATS=5 sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   MULTI_VIEW=1 sbatch scripts/clara/run_og391_smoke_pi05.sh   # second video panel for review only
+#   RENDER_ON_DEMAND=1 sbatch scripts/clara/run_og391_smoke_pi05.sh  # skip renders between chunks (no measured gain)
 #
 #SBATCH --job-name realm-og391-smoke-pi05
 #SBATCH --partition l40s
@@ -64,6 +65,20 @@ RENDERING_MODE=${RENDERING_MODE:-rt}
 MULTI_VIEW=${MULTI_VIEW:-0}
 MULTI_VIEW_FLAG=""
 [ "$MULTI_VIEW" = "1" ] && MULTI_VIEW_FLAG="--multi-view"
+# Render only on the steps whose observation feeds inference (1 in HORIZON); physics-only on the
+# rest, via OG 3.9.1's native og.sim.render_on_step().
+# OFF by default because MEASURED IT BUYS NOTHING: job 187532 vs 187497, same task/perturbation,
+# 419 vs 422 ms/control-step (0.7%) with identical SR 0.400 / TP 0.520 -- and that was with the
+# second camera also removed. Rendering is simply not the per-step bottleneck here; physics +
+# _non_physics_step() + the obs copy are. Meanwhile it costs video frame rate (38 frames per
+# 300-step rollout instead of 299), so leaving it on trades footage for no speed.
+# Kept as a flag because 3.9.1's blind path issues n_physics_timesteps_per_render (8) separate
+# _sim_context.step(render=False) calls where the render path issues one combined call, so it
+# swaps a render for 7 extra step round-trips. A cheaper single-shot blind step (as OG-lite had)
+# would change this verdict -- re-measure then.
+RENDER_ON_DEMAND=${RENDER_ON_DEMAND:-0}
+ROD_FLAG=""
+[ "$RENDER_ON_DEMAND" = "1" ] && ROD_FLAG="--render_on_demand"
 RUN_ID=${RUN_ID:-$(date +%Y%m%d_%H%M%S)}
 # Local cache -- compute nodes have NO outbound internet, so never point at gs:// here.
 CKPT=${CKPT:-/home/sedlam56/.cache/openpi/openpi-assets/checkpoints/pi05_droid_jointpos}
@@ -150,6 +165,7 @@ apptainer run --userns --nv --writable-tmpfs \
     --run_id "$RUN_ID" \
     --log_dir /logs \
     $MULTI_VIEW_FLAG \
+    $ROD_FLAG \
     --rendering_mode "$RENDERING_MODE"
 EXIT=$?
 

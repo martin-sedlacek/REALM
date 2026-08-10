@@ -562,11 +562,17 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0
         return world_to_robot(action, self.robot_pos, self.robot_rot_rad[2], base_height)
 
-    def step(self, action):
+    def step(self, action, n_render_iterations=1):
         # if self.ee_control:
         #     action = self._robot2world(action)
 
-        obs, rew, terminated, truncated, info = self.omnigibson_env.step(action)
+        # n_render_iterations is passed straight through to OmniGibson: it issues that many
+        # og.sim.render() calls before observations are read, which is how a render step flushes
+        # the rendering pipeline after a run of non-rendering (blind) steps. See
+        # realm/eval.py's render_on_demand path.
+        obs, rew, terminated, truncated, info = self.omnigibson_env.step(
+            action, n_render_iterations=n_render_iterations
+        )
 
         task_progression = self.recompute_task_progression(obs)
 

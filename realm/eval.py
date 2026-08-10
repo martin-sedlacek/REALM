@@ -95,7 +95,10 @@ def evaluate(
         no_render=False,
         rendering_mode=None,
         task_cfg_path=None,
-        robot="DROID"
+        robot="DROID",
+        render_on_demand=False,
+        n_pre_obs_renders=3,
+        max_render_interval=8,
 ):
     start = time.perf_counter()
     og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
@@ -183,6 +186,13 @@ def evaluate(
         is_env_col_active = False
         drops = 0
         was_grasping = False
+        # render_on_demand: inference only runs at chunk boundaries, so cameras only need to be
+        # rendered on the step whose observation feeds the next inference. Every other control step
+        # runs physics only. Pre-3.9.1 this needed OG-lite (gm.RENDER_ON_STEP + env.render_obs());
+        # 3.9.1 has it natively via the og.sim.render_on_step() context manager, and og.sim.step()
+        # with rendering off still runs the full physics substeps plus _non_physics_step().
+        steps_since_render = 0
+        obs_is_fresh = True  # env.warmup() above rendered every step
 
         while t < max_steps and terminal_steps > 0:
             base_im, base_depth, base_im_second, base_depth_second, wrist_im, robot_state, gripper_state = extract_from_obs(obs, robot_name=env.robot.name)
@@ -239,7 +249,10 @@ def evaluate(
                 else:
                     assert len(pred_action_chunk.shape) <= 2, f"Unsupported number of dimensions in action chunk with shape: {pred_action_chunk.shape}. The chunk is expected to be 2D."
 
-            if not no_record:
+            # In render_on_demand mode `obs` only carries a new frame on render steps; recording the
+            # in-between steps would pad the mp4 with duplicates of the last rendered frame. The
+            # video therefore drops to roughly one frame per action chunk in that mode.
+            if not no_record and obs_is_fresh:
                 video_recorder.add_frame(base_im, wrist_im, base_im_second)
 
             qpos.append(np.concatenate((robot_state, np.atleast_1d(np.array(gripper_state)))))
@@ -260,8 +273,29 @@ def evaluate(
             # new_gripper_state = np.atleast_1d(np.array(new_gripper_state))
             # new_action = np.concatenate((new_action, new_gripper_state))
 
-            obs, curr_task_progression, terminated, truncated, info = env.step(new_action)
+            if render_on_demand:
+                # Render on this step iff the NEXT iteration needs fresh images -- i.e. the action
+                # buffer just ran dry, so inference runs next -- or the drift fallback is due.
+                # max_render_interval bounds how far the renderer may lag physics; letting it drift
+                # arbitrarily far was a source of instability in the pre-3.9.1 OG-lite path.
+                need_render = action_buffer.empty() or (steps_since_render + 1) >= max_render_interval
+                with og.sim.render_on_step(need_render):
+                    obs, curr_task_progression, terminated, truncated, info = env.step(
+                        new_action,
+                        # Extra render passes flush the pipeline: after a run of blind steps the
+                        # scene has moved, and one render() does not fully propagate that before
+                        # the sensors are read.
+                        n_render_iterations=n_pre_obs_renders if need_render else 1,
+                    )
+                steps_since_render = 0 if need_render else steps_since_render + 1
+                obs_is_fresh = need_render
+            else:
+                obs, curr_task_progression, terminated, truncated, info = env.step(new_action)
 
+            # NOTE: task progression and the collision/grasp metrics are computed every step in both
+            # modes. Every success condition reads physics (object poses, contacts) or proprio, never
+            # camera data, and proprio stays fresh on a blind step -- so unlike the pre-3.9.1 OG-lite
+            # path there is no need to carry the previous value forward across blind steps.
             if curr_task_progression > task_progression:
                 task_progression = curr_task_progression
                 task_progression_timestamps.append(t)
