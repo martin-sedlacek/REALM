@@ -100,9 +100,22 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         return ControllableObjectViewAPI.get_all_joint_positions(self.routing_path)[rows, :][:, self.dof_idx]
 
     def _get_joint_velocities(self):
-        """(N, control_dim) current velocities of this controller's DOFs, one row per group member."""
+        """(N, control_dim) current velocities of this controller's DOFs, one row per group member.
+
+        `estimate=False` on purpose, and NOT the 3.9.1 idiom: every stock OmniGibson controller
+        (joint, OSC, multi-finger gripper) passes `estimate=True`, which returns the one-step finite
+        difference (pos - last_pos)/physics_dt rather than the physics engine's reported velocity.
+
+        This controller is an *effort* impedance law, u = Kp(q* - q) + Kd(qd* - qd), so its damping
+        term consumes the velocity directly, and the pre-3.9.1 version read the reported velocity via
+        `control_dict["joint_velocity"]`. Feeding it the finite-difference estimate instead leaves a
+        standing position error: measured on a 0.25 rad joint step, steady-state |q - cmd| is
+        0.00858 rad with estimate=True vs 0.00009 rad with estimate=False -- a 95x degradation, worth
+        several mm at the fingertips, which is the difference between closing on a 3 cm block and
+        hovering beside it. Keep this False to preserve the validated 1.1.1 dynamics.
+        """
         rows = self.view_row_indices
-        return ControllableObjectViewAPI.get_all_joint_velocities(self.routing_path, estimate=True)[rows, :][
+        return ControllableObjectViewAPI.get_all_joint_velocities(self.routing_path, estimate=False)[rows, :][
             :, self.dof_idx
         ]
 

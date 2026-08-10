@@ -67,9 +67,17 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         return ControllableObjectViewAPI.get_all_joint_positions(self.routing_path)[rows, :][:, self.dof_idx]
 
     def _get_joint_velocities(self):
-        """(N, control_dim) current velocities of this controller's DOFs, one row per group member."""
+        """(N, control_dim) current velocities of this controller's DOFs, one row per group member.
+
+        estimate=False on purpose -- see the long note in droid_joint_controller.py. This is an
+        effort impedance law whose damping term consumes the velocity directly, and the pre-3.9.1
+        version read the reported `control_dict["joint_velocity"]`. The stock 3.9.1 idiom
+        (estimate=True, a one-step finite difference) leaves a ~95x larger standing error.
+        """
         rows = self.view_row_indices
-        return ControllableObjectViewAPI.get_all_joint_velocities(self.routing_path, estimate=True)[rows, :][
+        return ControllableObjectViewAPI.get_all_joint_velocities(
+            self.routing_path, estimate=False  # reported velocity, not the finite-difference
+        )[rows, :][
             :, self.dof_idx
         ]
 

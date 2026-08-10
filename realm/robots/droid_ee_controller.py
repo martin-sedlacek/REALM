@@ -126,7 +126,9 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
     def _get_joint_velocities(self):
         rows = self.view_row_indices
         return cb.to_torch(
-            ControllableObjectViewAPI.get_all_joint_velocities(self.routing_path, estimate=True)[rows, :][
+            ControllableObjectViewAPI.get_all_joint_velocities(
+            self.routing_path, estimate=False  # reported velocity, not the finite-difference
+        )[rows, :][
                 :, self.dof_idx
             ]
         ).to(og.sim.device)
