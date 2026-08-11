@@ -16,6 +16,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+# ... but the cluster scripts' shared bash modules are source, not build output.
+!scripts/clara/lib/
 lib64/
 parts/
 sdist/

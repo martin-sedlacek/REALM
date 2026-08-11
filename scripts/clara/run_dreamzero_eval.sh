@@ -180,38 +180,42 @@ cleanup_server() {
 }
 trap cleanup_server EXIT
 
-# Submit the server as a background srun.
+# Submit the server as an independent sbatch job.
+# (Using sbatch instead of srun because SLURM does not permit nested step
+# allocations across different gres specs — our parent job is on l40s and
+# we need 2x h200 for the server.)
 log "Requesting 2x H200 allocation for DreamZero server..."
 
-srun \
-  --partition=h200 \
-  --gres=gpu:2 \
-  --cpus-per-gpu=32 \
-  --mem-per-gpu=250G \
-  --gpu-bind=closest \
-  --time="$DZ_TIME" \
-  --job-name="dz-srv-${SLURM_JOB_ID}" \
-  --output="$DZ_SERVER_LOG" \
-  bash "$REALM_ROOT/scripts/run_dreamzero_server.sh" \
-    --port "$port" \
-    --checkpoint "$DZ_CHECKPOINT" \
-    --dreamzero-dir "$DZ_DREAMZERO_DIR" \
-    --conda-env "$DZ_CONDA_ENV" &
+DZ_SERVER_SUBMIT_SCRIPT="$REALM_ROOT/tmp/dreamzero_logs/server_eval${SLURM_JOB_ID}.sbatch"
+mkdir -p "$(dirname "$DZ_SERVER_SUBMIT_SCRIPT")"
+cat > "$DZ_SERVER_SUBMIT_SCRIPT" <<EOF
+#!/bin/bash
+#SBATCH --partition=h200
+#SBATCH --gres=gpu:2
+#SBATCH --cpus-per-gpu=32
+#SBATCH --mem-per-gpu=250G
+#SBATCH --gpu-bind=closest
+#SBATCH --time=$DZ_TIME
+#SBATCH --job-name=dz-srv-${SLURM_JOB_ID}
+#SBATCH --output=$DZ_SERVER_LOG
 
-DZ_SERVER_PID=$!
+bash "$REALM_ROOT/scripts/run_dreamzero_server.sh" \\
+    --port "$port" \\
+    --checkpoint "$DZ_CHECKPOINT" \\
+    --dreamzero-dir "$DZ_DREAMZERO_DIR" \\
+    --conda-env "$DZ_CONDA_ENV"
+EOF
 
-# Give srun a moment to register, then find the SLURM job ID.
-sleep 5
-DZ_SERVER_JOB_ID=$(squeue -u "$USER" -n "dz-srv-${SLURM_JOB_ID}" -h -o "%i" 2>/dev/null | head -n1)
+DZ_SERVER_JOB_ID=$(sbatch --parsable "$DZ_SERVER_SUBMIT_SCRIPT")
 
 if [[ -z "$DZ_SERVER_JOB_ID" ]]; then
-  log "WARNING: Could not find server job ID via squeue. Will try again..."
-  sleep 10
-  DZ_SERVER_JOB_ID=$(squeue -u "$USER" -n "dz-srv-${SLURM_JOB_ID}" -h -o "%i" 2>/dev/null | head -n1)
+  log "ERROR: failed to submit DZ server sbatch."
+  exit 1
 fi
 
-log "Server srun background PID: $DZ_SERVER_PID"
-log "Server SLURM job ID: ${DZ_SERVER_JOB_ID:-UNKNOWN}"
+# We don't need DZ_SERVER_PID for an sbatch job — use squeue to track liveness.
+DZ_SERVER_PID=""
+log "Server SLURM job ID: $DZ_SERVER_JOB_ID"
 
 #===============================================================================
 # PHASE 2: Wait for server to be ready
@@ -224,9 +228,10 @@ poll_interval=10
 last_status=""
 
 while [[ $elapsed -lt $DZ_SERVER_TIMEOUT ]]; do
-  # Check if srun died unexpectedly.
-  if ! kill -0 "$DZ_SERVER_PID" 2>/dev/null; then
-    log "ERROR: DreamZero server process exited unexpectedly."
+  # Check if the server SLURM job is still alive (queued or running).
+  if ! squeue -j "$DZ_SERVER_JOB_ID" -h -o "%i" 2>/dev/null | grep -qx "$DZ_SERVER_JOB_ID"; then
+    sstate=$(sacct -j "$DZ_SERVER_JOB_ID" -n -o State --parsable2 2>/dev/null | head -n1 | awk '{print $1}')
+    log "ERROR: DZ server SLURM job $DZ_SERVER_JOB_ID is no longer queued/running (state=$sstate)."
     log "Server log tail:"
     tail -20 "$DZ_SERVER_LOG" 2>/dev/null | while IFS= read -r line; do log "  | $line"; done
     exit 1
@@ -325,9 +330,9 @@ for i in "${TASK_IDS[@]}"; do
 
     log "Starting Task $i ($TASK_NAME), Perturbation $j ($PERT_NAME)..."
 
-    # Verify server is still alive before each (task, pert) combo.
-    if ! kill -0 "$DZ_SERVER_PID" 2>/dev/null; then
-      log "ERROR: DreamZero server died mid-evaluation!"
+    # Verify the DZ server SLURM job is still running before each combo.
+    if ! squeue -j "$DZ_SERVER_JOB_ID" -h -o "%T" 2>/dev/null | grep -qx "RUNNING"; then
+      log "ERROR: DreamZero server SLURM job $DZ_SERVER_JOB_ID is no longer RUNNING!"
       log "Server log tail:"
       tail -20 "$DZ_SERVER_LOG" 2>/dev/null | while IFS= read -r line; do log "  | $line"; done
       exit 1
