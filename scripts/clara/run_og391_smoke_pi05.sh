@@ -46,6 +46,12 @@ APPDATA=$REALM_ROOT/data/cache                # OMNIGIBSON_APPDATA_PATH=/cache/a
 
 TASK_ID=${TASK_ID:-0}                 # 0 = put_green_block_into_bowl
 PERT_ID=${PERT_ID:-0}                 # 0 = Default (no perturbation)
+# Selects realm/config/robots/$ROBOT.yaml. "DROID" is the stock droid_mounted asset; "DROID_robolab"
+# is the robolab Franka + Robotiq 2F-85 with the compliant mimic-joint gripper. A non-stock robot
+# also needs its definition registered in the dataset -- 3.9.1 globs <data>/*/models/<name>/<name>.yaml
+# -- which is a symlink NOT tracked in git:
+#   ln -s /app/realm/robots/definitions/<name> data/datasets/omnigibson-robot-assets/models/<name>
+ROBOT=${ROBOT:-DROID}
 REPEATS=${REPEATS:-3}
 MAX_STEPS=${MAX_STEPS:-300}
 HORIZON=${HORIZON:-8}                 # pi0.5 action-chunk execution horizon
@@ -101,7 +107,7 @@ mkdir -p "$REALM_ROOT/tmp/$JOB" "$APPDATA/appdata" "$REALM_LOGS/$EXPERIMENT"
 
 echo "=================================================================="
 echo " REALM og391 smoke test -- pi0.5"
-echo " task_id=$TASK_ID  perturbation=$PERT_ID (Default)  repeats=$REPEATS"
+echo " robot=$ROBOT  task_id=$TASK_ID  perturbation=$PERT_ID (Default)  repeats=$REPEATS"
 echo " max_steps=$MAX_STEPS  horizon=$HORIZON  rendering=$RENDERING_MODE  port=$PORT"
 echo " sif        = $(readlink -f "$REALM_SIF")"
 echo " dataset    = $(readlink -f "$REALM_DATA")"
@@ -161,6 +167,7 @@ apptainer run --userns --nv --writable-tmpfs \
     --max_steps "$MAX_STEPS" \
     --horizon "$HORIZON" \
     --model_type openpi \
+    --robot "$ROBOT" \
     --model_name "$MODEL_NAME" \
     --port "$PORT" --host 127.0.0.1 \
     --experiment_name "$EXPERIMENT" \

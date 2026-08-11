@@ -5,6 +5,10 @@ from realm.environments.utils import *
 from realm.helpers import compute_rot_diff_magnitude
 from realm.environments.contact_utils import get_impulse_contacts
 from realm.robots.controller_registry import register_realm_controllers
+# Per-robot gripper conventions, so is_grasping's finger-closure test is not hardcoded to
+# droid.usd's units. Imported from the module rather than the package to avoid pulling in the
+# inference client (and its transport deps) on the environment side.
+from realm.inference.utils import get_robot_obs_profile
 import omnigibson as og
 from omnigibson.utils.usd_utils import RigidContactAPI  # replaces the ContactBodies object state, removed in OG 3.9.1
 from omnigibson.controllers import REGISTERED_CONTROLLERS
@@ -167,7 +171,31 @@ class RealmEnvironmentBase:
     # ============================== [SUCCESS METRICS] ==============================
     def is_grasping(self, obs, candidate_obj):
         finger_joints = obs[self.robot.name]['proprio'][7:9].cpu().numpy()
-        is_either_finger_closing = (0.45 - finger_joints[0] > 1e-3 or 0.45 - finger_joints[1] > 1e-3)
+        # This test used a bare literal 0.45 compared against the raw finger joint value, with no
+        # units and no normalisation by joint range -- so what it meant depended entirely on the
+        # asset. On droid.usd the finger joints are PRISMATIC in metres over [0, 0.05], so 0.45 is
+        # 9x the entire travel and the test is VACUOUSLY TRUE. On the robolab 2F-85 the same proprio
+        # indices are REVOLUTE in radians over [0, 0.7854], where 0.45 lands mid-range and the test
+        # becomes "less than ~57% closed" -- which a real grasp violates. Measured 2026-08-11
+        # (job 189066): with both pads on the block and the block lifted, finger_joint sits at
+        # 0.507-0.528, so this rejected 78/78 genuine grasp steps and the asset could never score a
+        # GRASP. Because recompute_task_progression breaks at the first unmet stage, that also froze
+        # LIFT/MOVE/PLACE on rollouts that visibly completed the task.
+        #
+        # Scale the threshold by the robot's own open->closed range instead. The 9x factor is chosen
+        # to reproduce 0.45 EXACTLY for droid.usd (9 * 0.05), so every historical result is
+        # bit-identical; for robolab it becomes 7.07 rad and the test is vacuous there too, matching
+        # the behaviour the stock asset has always had.
+        #
+        # NOTE: 0.45 is very likely a typo for 0.045, i.e. "the fingers stopped short of full
+        # closure, so an object is between them" (90% of droid.usd's travel), which is a meaningful
+        # test rather than a no-op. Deliberately NOT adopted here: it would make the guard bite on
+        # droid.usd for the first time and could move every historical REALM number. Decide that
+        # separately, with a measurement.
+        _prof = get_robot_obs_profile(self.robot.name)
+        _open_q, _closed_q = _prof["gripper_open_qpos"], _prof["gripper_closed_qpos"]
+        _thresh = _open_q + 9.0 * (_closed_q - _open_q)
+        is_either_finger_closing = (_thresh - finger_joints[0] > 1e-3 or _thresh - finger_joints[1] > 1e-3)
         # OG 3.9.1 removed the ContactBodies object state; query the contact matrix directly instead.
         # get_contact_pairs returns (query_prim_path, with_prim_path) tuples, so the second element of
         # each pair is the finger link that candidate_obj is touching.

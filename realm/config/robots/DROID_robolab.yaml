@@ -34,7 +34,20 @@ robots:
             control_freq: 15
             use_delta_commands: False
             use_impedances: True
-            use_gravity_compensation: False,
+            # REGRESSION FIX (2026-08-11): this said `False,` -- with a trailing comma, which YAML
+            # parses as the STRING "False," and bool("False,") is True. Harmless while the flag was
+            # ignored; dc7b6f8 implemented it in droid_joint_controller.py:176-213, which silently
+            # turned gravity compensation ON for every DROID variant. Measured on the stock asset:
+            # ON -> task_progression 0.000 with ee_z pinned at 1.493 (the arm never descends);
+            # OFF -> the arm reaches the block, ee_z_min 0.970. Keep this a real boolean.
+            use_gravity_compensation: false
+            # NOT corrected on purpose. The same trailing-comma typo makes this the truthy string
+            # "False,", so Coriolis/centrifugal compensation is effectively ON -- and has been for
+            # EVERY historical REALM result, including the 1.1.1 SR 0.88-1.00 runs and og391's
+            # SR 0.40 (job 187497); unlike gravity comp, cc was already applied pre-3.9.1. Making it
+            # a real `false` would change a control hyperparameter relative to every validated run.
+            # Measured indistinguishable from ON at n=1 (task_progression 0.200 either way). Needs a
+            # human decision, not a silent flip.
             use_cc_compensation: False,
             Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
             Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
@@ -47,10 +60,23 @@ robots:
         gripper_0:
           name: "CustomGripperController"
           mode: "binary"
-          # No open_qpos/closed_qpos override needed: finger_joint's lower limit (0 rad) is the
-          # closed pose and its upper limit (0.7854 rad) the open one, which is already what
-          # MultiFingerGripperController assumes. Verified by driving it both ways -- pad separation
-          # goes 2.8 mm closed / 85.1 mm open, matching the 2F-85's real stroke.
+          # No open_qpos/closed_qpos override: finger_joint follows the standard Robotiq 2F-85
+          # convention -- 0 rad = OPEN, 0.7854 rad = CLOSED -- which is already what
+          # MultiFingerGripperController assumes (droid_gripper_controller.py:49-60 sends the
+          # target>=0 branch, i.e. REALM's CLOSE, to the joint's UPPER limit).
+          #
+          # Measured 2026-08-11 on l40s-02 (job 189066), pad separation between the re-origined
+          # left/right_inner_finger links, which sit on the pad centroids:
+          #     finger_joint 0.0    -> 116.2 mm  (jaws wide open, ~85 mm gap plus pad thickness)
+          #     finger_joint 0.7854 ->  33.0 mm  (jaws shut)
+          #
+          # WARNING, this is what makes the joint easy to get backwards: the gripper is a four-bar
+          # linkage, so the KNUCKLES swing apart as the PADS close. Measuring "pad separation"
+          # between anything other than the pads themselves reports the opposite of the truth. An
+          # override added on 2026-08-11 from exactly that mistake inverted the gripper for a full
+          # batch (og391_gravfix_robolab) before the videos showed the jaws clamped shut throughout.
+          # Only trust a separation measured between the two inner_finger links AFTER
+          # scripts/fix_robolab_link_origins.py has put their origins on the pads.
     sensor_config:
       VisionSensor:
         sensor_kwargs:

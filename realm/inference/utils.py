@@ -11,16 +11,24 @@ import numpy as np
 #   gripper_open_qpos / gripper_closed_qpos
 #                      -- value of proprio[gripper_proprio_idx] at each extreme, used to normalise
 #                         gripper_state to the DROID convention (0 = open, 1 = closed). The robolab
-#                         gripper is a single revolute finger_joint that runs the *other* way:
-#                         0 rad = closed, 0.7854 rad = fully open (measured, 85 mm pad separation).
+#                         gripper is a single revolute finger_joint following the standard Robotiq
+#                         2F-85 convention: 0 rad = fully OPEN, 0.7854 rad = CLOSED.
 ROBOT_OBS_PROFILES = {
     "DROID": dict(wrist_camera_link="gripper_link_camera", wrist_camera_idx=0,
                   gripper_proprio_idx=7, gripper_open_qpos=0.0, gripper_closed_qpos=0.05),
     # Camera:1 is `wrist_camera_flipped`, whose framing matches the stock DROID wrist view (fingers
     # entering symmetrically from the bottom); Camera:0 (`wrist_camera`) is rotated/offset, which
     # would hand the policy a view unlike anything in its training distribution.
+    # finger_joint follows the standard Robotiq 2F-85 convention: 0 rad = OPEN, 0.7854 rad = CLOSED.
+    # Measured 2026-08-11 (job 189066) from the separation of the two inner_finger links once
+    # scripts/fix_robolab_link_origins.py had moved their origins onto the pad centroids:
+    #     0.0 rad -> 116.2 mm apart (open)     0.7854 rad -> 33.0 mm apart (shut)
+    # These were the other way round until 2026-08-11, which fed pi0.5 an INVERTED gripper_state --
+    # it is closed-loop on that signal, so it was told "closed" whenever the hand was open.
+    # Do not re-derive this from knuckle or link-origin separation: the four-bar linkage swings the
+    # knuckles apart as the pads close, so any such measurement reports the exact opposite.
     "DROID_robolab": dict(wrist_camera_link="base_link", wrist_camera_idx=1,
-                          gripper_proprio_idx=7, gripper_open_qpos=0.7853982, gripper_closed_qpos=0.0),
+                          gripper_proprio_idx=7, gripper_open_qpos=0.0, gripper_closed_qpos=0.7853982),
 }
 
 
