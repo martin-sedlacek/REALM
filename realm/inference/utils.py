@@ -30,6 +30,10 @@ ROBOT_OBS_PROFILES = {
     "DROID_robolab": dict(wrist_camera_link="base_link", wrist_camera_idx=1,
                           gripper_proprio_idx=7, gripper_open_qpos=0.0, gripper_closed_qpos=0.7853982),
 }
+# v2 of the robolab asset differs only in geometry, so it shares v1's observation conventions.
+# Without an entry here it would silently fall back to the stock DROID profile: a wrist camera key
+# that does not exist (black image) and the prismatic gripper normalisation (inverted state).
+ROBOT_OBS_PROFILES["DROID_robolab_v2"] = dict(ROBOT_OBS_PROFILES["DROID_robolab"])
 
 
 def get_robot_obs_profile(robot_name):
