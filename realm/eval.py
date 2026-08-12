@@ -96,8 +96,8 @@ def evaluate(
         rendering_mode=None,
         task_cfg_path=None,
         robot="DROID",
-        render_on_demand=False,
-        n_pre_obs_renders=3,
+        render_on_demand=True,
+        n_pre_obs_renders=2,
         max_render_interval=8,
 ):
     start = time.perf_counter()
@@ -153,12 +153,8 @@ def evaluate(
             og.log.info(f"Resume requested but no report found. Starting fresh.")
 
     for run_id in range(repeats):
-        # ------------------------ pre-configure each run --------------------------------
-        # seed = 1234 + run_id
-        # random.seed(seed)
-        # np.random.seed(seed)
-        # torch.manual_seed(seed)
-        # torch.cuda.manual_seed_all(seed)
+        # Repeats deliberately share the single seed set in set_sim_config(); they are not
+        # reseeded per run, so each repeat continues the same RNG stream and diverges naturally.
 
         if run_id < start_repeat:
             continue
@@ -284,7 +280,13 @@ def evaluate(
                         new_action,
                         # Extra render passes flush the pipeline: after a run of blind steps the
                         # scene has moved, and one render() does not fully propagate that before
-                        # the sensors are read.
+                        # the sensors are read. Two is the documented minimum -- OmniGibson's own
+                        # Simulator.step() notes that a stage change "will take two
+                        # _sim_context.step(render=True) for the result to propagate to the
+                        # rendering". n_render_iterations=2 means one in-step render plus one
+                        # explicit og.sim.render(). Was 3, inherited unmeasured from the pre-3.9.1
+                        # OG-lite path; the third pass cost ~14 ms per render step (1.9% of
+                        # stepping time) with no evidence it was needed.
                         n_render_iterations=n_pre_obs_renders if need_render else 1,
                     )
                 steps_since_render = 0 if need_render else steps_since_render + 1

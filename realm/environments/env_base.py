@@ -246,26 +246,7 @@ class RealmEnvironmentBase:
         dist = 0.1
         return distance_1 < dist or distance_2 < dist or self.check_touch_condition(obs)
 
-        # TODO: make the distance computation bbox dependent
-        # obj_pos = mo.get_position_orientation()[0]
-        # xmin, ymin, zmin = (obj_pos - self.mo_bbox_orig / 2).tolist()
-        # xmax, ymax, zmax = (obj_pos + self.mo_bbox_orig / 2).tolist()
-        #
-        # finger_distances = []
-        # for finger in list(self.robot_finger_links):
-        #     finger_pos = finger.get_position_orientation()[0]
-        #     finger_x, finger_y, finger_z = finger_pos.tolist()
-        #
-        #     closest_x = max(xmin, min(finger_x, xmax))
-        #     closest_y = max(ymin, min(finger_y, ymax))
-        #     closest_z = max(zmin, min(finger_z, zmax))
-        #
-        #     dx = finger_x - closest_x
-        #     dy = finger_y - closest_y
-        #     dz = finger_z - closest_z
-        #     dist = np.sum(np.abs([dx, dy, dz]))
-        #     finger_distances.append(dist)
-        # print(finger_distances)
+        # TODO: make the distance computation bbox dependent rather than centre-to-centre
 
     def check_grasp_condition(self, obs):
         return self.is_grasping(obs, self.main_objects[0])

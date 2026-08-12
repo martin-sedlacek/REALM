@@ -25,10 +25,14 @@ if __name__ == "__main__":
     parser.add_argument('--no_record', action='store_true', help='Do not record videos from runs.')
     parser.add_argument('--no_render', action='store_true', help='Disable rendering completely')
     parser.add_argument('--robot', type=str, required=False, default="DROID", help='Robot type')
-    parser.add_argument('--render_on_demand', action='store_true',
+    parser.add_argument('--render_on_demand', action=argparse.BooleanOptionalAction, default=True,
                         help='Render only on steps whose observation feeds inference; run physics '
                              'only on the rest. Native in OG 3.9.1 (og.sim.render_on_step); this is '
-                             'what OG-lite used to provide. Video drops to ~1 frame per action chunk.')
+                             'what OG-lite used to provide. DEFAULT ON: it roughly halves the median '
+                             'step time (140 -> 79 ms measured on put_banana_into_box / DROID_robolab). '
+                             'Pass --no-render_on_demand to render every step, which is what you want '
+                             'when the recorded video matters: on-demand rendering drops the mp4 to '
+                             '~1 frame per action chunk (~39 frames per 300 steps instead of 300).')
     args = parser.parse_args()
 
     assert args.model_name is not None

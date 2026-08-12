@@ -30,7 +30,13 @@ robots:
             # a real `false` would change a control hyperparameter relative to every validated run.
             # Measured indistinguishable from ON at n=1 (task_progression 0.200 either way). Needs a
             # human decision, not a silent flip.
-            use_cc_compensation: False,
+            # NOTE: this reads `true`, and that is not a change in behaviour. It was written
+            # `False,` -- with a trailing comma, which YAML parses as the *string* "False,",
+            # which is truthy -- so Coriolis/centrifugal compensation has in fact been ON for
+            # every REALM result, including the 1.1.1 runs. (The controllers also default it
+            # to True.) Written explicitly so the file says what it does; flipping it to a
+            # real `false` would be a control-hyperparameter change, not a bug fix.
+            use_cc_compensation: true
             Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
             Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
             Kx: [ 400, 400, 400, 15, 15, 15 ]
