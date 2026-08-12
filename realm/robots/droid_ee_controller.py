@@ -1,4 +1,3 @@
-from math import floor
 
 import torch as th
 from omnigibson.controllers.controller_base import (
@@ -11,13 +10,11 @@ from omnigibson.controllers.controller_base import (
 )
 from omnigibson.utils.ui_utils import create_module_logger
 import omnigibson as og  # For og.sim.device
-from omnigibson.macros import gm
 from omnigibson.utils.backend_utils import _compute_backend as cb
-from omnigibson.utils.transform_utils import orientation_error  # moved from control_utils in OG 3.9.1
 from omnigibson.utils.usd_utils import ControllableObjectViewAPI
 import omnigibson.utils.transform_utils as T
 import numpy as np
-from realm.helpers import add_poses, pose_diff
+from realm.helpers import pose_diff
 from scipy.spatial.transform import Rotation as R
 from realm.robots.robot_ik.robot_ik_solver import RobotIKSolver
 

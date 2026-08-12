@@ -48,14 +48,6 @@ start_policy_server() {
       --port $port & SERVER_PID=$!
     sleep 120
 
-  elif [ "$MODEL_TYPE" = "hamster" ]; then
-    cd "$POLICY_RUN_DIR" || exit
-    echo "127.0.0.1" > ip_eth0.txt
-    conda run --no-capture-output -n vila python -W ignore server.py \
-        --port $port \
-        --model-path "${CHECKPOINT_PATH:-Hamster_dev/VILA1.5-13b-robopoint_1432k+rlbench_all_tasks_256_1000_eps_sketch_v5_alpha+droid_train99_sketch_v5_alpha_fix+bridge_data_v2_train90_10k_sketch_v5_alpha-e1-LR1e-5}" \
-        --conv-mode vicuna_v1 & SERVER_PID=$!
-    sleep 120
   fi
 
   cd "$REALM_ROOT" || exit

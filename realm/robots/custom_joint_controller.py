@@ -11,8 +11,6 @@ from omnigibson.utils.backend_utils import _compute_backend as cb
 from omnigibson.utils.ui_utils import create_module_logger
 from omnigibson.utils.usd_utils import ControllableObjectViewAPI
 import omnigibson as og  # For og.sim.device
-from omnigibson.macros import gm
-import numpy as np
 
 # Create module logger
 log = create_module_logger(module_name=__name__)

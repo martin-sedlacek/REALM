@@ -3,10 +3,8 @@ from omnigibson.macros import gm
 from omnigibson.utils.asset_utils import get_available_behavior_1k_scenes  # renamed from get_available_og_scenes in OG 3.9.1
 
 import omnigibson.utils.transform_utils as T
-import sys
 import numpy as np
 import torch as th
-import math
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
 USE_DROID_WITH_BASE = True

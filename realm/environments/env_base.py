@@ -12,11 +12,8 @@ from realm.inference.utils import get_robot_obs_profile
 import omnigibson as og
 from omnigibson.utils.usd_utils import RigidContactAPI  # replaces the ContactBodies object state, removed in OG 3.9.1
 from omnigibson.controllers import REGISTERED_CONTROLLERS
-from omnigibson.object_states.open_state import _get_relevant_joints
-from omnigibson.utils.object_utils import compute_base_aligned_bboxes, compute_bbox_offset
-from omnigibson.prims.joint_prim import JointPrim, JointType
+from omnigibson.prims.joint_prim import JointPrim
 from omnigibson.prims.rigid_prim import RigidPrim
-from omnigibson.objects.dataset_object import DatasetObject
 
 
 # OG 3.9.1 also requires a default controller config entry per custom controller, not just a

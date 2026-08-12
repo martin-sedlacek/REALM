@@ -93,8 +93,6 @@ compute_model_name() {
     MODEL_NAME="molmoact"
   elif [ "$MODEL_TYPE" = "GR00T_N16" ]; then
     MODEL_NAME="GR00T_N16"
-  elif [ "$MODEL_TYPE" = "hamster" ]; then
-    MODEL_NAME="hamster"
   elif [ "$MODEL_TYPE" = "dreamzero" ]; then
     MODEL_NAME="dreamzero"
   else

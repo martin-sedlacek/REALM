@@ -6,7 +6,7 @@ import random
 import copy
 import os
 
-from realm.environments.env_base import RealmEnvironmentBase, TASK_PROGRESS_RUBRICS
+from realm.environments.env_base import RealmEnvironmentBase
 from realm.environments.perturbations.default import default as _pert_default
 from realm.environments.perturbations.v_light import v_light as _pert_v_light
 from realm.environments.perturbations.v_view import v_view as _pert_v_view
@@ -37,11 +37,9 @@ from realm.helpers import (
 import omnigibson as og
 import omnigibson.utils.transform_utils as omnigibson_transform_utils
 import omnigibson.lazy as lazy
-from omnigibson.objects import DatasetObject, PrimitiveObject, USDObject
-from omnigibson.utils.asset_utils import get_all_object_category_models
+from omnigibson.objects import DatasetObject
 from omnigibson.utils.asset_utils import get_all_object_models
 from omnigibson.utils.usd_utils import create_joint
-from omnigibson.prims.joint_prim import JointPrim
 from scipy.spatial.transform import Rotation as R
 
 

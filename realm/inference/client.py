@@ -6,8 +6,7 @@ from openpi_client import websocket_client_policy, image_tools
 
 from realm.helpers import axisangle_to_rpy
 #from realm.inference.base import ExternalRobotInferenceClient
-#from realm.inference.hamster import HamsterClient
-#from realm.inference.dreamzero import DreamZeroClient
+from realm.inference.dreamzero import DreamZeroClient
 
 
 class InferenceClient:
@@ -17,11 +16,9 @@ class InferenceClient:
         self.port = port
         # if model_type == "GR00T_N16":
         #     self.client = ExternalRobotInferenceClient(host=self.host, port=self.port)
-        # elif model_type == "hamster":
-        #     self.client = HamsterClient(host=self.host, port=self.port)
-        # elif model_type == "dreamzero":
-        #     self.client = DreamZeroClient(host=self.host, port=self.port)
-        if model_type == "openpi":
+        if model_type == "dreamzero":
+            self.client = DreamZeroClient(host=self.host, port=self.port)
+        elif model_type == "openpi":
             og.log.info("Connecting to server...")
             self.client = websocket_client_policy.WebsocketClientPolicy(
                 host=host,
@@ -97,16 +94,6 @@ class InferenceClient:
                 pred_action_chunk = axisangle_to_rpy(pred_action_chunk)
 
             return pred_action_chunk
-
-        elif self.model_type == "hamster":
-            img_to_use = base_im_second if use_base_im_second else base_im
-            # Hamster expects BGR for cv2.imencode
-            import cv2
-            img_bgr = cv2.cvtColor(img_to_use, cv2.COLOR_RGB2BGR)
-            _t0 = time.perf_counter()
-            trajectory = self.client.infer(img_bgr, instruction)
-            og.log.info(f"[hamster] inference time: {time.perf_counter() - _t0:.3f}s")
-            return np.array(trajectory)
 
         elif self.model_type == "dreamzero":
             assert base_im_second is not None, "DreamZero requires --multi-view (second external camera)"
