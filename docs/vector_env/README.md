@@ -1,8 +1,9 @@
-# Vectorized REALM environments -- status and open bug
+# Vectorized REALM environments -- status and the scene-content bug
 
-Written 2026-08-12 as a handoff: the machine this was developed on is being retired mid-investigation.
-The feature loads and runs; **one bug is open and reproducible**, documented in full below along with
-the exact next diagnostic to run.
+Written 2026-08-12 as a handoff. **Substantially revised 2026-08-13** (Clara, L40S job 190155) after
+the bug was measured rather than inferred: the original diagnosis below was wrong, and the real cause
+is upstream in OmniGibson 3.9.1. Root cause and fix are in
+[The real bug](#the-real-bug-scene-file-objects-in-scenes-idx--0-load-100-m-too-high).
 
 ## TL;DR
 
@@ -10,9 +11,17 @@ the exact next diagnostic to run.
 `og.sim.step()`. 4 environments load, tile correctly, render distinct observations and step cleanly
 (exit 0, no errors).
 
-**The bug: `apply_scene_fixes_from_cfg()` appears to take effect only in scene 0.** In scenes 1..N-1
-the breakfast table is not pinned and the chair that should be deleted is still present, so the task
-objects end up on the floor. See `frames/montage_external.png` and `frames/montage_wrist.png`.
+**The bug: every scene-file object in scenes `idx != 0` is loaded exactly 100 m too high** --
+`INITIAL_SCENE_PRIM_Z_OFFSET` -- by stock OmniGibson 3.9.1. REALM then pins the breakfast table with
+a `FixedJoint` at that lifted pose, so the table is the one thing no later reset can bring back down.
+The task objects have nothing to rest on and fall to the floor. See `frames/montage_external.png`
+and `frames/montage_wrist.png`.
+
+> **Retracted:** this document previously said `apply_scene_fixes_from_cfg()` takes effect only in
+> scene 0, and ranked "object names carry a globally-numbered instance suffix" as the leading
+> hypothesis. **Both are false and were disproven by measurement** -- see
+> [What the scene fixes actually do](#what-the-scene-fixes-actually-do-they-work). The visible
+> symptom was real; the attributed cause was not.
 
 ## What was added
 
@@ -45,19 +54,30 @@ shape as OmniGibson's own `VectorEnvironment`.
 
 ## Reproduce
 
+On Clara (Apptainer, no Docker), from a held L40S allocation -- `tmp/interactive/rr` supplies the
+binds and picks stock vs OG-lite:
+
 ```bash
-docker exec realm_stock bash -lc 'cd /app && conda run --no-capture-output -n behavior \
-  python -u examples/03_vector_first_frames.py --num_envs 4 --task_id 0'
+MODE=stock ./tmp/interactive/rr \
+  python -u examples/03_vector_first_frames.py --num_envs 4 --task_id 0 \
+    --out_dir /logs/vector_first_frames
 ```
 
-Writes `env<i>_external.png`, `env<i>_wrist.png` and 2x2 montages to `/app/logs/vector_first_frames`.
-Takes ~9 minutes: ~80 s Isaac boot, then ~60-90 s per scene, then warmup.
+Reproduced verbatim on 2026-08-13 (job 190155): the new montage is indistinguishable from the
+committed `frames/montage_external.png`, so the bug is live rather than a stale artifact.
 
-**Never run `conda run` without `--no-capture-output`** -- it buffers all output until exit, and if the
-process is killed the entire log is lost.
+Writes `env<i>_external.png`, `env<i>_wrist.png` and 2x2 montages. Takes ~11 min: ~90 s Isaac boot,
+then ~2 min per scene, then warmup.
 
-Peak GPU for 4 scenes was ~26 GB of 32 GB with a 16.6 GB policy server also resident, so 4 is close
-to the ceiling on a 32 GB card while a policy server is up.
+**Never wrap the in-container command in `bash -lc`.** Apptainer binds `$HOME`, so a *login* shell
+re-sources the host `~/.bashrc`, prepends `~/miniconda3/bin` to PATH and shadows the container's
+conda env -- you get host Python and `ModuleNotFoundError: No module named 'omnigibson'`. Use
+`bash -c`, or call `python` directly. (The original Docker workflow used
+`conda run --no-capture-output`; the `--no-capture-output` trap does not apply here because `rr`
+never invokes `conda run`.)
+
+Peak GPU for 4 scenes was ~26 GB of 32 GB on the old workstation with a 16.6 GB policy server also
+resident. On a 46 GB L40S with no policy server, 4 scenes are comfortable.
 
 ## What is verified working
 
@@ -73,71 +93,160 @@ to the ceiling on a 32 GB card while a policy server is up.
 - per-member object placement differs (placement is sampled per member while building its config)
 - run completes with exit 0, no traceback, no segfault
 
-## The open bug
+## What the scene fixes actually do: they work
 
-`frames/montage_external.png` (2x2, env0 top-left, env1 top-right, env2 bottom-left, env3 bottom-right):
+Measured 2026-08-13 with `tmp/interactive/t1_scene_probe.py`, which wraps the real
+`apply_scene_fixes_from_cfg` and dumps the scene immediately either side of it, per member. At
+`num_envs=4`, task 0, stock container:
 
-- **env0** -- breakfast table present, task objects on it, chair removed. Correct.
-- **env1, env2, env3** -- no table. Bare floor and rug. A chair that env0 does not have is present.
+| | scene_0 | scene_1 | scene_2 | scene_3 |
+| --- | --- | --- | --- | --- |
+| object-name set before fixes (md5) | `b10042efd394` | `b10042efd394` | `b10042efd394` | `b10042efd394` |
+| object-name set after fixes (md5) | `6f0c5e3b854f` | `6f0c5e3b854f` | `6f0c5e3b854f` | `6f0c5e3b854f` |
+| `n_objects` before -> after | 128 -> 127 | 128 -> 127 | 128 -> 127 | 128 -> 127 |
+| `breakfast_table_uhrsex_0.fixed_base` | False -> **True** | False -> **True** | False -> **True** | False -> **True** |
+| `rootJoint` prim created on the stage | yes | yes | yes | yes |
+| `straight_chair_pmpwwi_0` after fixes | `active=False` | `active=False` | `active=False` | `active=False` |
 
-`frames/montage_wrist.png` confirms the robot and objects exist in all four: in env1-3 the gripper
-hovers over the **rug**, with bowl, basket, marker and cube lying on the floor beneath it.
+`apply_scene_fixes_from_cfg` is called exactly once per member, takes the config branch in every
+member, and does identical work in every member.
 
-So the scene loads fine in every tile; what differs is `apply_scene_fixes_from_cfg()`. For this task
-(`Pomaria_1_int` / `Table`) `realm/config/scenes/scenes.yaml` says:
+**Object names are identical across scene copies**, so hypothesis 1 is dead:
+`create_object_from_init_info` passes `name` straight through from the scene JSON, and
+`scene_base.py:678` only asserts uniqueness *within* a scene. The `_0` suffix is part of the
+authored asset name, not a runtime counter.
 
-```yaml
-to_remove: ['straight_chair_pmpwwi_0']
-to_fix:    ['breakfast_table_uhrsex_0']
+Note the chair check has to be `IsActive()`, not `IsValid()`: `scene.remove_object()` ends in
+`delete_or_deactivate_prim()`, which may **deactivate** rather than delete. A deactivated prim still
+satisfies `IsValid()` and would mislead the probe into reporting a removal that had not happened.
+
+## The real bug: scene-file objects in scenes `idx != 0` load 100 m too high
+
+Same run, world positions of the same asset:
+
+```
+scene_0  breakfast_table_uhrsex_0  pos=[ -0.4119, -1.9556,   0.6193]
+scene_1  breakfast_table_uhrsex_0  pos=[ 24.8353, -1.9556, 100.6193]
+scene_2  breakfast_table_uhrsex_0  pos=[ 50.0824, -1.9556, 100.6193]
+scene_3  breakfast_table_uhrsex_0  pos=[ 75.3297, -1.9556, 100.6193]
 ```
 
-Both entries are **hardcoded object names carrying a trailing instance index**. The observed symptom
-is exactly what happens if neither entry matches in scenes 1..3: the table is never given its
-`rootJoint`, so it is dynamic and gets displaced when the robot spawns inside it, and the chair is
-never deleted. The task objects, which are placed at a height assuming a table surface at z=0.85,
-then fall to the floor.
+The x offsets are the intended tiling (`SCENE_MARGIN = 10.0`). The **+100 in z is not intended** --
+it is exactly `INITIAL_SCENE_PRIM_Z_OFFSET = -100.0`, negated. At construction end, **70 of 127
+registered objects in each of scenes 1..3 sit above z = 50**, and none in scene 0.
 
-### Hypotheses, most likely first
+### Mechanism (stock OmniGibson 3.9.1, `scenes/scene_base.py:_load_scene_prim_with_objects`)
 
-1. **Object names are not identical across scene copies.** If OmniGibson derives the instance suffix
-   from a counter that spans the simulator rather than the scene, scene 1's table is
-   `breakfast_table_uhrsex_1`, which matches neither `to_fix` nor `to_remove`.
-   *Check:* print `[o.name for o in env.omnigibson_env.scene.objects if "breakfast_table" in o.name]`
-   per member. Note `scene_base.py:680` only asserts names are unique **within** a scene, so identical
-   names across scenes are legal -- this hypothesis is about how the name is *derived*, not enforced.
-2. **The batched stop/play changed the fixes' effect.** Single-env does stop -> fix -> play per env;
-   the vector path does stop -> fix(env0) -> fix(env1) ... -> play. If `create_joint` or
-   `remove_object` depends on state refreshed by `play()`, only the first member would take effect.
-   *Check:* run the vector env with `num_envs=1`. If the table is correct there, the batching is
-   implicated and hypothesis 1 is not the whole story.
-3. **`remove_object` while iterating `scene.objects`.** `apply_scene_fixes_from_cfg` mutates the
-   collection it is iterating, which can skip entries. This is a real latent bug regardless, but it
-   does not obviously explain a clean scene-0-only split.
+1. The scene prim is parked at `initial_scene_prim_z_offset` (**-100**) for `idx != 0`, to avoid
+   collisions while loading.
+2. Each object's pose is then set with
+   `obj.set_position_orientation(position=..., orientation=...)` -- **no `frame=` argument, and
+   `XformPrim.set_position_orientation` defaults to `frame="world"`**. The setter converts the world
+   target into the parent's frame using the parent's *current* transform, so the parked -100 is
+   baked in: `local_z = intended_z + 100`.
+3. The prim is then moved to `[last_scene_edge + margin + left_edge_to_center, 0, 0]`, z = 0, which
+   carries every object up with it.
 
-Note hypotheses 1 and 2 make **different** predictions for `num_envs=1`, so that single cheap run
-discriminates between them. Run it first.
+The prebuilt scene *structure* (walls, floor, rug) keeps its own authored local transform and lands
+correctly at z ~ 0. That is why the tiles look like a room whose furniture has been deleted, rather
+than like a scene that is uniformly displaced.
 
-### Next diagnostic
+**This is not an OG-lite regression.** `md5sum` of `scene_base.py` is identical in the image and in
+the OG-lite checkout (`3ea4bb3fd294236181b1a95609d7a520`).
+
+There *is* an intended correction -- `Scene.initialize()` transforms every object pose by
+`self.pose` and `load_state`s it, commented "In VectorEnvironment, the scene pose loaded from the
+file should be updated" -- but it does not survive to construction end. `Simulator.import_scene`
+wraps it in a **global** `play()` / `initialize()` / `step()` / `stop()` per scene, and a vector env
+imports N scenes, so every import cycles play/stop over all previously imported scenes.
+
+### Why it presented as "the scene fixes only apply to scene 0"
+
+The fixes run while the table is at +100 and give it a `FixedJoint` **at that pose**. So the single
+object REALM pins is the single object that cannot be recovered afterwards. Everything else can come
+back down; the table cannot. After `warmup()` (which resets each member):
+
+| | scene_0 | scene_1 | scene_2 | scene_3 |
+| --- | --- | --- | --- | --- |
+| objects above z = 50 | 0/128 | **70/128** | **70/128** | **1/128** |
+| the one still lifted in scene_3 | -- | -- | -- | `breakfast_table_uhrsex_0` |
+| `breakfast_table_uhrsex_0` z | 0.6193 | 100.6193 | 100.6193 | 100.6193 |
+| `cube` z (task object) | 0.820 | **0.015** | **0.015** | **0.015** |
+| `bowl` z (task object) | 0.840 | **0.035** | **0.035** | **0.049** |
+
+This is the whole symptom, quantified: the table is 100 m up in every tile but scene 0, and the task
+objects consequently rest on the floor at z ~ 0.02 instead of on a table top at z ~ 0.84.
+
+It also explains the montage asymmetry that the earlier writeup read as "env1-3 are alike":
+**scene_3 recovers almost fully on reset (only the pinned table stays up) while scenes 1 and 2 do
+not**, which is why env3 shows a full kitchen and env1/env2 show a bare room. Scene 3 is the last
+member reset; why the earlier members do not keep their restored poses is not yet established.
+
+Two more things the earlier writeup got wrong, both now measured: the chair removal **succeeds in
+every scene**, and "a chair env0 does not have" is `straight_chair_pmpwwi_1`, which is never in
+`to_remove` and is simply occluded by the table in env0. All four members report identical robot
+qpos (`q0=[0.0056, -0.4623, -0.1084]`), so nothing about the differences is robot or camera state.
+
+### Second, independent bug: reset re-adds the removed chair
+
+`n_objects` goes 127 -> **128** after warmup **in every scene, including scene 0**, and
+`straight_chair_pmpwwi_0` returns to `active=True`. `Scene.reset(hard=True)` calls
+`restore(self._initial_file)`, and `_initial_file` was captured at the end of `Scene.initialize()` --
+before `apply_scene_fixes_from_cfg` ever ran. So the first reset undoes the removal.
+
+Since scene 0 is affected too, **this very likely also happens in the single-env production path**,
+where `reset()` runs once per repeat. Not yet confirmed there; worth checking before trusting any
+result that depends on `to_remove`. The fix would be `scene.update_initial_file()` after applying
+the scene fixes.
+
+## The fix
+
+Re-apply the object poses once the scene prim is at its final position, in
+`_load_scene_prim_with_objects` (applied in the OG-lite fork, `omnigibson/scenes/scene_base.py`):
 
 ```python
-for i, env in enumerate(vec_env.envs):
-    scene = env.omnigibson_env.scene
-    tables = [o for o in scene.objects if "breakfast_table" in o.name]
-    chairs = [o for o in scene.objects if "straight_chair" in o.name]
-    print(i, scene.prim_path, "n_objects:", len(list(scene.objects)))
-    for o in tables + chairs:
-        print("   ", o.name, "fixed_base:", o.fixed_base, "pos:", o.get_position_orientation()[0])
+self._scene_prim.set_position_orientation(position=scene_position, orientation=identity_quat)
+new_scene_edge = last_scene_edge + scene_margin + (aabb_max[0] - aabb_min[0])
+
+for obj_name, obj in self._init_objs.items():
+    obj.set_position_orientation(
+        position=th.as_tensor(self._init_state[obj_name]["root_link"]["pos"], dtype=th.float32)
+        + scene_position,
+        orientation=self._init_state[obj_name]["root_link"]["ori"],
+    )
 ```
 
-Print this **twice** -- once right after `bind_scene_handles()` and once after `finalize_setup()` --
-so it is clear whether the table is missing from the start or is displaced later by physics.
+`idx == 0` is untouched -- its prim is never parked and `scene_position` is zero -- so single-scene
+behaviour is bit-identical, which matters because that is the path every production REALM eval uses.
 
-### Likely fix, once confirmed
+`frame="scene"` would be the tidier spelling but is **not usable here**: it routes through
+`Scene.convert_scene_relative_pose_to_world`, which reads `_pose_info`, and `_pose_info` is only
+assigned by `Scene.load()` after this method returns.
 
-If hypothesis 1 holds, match objects by category+model rather than by full name, i.e. compare
-`re.sub(r"_\d+$", "", obj.name)` against the config entries with the same suffix stripped. Beware: a
-scene may legitimately contain two instances of the same model, in which case stripping matches both.
-Safer is to resolve the intended object per scene by its scene-local index.
+Because the fix lives in OG-lite, vector envs must now run with the OG-lite bind
+(`MODE=oglite` in `tmp/interactive/rr`); the stock image still has the upstream behaviour.
+
+### Verified
+
+OG-lite `ef7442b`, `num_envs=4`, task 0, with warmup -- `frames_fixed/montage_external.png`:
+
+| | scene_0 | scene_1 | scene_2 | scene_3 |
+| --- | --- | --- | --- | --- |
+| objects above z = 50, post-warmup | 0/128 | **0/128** | **0/128** | **0/128** |
+| `breakfast_table_uhrsex_0` z | 0.6193 | **0.6193** | **0.6193** | **0.6193** |
+| table x (tiling preserved) | -0.4119 | 24.8353 | 50.0824 | 75.3297 |
+| `cube` z | 0.8199 | **0.8199** | **0.8199** | **0.8199** |
+| `bowl` z | 0.8395 | **0.8395** | **0.8395** | **0.8395** |
+| object z range | -0.150 .. 2.550 | same | same | same |
+
+Compare the pre-fix table in
+[Why it presented as ...](#why-it-presented-as-the-scene-fixes-only-apply-to-scene-0): the task
+objects were at z ~ 0.015 in scenes 1-3, i.e. on the floor. All four tiles now render the table
+with every task object on it.
+
+**Not fixed by this, and still open:** the reset still re-adds `straight_chair_pmpwwi_0`
+(`active=True`, `n_objects` 128) in every scene -- that is the separate `_initial_file` bug above,
+and it is visible in the fixed montage as the black chair with the checkered seat.
 
 ## Other known gaps in vectorization (not yet investigated)
 
@@ -158,12 +267,25 @@ Safer is to resolve the intended object per scene by its scene-local index.
   Per-member perturbations or tasks would need `VectorEnvironment`-style construction from a list of
   configs rather than one.
 
-## Environment notes for resuming elsewhere
+## Environment notes
 
-- Containers: `realm_stock` (image's own OmniGibson, `realm:og391`) and `realm_oglite` (the OG-lite
-  fork bind-mounted at `/behavior-src/OmniGibson`). This work was done in **`realm_stock`**.
-- Verify which OmniGibson is live before trusting anything: compare
-  `md5sum /behavior-src/OmniGibson/omnigibson/utils/usd_utils.py` in the container against the host
-  checkout. `realm_stock` has no bind mount there; a matching md5 means you are in `realm_oglite`.
-- The repo is bind-mounted at `/app`, so images written to `/app/logs/...` appear on the host under
-  `logs/...`. `logs/` is gitignored, which is why the frames here were copied into `docs/vector_env/`.
+Originally two Docker containers, `realm_stock` and `realm_oglite`. On Clara there is no Docker, so
+the same two conditions are one image plus a bind, selected by `MODE` in `tmp/interactive/rr`:
+
+| MODE | OmniGibson that is live |
+| --- | --- |
+| `stock` | the image's own 3.9.1 at `/behavior-src/OmniGibson` |
+| `oglite` | host `OG-lite_og391/omnigibson` bound over the image's package |
+
+Binding only the `omnigibson/` package rather than the whole repo directory leaves the image's
+editable-install metadata intact; `__editable__.omnigibson-3.9.1.pth` resolves through the bound
+path either way.
+
+- **Vector envs now need `MODE=oglite`** -- the z-offset fix lives in the fork. The stock image
+  still has the upstream behaviour, which is useful for reproducing the bug.
+- Verify which source is live before trusting a comparison. `getattr(gm, ...)` is **not** a valid
+  check: in the stock image `gm` is a `MacroDict` that returns a truthy `{'_read': set()}` for
+  undefined macros rather than raising. Check the source instead:
+  `python -c "import inspect, omnigibson.utils.usd_utils as uu; print('PROXIMITY_GATE' in inspect.getsource(uu))"`.
+- The repo is bind-mounted at `/app` and `REALM/logs` at `/logs`, so write artifacts to `/logs/...`.
+  `logs/` is gitignored, which is why the frames here were copied into `docs/vector_env/`.

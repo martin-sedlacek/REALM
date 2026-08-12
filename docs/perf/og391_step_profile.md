@@ -248,6 +248,43 @@ Still unverified: `REALM_INCREMENTAL_CONTACT_CACHE=1` (run 2 above) never ran, s
 remains unexercised and unmeasured. `REALM_PROXIMITY_GATE=0` was never needed, so the fallback is also
 untested.
 
+### Update 2026-08-13 (Clara, L40S job 190155): the incremental fold is VERIFIED CORRECT
+
+Run 2 above has now been executed. `gm.INCREMENTAL_CONTACT_CACHE=1` **passes**, so the incremental
+fold is no longer unexercised. Harness: `tmp/interactive/` (`rr` for the container, `t2_inc_on.sh`
+for the run, `check_run.py` for the criteria).
+
+It was confirmed to be a real test before the simulator booted — the flag reaching `gm` is not
+something to assume:
+
+```
+gm.INCREMENTAL_CONTACT_CACHE = True    gm.PROXIMITY_GATE_ENABLED = True
+gm.PROXIMITY_GATE_RADIUS    = 1.5      gm.CONTACT_REPORTING_PATTERNS = None
+usd_utils has incremental fold branch: True    has proximity gate: True
+```
+
+Pass on all four criteria: exit 0; zero hits for `row mismatch` / `Traceback` /
+`Segmentation fault` / `AssertionError` / `core dumped`; all four artifacts written; one populated
+data row each. `collisions_self=1, collisions_env=0` — **identical to the `gate_on` reference row
+and to the stock container** for this task, so the fold is not silently dropping contacts. On a
+2-step run that is still weak evidence for equivalence; a long rollout has not been done.
+
+**Timings remain unmeasured** — correctness only says the fold runs, not that it is faster.
+
+Two notes for whoever does the timing A/B:
+
+1. **Do not use `--model_type debug` for it.** The debug client returns a *constant* action
+   (`np.zeros(8)` for joint control, `realm/inference/client.py:33`), so the gripper never touches
+   anything and the contact matrix never leaves the cheap ~23-28 ms mode. Since the whole point is
+   the ~300 ms spikes that appear when the gripper contacts an object, a debug A/B measures the one
+   regime where the fold matters least. Use pi0.5.
+2. **`--render_on_demand` does not confound it.** `update_contact_cache()` is called before the
+   `blind` early-out in `Simulator._non_physics_step`, so a blind step still pays the full contact
+   cache. The ROD default being on does not reduce the call count.
+
+`tmp/fork_ab_profile.py` did not survive the old machine; it is recreated as
+`tmp/interactive/profile_step.py` (+ `analyze_ab.py`, `t2_ab_contact.sh`).
+
 Its author's note: the 23 unit tests do not touch `initialize_view`, which needs a live PhysX view, so
 a REALM run is the only thing that confirms the gated path builds. Fallback if it regresses is
 `gm.PROXIMITY_GATE_ENABLED = False`.
