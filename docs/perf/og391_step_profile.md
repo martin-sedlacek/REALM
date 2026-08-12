@@ -224,6 +224,51 @@ contact cache *before* that work. They will need retaking once the gate passes i
 
 **Standing conclusion: no OG-lite speedup is established, with or without the render skip.**
 
+### State of the OG-lite contact-cache work (2026-08-12, handoff)
+
+Three OG-lite commits land the lever this document ranks first, and two of them had never been run
+against REALM when this was written:
+
+| commit | what | runtime status |
+| --- | --- | --- |
+| `04fc69b` | incremental contact cache + proximity gate | broke REALM (row mismatch, above) |
+| `6c51667` | gate cache safe for multi-scene vector envs | -- |
+| `e30899f` | fix the row mismatch: explicit sensor path list + list-of-lists filters when rows are gated, wildcard kept when nothing is gated | **being verified** |
+
+Its author's note: the 23 unit tests do not touch `initialize_view`, which needs a live PhysX view, so
+a REALM run is the only thing that confirms the gated path builds. Fallback if it regresses is
+`gm.PROXIMITY_GATE_ENABLED = False`.
+
+Separately, `gm.INCREMENTAL_CONTACT_CACHE` is **off** everywhere, so the incremental fold contributes
+nothing until something sets it. REALM now has both knobs in `realm/sim_config.py`, driven by env
+vars so conditions can be A/B'd without editing code:
+
+```bash
+# 1. does the row-gated view build at all (the runtime check unit tests cannot do)
+docker exec realm_oglite bash -lc 'cd /app && conda run --no-capture-output -n behavior \
+  python -u examples/02_evaluate.py --task_id 0 --perturbation_id 0 --repeats 1 --max_steps 2 \
+  --model_name debug --model_type debug --port 8000 --experiment_name oglite_verify \
+  --run_id gate_on --log_dir /app/logs/oglite_verify'
+
+# 2. same, with the incremental fold on
+docker exec -e REALM_INCREMENTAL_CONTACT_CACHE=1 realm_oglite bash -lc '...same, --run_id inc_on...'
+
+# 3. only if 1 fails: confirm the fallback
+docker exec -e REALM_PROXIMITY_GATE=0 realm_oglite bash -lc '...'
+```
+
+Pass requires all of: exit 0, no `row mismatch` / `Traceback` / `Segmentation fault` in the log, and
+all four artifacts written with a populated data row. Exit 0 alone is not sufficient -- the failure
+mode is an assert inside an Isaac callback followed by a segfault.
+
+For timings rather than correctness, `tmp/fork_ab_profile.py` already patches `update_contact_cache`
+and `_non_physics_step`, so it measures exactly this code. Since the contact cache is ~50% of
+stepping and ~98% of `_non_physics_step`, a working incremental fold should be visible immediately
+rather than lost in the 17% run-to-run noise that sank the fork-level comparison.
+
+Both macros are no-ops in the stock container: its `gm` is a `MacroDict` that accepts unknown keys,
+and neither macro is defined or read there (verified).
+
 ## 7. Levers, ranked by measured size
 
 1. **Contact cache -- ~50% of stepping.** `gm.CONTACT_REPORTING_PATTERNS` is the intended tool and is
