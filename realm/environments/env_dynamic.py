@@ -41,6 +41,7 @@ from scipy.spatial.transform import Rotation as R
 
 MISSING_PERTURBATIONS = ["V-OBJ", "VB-ISC", "VS-PROP", "SB-ADV", "SB-SMO"]
 SUPPORTED_TASK_TYPES = ["put", "pick", "rotate", "push", "stack", "open_drawer", "close_drawer"]
+WARMUP_STEPS = 30
 SKILL_COMPATIBILITY_MATRIX = {
     "put": ["pick", "rotate", "stack"],
     "push": [],  # ["put", "pick", "rotate", "stack"],
@@ -64,7 +65,8 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         no_rendering: bool = False,
         multi_view: bool = False,
         rendering_mode: str = "rt",
-        robot: str = "DROID"
+        robot: str = "DROID",
+        in_vec_env: bool = False,
     ) -> None:
         assert not (multi_view and no_rendering), f"Multi-view rendering was enabled during no_rendering mode. Either one is likely a mistake."
         self.task_cfg_path = "/".join(task_cfg_path.split("/")[-3:])
@@ -123,7 +125,32 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         self.task_type = self.cfg["task_type"]
         self.instruction = self.cfg["instruction"]
 
-        self.omnigibson_env = og.Environment(configs=[cfg])
+        # in_vec_env defers og.sim.play() and everything that depends on a playing simulator to
+        # RealmVectorEnvironment, which plays once for all members. See environments/env_vector.py.
+        self.in_vec_env = in_vec_env
+        self._mo_cfgs = mo_cfgs
+        self._to_cfgs = to_cfgs
+        self._dist_cfgs = dist_cfgs
+        self.omnigibson_env = og.Environment(configs=[cfg], in_vec_env=in_vec_env)
+
+        if not in_vec_env:
+            self.post_play_setup()
+
+    def post_play_setup(self):
+        """Everything that requires a playing simulator. Single-env path; run straight through.
+
+        A vector env cannot call this directly: apply_scene_fixes_from_cfg() cycles og.sim.stop()/
+        play(), which are global, so one member cannot cycle them without disturbing the others.
+        RealmVectorEnvironment instead calls the three pieces below itself, batching the stop/play
+        across all members. The per-member ordering is identical either way.
+        """
+        self.bind_scene_handles()
+        self.apply_scene_fixes_from_cfg()
+        self.finalize_setup()
+
+    def bind_scene_handles(self):
+        """Resolve robot/object handles and apply robot physics overrides (pre scene-fix half)."""
+        mo_cfgs, to_cfgs, dist_cfgs = self._mo_cfgs, self._to_cfgs, self._dist_cfgs
 
         assert len(self.omnigibson_env.robots) == 1  # assumes single robot, single arm
         self.robot = self.omnigibson_env.robots[0]
@@ -147,17 +174,36 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
         # ---------- apply fixes to the env ----------
         self.update_robot_physics()
-        self.apply_scene_fixes_from_cfg()
+
+    def finalize_setup(self):
+        """Visual toggles, render mode and base-class init (post scene-fix half)."""
         self.disable_visual_toggles()
-        set_rendering_mode(rendering_mode)
+        set_rendering_mode(self.rendering_mode)
 
         super().__init__(
             main_objects=self.main_objects,
             target_objects=self.target_objects,
             task_type=self.task_type,
             robot=self.robot,
-            mo_cfgs=mo_cfgs
+            mo_cfgs=self._mo_cfgs
         )
+
+    # ============================== [VECTOR ENV HOOKS] ==============================
+    def pre_step(self, action):
+        """Apply @action to this member's robot without advancing physics.
+
+        og.sim.step() advances every scene at once, so a vector env must apply all members' actions
+        first and step once. Single-env stepping goes through step() instead.
+        """
+        self.omnigibson_env._pre_step(action)
+
+    def post_step(self, action):
+        """Read observations for this member after a shared og.sim.step(), mirroring step()."""
+        obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
+        task_progression = self.recompute_task_progression(obs)
+        if "V-AUG" in self.active_perturbations:
+            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha)
+        return obs, task_progression, terminated, truncated, info
 
     def construct_environment_config(self):
         return build_environment_config(self)
@@ -212,12 +258,13 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
                         if approx in ["none", "meshSimplification"]:
                             prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
 
-    def apply_scene_fixes_from_cfg(self):
+    def apply_scene_fixes_from_cfg(self, manage_sim_state=True):
         spawn_cfg = yaml.load(open(f"{self.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)
 
         if self.scene_model in spawn_cfg and self.scene_part in spawn_cfg[self.scene_model]:
             scene_data = spawn_cfg[self.scene_model][self.scene_part]
-            og.sim.stop()
+            if manage_sim_state:
+                og.sim.stop()
             for obj in self.omnigibson_env.scene.objects:
                 if obj.name in scene_data.get("to_fix", []):
                     obj.fixed_base = True
@@ -232,7 +279,8 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
                 # elif obj.name in special_prims[self.scene_model][self.scene_part].get("drawer", []):
                 #     drawer_to_modify = self.omnigibson_env.scene.object_registry("name", obj.name)
 
-            og.sim.play()
+            if manage_sim_state:
+                og.sim.play()
 
     def disable_visual_toggles(self):
         for obj in self.omnigibson_env.scene.objects:
@@ -241,6 +289,24 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
                 obj.states[og.object_states.ToggledOn].visual_marker.visible = False
 
     # ============================== [ROLLOUT UTILS] ==============================
+    def warmup_ee_cmd(self):
+        """Hold-still EE command for warmup: the current pose in robot frame. None if joint-control."""
+        if not self.ee_control:
+            return None
+        arm_controller = self.robot._controllers.get("arm_0")
+        if arm_controller is not None and arm_controller.mode != "absolute_pose":
+            return np.zeros(6)
+        ee_pos, ee_quat = self.get_ee_pose()
+        ee_pos = ee_pos.cpu().numpy() if hasattr(ee_pos, 'cpu') else np.array(ee_pos)
+        ee_euler = R.from_quat(ee_quat.cpu().numpy()).as_euler('xyz')
+        return self._world2robot(np.concatenate([ee_pos, ee_euler]))
+
+    def warmup_action(self, t, ee_cmd):
+        """Warmup action for step @t: hold the arm still, open the gripper then close it."""
+        gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
+        base = ee_cmd if self.ee_control else self.reset_qpos[:7]
+        return np.concatenate((base, gripper_val))
+
     def warmup(self, obs=None):
         og.log.info("Starting warmup...")
         for _ in range(30):
@@ -249,24 +315,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         if obs is None:
             obs, _ = self.reset()
 
-        if self.ee_control:
-            arm_controller = self.robot._controllers.get("arm_0")
-            if arm_controller is not None and arm_controller.mode != "absolute_pose":
-                ee_cmd = np.zeros(6)
-            else:
-                ee_pos, ee_quat = self.get_ee_pose()
-                ee_pos = ee_pos.cpu().numpy() if hasattr(ee_pos, 'cpu') else np.array(ee_pos)
-                ee_euler = R.from_quat(ee_quat.cpu().numpy()).as_euler('xyz')
-                ee_cmd = self._world2robot(np.concatenate([ee_pos, ee_euler]))
+        ee_cmd = self.warmup_ee_cmd()
 
-        for t in range(30):
-            gripper_val = np.atleast_1d(1.0 if t < 15 else -1.0)
-            if self.ee_control:
-                new_action = np.concatenate((ee_cmd, gripper_val))
-            else:
-                new_action = np.concatenate((self.reset_qpos[:7], gripper_val))
-
-            obs, rew, terminated, truncated, info = self.step(new_action)
+        for t in range(WARMUP_STEPS):
+            obs, rew, terminated, truncated, info = self.step(self.warmup_action(t, ee_cmd))
 
         self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
         og.log.info("Warmup finished.")

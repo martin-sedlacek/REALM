@@ -5,6 +5,7 @@ Two separate concerns that both have to happen before/around env creation:
                           BEFORE og.Environment() is constructed, since the macros are read there.
   set_rendering_mode() -- carb RTX settings. Applied after the env exists.
 """
+import os
 import random
 
 import numpy as np
@@ -44,6 +45,16 @@ def set_sim_config(robot="DROID"):
     # Texture/emitter updates for Cooked, Burnt, Frozen, OnFire etc. Nothing REALM renders depends on
     # them, and the sweep touches every initialized object in the scene each step.
     gm.ENABLE_VISUAL_UPDATES = False
+    # OG-lite-only macro: folds each physics substep into (R, C) accumulators instead of
+    # materializing an (N, R, C) stack per step. Stock OmniGibson never reads it, so setting it in
+    # the stock container is a harmless no-op. Off by default until the win is measured on REALM's
+    # own workload -- export REALM_INCREMENTAL_CONTACT_CACHE=1 to turn it on.
+    gm.INCREMENTAL_CONTACT_CACHE = os.environ.get("REALM_INCREMENTAL_CONTACT_CACHE", "0") == "1"
+    # Same deal: OG-lite drops bodies further than PROXIMITY_GATE_RADIUS from every robot out of the
+    # contact matrix. It defaults ON in OG-lite; set REALM_PROXIMITY_GATE=0 to rule it out if
+    # contact-dependent metrics (collisions_env, is_grasping) start behaving oddly.
+    if "REALM_PROXIMITY_GATE" in os.environ:
+        gm.PROXIMITY_GATE_ENABLED = os.environ["REALM_PROXIMITY_GATE"] == "1"
     gm.RENDER_VIEWER_CAMERA=False
     # OG 3.9.1 asserts that isosurface HQ rendering runs at >=60 FPS, but REALM renders at 5-30 Hz
     # (see above), so enabling it aborts at env creation. Disabled unconditionally until the
