@@ -201,8 +201,26 @@ stepping, so the skip's win is concentrated in `add_frame` and per-repeat cost, 
 
 The second OG-lite ROD run **segfaulted (exit 139) before startup finished** -- 0 completed control
 steps, `startup` never recorded. Its 193.8 s wall clock is a crash, not a fast run, and must not be
-read as a sample. n=1 for that cell. One crash in ten runs, all ten under the same harness, only
-this one in OG-lite+ROD: not enough to attribute, but worth watching if it recurs.
+read as a sample. n=1 for that cell.
+
+That crash is attributable. OG-lite's `omnigibson/utils/usd_utils.py` was rewritten at 17:07:24 by
+`04fc69b` ("Trim the non-physics step: incremental contact cache + proximity gate") and `6c51667`.
+The run started ~17:08:17 -- after the edit -- so it loaded the new contact cache and died on its own
+validation assert:
+
+```
+AssertionError: RigidContactAPI contact-view row mismatch.
+Expected 54 dynamic rows, got 271 rows. Missing rows (0): []. Extra rows (217): [...]
+```
+
+The proximity gate's row filter disagrees with the contact view actually built for the scene: it
+expects to track 54 dynamic bodies but the view carries 271, the extras being static scene furniture
+(`armchair_*/base_link`, `bookcase_*/base_link`, ...). Runs that started *before* 17:07 (`lite_rod1`,
+`stock_rod1`) are unaffected, and the stock container never loads OG-lite at all -- which is why only
+this one cell crashed.
+
+This is the section-7 lever #1 being built upstream, so the numbers in this document describe the
+contact cache *before* that work. They will need retaking once the gate passes its own assert.
 
 **Standing conclusion: no OG-lite speedup is established, with or without the render skip.**
 

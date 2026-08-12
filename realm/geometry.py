@@ -9,6 +9,7 @@ import torch
 from scipy.spatial.transform import Rotation
 
 
+# --------------------------- rotation / homogeneous-transform conversions ---------------------------
 def quaternion_xyzw_to_rotation_matrix(quaternion_xyzw):
     """
     Converts a quaternion (x, y, z, w) to a 3x3 rotation matrix.
@@ -49,6 +50,8 @@ def get_xyz_quaternion_from_homogeneous_transform(T_matrix):
 
 
 ### Subtractions ###
+# ------------------------------- pose differences and composition -------------------------------
+# Poses are 6-vectors (xyz + rpy); `delta` composes onto `source` in the source's own frame.
 def quat_diff(target, source):
     result = Rotation.from_quat(target) * Rotation.from_quat(source).inv()
     return result.as_quat()
@@ -88,6 +91,9 @@ def add_poses(delta, source, degrees=False):
     return result
 
 
+# ------------------------------------- frame conversions -------------------------------------
+# DROID policies act in the robot frame; OmniGibson wants world. base_height accounts for the
+# base column when the robot is mounted (see environments/constants.DROID_BASE_HEIGHT).
 def robot_to_world(action, robot_pos, robot_yaw, base_height=0.0):
     """Convert a 7D EE action (xyz + RPY + gripper) from robot-local to world frame."""
     assert action.shape[-1] == 7
@@ -134,6 +140,7 @@ def flip_pose_pointing_down(rpy_vec):
     return r_new.as_euler('xyz')
 
 
+# --------------------------- rotation noise and camera pose composition ---------------------------
 def compute_rot_diff_magnitude(initial_quat,final_quat):
     r_initial = Rotation.from_quat(initial_quat)
     r_final = Rotation.from_quat(final_quat)
