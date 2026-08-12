@@ -11,7 +11,7 @@ USE_DROID_WITH_BASE = True
 # OG 3.9.1: no DROID class to import -- select the RobotDefinition by model name instead.
 DROID_MODEL = "droid_mounted" if USE_DROID_WITH_BASE else "droid"
 
-from realm.helpers import flip_pose_pointing_down
+from realm.geometry import flip_pose_pointing_down
 # Registers REALM's controllers *and* their default configs, which OG 3.9.1 requires separately.
 from realm.robots.controller_registry import register_realm_controllers
 register_realm_controllers()

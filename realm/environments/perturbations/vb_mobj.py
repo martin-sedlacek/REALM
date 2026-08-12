@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import omnigibson as og
 from omnigibson.objects import DatasetObject, PrimitiveObject, USDObject
-from realm.helpers import get_default_objects_cfg
+from realm.placement import get_default_objects_cfg
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic

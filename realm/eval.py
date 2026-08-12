@@ -2,16 +2,14 @@ from queue import Queue
 import datetime
 import time
 import os
-import random
 import csv
 import numpy as np
-import torch
 from scipy.spatial.transform import Rotation as Rot
 
 import omnigibson as og
-from omnigibson.macros import gm
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
+from realm.sim_config import set_sim_config
 from realm.inference import InferenceClient, extract_from_obs
 from realm.realm_logging import VideoRecorder, save_results, append_trajectory, append_video
 
@@ -50,51 +48,6 @@ SUPPORTED_PERTURBATIONS = [
 ]
 
 
-def set_sim_config(rendering_mode=None, robot="DROID"):
-    if robot == "WidowX": # TODO: just read this from the yamls...
-        gm.DEFAULT_SIM_STEP_FREQ = 5
-        gm.DEFAULT_RENDERING_FREQ = 5
-    elif "UR5" in robot:
-        gm.DEFAULT_SIM_STEP_FREQ = 30
-        gm.DEFAULT_RENDERING_FREQ = 30
-    else:
-        gm.DEFAULT_SIM_STEP_FREQ = 15
-        gm.DEFAULT_RENDERING_FREQ = 15
-
-    gm.DEFAULT_PHYSICS_FREQ = 120
-    gm.ENABLE_TRANSITION_RULES = False # this needs to be off to avoid bug with sludge state during collision: https://github.com/StanfordVL/BEHAVIOR-1K/issues/1201
-    gm.ENABLE_OBJECT_STATES = True # this needs to be on because push_switch task usees the ToggledOn state
-    # Of the 13 state types OmniGibson steps every frame, ToggledOn is the only one REALM reads. The
-    # rest are pure overhead in a kitchen scene, and several are expensive: HeatSourceOrSink issues a
-    # PhysX overlap query per heat source per step (stove/oven/microwave/fridge), AttachedTo does a
-    # full-row contact scan per attachable object, and Temperature/MaxTemperature run a tensorized
-    # update over every object in the scene.
-    #
-    # Safe because Touching / OnTop / Inside -- the states REALM actually queries -- are computed on
-    # demand via KinematicsMixin and never appear in the per-step update list. Every state type is
-    # still globally initialized, so on-demand queries are unaffected.
-    #
-    # The one capability this removes is water: ParticleSource/ParticleSink stop producing, so a
-    # faucet would no longer run. No REALM task uses one.
-    gm.OBJECT_STATE_UPDATE_WHITELIST = ["ToggledOn"]
-    # Texture/emitter updates for Cooked, Burnt, Frozen, OnFire etc. Nothing REALM renders depends on
-    # them, and the sweep touches every initialized object in the scene each step.
-    gm.ENABLE_VISUAL_UPDATES = False
-    gm.RENDER_VIEWER_CAMERA=False
-    # OG 3.9.1 asserts that isosurface HQ rendering runs at >=60 FPS, but REALM renders at 5-30 Hz
-    # (see above), so enabling it aborts at env creation. Disabled unconditionally until the
-    # rendering frequency is raised to 60.
-    gm.ENABLE_HQ_RENDERING = False
-
-    seed = 1234
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-
 def evaluate(
         task_id=0,
         perturbation_id=0,
@@ -120,7 +73,7 @@ def evaluate(
     og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
     if rendering_mode is None:
         rendering_mode = "rt"
-    set_sim_config(rendering_mode=rendering_mode, robot=robot)
+    set_sim_config(robot=robot)
 
     # -------------------- Create the environment + client --------------------
     if task_cfg_path is None:

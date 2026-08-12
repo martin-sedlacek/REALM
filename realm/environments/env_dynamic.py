@@ -1,12 +1,12 @@
-import math
 import numpy as np
 import torch
 import yaml
-import random
 import copy
 import os
 
 from realm.environments.env_base import RealmEnvironmentBase
+from realm.environments.env_config import build_environment_config
+from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIGHT
 from realm.environments.perturbations.default import default as _pert_default
 from realm.environments.perturbations.v_light import v_light as _pert_v_light
 from realm.environments.perturbations.v_view import v_view as _pert_v_view
@@ -21,21 +21,16 @@ from realm.environments.perturbations.vsb_nobj import vsb_nobj as _pert_vsb_nobj
 # OG 3.9.1: robots are no longer Python classes. DROID/UR are declared as RobotDefinition YAMLs
 # under realm/robots/definitions/ and instantiated by OmniGibson's single Robot class via
 # `model: <name>`; WidowX uses OmniGibson's stock `vx300s` definition. Nothing to import here.
-from realm.helpers import (
+from realm.categories import get_non_droid_categories
+from realm.environments.perturbations.v_aug import apply_blur_and_contrast
+from realm.geometry import (
     calculate_new_camera_pose_mixed_rotations,
-    add_rotation_noise,
-    get_non_colliding_positions_for_objects,
-    apply_blur_and_contrast,
-    get_non_droid_categories,
-    get_droid_categories_by_theme,
-    get_objects_by_names,
-    get_default_objects_cfg,
     robot_to_world,
     world_to_robot,
 )
+from realm.sim_config import set_rendering_mode
 
 import omnigibson as og
-import omnigibson.utils.transform_utils as omnigibson_transform_utils
 import omnigibson.lazy as lazy
 from omnigibson.objects import DatasetObject
 from omnigibson.utils.asset_utils import get_all_object_models
@@ -55,94 +50,6 @@ SKILL_COMPATIBILITY_MATRIX = {
     "open": ["close"],
     "close": ["open"]
 }
-DEFAULT_RESET_JOINTPOS = np.array([0, -1 / 5 * np.pi, 0, -4 / 5 * np.pi, 0, 3 / 5 * np.pi, 0.0])
-DROID_BASE_HEIGHT = 0.86244
-MAX_CAMERA_POS_DEVIATION = 0.2
-MAX_CAMERA_PITCH_DEVIATION = 0.2
-MAX_CAMERA_YAW_DEVIATION = 0.2
-DROID_DEFAULT_DOF = 11
-
-# Panda joint origins from panda_robotiq_85.urdf: (xyz, rpy) per joint
-_PANDA_JOINT_ORIGINS = [
-    ([0,       0,      0.333], [0,        0, 0]),
-    ([0,       0,      0    ], [-np.pi/2, 0, 0]),
-    ([0,      -0.316,  0    ], [ np.pi/2, 0, 0]),
-    ([0.0825,  0,      0    ], [ np.pi/2, 0, 0]),
-    ([-0.0825, 0.384,  0    ], [-np.pi/2, 0, 0]),
-    ([0,       0,      0    ], [ np.pi/2, 0, 0]),
-    ([0.088,   0,      0    ], [ np.pi/2, 0, 0]),
-]
-_PANDA_EE_OFFSET = [0, 0, 0.107]  # panda_link8 fixed offset from panda_link7 (panda_arm.urdf)
-
-
-def _panda_fk(q):
-    """Forward kinematics for Panda arm using URDF parameters.
-    q: array of 7 joint angles (radians).
-    Returns (pos, quat_xyzw) of panda_link8 in the robot base (link0) frame.
-    Each joint transform: T = Translate(xyz) @ RPY(rpy) @ Rz(q_i)
-    """
-    def _rot3(a, axis):
-        ca, sa = np.cos(a), np.sin(a)
-        if axis == 'x':
-            return np.array([[1, 0, 0], [0, ca, -sa], [0, sa, ca]])
-        if axis == 'y':
-            return np.array([[ca, 0, sa], [0, 1, 0], [-sa, 0, ca]])
-        return np.array([[ca, -sa, 0], [sa, ca, 0], [0, 0, 1]])  # z
-
-    def _ht(xyz, rpy, qi):
-        # Fixed part: Translate(xyz) @ Rz(yaw) @ Ry(pitch) @ Rx(roll)
-        r_fixed = _rot3(rpy[2], 'z') @ _rot3(rpy[1], 'y') @ _rot3(rpy[0], 'x')
-        r_total = r_fixed @ _rot3(qi, 'z')
-        m = np.eye(4)
-        m[:3, :3] = r_total
-        m[:3, 3] = xyz
-        return m
-
-    m = np.eye(4)
-    for (xyz, rpy), qi in zip(_PANDA_JOINT_ORIGINS, q):
-        m = m @ _ht(xyz, rpy, qi)
-
-    m_ee = np.eye(4)
-    m_ee[:3, 3] = _PANDA_EE_OFFSET
-    m = m @ m_ee
-
-    from scipy.spatial.transform import Rotation as _R
-    return m[:3, 3].copy(), _R.from_matrix(m[:3, :3]).as_quat()
-
-
-def set_rendering_mode(rendering_mode):
-    carb_settings = lazy.carb.settings.get_settings()
-    if rendering_mode == "pt":
-        def enable_interactive_path_tracing(carb_settings, samples_per_pixel=8):
-            carb_settings.set("/rtx/rendermode", "PathTracing")
-            if samples_per_pixel is not None:
-                carb_settings.set_int("/rtx/pathtracing/spp", samples_per_pixel)
-                carb_settings.set_int("/rtx/pathtracing/totalSpp", samples_per_pixel)
-                carb_settings.set_int(
-                    "/rtx/pathtracing/useDirectLightingCache", False
-                )
-            carb_settings.set_bool("/rtx/pathtracing/optixDenoiser/enabled", True)
-
-        #carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing", True)
-        enable_interactive_path_tracing(carb_settings, samples_per_pixel=8)
-    elif rendering_mode == "r":
-        carb_settings.set_string("/rtx/rendermode", "RaytracedLighting")
-        carb_settings.set_bool("/rtx/translucency/enabled", True)
-        carb_settings.set_bool("/rtx/reflections/enabled", False)
-        carb_settings.set_bool("/rtx/indirectDiffuse/enabled", False)
-        carb_settings.set_bool("/rtx/directLighting/sampledLighting/enabled", True)
-        carb_settings.set_int("/rtx/directLighting/sampledLighting/samplesPerPixel", 1)
-        carb_settings.set_bool("/rtx/shadows/enabled", False)
-        carb_settings.set_int("/rtx/post/dlss/execMode", 0)
-        carb_settings.set_bool("/rtx/ambientOcclusion/enabled", False)
-        carb_settings.set_bool("/rtx-transient/dlssg/enabled", False)
-        carb_settings.set_float("/rtx-transient/resourcemanager/texturestreaming/memoryBudget", 0.6)
-        carb_settings.set_float("/rtx/sceneDb/ambientLightIntensity", 1.0)
-        carb_settings.set_bool("/exts/omni.renderer.core/present/enabled", False)
-        carb_settings.set_string("/isaaclab/rendering/rendering_mode", "performance")
-    else:
-        assert rendering_mode == "rt", f"rendering mode must be 'pt', 'rt', or 'r'"
-
 
 class RealmEnvironmentDynamic(RealmEnvironmentBase):
     def __init__(
@@ -253,187 +160,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         )
 
     def construct_environment_config(self):
-        cfg = dict()
-        task_cfg = yaml.load(open(f"{self.config_path}/tasks/{self.task_cfg_path}", "r"), Loader=yaml.FullLoader)
-        cfg.update(task_cfg)
-
-        # ---------------------------------------- scene config ----------------------------------------
-        for k in ["external_sensors", "robots"]:
-            assert k not in cfg, f"{k} should be defined outside the scene file!"
-
-        if self.scene_model is None:
-            assert self.scene_part is None
-            self.scene_model = list(task_cfg["supported_scenes"].keys())[0]
-            self.scene_part = task_cfg["supported_scenes"][self.scene_model][0]
-        assert self.scene_model in task_cfg["supported_scenes"]
-        assert self.scene_part in task_cfg["supported_scenes"][self.scene_model]
-        cfg.update(task_cfg["task"])
-
-        scene_cfg_path = f"{self.config_path}/scenes/{self.scene_model}/{self.scene_part}/scene_definition.yaml"
-        scene_cfg = None
-        if os.path.exists(scene_cfg_path):
-            scene_cfg = yaml.load(open(scene_cfg_path, "r"), Loader=yaml.FullLoader)
-            cfg["scene"] = copy.deepcopy(scene_cfg["scene"])
-        else:
-            cfg["scene"] = {
-                "type": "InteractiveTraversableScene",
-                "scene_model": self.scene_model,
-            }
-
-        spawn_cfg = yaml.load(open(f"{self.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)
-        assert self.scene_model in spawn_cfg and self.scene_part in spawn_cfg[self.scene_model]
-        scene_data = spawn_cfg[self.scene_model][self.scene_part]
-        if all(k in scene_data for k in ["x_min", "x_max", "y_min", "y_max", "z"]):
-            x_min = scene_data["x_min"]
-            x_max = scene_data["x_max"]
-            y_min = scene_data["y_min"]
-            y_max = scene_data["y_max"]
-            z = scene_data["z"]
-            self.spawn_bbox = np.array([x_min, x_max, y_min, y_max, z])
-        else:
-            self.spawn_bbox = None
-
-        # ---------------------------------------- robot config ----------------------------------------
-        assert "pos" in scene_data and "rot" in scene_data
-        robot_pos = scene_data['pos']
-        robot_rot = [math.radians(angle_deg) for angle_deg in scene_data['rot']]
-        self.robot_pos = np.array(robot_pos, dtype=float)
-        self.robot_rot_rad = np.array(robot_rot, dtype=float)
-
-        cfg_robot = yaml.load(open(f"{self.config_path}/robots/{self.robot_name}.yaml", "r"), Loader=yaml.FullLoader)
-        self.ee_control = cfg_robot["robots"][0].get("ee_control", False)
-        # Assets without the DROID base column have their origin at the arm base rather than at the
-        # bottom of the column, so on base-mounted tasks they must be raised by the column's height.
-        # self.robot_pos deliberately stays at the scene value: _robot2world/_world2robot already add
-        # DROID_BASE_HEIGHT themselves, so only the spawn point needs adjusting.
-        spawn_pos = list(robot_pos)
-        if self.use_droid_with_base and not cfg_robot["robots"][0].pop("has_base_column", True):
-            spawn_pos[2] += DROID_BASE_HEIGHT
-        cfg_robot["robots"][0]["position"] = spawn_pos
-        cfg_robot["robots"][0]["orientation"] = omnigibson_transform_utils.euler2quat(
-            torch.tensor(robot_rot, dtype=torch.float32)).tolist()
-        cfg_robot["robots"][0]["fixed_base"] = True
-
-        # OG 3.9.1 selects a robot by `model` (a RobotDefinition YAML name), not by Python class.
-        # The base-mounted DROID used to be chosen by importing a different module; it is now a
-        # separate definition. `type` in the REALM robot configs is still accepted -- OmniGibson
-        # lowercases it into `model` -- but we set `model` explicitly so the mounted variant works.
-        # A config that names its own `model` (e.g. DROID_robolab.yaml) is left alone -- only the
-        # stock DROID configs, which still carry the legacy `type: DROID`, get the mounted/unmounted
-        # definition chosen for them here.
-        if "DROID" in self.robot_name and "model" not in cfg_robot["robots"][0]:
-            cfg_robot["robots"][0].pop("type", None)
-            cfg_robot["robots"][0]["model"] = "droid_mounted" if self.use_droid_with_base else "droid"
-
-        reset_joint_pos = np.zeros(cfg_robot["robots"][0]["dof"] if "dof" in cfg_robot["robots"][0] else DROID_DEFAULT_DOF)
-        if "DROID" in self.robot_name:
-            if "reset_joint_pos" in task_cfg:
-                reset_joint_pos[:7] = np.array(task_cfg['reset_joint_pos'])
-            elif "reset_joint_pos" in scene_data:
-                reset_joint_pos[:7] = np.array(scene_data['reset_joint_pos'])
-            else:
-                reset_joint_pos[:7] = DEFAULT_RESET_JOINTPOS
-        elif self.robot_name == "WidowX":
-            reset_joint_pos[:6] = np.zeros(6) #np.array([0.0, -0.849879, 0.258767, 0.0, 1.2831712, 0.0])
-        cfg_robot["robots"][0]["reset_joint_pos"] = reset_joint_pos
-
-        if self.common_freq is not None:
-            cfg_robot["robots"][0]["control_freq"] = self.common_freq
-            cfg_robot["robots"][0]["controller_config"]["arm_0"]["control_freq"] = self.common_freq
-
-        cfg.update(cfg_robot)
-        self.reset_qpos = reset_joint_pos
-
-        # ---------------------------------------- object config ----------------------------------------
-        obj_list = task_cfg["main_objects"] + task_cfg["target_objects"]
-        if "distractors" in task_cfg:
-            obj_list += task_cfg["distractors"]
-        if "immutables" in task_cfg:
-            obj_list += task_cfg["immutables"]
-        if scene_cfg is not None:
-            obj_list += scene_cfg["objects"]
-
-        robot_rot_deg_z = scene_data['rot'][-1]
-        assert robot_rot_deg_z >= 0
-        obj_pos_modifier_x = 1
-        if 90 <= robot_rot_deg_z <= 270:
-            obj_pos_modifier_x = -1
-
-        if self.spawn_bbox is not None:
-            for obj in obj_list:
-                obj["relative_bbox_position"][0] *= obj_pos_modifier_x
-                if obj_pos_modifier_x != 1:
-                    if obj["relative_bbox_position"][0] < 0:
-                        obj["relative_bbox_position"][0] -= obj_pos_modifier_x * (self.spawn_bbox[1] - self.spawn_bbox[0])
-                    else:
-                        obj["relative_bbox_position"][0] += obj_pos_modifier_x * (self.spawn_bbox[1] - self.spawn_bbox[0])
-                obj["position"] = [x + y for x, y in zip(obj["relative_bbox_position"], [self.spawn_bbox[0], self.spawn_bbox[2], self.spawn_bbox[4]])]
-
-            # TODO: the pipeline is broken for dynamically reducing # objects when there are too many distractors and
-            # they become unplaceable - 3 is always fine and easy to place so we use that for now as maximum
-            num_distractors = 3 if any(p in self.active_perturbations for p in ["V-SC"]) else 0 #"VB-ISC" #"SB-NOUN"
-            cfg["objects"] = None
-            excluded_categories = []
-            for obj in task_cfg["main_objects"] + task_cfg["target_objects"]:
-                if "category" in obj:
-                    excluded_categories.append(obj["category"])
-            distractors = self.sample_objects(num_objects=num_distractors, excluded_categories=excluded_categories)
-
-            cfg["objects"] = get_non_colliding_positions_for_objects(
-                xmin=self.spawn_bbox[0],
-                xmax=self.spawn_bbox[1],
-                ymin=self.spawn_bbox[2],
-                ymax=self.spawn_bbox[3],
-                z=self.spawn_bbox[4],
-                obj_cfg=obj_list + distractors,
-                max_attempts_per_object=25000,
-                main_object_names=[o["name"] for o in obj_list],
-            )
-        else:
-            cfg["objects"] = obj_list
-            distractors = []
-
-        if "distractors" in task_cfg:
-            distractors += task_cfg["distractors"]
-        if "immutables" in task_cfg:
-            distractors += task_cfg["immutables"] # immutables go here because the distractor list above is meant to be replaceable objects
-
-        for obj in cfg["objects"]:
-            assert "position" in obj
-
-        # ---------------------------------------- external camera config ----------------------------------------
-        if "env" not in cfg:
-            cfg["env"] = {
-                "initial_pos_z_offset": 0.2
-            }
-        if not self.no_rendering:
-            ext_cam1_pose = task_cfg["camera_extrinsics"]["cam1"] if "camera_extrinsics" in task_cfg else "default"
-            if "camera_extrinsics" in task_cfg and "cam2" in task_cfg["camera_extrinsics"]:
-                ext_cam2_pose = task_cfg["camera_extrinsics"]["cam2"]
-            else:
-                ext_cam2_pose = "default" if ext_cam1_pose == "CP3" else "CP3"
-
-            base_cam_pos, base_cam_rot = self.construct_ext_cam_pose_by_name(ext_cam1_pose, robot_pos, robot_rot)
-
-            cfg_external_sensors = yaml.load(open(f"{self.config_path}/env/external_sensors/camera_config.yaml", "r"), Loader=yaml.FullLoader)
-            cfg_external_sensors["external_sensors"][0]["position"] = base_cam_pos
-            cfg_external_sensors["external_sensors"][0]["orientation"] = base_cam_rot
-
-            if self.multi_view:
-                second_base_cam_pos, second_base_cam_rot = self.construct_ext_cam_pose_by_name(ext_cam2_pose, robot_pos,
-                                                                                               robot_rot)
-                cfg_external_sensors["external_sensors"][1]["position"] = second_base_cam_pos
-                cfg_external_sensors["external_sensors"][1]["orientation"] = second_base_cam_rot
-            else:
-                del cfg_external_sensors["external_sensors"][1]
-
-            cfg["env"].update(cfg_external_sensors)
-
-        return (copy.deepcopy(cfg),
-                copy.deepcopy([o for o in task_cfg["main_objects"]]),
-                copy.deepcopy([o for o in task_cfg["target_objects"]]),
-                copy.deepcopy([o for o in distractors])
-                )
+        return build_environment_config(self)
 
     def construct_ext_cam_pose_by_name(self, pose_name, robot_pos, robot_rot):
         assert pose_name in self.cfg_camera_extrinsics
@@ -540,18 +267,6 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
                 new_action = np.concatenate((self.reset_qpos[:7], gripper_val))
 
             obs, rew, terminated, truncated, info = self.step(new_action)
-
-            # if self.ee_control:
-            #     # Sanity check: robot must not drift during warmup.
-            #     # Compare FK position at each step against FK at step 0 (not against ee_cmd,
-            #     # which may have a constant calibration offset from the URDF model).
-            #     q_current = obs[self.robot.name]['proprio'].cpu().numpy()[:7]
-            #     fk_pos, fk_quat = _panda_fk(q_current)
-            #     drift = np.linalg.norm(fk_pos - ee_cmd[:3])
-            #     assert drift < 0.05, (
-            #         f"Robot drifted {drift:.4f}m during EE warmup (step {t}). "
-            #         f"fk_pos_initial={ee_cmd}, fk_pos_now={fk_pos}"
-            #     )
 
         self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
         og.log.info("Warmup finished.")

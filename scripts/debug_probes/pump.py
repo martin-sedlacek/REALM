@@ -49,12 +49,12 @@ try:
     import omnigibson as og
     from omnigibson.macros import gm
 
-    from realm.eval import set_sim_config
+    from realm.sim_config import set_sim_config
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
     from realm.inference import InferenceClient, extract_from_obs
 
     # Mirror eval.py: gm.* must be set before the env is constructed.
-    set_sim_config(rendering_mode="rt", robot=ROBOT)
+    set_sim_config(robot=ROBOT)
 
     print("[pump] creating env ...", flush=True)
     env = RealmEnvironmentDynamic(
@@ -88,7 +88,7 @@ except Exception:
 
 
 def rollout(max_steps=300, horizon=8, render_on_demand=True, max_render_interval=16,
-            n_pre_obs_renders=3, reset=True, verbose=True):
+            n_pre_obs_renders=2, reset=True, verbose=True):
     """Closed-loop rollout against the pi0.5 server. A reduction of realm/eval.py's loop.
 
     Drops the video recorder and the CSV report; keeps the action-chunk buffer, the gripper

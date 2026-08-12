@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from typing import TYPE_CHECKING
 
-from realm.helpers import get_non_droid_categories
+from realm.categories import get_non_droid_categories
 from omnigibson.objects import DatasetObject
 from omnigibson.utils.asset_utils import get_all_object_models
 

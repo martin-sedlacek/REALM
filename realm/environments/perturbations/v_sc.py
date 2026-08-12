@@ -5,9 +5,9 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 import omnigibson as og
-from realm.helpers import (
+from realm.categories import get_droid_categories_by_theme
+from realm.placement import (
     get_non_colliding_positions_for_objects,
-    get_droid_categories_by_theme,
     get_objects_by_names,
     get_default_objects_cfg,
 )

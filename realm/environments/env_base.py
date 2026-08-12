@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from realm.environments.utils import *
-from realm.helpers import compute_rot_diff_magnitude
+from realm.geometry import compute_rot_diff_magnitude
 from realm.environments.contact_utils import get_impulse_contacts
 from realm.robots.controller_registry import register_realm_controllers
 # Per-robot gripper conventions, so is_grasping's finger-closure test is not hardcoded to

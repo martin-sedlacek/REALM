@@ -14,7 +14,7 @@ from omnigibson.utils.backend_utils import _compute_backend as cb
 from omnigibson.utils.usd_utils import ControllableObjectViewAPI
 import omnigibson.utils.transform_utils as T
 import numpy as np
-from realm.helpers import pose_diff
+from realm.geometry import pose_diff
 from scipy.spatial.transform import Rotation as R
 from realm.robots.robot_ik.robot_ik_solver import RobotIKSolver
 
