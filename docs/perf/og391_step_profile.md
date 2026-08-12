@@ -182,8 +182,29 @@ from stock in 4 files (~168 lines: `simulator.py`, `macros.py`, `envs/env_base.p
 `prims/rigid_prim.py`) plus a missing `learning/` package. Crucially **`utils/usd_utils.py` has 0
 changed lines**, and that is where `update_contact_cache` -- half of all step time -- lives.
 
-The runs above used `render_on_demand=False`, i.e. they never exercised the skip path. A repeat with
-the current default (on) was in progress when this document was written.
+### Repeat with the render skip on (the current default)
+
+The runs above used `render_on_demand=False`, i.e. they never exercised the skip path. Repeating with
+it on does not change the conclusion. Stepping time for 390 steps:
+
+```
+ROD off   stock:  92.15 s,  94.03 s,  78.87 s    mean 88.35 s
+          lite :  81.93 s,  81.98 s,  82.77 s    mean 82.23 s
+ROD on    stock: 102.50 s,  84.60 s               mean 93.55 s
+          lite :  96.50 s                         (n=1, see below)
+```
+
+OG-lite's single valid ROD run (96.5 s) lands *between* the two stock ROD runs, so the fork ordering
+does not even reproduce in sign here. Enabling the skip did not lower stepping time either -- it went
+nominally up in both forks, which is consistent with section 5: the in-step render is only ~12% of
+stepping, so the skip's win is concentrated in `add_frame` and per-repeat cost, not in physics.
+
+The second OG-lite ROD run **segfaulted (exit 139) before startup finished** -- 0 completed control
+steps, `startup` never recorded. Its 193.8 s wall clock is a crash, not a fast run, and must not be
+read as a sample. n=1 for that cell. One crash in ten runs, all ten under the same harness, only
+this one in OG-lite+ROD: not enough to attribute, but worth watching if it recurs.
+
+**Standing conclusion: no OG-lite speedup is established, with or without the render skip.**
 
 ## 7. Levers, ranked by measured size
 
