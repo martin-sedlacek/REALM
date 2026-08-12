@@ -224,6 +224,12 @@ contact cache *before* that work. They will need retaking once the gate passes i
 
 **Standing conclusion: no OG-lite speedup is established, with or without the render skip.**
 
+> **Superseded 2026-08-13 -- see [section 8](#8-pre-port-og-111-vs-ported-391-the-reference-benchmark).**
+> Everything in this section was measured *before the proximity gate worked*: `04fc69b` introduced it
+> and broke REALM outright, and `e30899f` fixed it only on 2026-08-12. With a working gate, OG-lite
+> cuts `og.sim.step` median by 55% and `_non_physics_step` median by 68% against stock in the same
+> image. The "not established" verdict applies to the pre-gate fork, not to the current one.
+
 ### State of the OG-lite contact-cache work (2026-08-12, handoff)
 
 Three OG-lite commits land the lever this document ranks first, and two of them had never been run
@@ -371,3 +377,99 @@ against the host checkout; a bind mount existing does not prove the import resol
    step-loop change.
 5. Run-to-run variance on this machine reached 17% with identical code. Interleave conditions and
    take n>=3 per side before believing any single-digit difference.
+
+## 8. Pre-port (OG 1.1.1) vs ported (3.9.1): the reference benchmark
+
+Measured 2026-08-13, Clara, jobs **190216 / 190217 / 190218**. One profiler
+(`tmp/interactive/profile_phases.py`) staged into *both* checkouts, patching only what exists in
+both. Identical eval arguments everywhere: task 0, perturbation 0, 3 repeats x 100 steps
+(390 control steps including warmup), horizon 8, robot DROID, `--model_type debug`,
+`rendering_mode rt`.
+
+| | og111 + OG-lite (1.1.1) | og391 stock (3.9.1) | og391 + OG-lite (3.9.1) |
+| --- | --: | --: | --: |
+| wall | 588.0 s | 411.1 s | **347.8 s** |
+| -- isaac import | 12.7 s | 47.6 s | 46.3 s |
+| -- **cold start** (to first env ready) | 278.3 s | 251.0 s | 257.5 s |
+| -- **rollout** (3 resets + 390 steps + logging) | 309.7 s | 160.1 s | **90.3 s** |
+| reset, median per repeat | **2.88 s** | 6.43 s | 9.20 s |
+| `og.sim.step` total / median | 70.1 s / 105.6 ms | 115.7 s / 237.9 ms | 42.3 s / 107.4 ms |
+| explicit `og.sim.render` count / total | 1294 / 211.0 s | 402 / 10.0 s | 402 / 9.4 s |
+| `_non_physics_step` median / total | 0.72 ms / 0.6 s | 134.2 ms / 74.5 s | 42.7 ms / 16.5 s |
+| step + render work | 281.1 s | 125.7 s | **51.7 s** |
+
+### What is actually comparable across the two stacks
+
+**Only cold start and rollout wall.** Everything else is measured differently on each side because
+the two stacks split the work differently:
+
+- 1.1.1's `--og_lite` path calls `env.omnigibson_env.step_blind()` for blind steps
+  (`realm/eval.py:491`), which bypasses `RealmEnvironmentDynamic.step` **and skips
+  `_non_physics_step` entirely**. Hence `RealmEnv.step` fires 90 times on 1.1.1 against 390 on
+  3.9.1, and the 1.1.1 `_non_physics_step` median of 0.72 ms is not the same quantity as 3.9.1's.
+- 1.1.1 renders through explicit `og.sim.render()` (1294 calls); 3.9.1 renders inside
+  `_sim_context.step(render=True)` and uses explicit renders only to flush before an observation.
+
+So read the per-method rows as *within-stack* diagnostics, not as a 1.1.1-vs-3.9.1 ranking.
+
+### The port is faster at rollout and slower at reset
+
+- **Rollout: 309.7 s -> 160.1 s, a 1.9x speedup**, or **3.4x (90.3 s) with OG-lite**, for the same
+  390 steps. Combined step+render work drops 281.1 s -> 125.7 s -> 51.7 s.
+- **Cold start improves only ~10%** (278.3 -> 251.0 s), and it is a wash of two opposite moves: the
+  Isaac import got **3.7x slower** (12.7 -> 47.6 s, pip-installed Isaac Sim 5.1 vs the baked 4.x
+  image) while env creation got faster (265.7 -> 203.4 s). Startup is still the single largest line
+  item in a short eval on either stack.
+- **Reset regressed 2.2x-3.2x**: 2.88 s -> 6.43 s stock -> 9.20 s with OG-lite. At the paper's 25
+  repeats that is +89 s (stock) or +158 s (OG-lite) of pure per-repeat overhead versus 1.1.1. This
+  is the one place the port is clearly worse and it has not been investigated. n=3 resets per run.
+
+### OG-lite on 3.9.1 is now a large, clean win -- this supersedes section 6
+
+Stock vs OG-lite here are the **same code paths in the same image**, differing only by the bind, so
+this comparison does not suffer the caveats above:
+
+| | stock 3.9.1 | OG-lite 3.9.1 | delta |
+| --- | --: | --: | --: |
+| rollout | 160.1 s | 90.3 s | **-44%** |
+| `og.sim.step` median | 237.9 ms | 107.4 ms | **-55%** |
+| `og.sim.step` total | 115.7 s | 42.3 s | -63% |
+| `_non_physics_step` median | 134.2 ms | 42.7 ms | **-68%** |
+| `_non_physics_step` total | 74.5 s | 16.5 s | -78% |
+
+Section 6's standing conclusion -- "no OG-lite speedup is established" -- was measured **before the
+proximity gate worked**. `04fc69b` introduced it and broke REALM outright (the row-mismatch assert);
+`e30899f` fixed it and was only verified on 2026-08-12. These are the first numbers taken with a
+working gate, and the effect is 8-10x larger than the 5-7% that section 6 could not resolve, showing
+up in two independent metrics. **Note this is the proximity gate alone**:
+`gm.INCREMENTAL_CONTACT_CACHE` was at its default (off) in all three runs.
+
+It also lands exactly where section 4 predicted: `_non_physics_step`, which is ~98% contact cache.
+
+### Caveats -- do not quote these as settled
+
+1. **n=1 per condition.** The effect sizes are far larger than the 17% run-to-run variance section 6
+   measured, but nobody has replicated them.
+2. **All three jobs ran concurrently on l40s-05.** That controls for machine state -- the drift that
+   sank section 6 -- but shared CPU and memory bandwidth inflate all three absolute numbers.
+3. **`--model_type debug` returns a constant action**, so the gripper never contacts anything and the
+   contact matrix never enters the ~300 ms spike regime of section 4. Per-step figures are a
+   **floor**, not a pi0.5 rollout cost. The workload is identical across conditions, which is what
+   makes the comparison internally fair.
+4. Part of the 1.1.1 render cost is configuration, not stack: 1.1.1 ran `n_pre_obs_renders=3` against
+   the port's 2. But per-render cost also differs 6.6x (163 ms vs 23-25 ms), which is not config.
+
+Reproduce:
+
+```bash
+sbatch tmp/interactive/sbatch_phase_ref_og111.sh
+OGLITE=0 LABEL=og391_stock  sbatch tmp/interactive/sbatch_phase_ref_og391.sh
+OGLITE=1 LABEL=og391_oglite sbatch tmp/interactive/sbatch_phase_ref_og391.sh
+python tmp/interactive/compare_phases.py ~/projects/REALM/logs/phase_ref
+```
+
+**Instrumentation trap that cost three jobs:** `examples/02_evaluate.py` ends with `og.shutdown()`,
+and Isaac's `SimulationApp.close()` takes the process down hard -- `atexit` handlers and `finally`
+blocks do **not** run. A first round of these jobs exited 0, ran to completion and wrote no results
+at all. Hook `og.shutdown`, not `atexit`. Both profilers here now do, plus a periodic checkpoint
+every 400 samples.
