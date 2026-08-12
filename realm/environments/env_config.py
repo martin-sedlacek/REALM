@@ -53,7 +53,6 @@ def _apply_scene_cfg(env, cfg, task_cfg):
     Returns (scene_cfg, scene_data): the optional per-part scene override (None when the part
     has no scene_definition.yaml) and that part's entry in scenes.yaml.
     """
-    # ---------------------------------------- scene config ----------------------------------------
     for k in ["external_sensors", "robots"]:
         assert k not in cfg, f"{k} should be defined outside the scene file!"
 
@@ -96,7 +95,6 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
 
     Returns the raw (pos, rot_radians) from scenes.yaml, which camera poses are relative to.
     """
-    # ---------------------------------------- robot config ----------------------------------------
     assert "pos" in scene_data and "rot" in scene_data
     robot_pos = scene_data['pos']
     robot_rot = [math.radians(angle_deg) for angle_deg in scene_data['rot']]
@@ -154,7 +152,6 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
 
     Returns the distractor configs (sampled + declared), reported separately by the caller.
     """
-    # ---------------------------------------- object config ----------------------------------------
     obj_list = task_cfg["main_objects"] + task_cfg["target_objects"]
     if "distractors" in task_cfg:
         obj_list += task_cfg["distractors"]
@@ -215,7 +212,6 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
 
 def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
     """Add the external camera sensors to cfg["env"] (skipped when rendering is off)."""
-    # ---------------------------------------- external camera config ----------------------------------------
     if "env" not in cfg:
         cfg["env"] = {
             "initial_pos_z_offset": 0.2
