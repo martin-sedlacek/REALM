@@ -233,7 +233,20 @@ against REALM when this was written:
 | --- | --- | --- |
 | `04fc69b` | incremental contact cache + proximity gate | broke REALM (row mismatch, above) |
 | `6c51667` | gate cache safe for multi-scene vector envs | -- |
-| `e30899f` | fix the row mismatch: explicit sensor path list + list-of-lists filters when rows are gated, wildcard kept when nothing is gated | **being verified** |
+| `e30899f` | fix the row mismatch: explicit sensor path list + list-of-lists filters when rows are gated, wildcard kept when nothing is gated | **VERIFIED 2026-08-12** |
+
+`e30899f` is confirmed working. A 2-step REALM eval on task 0 in `realm_oglite` exited 0 with zero
+`row mismatch` / `Traceback` / `Segmentation fault` hits and wrote all four artifacts with a populated
+data row. Since the assert used to fire inside `simulator.play() -> update_handles() -> initialize_view`,
+before any step could run, a completed rollout is proof the gated view builds. It exercised the new
+branch rather than the wildcard fast path: this same task previously failed with `Expected 54 dynamic
+rows, got 271`, so 217 bodies are gated out here. Its `collisions_self=1, collisions_env=0` matched the
+stock-container row for the same task, so the gated matrix did not silently drop contacts -- though on
+a 2-step run that is weak evidence.
+
+Still unverified: `REALM_INCREMENTAL_CONTACT_CACHE=1` (run 2 above) never ran, so the incremental fold
+remains unexercised and unmeasured. `REALM_PROXIMITY_GATE=0` was never needed, so the fallback is also
+untested.
 
 Its author's note: the 23 unit tests do not touch `initialize_view`, which needs a live PhysX view, so
 a REALM run is the only thing that confirms the gated path builds. Fallback if it regresses is
