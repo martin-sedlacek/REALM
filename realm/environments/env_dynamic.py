@@ -334,7 +334,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         for t in range(WARMUP_STEPS):
             obs, rew, terminated, truncated, info = self.step(self.warmup_action(t, ee_cmd))
 
-        self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
+        # Re-take the reference now that the arm has settled, so the rollout is scored against where
+        # the object actually sits rather than where reset() left it mid-settle. reset() has already
+        # taken it once; this refines that value, it does not repair a different object's pose.
+        self.capture_mo_reference()
         og.log.info("Warmup finished.")
         return obs, rew, terminated, truncated, info
 
@@ -380,6 +383,19 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
             obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
                                           robot_name=self.robot.name)
+
+        # LAST, once every perturbation has run: SB-NOUN re-points main_objects[0] at a distractor
+        # and VSB-NOBJ/VB-MOBJ replace it, so the lift/distance/rotation reference has to be re-taken
+        # from whatever the target now is. Guarded exactly like _helpers.sim_play()/settle(): in a
+        # vector env this phase runs with the sim still STOPPED and a replaced object not yet
+        # initialized, so a pose read here would be invalid -- RealmVectorEnvironment.reset() makes
+        # the equivalent call for every member once its shared play and settle are done.
+        #
+        # Here rather than at the end of reset() because reset() is only one of the two ways this
+        # phase is driven (a vector env and the probe scripts call the phases directly), and the
+        # invariant belongs to the phase that breaks it. See capture_mo_reference().
+        if not self.in_vec_env:
+            self.capture_mo_reference()
         return obs
 
     def _robot2world(self, action):
