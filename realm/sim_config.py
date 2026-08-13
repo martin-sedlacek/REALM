@@ -47,14 +47,26 @@ def set_sim_config(robot="DROID"):
     gm.ENABLE_VISUAL_UPDATES = False
     # OG-lite-only macro: folds each physics substep into (R, C) accumulators instead of
     # materializing an (N, R, C) stack per step. Stock OmniGibson never reads it, so setting it in
-    # the stock container is a harmless no-op. Off by default until the win is measured on REALM's
-    # own workload -- export REALM_INCREMENTAL_CONTACT_CACHE=1 to turn it on.
-    gm.INCREMENTAL_CONTACT_CACHE = os.environ.get("REALM_INCREMENTAL_CONTACT_CACHE", "0") == "1"
-    # Same deal: OG-lite drops bodies further than PROXIMITY_GATE_RADIUS from every robot out of the
-    # contact matrix. It defaults ON in OG-lite; set REALM_PROXIMITY_GATE=0 to rule it out if
+    # the stock container is a harmless no-op.
+    #
+    # ON by default as of 2026-08-13. Evidence:
+    #   - correctness: OG-lite's tests/test_contact_cache_equivalence.py drives the real methods with
+    #     synthetic view data and asserts BIT-IDENTICAL matrices -- 16/16 pass across 5 seeds x
+    #     {1,2,8} substeps, plus the nothing-folded no-op case;
+    #   - runtime: clean across 4 pi0.5 rollouts and several debug runs, all four artifacts written,
+    #     collisions row matching the stock container;
+    #   - speed: -31% of Simulator.step median under pi0.5, -9% under debug (the fold's value scales
+    #     with contact load). See docs/perf/og391_step_profile.md sections 9 and 10.
+    # Set REALM_INCREMENTAL_CONTACT_CACHE=0 to go back to the batched path.
+    gm.INCREMENTAL_CONTACT_CACHE = os.environ.get("REALM_INCREMENTAL_CONTACT_CACHE", "1") == "1"
+    # OG-lite drops bodies further than PROXIMITY_GATE_RADIUS from every robot out of the contact
+    # matrix. It already defaults ON in OG-lite; pinned explicitly here so REALM's behaviour does not
+    # silently follow a change to the fork's default. Set REALM_PROXIMITY_GATE=0 to rule it out if
     # contact-dependent metrics (collisions_env, is_grasping) start behaving oddly.
-    if "REALM_PROXIMITY_GATE" in os.environ:
-        gm.PROXIMITY_GATE_ENABLED = os.environ["REALM_PROXIMITY_GATE"] == "1"
+    #
+    # TURN THIS OFF FOR MOBILE MANIPULATION: gate membership is fixed when the contact view is built,
+    # so a base that drives across the room keeps the membership it had at initialization.
+    gm.PROXIMITY_GATE_ENABLED = os.environ.get("REALM_PROXIMITY_GATE", "1") == "1"
     # Which device runs rigid-body physics. OmniGibson defaults this to False, i.e. the CPU solver
     # with the MBP broadphase; True switches PhysX to GPU dynamics with the GPU broadphase
     # (simulator.py: enable_gpu_dynamics / set_broadphase_type). Unlike the two macros above this is

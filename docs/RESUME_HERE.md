@@ -113,10 +113,32 @@ win. Every headline metric is **fully separated** -- the worst `on` run beats th
 which is the test section 6's fork comparison failed, so n=2 suffices. It also removes the variance:
 `off` swings 145.9% between identical runs, `on` 5.2%.
 
-**Recommendation: turn it on by default for OG-lite runs**, subject to a correctness check on a long
-rollout -- the 2-step equivalence evidence is weak.
+**Now ON by default** (`realm/sim_config.py`, 2026-08-13), together with the proximity gate, which
+is pinned explicitly rather than inherited from the fork's default. No env vars needed; set
+`REALM_INCREMENTAL_CONTACT_CACHE=0` / `REALM_PROXIMITY_GATE=0` to go back.
 
-Still untested: `REALM_PROXIMITY_GATE=0`.
+Correctness rests on OG-lite's `tests/test_contact_cache_equivalence.py`, which drives the real
+methods with synthetic view data and asserts **bit-identical** matrices: **16/16 pass** across 5
+seeds x {1, 2, 8} substeps plus the nothing-folded no-op. That is the check the earlier 2-step
+runtime evidence could not give.
+
+Two caveats worth carrying:
+
+- The fold's benefit **scales with contact load**: -31% of `Simulator.step` median under pi0.5 but
+  only -9% under `--model_type debug`, whose constant action never touches anything. Plan sweeps
+  with the pi0.5 figure.
+- `collisions_env` averaged 7.0 with the fold off and 10.0 with it on across 4 pi0.5 rollouts. That
+  is **not** attributable to the fold -- rollouts are nondeterministic within a condition too
+  (`inc0_r1` and `inc0_r2` diverge), and the unit test rules out a matrix difference. A paired check
+  would need determinism this stack does not have.
+
+Still untested: `REALM_PROXIMITY_GATE=0`. **`gm.CONTACT_REPORTING_PATTERNS` deliberately left off** --
+it is the bigger lever but excluded links go invisible to every contact query, so a bad pattern
+silently zeroes `collisions_env` and `object_drops`. It needs a validated pattern first.
+
+**GPU physics does not work** -- see [section 10b](perf/og391_step_profile.md). Two upstream
+device-consistency gaps, both firing before REALM code runs. `REALM_GPU_DYNAMICS` is wired and left
+in place for when upstream fixes it.
 
 ## Done: pre-port vs ported phase benchmark
 
