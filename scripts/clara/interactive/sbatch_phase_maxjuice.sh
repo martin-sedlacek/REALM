@@ -91,6 +91,7 @@ apptainer run --userns --nv --writable-tmpfs --pwd /app \
   --env REALM_INCREMENTAL_CONTACT_CACHE="$INC" \
   --env REALM_PROXIMITY_GATE="$GATE" \
   --env REALM_GPU_DYNAMICS="$GPU_DYN" \
+  --env REALM_TORCH_DEVICE="${TORCH_DEVICE:-cuda:0}" \
   "$REALM_SIF" \
   python -u /app/scripts/clara/interactive/profile_phases.py --out "$OUT" --label "$LABEL" -- \
     --task_id "$TASK_ID" \

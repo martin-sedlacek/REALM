@@ -551,3 +551,98 @@ above is weak evidence that the folded matrix matches the batched one.
 N=2 ./scripts/clara/interactive/t2_ab_contact.sh          # needs the pi0.5 server on :8000
 python scripts/clara/interactive/analyze_ab.py tmp/interactive/prof
 ```
+
+## 10. OG-lite at full tilt, and the physics-device flip
+
+Two questions, run 2026-08-13 after section 8 was found to have benchmarked OG-lite with
+`gm.INCREMENTAL_CONTACT_CACHE` at its **default (off)**: what does the fork do with every
+semantics-preserving flag on, and does moving physics to the GPU help?
+
+### 10a. All flags on: -9% of step median under `debug`, not -31%
+
+Matched pair, submitted together, same node (l40s-04), identical args, `--model_type debug`:
+
+| | gate only (`INC=0`) | max juice (`INC=1`) | delta |
+| --- | --: | --: | --: |
+| `_non_physics_step` median | 5.69 ms | **0.39 ms** | **-93.2%** |
+| `_non_physics_step` total | 5.4 s | 0.4 s | -92.2% |
+| `og.sim.step` median | 73.2 ms | 66.6 ms | **-9.0%** |
+| `og.sim.step` total | 31.1 s | 26.8 s | -13.9% |
+| `RealmEnv.step` median | 98.2 ms | 91.1 ms | -7.2% |
+| rollout | 70.5 s | 67.6 s | -4.2% |
+| wall | 326.5 s | 329.6 s | +0.9% |
+| reset median | 5.01 s | 6.24 s | +24.5% |
+
+The fold does exactly what it claims -- `_non_physics_step` all but disappears -- but **the
+end-to-end win is only ~9% here, against the ~31% section 9 measured under pi0.5.**
+
+That is not a contradiction, it is the `debug` caveat landing: with a constant action the gripper
+never touches anything, so `_non_physics_step` is already only **5.69 ms** in this workload against
+**24.34 ms** in the pi0.5 A/B. There is 4x less contact-cache time available to remove. The fold's
+value scales with contact load, so:
+
+| workload | `_non_physics_step` median, fold off | step median saved by the fold |
+| --- | --: | --: |
+| `debug` (constant action, no contact) | 5.69 ms | -9% |
+| pi0.5 (real manipulation) | 24.34 ms | **-31%** |
+
+**Quote the pi0.5 number for planning a real sweep.** The `debug` figure is a floor, and this pair
+is what proves it rather than merely asserting it.
+
+The reset row moved the *other* way here (+24.5%), and in the unmatched run before it moved -42%.
+n=3 resets per run: **not resolved, do not read either direction.**
+
+### 10b. GPU physics does not work on this stack -- two upstream blockers
+
+`gm.USE_GPU_DYNAMICS` defaults to **False** in OG 3.9.1, i.e. the CPU solver with the MBP
+broadphase. Setting it (`REALM_GPU_DYNAMICS=1`) switches PhysX to GPU dynamics and the GPU
+broadphase. It fails twice over, both before any REALM logic runs:
+
+1. **`USE_GPU_DYNAMICS=True` alone -> segfault at the first reset.** `env_base.py` defaults its
+   torch backend to `"cpu"`, so the PhysX articulation view is on the GPU while the reader is not.
+   `ArticulationView.get_joint_positions()` returns `None`, and
+   `entity_prim.py:864` does `.view(self.n_dof)` on it:
+
+   ```
+   AttributeError: 'NoneType' object has no attribute 'view'
+   ```
+
+   Isaac turns that into a segfault (exit 139). Reproduced twice, jobs 190243 and 190246 -- warmup
+   completes, then the first `env.reset()` -> `get_obs()` -> `get_proprioception()` dies.
+
+2. **Also setting the backend to `cuda:0` -> scene loading fails instead.** With
+   `cfg["env"]["device"] = "cuda:0"` the crash moves *earlier*, into OmniGibson's own scene import:
+
+   ```
+   scene_base.py:391  obj.set_position_orientation(position=self._init_state[...]["pos"], ...)
+   entity_prim.py:1024
+   RuntimeError: Expected all tensors to be on the same device, but found at least two devices,
+                 cuda:0 and cpu!
+   ```
+
+   The scene-file poses are CPU tensors; the prim now wants CUDA. Job 190247, dies 81 s in, before
+   the first scene finishes loading.
+
+Both are **upstream device-consistency gaps in OmniGibson 3.9.1**, not REALM bugs, and the second
+one fires inside stock scene-loading code. Making GPU dynamics usable needs device-aware tensor
+handling through OG's scene loader and prim layer -- far more than a config flag. **Not pursued
+further.**
+
+`REALM_GPU_DYNAMICS` (`realm/sim_config.py`) and the paired `cfg["env"]["device"]` wiring
+(`realm/environments/env_config.py`) are left in place so the experiment is one env var away when
+upstream fixes this. No PhysX capacity warnings were seen in either attempt, so the GPU capacity
+macros are not the limit here.
+
+### A variance warning for section 8
+
+`m2_gateonly` and `og391_oglite_190218` are the *same configuration*, yet their
+`_non_physics_step` medians are 5.69 ms and 42.71 ms -- a 7.5x gap between nominally identical runs
+on different nodes at different times, far beyond the 17% run-to-run spread section 6 measured.
+Section 8's og-lite-vs-stock **ratios** were taken within one concurrent batch and are unaffected,
+but its **absolute** per-method numbers should not be compared against any other batch.
+
+```bash
+INC=0 GPU_DYN=0 LABEL=gateonly sbatch scripts/clara/interactive/sbatch_phase_maxjuice.sh
+INC=1 GPU_DYN=0 LABEL=maxjuice sbatch scripts/clara/interactive/sbatch_phase_maxjuice.sh
+INC=1 GPU_DYN=1 LABEL=gpuphys  sbatch scripts/clara/interactive/sbatch_phase_maxjuice.sh   # will fail
+```

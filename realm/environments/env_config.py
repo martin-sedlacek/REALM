@@ -216,6 +216,15 @@ def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
         cfg["env"] = {
             "initial_pos_z_offset": 0.2
         }
+    # OmniGibson's torch backend device, which env_base.py defaults to "cpu". It has to move with
+    # gm.USE_GPU_DYNAMICS: with GPU dynamics on but the backend left on CPU, the PhysX articulation
+    # view lives on the GPU and ArticulationView.get_joint_positions() returns None to a CPU reader,
+    # so the first get_obs() after reset dies with
+    #   AttributeError: 'NoneType' object has no attribute 'view'   (entity_prim.py:864)
+    # which Isaac then turns into a segfault. Measured 2026-08-13, job 190243.
+    # Driven by the same REALM_GPU_DYNAMICS knob that sets the macro (realm/sim_config.py).
+    if os.environ.get("REALM_GPU_DYNAMICS") == "1":
+        cfg["env"]["device"] = os.environ.get("REALM_TORCH_DEVICE", "cuda:0")
     if not env.no_rendering:
         ext_cam1_pose = task_cfg["camera_extrinsics"]["cam1"] if "camera_extrinsics" in task_cfg else "default"
         if "camera_extrinsics" in task_cfg and "cam2" in task_cfg["camera_extrinsics"]:
