@@ -12,8 +12,11 @@ interactive allocation rather than the batch queue: a handful of resets and a fe
 
 Checks 1-5 are the original ones, all of which failed (or were meaningless) before that fix:
 
-  1. NO STOP/PLAY -- og.sim.stop/play are wrapped with counters for the duration of the resets.
-     This is the direct assertion that the fix is in force, independent of its consequences.
+  1. NO STOP/PLAY -- og.sim.stop/play/step are wrapped with counters for the duration of the
+     resets. This is the direct assertion that the fix is in force, independent of its
+     consequences. The expectation is per-perturbation, not a flat zero: a pose-only perturbation
+     must not cycle the sim at all, while one in NEEDS_STOPPED_SIM is allowed exactly ONE cycle
+     for the whole reset (never one per member). See the budget derived in run_phase.
   2. CONTACT ROWS -- every member's main object must be a ROW of its own scene's contact view.
      This is the exact thing that broke: rows are dynamic bodies only, and once the object is
      missing, get_contact_pairs returns set(), is_grasping is permanently False, and the rollout
@@ -80,7 +83,7 @@ import omnigibson.lazy as lazy
 from omnigibson.utils.usd_utils import RigidContactAPI
 
 from realm.environments.env_vector import RealmVectorEnvironment
-from realm.environments.perturbations._helpers import SETTLE_STEPS
+from realm.environments.perturbations._helpers import NEEDS_STOPPED_SIM, SETTLE_STEPS
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.sim_config import set_sim_config
 
@@ -323,13 +326,38 @@ def run_phase(vec_env, perturbation, resets, steps):
     print(f"\n[baseline] main-object identity per member: {ident_base}", flush=True)
     prev_ident = [b["identity"] for b in base]   # rolls forward; see the SB-NOUN block below
 
+    # Check 1's budget is not a constant, and pretending it is made this script report a confident
+    # FAILED for every perturbation that legitimately adds or removes an object. Both terms below
+    # are per-perturbation:
+    #
+    #   stop/play -- a pose-only perturbation (VB-POSE, V-VIEW) must not cycle the sim AT ALL. One
+    #     in NEEDS_STOPPED_SIM cannot avoid a stopped sim -- OmniGibson requires one to add or
+    #     remove an object -- so its contract is not "zero" but "EXACTLY ONE for the whole reset":
+    #     RealmVectorEnvironment.reset() hoists the cycle out of the per-member loop, so 1 is
+    #     correct and N is the bug this script exists to catch.
+    #
+    #   step -- a vector reset issues, by construction and with no per-member loop involved:
+    #       num_envs        reset_pre_perturbation() -> og.Environment.reset(get_obs=True) steps
+    #                       the global sim once per member (see the module docstring),
+    #     + num_envs        for NEEDS_STOPPED_SIM only: each member's deferred _post_play() calls
+    #                       og.sim.step() once, drained after the single shared play(),
+    #     + SETTLE_STEPS    the one shared settle loop, when any member asked for it (VB-POSE,
+    #                       V-SC, VB-MOBJ, VSB-NOBJ and SB-VRB do; Default and the S-* do not).
+    #     The budget allows the settle loop unconditionally rather than maintaining a second table
+    #     of which perturbations settle -- it still catches what it is for, because a per-member
+    #     settle loop costs num_envs * SETTLE_STEPS (120 at Vec=4 against a budget of 38) and the
+    #     excess grows with num_envs. The measured count is printed either way.
+    #
+    # This restores the expectation added in "Fix vectorized object-adding perturbations" (30eae35)
+    # and dropped by the merge that brought checks 6-8 in (106ede4), which is why the perturbations
+    # audited on that branch -- all of them pose-free and settle-free -- never showed it.
+    expected_cycles = 1 if perturbation in NEEDS_STOPPED_SIM else 0
+    step_budget = SETTLE_STEPS + num_envs * (2 if perturbation in NEEDS_STOPPED_SIM else 1)
+
     for r in range(resets):
         # ---- check 1: the reset must not stop, play or over-step the sim ----------------------
         # og.sim.step() is as global as stop()/play(): it advances EVERY scene, and a member that
         # steps it from inside its own reset advances its siblings while feeding them no action.
-        # A vector-env reset is allowed exactly one shared settle loop (SETTLE_STEPS, driven by
-        # RealmVectorEnvironment._settle for all members at once), so anything beyond that means a
-        # per-member step loop got in -- and the count then scales with num_envs.
         counts = {"stop": 0, "play": 0, "step": 0}
         real_stop, real_play, real_step = og.sim.stop, og.sim.play, og.sim.step
 
@@ -353,15 +381,19 @@ def run_phase(vec_env, perturbation, resets, steps):
 
         was_playing = og.sim.is_playing()
         print(f"\n===== {perturbation} reset {r + 1}/{resets} =====", flush=True)
-        print(f"  [1] stop() calls={counts['stop']}  play() calls={counts['play']}  "
-              f"step() calls={counts['step']} (<= {SETTLE_STEPS} expected)  "
-              f"sim playing after reset={was_playing}", flush=True)
-        if counts["stop"] or counts["play"]:
-            failures.append(f"reset {r+1}: sim was cycled ({counts['stop']} stop / {counts['play']} play)")
-        if counts["step"] > SETTLE_STEPS:
+        print(f"  [1] stop() calls={counts['stop']}  play() calls={counts['play']} "
+              f"(expected {expected_cycles} of each)  step() calls={counts['step']} "
+              f"(<= {step_budget} expected)  sim playing after reset={was_playing}", flush=True)
+        if counts["stop"] != expected_cycles or counts["play"] != expected_cycles:
+            failures.append(f"reset {r+1}: sim cycled {counts['stop']} stop / {counts['play']} play, "
+                            f"expected {expected_cycles} of each")
+        if counts["step"] > step_budget:
             failures.append(f"reset {r+1}: sim was stepped {counts['step']} times during reset, more "
-                            f"than the single shared settle loop of {SETTLE_STEPS} -- a per-member "
-                            f"step loop is advancing every sibling scene")
+                            f"than the {step_budget} a vector reset needs ({num_envs} per-member "
+                            f"reset obs"
+                            f"{f' + {num_envs} per-member post-play' if expected_cycles else ''}"
+                            f" + one shared settle loop of {SETTLE_STEPS}) -- a per-member step "
+                            f"loop is advancing every sibling scene")
         if not was_playing:
             failures.append(f"reset {r+1}: sim not playing after reset")
 
@@ -605,9 +637,10 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
                 print(f"  - [{p}] {f}", flush=True)
     else:
         print(f"PASSED -- {resets} resets x {num_envs} members for {len(perturbations)} "
-              f"perturbation(s): no sim cycling, main object is a contact row in every scene, "
-              f"grasp check live, instructions as declared, scenes frozen where declared, nothing "
-              f"left the table.", flush=True)
+              f"perturbation(s): the sim was cycled only by the perturbations that need a stopped "
+              f"one and only once per reset, main object is a contact row in every scene, grasp "
+              f"check live, instructions as declared, scenes frozen where declared, nothing left "
+              f"the table.", flush=True)
     print("=" * 70, flush=True)
     return 1 if total else 0
 
