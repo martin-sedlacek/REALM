@@ -15,6 +15,14 @@
 # SB-VRB. Run those with VEC=0 until the stop/play is batched the way apply_scene_fixes_from_cfg
 # already is. Default is safe vectorized.
 #
+# WHY THIS SCRIPT DOES NOT TRUST THE EVAL'S EXIT CODE: Isaac's SimulationApp.close() hard-exits the
+# process with status 0, so an unhandled Python exception still leaves $? at 0. Job 190683
+# (2026-08-13) died on `AssertionError: droid_robolab_v2 is not a registered robot` after ~6 minutes,
+# wrote no results at all, printed "[eval] exited 0", and Slurm recorded COMPLETED. Three runs were
+# silently "successful" that day, one of which was read as a result. The authoritative signal is
+# therefore the ARTIFACTS plus a scan of the run's own log -- see check_run.py, and the
+# "eval gate" block at the bottom. Exit code is reported but never decides.
+#
 #SBATCH --job-name realm-pi05-eval
 #SBATCH --partition l40s
 #SBATCH --gres=gpu:L40S:1
@@ -27,7 +35,9 @@
 
 set -uo pipefail
 
-REALM_ROOT=/mnt/home_lustre/sedlam56/projects/REALM_og391
+# Overridable so a worktree can eval its own checkout: this path is what gets bound as /app AND
+# where the gate's check_run.py is read from, so the two must not be allowed to drift apart.
+REALM_ROOT=${REALM_ROOT:-/mnt/home_lustre/sedlam56/projects/REALM_og391}
 OGLITE_ROOT=/mnt/home_lustre/sedlam56/projects/OG-lite_og391
 OPENPI_ROOT=/mnt/home_lustre/sedlam56/projects/openpi
 REALM_DATA=$REALM_ROOT/data/datasets
@@ -77,14 +87,23 @@ SERVER_PID=$!
 echo "[eval] server pid=$SERVER_PID port=$PORT log=$SERVER_LOG"
 trap 'kill $SERVER_PID 2>/dev/null' EXIT
 
+SERVER_UP=0
 for i in $(seq 1 "$SERVER_WAIT"); do
   kill -0 "$SERVER_PID" 2>/dev/null || { echo "[eval] server died:" >&2; tail -30 "$SERVER_LOG" >&2; exit 1; }
   python3 -c "
 import socket,sys
 s=socket.socket(); s.settimeout(1)
-sys.exit(0 if s.connect_ex(('127.0.0.1',$PORT))==0 else 1)" 2>/dev/null && { echo "[eval] server up after ${i}s"; break; }
+sys.exit(0 if s.connect_ex(('127.0.0.1',$PORT))==0 else 1)" 2>/dev/null && { echo "[eval] server up after ${i}s"; SERVER_UP=1; break; }
   sleep 1
 done
+# Falling out of the loop without a connection used to run the eval anyway against a dead port. The
+# eval then fails ~6 minutes later inside the container, which the gate at the bottom now catches --
+# but there is no reason to spend those minutes, or to report the failure as an eval bug.
+[ "$SERVER_UP" -eq 1 ] || {
+  echo "[eval] FATAL: policy server did not accept connections on port $PORT within ${SERVER_WAIT}s" >&2
+  tail -40 "$SERVER_LOG" >&2
+  exit 1
+}
 
 #--- eval, inside the container with the OG-lite bind ----------------------------------------------
 if [ "$VEC" -ge 1 ]; then
@@ -92,6 +111,13 @@ if [ "$VEC" -ge 1 ]; then
 else
   ENTRY=(python -u /app/examples/02_evaluate.py)
 fi
+
+RESULTS="$REALM_LOGS/$EXPERIMENT/$MODEL_NAME/$RUN_ID"
+EVAL_LOG="$REALM_LOGS/pi05_evalout_${JOB}_${RUN_ID}.log"
+# Taken BEFORE the eval so the gate can tell this run's artifacts from ones an earlier run with the
+# same RUN_ID left in $RESULTS. Without it, re-running a RUN_ID that previously succeeded makes any
+# crash look like a pass, because the directory is already full of a valid-looking eval.
+START_EPOCH=$(date +%s)
 
 apptainer run --userns --nv --writable-tmpfs --pwd /app \
   --bind "$REALM_ROOT":/app \
@@ -112,12 +138,45 @@ apptainer run --userns --nv --writable-tmpfs --pwd /app \
     --model_type openpi --model_name "$MODEL_NAME" \
     --port "$PORT" --host 127.0.0.1 \
     --experiment_name "$EXPERIMENT" --run_id "$RUN_ID" --log_dir /logs \
-    --robot "$ROBOT" --rendering_mode rt
-EXIT=$?
+    --robot "$ROBOT" --rendering_mode rt \
+  2>&1 | tee "$EVAL_LOG"
+# ${PIPESTATUS[0]}, not $?: $? is the exit of `tee`. The eval's own output is teed to its own file so
+# the gate below has an exact, self-contained log to scan even when this runs outside Slurm (JOB=local,
+# no %j log) -- and so the scan cannot be confused by anything this wrapper printed.
+EXIT=${PIPESTATUS[0]}
 
-echo "[eval] exited $EXIT"
-RESULTS="$REALM_LOGS/$EXPERIMENT/$MODEL_NAME/$RUN_ID"
+echo "[eval] exited $EXIT  (NOT a success signal -- see the gate below)"
+printf '### EXIT_CODE=%s\n' "$EXIT" >> "$EVAL_LOG"
 echo "[eval] artifacts: $RESULTS"
 ls "$RESULTS" 2>/dev/null
-[ "$EXIT" -eq 0 ] && rm -rf "$REALM_ROOT/tmp/$JOB"
-exit $EXIT
+
+#--- eval gate: did this run actually produce a complete set of results? ----------------------------
+# The only evidence that counts. check_run.py requires all four artifacts, exactly $REPEATS rollout
+# rows in reports/*.csv (so a run that died half way through is not reported as complete), artifact
+# mtimes newer than this job's start (so a previous run's leftovers under the same RUN_ID cannot
+# stand in for this one), and a log free of Traceback / AssertionError / Segmentation fault / CUDA
+# OOM / 'row mismatch'.
+python3 "$REALM_ROOT/scripts/clara/interactive/check_run.py" \
+    "$RESULTS" "$EVAL_LOG" --repeats "$REPEATS" --newer-than "$START_EPOCH"
+GATE=$?
+
+if [ "$GATE" -ne 0 ]; then
+  echo "==================================================================" >&2
+  echo " EVAL FAILED -- $RUN_ID did NOT produce a complete, verified set of results" >&2
+  echo "   job=$JOB  run_id=$RUN_ID  vec=$VEC  pert_id=$PERT_ID  task=$TASK_ID  repeats=$REPEATS" >&2
+  echo "   reported exit code was $EXIT, which proves nothing: SimulationApp.close() exits 0" >&2
+  echo "   even after an unhandled exception. The gate above is the real verdict." >&2
+  echo "   eval log:  $EVAL_LOG" >&2
+  echo "   artifacts: $RESULTS" >&2
+  echo "   DO NOT report numbers from this run." >&2
+  echo "   Keeping $REALM_ROOT/tmp/$JOB for debugging." >&2
+  echo "==================================================================" >&2
+  exit 1
+fi
+
+echo "=================================================================="
+echo " EVAL OK -- $RUN_ID: $REPEATS rollouts, all artifacts present, clean log"
+echo " artifacts: $RESULTS"
+echo "=================================================================="
+rm -rf "$REALM_ROOT/tmp/$JOB"
+exit 0
