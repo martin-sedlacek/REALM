@@ -120,11 +120,21 @@ class RealmVectorEnvironment:
         obss = [env.apply_perturbations(res[0]) for env, res in zip(self.envs, results)]
 
         if needs_stop:
+            # BEFORE play(), not after. play() runs _non_physics_step(), which initializes whatever
+            # is on the queue and THEN calls update() on every object's states -- and update()
+            # asserts the state is initialized. So an object evicted from the queue makes play()
+            # itself raise "Cannot update uninitialized state." before any repair afterwards could
+            # run. Measured with VSB-NOBJ on task 4, which replaces the MAIN object with one
+            # carrying updatable states; V-SC missed it only because it replaces distractors.
+            # Re-queueing while still stopped lets play() do the initialization itself, in the right
+            # order, instead of us repairing the damage afterwards.
+            orphans = self._requeue_evicted_objects()
             og.sim.play()
-            # play() initializes the objects the perturbations just added -- but not all of them.
-            # See _initialize_evicted_objects for why, and why this has to run before anything reads
-            # or dumps a scene's state.
-            self._initialize_evicted_objects()
+            # Loud rather than silent, kept from when the repair ran after play(): if re-queueing
+            # ever stops working, the next symptom is the same opaque "Object must be initialized
+            # before dumping state!" raised from an unrelated call site much later.
+            failed = [f"scene{o.scene.idx}/{o.name}" for o in orphans if not o.initialized]
+            assert not failed, f"objects still uninitialized after re-queue + play(): {failed}"
 
         for env in self.envs:
             for fn in env.deferred_post_play:
@@ -138,8 +148,8 @@ class RealmVectorEnvironment:
 
         return [(obs, res[1]) for obs, res in zip(obss, results)]
 
-    def _initialize_evicted_objects(self):
-        """Initialize objects that a SIBLING member's remove_object() knocked off the sim's init queue.
+    def _requeue_evicted_objects(self):
+        """Re-queue objects that a SIBLING member's remove_object() knocked off the sim's init queue.
 
         Adding an object appends it to the GLOBAL og.sim._objects_to_initialize
         (Simulator._post_import_object), and Simulator._non_physics_step() initializes everything on
@@ -190,7 +200,7 @@ class RealmVectorEnvironment:
             if not obj.initialized and id(obj) not in queued
         ]
         if not orphans:
-            return
+            return []
 
         # warning, not info: OmniGibson pins the root logger to WARNING (simulator.py:294), so
         # og.log.info() is silently dropped and this line would never be seen. It is also genuinely
@@ -200,12 +210,12 @@ class RealmVectorEnvironment:
             "Re-queueing %d object(s) evicted from the sim init queue by a sibling scene: %s"
             % (len(orphans), ", ".join(f"scene{obj.scene.idx}/{obj.name}" for obj in orphans))
         )
+        # Just re-queue. The caller invokes this while the sim is STOPPED, so the following
+        # og.sim.play() performs the initialization itself via _non_physics_step() -- in that
+        # method's own order, which initializes queued objects before updating any state. Calling
+        # _non_physics_step() here instead would assert, because the sim is not playing yet.
         og.sim._objects_to_initialize.extend(orphans)
-        og.sim._non_physics_step()
-        # Loud rather than silent: if this ever stops working the next symptom is the same opaque
-        # "Object must be initialized before dumping state!" from an unrelated call site.
-        failed = [f"scene{obj.scene.idx}/{obj.name}" for obj in orphans if not obj.initialized]
-        assert not failed, f"objects still uninitialized after re-queueing: {failed}"
+        return orphans
 
     def _settle(self, steps=SETTLE_STEPS):
         """Let every member's scene come to rest, on one shared step loop.
