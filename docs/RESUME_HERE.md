@@ -67,13 +67,22 @@ back on the table at z=0.82 instead of 0.015 on the floor, `docs/vector_env/fram
 
 Still open, and both found while measuring the above:
 
-1. **`reset()` re-adds the removed chair, in every scene including scene 0.** `Scene.reset(hard=True)`
-   restores from `_initial_file`, which is captured at the end of `Scene.initialize()` -- before
-   `apply_scene_fixes_from_cfg` ever runs. `n_objects` goes 127 -> 128 and
-   `straight_chair_pmpwwi_0` returns to `active=True`. Because scene 0 is affected too, **this very
-   likely also happens in the single-env production path**, where `reset()` runs once per repeat.
-   Not yet confirmed there. Candidate fix: `scene.update_initial_file()` after applying the fixes.
-   Worth checking before trusting any result that depends on `to_remove`.
+1. **`reset()` re-adds the removed object -- confirmed on the single-env production path.**
+   `Scene.reset(hard=True)` restores from `_initial_file`, captured at the end of
+   `Scene.initialize()`, i.e. *before* `apply_scene_fixes_from_cfg` ever runs. Measured directly with
+   `scripts/clara/interactive/t3_single_env_chair.py` on plain single-env construction, no vector
+   machinery: removal is correct after construction, then **2 of 2 resets bring
+   `straight_chair_pmpwwi_0` back** (`n_objects` 127 -> 128, `active=True`). Since REALM calls
+   `reset()` once per repeat, **every repeat after the first runs with an object the task config
+   asked to delete** -- at `--repeats 25` that is 24 of 25 rollouts, with the extra chair beside the
+   table the robot works at.
+
+   **This is a port regression, not a historical problem: it is not an issue on 1.1.1** (per
+   Martin, 2026-08-13 -- do not spend time re-verifying it there). So results collected on the old
+   stack are unaffected; results collected on og391 are.
+
+   Candidate fix: `scene.update_initial_file()` after applying the scene fixes, so the post-fix scene
+   becomes what reset restores. Not yet implemented or tested.
 2. **Why scenes 1..N-2 do not recover on reset but the last one does.** Pre-fix, scene_3 came back
    to `above_50m=1` (just the pinned table) after warmup while scenes 1 and 2 stayed at 70. Moot for
    the fix, but it points at per-scene state being clobbered by the global play/stop that

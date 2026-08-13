@@ -194,10 +194,15 @@ qpos (`q0=[0.0056, -0.4623, -0.1084]`), so nothing about the differences is robo
 `restore(self._initial_file)`, and `_initial_file` was captured at the end of `Scene.initialize()` --
 before `apply_scene_fixes_from_cfg` ever ran. So the first reset undoes the removal.
 
-Since scene 0 is affected too, **this very likely also happens in the single-env production path**,
-where `reset()` runs once per repeat. Not yet confirmed there; worth checking before trusting any
-result that depends on `to_remove`. The fix would be `scene.update_initial_file()` after applying
-the scene fixes.
+Since scene 0 is affected too, this is not a vector-env bug at all. **Confirmed on the single-env
+production path** with `scripts/clara/interactive/t3_single_env_chair.py`: removal is correct after
+construction, then 2 of 2 resets bring the chair back. REALM calls `reset()` once per repeat, so
+every repeat after the first runs with an object the task config asked to delete -- 24 of 25 at the
+usual `--repeats 25`.
+
+**It is a port regression: not an issue on OmniGibson 1.1.1** (per Martin, 2026-08-13). Results
+collected on the old stack are unaffected; og391 results are. Candidate fix:
+`scene.update_initial_file()` after applying the scene fixes. Not yet implemented.
 
 ## The fix
 
