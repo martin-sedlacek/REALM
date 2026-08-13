@@ -21,6 +21,7 @@ import numpy as np
 import omnigibson as og
 import omnigibson.lazy as lazy
 
+from realm.environments.env_base import run_joint_resets
 from realm.environments.env_dynamic import RealmEnvironmentDynamic, WARMUP_STEPS
 from realm.environments.perturbations._helpers import (
     NEEDS_STOPPED_SIM,
@@ -82,6 +83,10 @@ class RealmVectorEnvironment:
 
         for env in self.envs:
             env.finalize_setup()
+        # finalize_setup() -> RealmEnvironmentBase.__init__ -> reset_joints(), which in a vector env
+        # only records the plan. Drain it here so construction leaves the drawers where a single env
+        # would, on one shared step loop rather than one per member.
+        self._drain_joint_resets()
         og.log.info(f"{num_envs} environments ready.")
 
     # ============================== [ROLLOUT] ==============================
@@ -98,17 +103,22 @@ class RealmVectorEnvironment:
         So the per-member work is split into phases and the global operations are hoisted out:
 
             1. every member restores its own scene                    (no global state touched)
-            2. ONE og.sim.stop(), if any member's perturbation needs it
-            3. every member's perturbations run
-            4. ONE og.sim.play(), then repair of the sim's object-init queue
-            5. work the perturbations deferred because it needs a playing sim
-            6. ONE settle loop driving all members together, if any asked for it
-            7. every member re-takes its main-object scoring reference
+            2. ONE joint-reset loop for every member that asked for one (drawer tasks only)
+            3. ONE og.sim.stop(), if any member's perturbation needs it
+            4. every member's perturbations run
+            5. ONE og.sim.play(), then repair of the sim's object-init queue
+            6. work the perturbations deferred because it needs a playing sim
+            7. ONE joint-reset loop again, for the perturbations that ask for one
+            8. ONE settle loop driving all members together, if any asked for it
+            9. every member re-takes its main-object scoring reference
 
         Mirrors the batching already used for scene fixes in __init__ and for the warmup loop.
         Returns a list of per-member (obs, info).
         """
         results = [env.reset_pre_perturbation() for env in self.envs]
+        # reset_pre_perturbation() calls reset_joints(), which in a vector env only records a plan.
+        # Drain it HERE, before the stop below: og.sim.step() asserts a playing sim.
+        self._drain_joint_resets()
 
         # Only cycle the sim if a perturbation actually requires a stopped one (adding or removing
         # objects). Pose-only perturbations such as VB-POSE and V-VIEW write on a live sim, and
@@ -143,12 +153,18 @@ class RealmVectorEnvironment:
                 fn()
             env.deferred_post_play.clear()
 
+        # Perturbations call reset_joints() too: V-VIEW, VB-POSE and SB-NOUN inline during
+        # apply_perturbations(), and V-SC, VB-MOBJ, VSB-NOBJ and SB-VRB from the _post_play blocks
+        # just drained. Both land here -- after the shared play, so the sim is playing, and before
+        # the shared settle, which is the order a single env runs them in too.
+        self._drain_joint_resets()
+
         if any(env.wants_settle for env in self.envs):
             self._settle()
         for env in self.envs:
             env.wants_settle = False
 
-        # 7. every member re-takes its lift/distance/rotation reference from the object it will
+        # 9. every member re-takes its lift/distance/rotation reference from the object it will
         #    actually be scored on. RealmEnvironmentDynamic.reset() does this at its own tail; a
         #    vector env drives the phases itself, so it has to make the call itself too -- same
         #    reason the settle and the deferred post-play work are hoisted up here. It goes LAST,
@@ -156,6 +172,16 @@ class RealmVectorEnvironment:
         #    settling one has not stopped moving) before that. See capture_mo_reference().
         for env in self.envs:
             env.capture_mo_reference()
+
+        # Nothing may still be pending. reset_joints() RECORDS in a vector env, so a call site that
+        # lands outside the drain points above would leave a drawer at whatever openness the
+        # previous rollout ended on and score the next one against it -- silently, since every other
+        # check would still pass. Loud here, exactly as for the init-queue repair above.
+        stuck = [i for i, env in enumerate(self.envs) if env.pending_joint_reset is not None]
+        assert not stuck, (
+            f"members {stuck} recorded a joint reset that was never run -- a reset_joints() call "
+            f"site is outside RealmVectorEnvironment's drain points"
+        )
 
         return [(obs, res[1]) for obs, res in zip(obss, results)]
 
@@ -286,6 +312,24 @@ class RealmVectorEnvironment:
         # _non_physics_step() here instead would assert, because the sim is not playing yet.
         og.sim._objects_to_initialize.extend(orphans)
         return orphans
+
+    def _drain_joint_resets(self):
+        """Run every member's pending drawer reset on ONE shared step loop.
+
+        reset_joints() issues ~55 og.sim.step()s on a drawer task and og.sim.step() advances every
+        scene, so letting each member run its own loop costs 55*N global steps per reset and steps
+        each member's scene N times over while driving only one member's joints -- the same defect
+        the settle loop and the stop/play cycle were hoisted out of the per-member loop for. In a
+        vector env reset_joints() therefore only records a plan; this drains them all at once. See
+        env_base.run_joint_resets for the full write-up, including why it is UNVERIFIED
+        (open_drawer/close_drawer do not load on this port, so nothing here executes today).
+
+        Called at every point a member could have recorded a plan: after construction's
+        finalize_setup() loop, after phase 1 of reset(), and after the perturbations. reset() then
+        asserts nothing is left pending, so a future reset_joints() call site outside those points
+        fails loudly instead of silently skipping the drawer reset.
+        """
+        run_joint_resets(self.envs)
 
     def _settle(self, steps=SETTLE_STEPS):
         """Let every member's scene come to rest, on one shared step loop.

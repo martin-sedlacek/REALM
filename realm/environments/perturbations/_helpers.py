@@ -198,7 +198,19 @@ def replace_obj(env: "RealmEnvironmentDynamic", obj: DatasetObject, included_cat
                                                      torch.tensor([0, 0, 0, 1]))
 
     bbox_center, bbox_orn, bbox_extent, bbox_center_in_frame = new_obj.get_base_aligned_bbox()
-    nobj_cfg["bounding_box"] = bbox_center
+    # EXTENT, not centre. "bounding_box" is a SIZE everywhere it is consumed -- the task YAMLs write
+    # [0.20, 0.20, 0.07] and get_non_colliding_positions_for_objects reads cfg["bounding_box"][0] / 2
+    # as a half-width -- while get_base_aligned_bbox returns the centre in WORLD frame. The scale
+    # multiply just below, which shrinks the value along with the object, only makes sense for a size.
+    #
+    # LATENT rather than live: no caller reads this key today (v_sc.py discards the cfg, vsb_nobj.py
+    # and sb_vrb.py read only "category"/"model"), and the dict is freshly built by sample_objects()
+    # or by the literal above, so it is never aliased into env.cfg["objects"] either. Fixed rather
+    # than merely flagged because the identical line in sb_vrb.py DID feed placement and was
+    # measured: a world-frame centre reads ~0 in scene 0, whose origin is the world origin, but
+    # ~25 m per tile in every other member of a vector env, so the "half-width" came out ~12.5 m, no
+    # candidate position could clear it, and the receiver was dropped ~12 m off the table.
+    nobj_cfg["bounding_box"] = bbox_extent
 
     max_dim = np.max(bbox_extent.numpy())
     new_scale_factor = maximum_dim / max_dim

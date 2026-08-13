@@ -1,4 +1,5 @@
 import copy
+from collections import namedtuple
 
 import numpy as np
 import torch
@@ -24,8 +25,78 @@ register_realm_controllers()
 INIT_OPENNESS_FRACTION = 1.0 #0.5
 TASK_PROGRESS_RUBRICS = load_task_progressions()
 
+# The free-run half of a drawer reset: let the cabinet come to rest, tell every one of its joints to
+# hold, then let that take effect. Named rather than inline so the cost of a drawer reset is legible
+# at a glance -- these two plus utils.reset_joints' 10 + 5 are the ~55 global steps per reset that
+# run_joint_resets exists to stop multiplying by the member count.
+JOINT_SETTLE_STEPS = 30
+JOINT_HOLD_STEPS = 10
+
+# One member's pending drawer reset: what reset_joints() worked out per member, minus every
+# og.sim.step() -- those are global, so run_joint_resets() issues them once for all members.
+JointResetPlan = namedtuple("JointResetPlan", ["cabinet", "joints", "reset_states"])
+
+
+def run_joint_resets(envs):
+    """Work every pending joint reset in @envs off ONE shared set of og.sim.step() calls.
+
+    RealmEnvironmentBase.reset_joints() issues ~55 og.sim.step()s on a drawer task (10 + 5 driving
+    the joints home in utils.reset_joints, then 30 + 10 free-running here). og.sim.step() is GLOBAL,
+    so a vector env running that per member costs 55*N global steps per reset and advances every
+    member's scene N times over while only one member's joints are being driven -- the same defect
+    that the per-member settle loops and the per-member og.sim.stop()/play() cycles were hoisted out
+    of RealmVectorEnvironment.reset() for. This is that hoist for the joint reset.
+
+    Each member still experiences exactly the sequence a single env gives it: its own writes, then a
+    step, N members' writes at a time. With one member the emitted calls are identical to the
+    pre-batching straight-line version, so single-env behaviour is unchanged.
+
+    UNVERIFIED END TO END: the only task types that reach a non-empty @pending are open_drawer and
+    close_drawer, and neither loads on this port (cabinet.usd -> TypeError: missing a required
+    argument: 'preset_name' in omnigibson/prims/material_prim.py). This body has therefore never
+    executed; it was written by construction from the straight-line version it replaced, not
+    confirmed against a running drawer task. Anything else takes the early return above.
+    """
+    pending = [env for env in envs if env.pending_joint_reset is not None]
+    if not pending:
+        return
+
+    reset_joints_batched(
+        [(env.pending_joint_reset.joints, env.pending_joint_reset.reset_states) for env in pending]
+    )
+    # Between the two loops, exactly where the straight-line version read it: the openness the
+    # drawer actually settled into once driven home, which is what the joint progression stages are
+    # scored against -- not the openness it was commanded to.
+    for env in pending:
+        env._record_joint_openness()
+
+    # Pure settle -- no camera is read, so skip the render pass on all 40 steps.
+    # (gm.HEADLESS only removes the window; step() still renders without this context.)
+    with og.sim.render_on_step(False):
+        for _ in range(JOINT_SETTLE_STEPS):
+            og.sim.step()
+        for env in pending:
+            for j in env.pending_joint_reset.cabinet.joints.values():
+                j: JointPrim
+                j.keep_still()
+        for _ in range(JOINT_HOLD_STEPS):
+            og.sim.step()
+
+    # Clear last: the loop above reads pending_joint_reset.cabinet, and a member whose plan is still
+    # set after this returns is the "recorded but never run" case RealmVectorEnvironment asserts on.
+    for env in pending:
+        env.pending_joint_reset = None
+
 
 class RealmEnvironmentBase:
+    # Per-instance in practice -- RealmEnvironmentDynamic.__init__ sets it before og.Environment is
+    # built -- but declared here because RealmEnvironmentBase.__init__ itself calls reset_joints(),
+    # which has to read it.
+    in_vec_env = False
+    # A JointResetPlan recorded by reset_joints() and drained by RealmVectorEnvironment. Always None
+    # outside a vector env, where reset_joints() runs the plan inline before returning.
+    pending_joint_reset = None
+
     def __init__(
         self,
         main_objects,
@@ -42,6 +113,8 @@ class RealmEnvironmentBase:
         # re-takes these from the live object via capture_mo_reference() below.
         self.mo_pos_orig = np.array(mo_cfgs[0]["position"])
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
+        # Build-time and STAYS build-time, unlike the two above. Not an oversight -- see the last
+        # paragraph of capture_mo_reference() for why re-taking this one would be a regression.
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
 
         self.task_type = task_type
@@ -124,6 +197,32 @@ class RealmEnvironmentBase:
         tail of reset()) plus both warmups. A vector env needs its own call in
         RealmVectorEnvironment.reset(), because apply_perturbations() runs there before the shared
         play -- exactly as it already needs its own settle and its own deferred post-play drain.
+
+        mo_bbox_orig is DELIBERATELY not re-taken here, though it is seeded on the line right after
+        these two and looks like it has the same staleness shape. It does not, for three separate
+        reasons, any one of which is enough:
+
+          - It is an ANCHOR, not a description of the current object. Its only reader is VB-MOBJ,
+            which computes `mo_bbox_orig * U(0.5,1.5)^3` EVERY reset and then rescales
+            (PrimitiveObject) or removes-and-re-adds (DatasetObject) main_objects[0] at that size.
+            Re-taking it would make each reset scale relative to the previous reset's already-scaled
+            object -- a multiplicative random walk that ends up pinned against vb_mobj.py's
+            [0.02, 0.175] m clip. Anchoring on the task config is what keeps VB-MOBJ's draw
+            independent per reset, which is also what the harness's `size` observable assumes.
+          - The staleness itself is unreachable. The perturbations that re-point main_objects[0] at
+            a DIFFERENT object are SB-NOUN and VSB-NOBJ, and REALM runs exactly one perturbation per
+            process (eval.py builds `[SUPPORTED_PERTURBATIONS[perturbation_id]]`, vector_eval.py
+            `[perturbation]`), so neither can ever precede VB-MOBJ. VB-MOBJ's own swap is
+            same-category/same-model, and is the swap the anchor exists to survive.
+          - There is nothing sound to capture. For a PrimitiveObject vb_mobj.py assigns this value
+            to `mo.scale`, which is a scale FACTOR; it only coincides with an extent because
+            primitives are authored at scale 1. get_position_orientation() has no analogue for it.
+
+        If perturbations are ever COMPOSED -- the same caveat v_view.py records -- SB-NOUN followed
+        by VB-MOBJ would leave mo_bbox_orig describing an object that is no longer the target. The
+        fix then belongs in the perturbation that does the swapping (re-seed from the new object's
+        CONFIG), not here: this method reads the live object, which is exactly what mo_bbox_orig
+        must not do.
         """
         # Stored as OmniGibson hands them back (torch, cloned -- RigidDynamicPrim.get_position_
         # orientation defaults to clone=True, so this is a snapshot and not a view onto the physics
@@ -131,37 +230,65 @@ class RealmEnvironmentBase:
         # always stored, so no historical number moves.
         self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
 
-    def  reset_joints(self, target_drawer_loc: str = "top"):
-        if self.task_type in ["open_drawer", "close_drawer"]:
-            cabinet = self.main_objects[0]
-            init_state_open = self.task_type == "close_drawer"
-            self.mo_joint = get_target_drawer_joint(cabinet, target_drawer_loc=target_drawer_loc)
+    def reset_joints(self, target_drawer_loc: str = "top"):
+        """Put this member's cabinet back to the task's starting drawer state.
 
-            self.mo_joint._articulation_view.set_max_efforts(torch.tensor([[1.0e8]], dtype=torch.float32), joint_indices=self.mo_joint.dof_indices)
-            self.mo_joint._articulation_view.set_gains(kps=torch.tensor([[0.0]]), joint_indices=self.mo_joint.dof_indices)
-            self.mo_joint._articulation_view.set_gains(kds=torch.tensor([[1000.0]]), joint_indices=self.mo_joint.dof_indices)
+        In a vector env this only RECORDS the plan and returns; RealmVectorEnvironment drains it and
+        runs one shared step loop for every member. Same reason and same shape as
+        perturbations/_helpers.settle(): og.sim.step() advances EVERY scene, and the loop this
+        method drives is ~55 of them -- nearly twice the settle loop that was already hoisted out
+        for exactly this reason -- so per member it costs 55*N global steps per reset. See
+        run_joint_resets().
 
-            openable_joints = get_openable_joints(cabinet)
-            reset_states = [-1 for _ in openable_joints]
-            target_joint_ind = openable_joints.index(self.mo_joint)
-            reset_states[target_joint_ind] = INIT_OPENNESS_FRACTION if init_state_open else -1
-            reset_joints(openable_joints, reset_states=reset_states)
-            self.joint_range = self.mo_joint.upper_limit - self.mo_joint.lower_limit
-            self.init_openness_fraction = (self.mo_joint.get_state()[0][
-                                               0] - self.mo_joint.lower_limit) / self.joint_range
-            # Pure settle -- no camera is read, so skip the render pass on all 40 steps.
-            # (gm.HEADLESS only removes the window; step() still renders without this context.)
-            with og.sim.render_on_step(False):
-                for _ in range(30):
-                    og.sim.step()
-                for j in cabinet.joints.values():
-                    j: JointPrim
-                    j.keep_still()
-                for _ in range(10):
-                    og.sim.step()
+        Recording rather than no-oping is deliberate, for the reason settle() raises a flag: a
+        member that never asked for a joint reset must not silently acquire one, and a plan that is
+        never drained must fail loudly -- RealmVectorEnvironment.reset() asserts the queue is empty
+        -- rather than quietly leave a drawer in the wrong start state and score the rollout
+        against it.
 
-        else:
+        Only open_drawer/close_drawer reach any of this, and neither task loads on this port, so
+        the batching is UNVERIFIED end to end. Every other task takes the early return below, which
+        is what it always did and costs nothing either way.
+        """
+        if self.task_type not in ("open_drawer", "close_drawer"):
             self.mo_joint = None
+            return
+
+        self.pending_joint_reset = self._prepare_joint_reset(target_drawer_loc)
+        if not self.in_vec_env:
+            run_joint_resets([self])
+
+    def _prepare_joint_reset(self, target_drawer_loc: str) -> JointResetPlan:
+        """The half of reset_joints() that touches only THIS member: pick the joint, set its drive.
+
+        Deliberately contains no og.sim.step(): that is what lets a vector env run this for every
+        member up front and then step once for all of them. It stays at the reset_joints() call site
+        rather than being deferred with the stepping, so a caller that reads self.mo_joint straight
+        afterwards still sees the joint this reset selected.
+        """
+        cabinet = self.main_objects[0]
+        init_state_open = self.task_type == "close_drawer"
+        self.mo_joint = get_target_drawer_joint(cabinet, target_drawer_loc=target_drawer_loc)
+
+        self.mo_joint._articulation_view.set_max_efforts(torch.tensor([[1.0e8]], dtype=torch.float32), joint_indices=self.mo_joint.dof_indices)
+        self.mo_joint._articulation_view.set_gains(kps=torch.tensor([[0.0]]), joint_indices=self.mo_joint.dof_indices)
+        self.mo_joint._articulation_view.set_gains(kds=torch.tensor([[1000.0]]), joint_indices=self.mo_joint.dof_indices)
+
+        openable_joints = get_openable_joints(cabinet)
+        reset_states = [-1 for _ in openable_joints]
+        target_joint_ind = openable_joints.index(self.mo_joint)
+        reset_states[target_joint_ind] = INIT_OPENNESS_FRACTION if init_state_open else -1
+        return JointResetPlan(cabinet=cabinet, joints=openable_joints, reset_states=reset_states)
+
+    def _record_joint_openness(self):
+        """Capture the openness reference the joint progression stages are measured against.
+
+        Called by run_joint_resets() between the driving loop and the free-run loop, which is where
+        the pre-batching straight-line version read it.
+        """
+        self.joint_range = self.mo_joint.upper_limit - self.mo_joint.lower_limit
+        self.init_openness_fraction = (self.mo_joint.get_state()[0][
+                                           0] - self.mo_joint.lower_limit) / self.joint_range
 
     # ============================== [STATUS] ==============================
     def get_ee_pose(self):
