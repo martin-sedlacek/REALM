@@ -25,18 +25,26 @@ N times, each time disturbing the other N-1 members mid-reset.
 
 ```
 1. every member restores its own scene                   (no global state touched)
-2. repair the sim's object-init queue                    (see "eviction" below)
-3. ONE og.sim.stop(), only if a member's perturbation needs it
-4. every member's perturbations run
-5. ONE og.sim.play()
-6. work the perturbations deferred because it needs a playing sim
-7. ONE settle loop driving all members together, if any asked for it
+2. ONE joint-reset loop for every member that asked      (drawer tasks only)
+3. repair the sim's object-init queue                    (see "eviction" below)
+4. ONE og.sim.stop(), only if a member's perturbation needs it
+5. every member's perturbations run
+6. ONE og.sim.play()
+7. work the perturbations deferred because it needs a playing sim
+8. ONE joint-reset loop again, for the perturbations that ask for one
+9. ONE settle loop driving all members together, if any asked for it
 ```
 
 Perturbations never call the global operations directly. They route through
 `perturbations/_helpers.py` — `sim_stop`, `sim_play`, `sim_step`, `after_play`, `settle` — which
-no-op or defer when `env.in_vec_env`. **Single-env behaviour is unchanged**, which is what lets the
+no-op or defer when `env.in_vec_env`. `reset_joints()` follows the same shape via
+`env_base.run_joint_resets()`. **Single-env behaviour is unchanged**, which is what lets the
 historical numbers stay comparable.
+
+Note the shape `settle()` uses, and which `reset_joints()` copies: in a vector env it **raises a
+flag** rather than no-opping, and `RealmVectorEnvironment.reset()` asserts nothing is left flagged
+when it finishes. No-opping would let a perturbation that never settles silently acquire the shared
+settle, and let a drawer reset that lands outside a drain point silently not happen at all.
 
 Only perturbations that ADD or REMOVE objects need a stopped sim (`NEEDS_STOPPED_SIM` =
 V-SC, VB-MOBJ, VSB-NOBJ, SB-VRB). Pose writes work fine on a live sim, so VB-POSE and V-VIEW cycle
@@ -157,11 +165,20 @@ DatasetObject, so **a task-0 pass says nothing about its add/remove path** — i
   `TypeError: missing a required argument: 'preset_name'` in `omnigibson/prims/material_prim.py`.
   2 of 10 tasks, and with them the drawer branches of SB-NOUN and S-LANG — those are the only tasks
   with a `synonyms:` block, so S-LANG's synonym path has never executed.
-- **`reset_joints()` issues ~55 global `og.sim.step()`s per member per reset on drawer tasks** — the
-  same class as the bug removed here, unreachable today only because those tasks do not load. The
-  harness's step counter will catch it the day the asset is fixed.
+- **`reset_joints()`'s ~55 global steps per member per reset are now batched, but UNVERIFIED.**
+  `RealmEnvironmentBase.reset_joints()` records a `JointResetPlan` in a vector env and
+  `env_base.run_joint_resets()` drives every member off one shared loop, so a drawer reset costs 55
+  global steps rather than 55·N. It cannot be run end to end while the asset above is broken.
+  `tests/test_joint_reset_batching.py` covers the scheduling half with a stubbed `og.sim` —
+  measured 55 steps at 4 members against 55 at 1, with every member seeing the identical single-env
+  call sequence — but *nothing* has confirmed a real cabinet lands at the right openness.
 - **Every vector reset does N global steps and 3N renders before any perturbation**, from
   `og.Environment.reset(get_obs=True)` per member. Measured harmless (<4e-5 m drift), but O(N).
+  V-VIEW used to *double* that: it ended with a second per-member `og.Environment.reset()`, left
+  over from when `og.sim.stop()` clobbered the scene, so a V-VIEW reset issued 2N global steps
+  (measured 4 at Vec=2 against Default's 2, 8 at Vec=4 against 4). Removed 2026-08-14; the step
+  count now equals Default's, and the camera spreads, per-member object poses and check-4 verdict
+  are unchanged to every printed digit.
 - **SB-NOUN degenerates** ~1/5 of resets by re-drawing the original PrimitiveObject (category
   literally `"object"`) → *"put the object in the bowl"*. Changing which objects it may draw alters
   what the perturbation means, so it is a human decision.

@@ -62,11 +62,20 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
         base_cam_config = env.cfg["env"]["external_sensors"][i]
         pose_frame = base_cam_config["pose_frame"]
         env.omnigibson_env.external_sensors[base_cam_config["name"]].set_position_orientation(new_cam_pos, new_cam_orientation, pose_frame)
-    # This reset() existed to restore scene state that og.sim.stop() had clobbered. With the stop
-    # gone it is redundant -- RealmEnvironmentDynamic.reset() already reset this member immediately
-    # before calling the perturbation, and nothing above moves an object. Kept anyway so the
-    # post-state is bit-identical to the stop/play version; REALM runs one perturbation per eval, so
-    # it cannot undo a sibling perturbation's object placement. Drop it if perturbations are ever
-    # composed, where restoring objects after a pose perturbation WOULD silently erase it.
-    obs, _ = env.omnigibson_env.reset()
+    # An og.Environment.reset() used to sit here. It existed to restore scene state that
+    # og.sim.stop() had clobbered; with the stop gone it restored nothing that was disturbed --
+    # reset_pre_perturbation() already reset this member immediately before the perturbation ran,
+    # and the loop above writes only external-sensor poses, which are env-level prims that
+    # og.Environment.reset() does not touch (if it did, V-VIEW would already be a no-op and the
+    # harness's `cameras` check could not pass).
+    #
+    # It was not free. og.Environment.reset(get_obs=True) issues a GLOBAL og.sim.step() plus three
+    # og.sim.render()s, and REALM applies perturbations per member, so a vector reset paid it once
+    # per member ON TOP of the one reset_pre_perturbation() already does -- measured 2N: 4 global
+    # steps at Vec=2 against Default's 2, 8 at Vec=4 against 4. Same class as the per-member settle
+    # loops removed from the other perturbations, one step per member instead of thirty.
+    #
+    # env.reset_joints() below is kept. It is the same "post-state identical to the stop/play
+    # version" line vb_pose.py carries, it is a two-line no-op on every task that is not
+    # open_drawer/close_drawer, and on those it is now batched across members anyway.
     env.reset_joints()

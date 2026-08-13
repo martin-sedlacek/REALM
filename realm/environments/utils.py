@@ -29,20 +29,47 @@ def reset_joints(
         closing_steps: int = 10,
         still_steps: int = 5
 ):
-    if reset_states is None:
-        reset_states = [-1.0 for _ in joints]
-    assert len(joints) == len(reset_states), f"{len(joints)=}, {len(reset_states)=}"
+    """Drive ONE member's joints to @reset_states. See reset_joints_batched for the vector form."""
+    reset_joints_batched([(joints, reset_states)], closing_steps=closing_steps, still_steps=still_steps)
+
+
+def reset_joints_batched(
+        programs: list[tuple[list[JointPrim], list[float] | None]],
+        closing_steps: int = 10,
+        still_steps: int = 5
+):
+    """Drive SEVERAL members' joint sets to their targets off ONE shared step loop.
+
+    og.sim.step() advances every scene in the simulator, not the caller's. Running the single-member
+    loop once per member therefore costs (closing_steps + still_steps) * N global steps and, worse,
+    steps each member's scene N times per reset while its own joints are being driven for only one
+    of those passes. Interleaving instead -- write every member's targets, then step once -- gives
+    each member exactly the sequence of writes and steps it sees single-env, for a total of
+    closing_steps + still_steps steps regardless of N.
+
+    With a single program the emitted call sequence is identical to the pre-batching loop, so
+    single-env behaviour is unchanged.
+    """
+    normalized = []
+    for joints, reset_states in programs:
+        if reset_states is None:
+            reset_states = [-1.0 for _ in joints]
+        assert len(joints) == len(reset_states), f"{len(joints)=}, {len(reset_states)=}"
+        normalized.append((joints, reset_states))
+
     # Pure settle -- no camera is read, so skip the render pass on every step.
     with og.sim.render_on_step(False):
-        for step in range(closing_steps):
-            for j, target_state in zip(joints, reset_states):
-                j.set_pos(target_state, normalized=True)
-                j.set_vel(0)
-                j.set_effort(0)
+        for _ in range(closing_steps):
+            for joints, reset_states in normalized:
+                for j, target_state in zip(joints, reset_states):
+                    j.set_pos(target_state, normalized=True)
+                    j.set_vel(0)
+                    j.set_effort(0)
             og.sim.step()
-        for step in range(still_steps):
-            for j in joints:
-                j.keep_still()
+        for _ in range(still_steps):
+            for joints, _ in normalized:
+                for j in joints:
+                    j.keep_still()
             og.sim.step()
 
 

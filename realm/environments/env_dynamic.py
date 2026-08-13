@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 import yaml
 import copy
 import os
@@ -33,7 +32,6 @@ from realm.sim_config import set_rendering_mode
 
 import omnigibson as og
 import omnigibson.lazy as lazy
-from omnigibson.objects import DatasetObject
 from omnigibson.utils.asset_utils import get_all_object_models
 from omnigibson.utils.usd_utils import create_joint
 from scipy.spatial.transform import Rotation as R
@@ -118,6 +116,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             cfg["env"]["rendering_frequency"] = common_freq
             cfg["env"]["action_frequency"] = common_freq
 
+        # Duplicated from RealmEnvironmentBase.__init__, which finalize_setup() runs later and which
+        # overwrites all three with the same values. Read the write-up there (and in
+        # capture_mo_reference()) before touching these -- in particular why mo_bbox_orig is an
+        # anchor on the task config and must NOT track the live object.
         self.mo_pos_orig = np.array(mo_cfgs[0]["position"])
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
@@ -473,68 +475,8 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
         return sampled_objects
 
-    def replace_obj(self, obj: DatasetObject, included_categories=None, maximum_dim=0.2, fixed_base=False, preserve_ori=True):
-        obj_name = obj.name
-
-        if not (included_categories is None) and len(included_categories) == 1 and "bottom_cabinet" in included_categories:
-            bottom_cabinet_models = [
-                "bamfsz",
-                "dsbcxl",
-                "ilofmb",
-                # "jhymlr", two top drawers
-                "lhucjo",
-                "mbmbpa",
-                "nddvba",
-                "immwzb",
-                "pkdnbu",
-                "plccav",
-                #"pllcur", opens bottom for some reason
-                "rntwkg",
-                # "ttmejh", not leveled
-                "slgzfc",
-                "rvpunw",
-                "wesxdp",
-                "rhdbzv"
-            ]
-            sampled_idx = np.random.choice(len(bottom_cabinet_models), size=1, replace=False)[0]
-            nobj_cfg = {
-                "type": "DatasetObject",
-                "name": obj_name,
-                "category": "bottom_cabinet",
-                "model": bottom_cabinet_models[sampled_idx],
-            }
-        else:
-            candidates = self.sample_objects(num_objects=1, included_categories=included_categories)
-            if not candidates:
-                raise ValueError(f"replace_obj: No suitable objects found for categories: {included_categories}")
-            nobj_cfg = candidates[0]
-
-        self.omnigibson_env.scene.remove_object(obj)
-
-        new_obj = DatasetObject(
-            name=obj_name,
-            relative_prim_path=obj._relative_prim_path,
-            category=nobj_cfg["category"],
-            model=nobj_cfg["model"],
-            fixed_base=fixed_base
-        )
-        self.omnigibson_env.scene.add_object(new_obj)
-
-        if preserve_ori:
-            new_obj.set_bbox_center_position_orientation(torch.tensor(self.init_poses[new_obj._relative_prim_path]["pos"]),
-                                                        torch.tensor(self.init_poses[new_obj._relative_prim_path]["rot"]))
-        else:
-            new_obj.set_bbox_center_position_orientation(torch.tensor(self.init_poses[new_obj._relative_prim_path]["pos"]),
-                                                        torch.tensor([0, 0, 0, 1]))
-
-        bbox_center, bbox_orn, bbox_extent, bbox_center_in_frame = new_obj.get_base_aligned_bbox()
-        nobj_cfg["bounding_box"] = bbox_center
-
-        max_dim = np.max(bbox_extent.numpy())
-        new_scale_factor = maximum_dim / max_dim
-        if new_scale_factor < 1.0:
-            new_obj.scale = new_scale_factor # TODO: explain method code in comments
-            nobj_cfg["bounding_box"] = nobj_cfg["bounding_box"] * new_scale_factor
-        nobj_cfg["fixed_base"] = fixed_base
-
-        return new_obj, nobj_cfg
+    # NOTE: RealmEnvironmentDynamic.replace_obj() used to live here. It was a pre-refactor duplicate
+    # of perturbations/_helpers.replace_obj() with ZERO call sites left (every perturbation imports
+    # the _helpers one), and it still carried the bbox-centre-as-extent bug that _helpers and
+    # sb_vrb.py have since fixed. Deleted rather than repaired so there is only one copy to keep
+    # correct -- the next person to wire up "replace an object" must find the live one.
