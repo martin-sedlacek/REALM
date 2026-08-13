@@ -47,10 +47,19 @@ def vsb_nobj(env: "RealmEnvironmentDynamic") -> None:
         env.omnigibson_env.scene.update_initial_file()  # renamed from update_initial_state() in OG 3.9.1
         env.reset_joints()
 
-    after_play(env, _post_play)
+        # MUST be inside _post_play, not after it. ToggleState.visual_marker is None until the
+        # state's _initialize() runs (object_states/toggle.py: set to None in __init__, assigned in
+        # _initialize), which only happens once the simulator is playing. Single-env this was
+        # invisible -- sim_play() really played and after_play() ran this block inline, so the
+        # marker existed by the time anything touched it. In a vector env sim_play() is a no-op and
+        # this block is DEFERRED until the shared play, so running the line outside it touched a
+        # brand-new object on a stopped sim: AttributeError: 'NoneType' object has no attribute
+        # 'visible' (measured on task 4, pick_spoon, where the sampler drew a toggleable
+        # replacement). Task 0 never showed it because the run died earlier, on the init-queue bug.
+        if og.object_states.ToggledOn in nobj.states:
+            nobj.states[og.object_states.ToggledOn].visual_marker.visible = False
 
-    if og.object_states.ToggledOn in nobj.states:
-        nobj.states[og.object_states.ToggledOn].visual_marker.visible = False
+    after_play(env, _post_play)
 
     # Let the replaced object come to rest. No-op in a vector env, where the shared settle runs once
     # for all members instead of stepping the global sim 30 times per member.
