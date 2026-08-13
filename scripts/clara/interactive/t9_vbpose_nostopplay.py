@@ -55,6 +55,19 @@ Phases are not isolated from each other, so order the list so that anything with
 
     MODE=oglite ./scripts/clara/interactive/rr \
         python -u scripts/clara/interactive/t9_vbpose_nostopplay.py --num_envs 4 --resets 3 --steps 15
+
+Measured 2026-08-13, Vec=2, task 0, DROID_robolab, 3 resets per perturbation: Default, S-LANG,
+S-PROP, S-MO, S-AFF, S-INT, V-LIGHT and SB-NOUN all PASS. V-AUG FAILED with KeyError('DROID')
+from inside reset() -- see perturbations/v_aug.py -- and passes after that fix. Confirmed again at
+Vec=4 for Default, S-PROP, V-AUG, V-LIGHT and SB-NOUN. Check 7's unperturbed reset-to-reset drift
+measured 1e-5..1e-4 m, so the 1e-3 m gate is ~10x the noise and a cross-scene pose write (tiles
+are ~25 m apart) is not remotely close to it.
+
+Check 1's step counter reads exactly num_envs on every reset here, and that is not a perturbation:
+og.Environment.reset(get_obs=True) does one og.sim.step() plus three og.sim.render() calls, and
+reset_pre_perturbation() runs it per member -- so a vector reset issues N global steps and 3N
+global renders before any perturbation runs. It is well under SETTLE_STEPS and check 7 shows it
+moves nothing (<= 4e-5 m at Vec=4), but it is O(N) global work in the reset path.
 """
 import argparse
 import time
@@ -150,19 +163,18 @@ SCENE_FROZEN = frozenset({
 _LIGHT_PRIM_CACHE = {}   # scene prim path -> [Usd.Prim] carrying inputs:intensity
 
 
+def _np(x):
+    """Whatever OmniGibson handed back (torch on GPU, torch on CPU, list) as a numpy array."""
+    return np.asarray(x.cpu().numpy() if hasattr(x, "cpu") else x, dtype=float)
+
+
 def camera_poses(env):
     """World poses of this member's external sensors, as a flat list of floats."""
     out = []
     for sensor in env.omnigibson_env.external_sensors.values():
         pos, ori = sensor.get_position_orientation()
-        pos = pos.cpu().numpy() if hasattr(pos, "cpu") else np.asarray(pos)
-        ori = ori.cpu().numpy() if hasattr(ori, "cpu") else np.asarray(ori)
-        out.extend([*np.asarray(pos, dtype=float), *np.asarray(ori, dtype=float)])
+        out.extend([*_np(pos), *_np(ori)])
     return np.array(out, dtype=float)
-
-
-def _np(x):
-    return x.cpu().numpy() if hasattr(x, "cpu") else np.asarray(x)
 
 
 def probe_poses(env):
@@ -172,7 +184,7 @@ def probe_poses(env):
     member's perturbation writing into a sibling's tile, and the sibling's own probe is where that
     shows up -- as scenery moving in a scene whose perturbation touched nothing.
     """
-    return {obj.name: np.asarray(_np(obj.get_position_orientation()[0]), dtype=float)
+    return {obj.name: _np(obj.get_position_orientation()[0])
             for obj in env.omnigibson_env.scene.objects}
 
 
@@ -441,7 +453,7 @@ def run_phase(vec_env, perturbation, resets, steps):
 
             # check 5: object still on the table
             pos = _np(env.main_objects[0].get_position_orientation()[0])
-            poses.append(np.asarray(pos, dtype=float))
+            poses.append(pos)
             if pos[2] < TABLE_Z_MIN:
                 failures.append(f"reset {r+1}: member {i} main object left the table (z={pos[2]:.3f})")
 
