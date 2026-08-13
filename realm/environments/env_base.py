@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import torch
 
@@ -45,7 +47,20 @@ class RealmEnvironmentBase:
 
         self.was_lifted = False
         if task_type in TASK_PROGRESS_RUBRICS:
-            self.task_progression = TASK_PROGRESS_RUBRICS[task_type]
+            # deepcopy is load-bearing: TASK_PROGRESS_RUBRICS is built ONCE at module import, and
+            # recompute_task_progression MUTATES this dict (`self.task_progression[stage] = True`).
+            # Assigning the module-level object gave every environment in the process the SAME
+            # progression state. Harmless with one env per process, catastrophic in a vector env:
+            # member A grasping set GRASP=True for all members, and because
+            # recompute_task_progression short-circuits on `is_completed_flag or checker(obs)` an
+            # already-True stage is never re-checked per member. Progression became an OR across
+            # members and stuck there, so every member reported the same timestamps, the same
+            # stage, and SR=1 whenever ANY member succeeded. It also made the 15-step terminal
+            # countdown start simultaneously for all of them, which looked like the members
+            # naturally converging. Measured 2026-08-13: it inflated a 25-rollout vectorized
+            # pi0.5 eval to SR 0.960 (an upper bound over waves of 4), reported by Martin from
+            # the videos -- rollouts scored SUCCESS with the block never grasped.
+            self.task_progression = copy.deepcopy(TASK_PROGRESS_RUBRICS[task_type])
         else:
             self.task_progression = None
 
