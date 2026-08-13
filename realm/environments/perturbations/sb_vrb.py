@@ -25,18 +25,23 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
-def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
-    compatibility_matrix = {
-        "put": ["pick", "rotate", "stack"],
-        "push": [], #["put", "pick", "rotate", "stack"],
-        "pick": ["put", "rotate", "stack"],
-        "rotate": ["put", "pick", "stack"],
-        "stack": ["put", "pick", "rotate"],
-        "open": ["close"],
-        "close": ["open"]
-    }
+# Which verbs may replace which. Module level rather than a local, so a test can assert the drawn
+# verb against the SAME table the perturbation drew from instead of keeping its own copy in sync.
+# Note that no key lists itself: the new verb always differs from the current one, which is what
+# makes "task_type changed" a sound assertion rather than a probabilistic one.
+COMPATIBILITY_MATRIX = {
+    "put": ["pick", "rotate", "stack"],
+    "push": [], #["put", "pick", "rotate", "stack"],
+    "pick": ["put", "rotate", "stack"],
+    "rotate": ["put", "pick", "stack"],
+    "stack": ["put", "pick", "rotate"],
+    "open": ["close"],
+    "close": ["open"]
+}
 
-    available_task_types = compatibility_matrix[env.task_type]
+
+def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
+    available_task_types = COMPATIBILITY_MATRIX[env.task_type]
 
     new_verb_for_task = random.choice(available_task_types)
     env.task_type = new_verb_for_task
@@ -67,7 +72,26 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
         env.target_objects = [new_obj]
 
         bbox_center, bbox_orn, bbox_extent, bbox_center_in_frame = new_obj.get_base_aligned_bbox()
-        nobj_cfg["bounding_box"] = bbox_center
+        # EXTENT, not center. "bounding_box" is a SIZE everywhere else it is used -- the task YAMLs
+        # write [0.20, 0.20, 0.07], and get_non_colliding_positions_for_objects reads
+        # cfg["bounding_box"][0] / 2 as a half-width -- while get_base_aligned_bbox returns the
+        # center in WORLD frame. The scale line just below, which multiplies this by the scale
+        # factor, only makes sense for an extent too.
+        #
+        # Feeding the center in was invisible single-env, where the object sits at the world origin
+        # when this runs so the "half-width" is ~0 -- a receiver with no collision footprint, which
+        # is placeable anywhere and can overlap. In a vector env every other member's scene is tiled
+        # ~25 m along +x, so member 1's half-width came out ~12.5 m: no candidate position could
+        # ever clear that, and the search fell through to "Failed to place object 'receiver' after
+        # 2500 attempts. Dropping it from the air." at a random point up to ~12 m off the table.
+        #
+        # NOTE this is a correctness fix, not a cure for that error: task 4 (pick_spoon) still logs
+        # one "Failed to place" per run with real extents, because its spawn box is 0.4 x 0.5 m and
+        # already holds a 0.2 m plate and a 0.33 x 0.48 m tray, so a further 0.185 m object does not
+        # fit next to them. Which member fails is now a property of the scene layout rather than of
+        # the member's tile offset. Making the receiver fit is a task-config decision, not one to
+        # make here.
+        nobj_cfg["bounding_box"] = bbox_extent
 
         max_dim = np.max(bbox_extent.numpy())
         new_scale_factor = 0.185 / max_dim

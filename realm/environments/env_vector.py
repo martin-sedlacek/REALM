@@ -19,6 +19,7 @@ extrinsics and spawn pose land correctly inside its own tile without knowing the
 import numpy as np
 
 import omnigibson as og
+import omnigibson.lazy as lazy
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic, WARMUP_STEPS
 from realm.environments.perturbations._helpers import (
@@ -129,7 +130,7 @@ class RealmVectorEnvironment:
             # carrying updatable states; V-SC missed it only because it replaces distractors.
             # Re-queueing while still stopped lets play() do the initialization itself, in the right
             # order, instead of us repairing the damage afterwards.
-            orphans = self._requeue_evicted_objects()
+            orphans = self._repair_init_queue()
             og.sim.play()
             # Loud rather than silent, kept from when the repair ran after play(): if re-queueing
             # ever stops working, the next symptom is the same opaque "Object must be initialized
@@ -158,8 +159,12 @@ class RealmVectorEnvironment:
 
         return [(obs, res[1]) for obs, res in zip(obss, results)]
 
-    def _requeue_evicted_objects(self):
-        """Re-queue objects that a SIBLING member's remove_object() knocked off the sim's init queue.
+    def _repair_init_queue(self):
+        """Undo the damage a SIBLING member's remove_object() did to the sim's global init queue.
+
+        Two symmetric repairs, both caused by the same upstream bug (see below):
+          (a) a LIVE object was knocked off the queue and would never be initialized;
+          (b) a REMOVED object kept its slot and would be initialized after its prim was deleted.
 
         Adding an object appends it to the GLOBAL og.sim._objects_to_initialize
         (Simulator._post_import_object), and Simulator._non_physics_step() initializes everything on
@@ -188,8 +193,22 @@ class RealmVectorEnvironment:
         play() or step() will ever initialize it. The last member is always fine, which is why the
         failure looks like "every scene but the last one".
 
-        Single-env never hit this: with one scene there is no sibling to collide with, and each
-        perturbation's own play() drains the queue before the next thing runs.
+        The SAME pop also leaves the object that was actually removed ON the queue -- repair (b).
+        That only bites when the removed object was itself still pending, which needs a member to
+        add an object and then remove it inside ONE stopped window. SB-VRB is the only perturbation
+        that does that: on a task with no target (pick_spoon) it adds a "receiver" and then, if the
+        new verb is put/stack, replace_obj()s it. Measured on task 4, Vec=2: member 1 removed its
+        own brand-new "receiver", the pop took member 0's instead, and the batched play() then ran
+        initialize() on a prim that had already been deleted from the stage:
+
+            File "omnigibson/simulator.py", line 1273, in _non_physics_step
+              obj.initialize()
+            ...
+            Exception: prim view ['/World/scene_1/receiver/base_link'] is not a valid view
+
+        Single-env never hit either half: with one scene there is no sibling to collide with, so the
+        pop always takes the right entry, and each perturbation's own play() drains the queue before
+        the next thing runs.
 
         The real fix belongs upstream -- _pre_remove_object should match on identity, or at least on
         (scene, name), not on name -- but OG-lite is a shared checkout here, so we repair the queue
@@ -200,8 +219,49 @@ class RealmVectorEnvironment:
         observation/action spaces, rebases the scene's initial file and calls reset(), none of which
         belongs in the middle of a reset.
         """
-        # Anything still queued is not an orphan -- it is about to be initialized normally. (After a
-        # play() the queue should already be empty; this only guards against a future caller.)
+        our_scenes = {id(env.omnigibson_env.scene) for env in self.envs}
+
+        def _is_dead(obj):
+            """Is this queued object one that has been removed from its scene?
+
+            Deliberately NOT "is there a prim at obj.prim_path": replace_obj re-creates the
+            replacement at the SAME relative prim path, so the path is occupied again a moment
+            later and says nothing about which instance owns it. (Tried; it silently disabled this
+            whole repair and the crash came straight back.) Identity against the registry is what
+            distinguishes them.
+            """
+            registered = obj.scene.object_registry("name", obj.name)
+            if registered is obj:
+                return False        # the live object, about to be initialized normally
+            if registered is not None:
+                return True         # a same-named REPLACEMENT holds the name; this one is the corpse
+            # Registered under its name by nothing at all. Either it was removed without a
+            # replacement, or it was never registered -- scene.add_object(..., register=False), which
+            # OmniGibson uses for particle system templates and which must NOT be dropped. The stage
+            # tells them apart: a removed object with no replacement leaves its prim path empty.
+            return not lazy.isaacsim.core.utils.prims.is_prim_path_valid(obj.prim_path)
+
+        # (b) first, so the queue is clean before (a) reads it. Restricted to our members' scenes,
+        # so anything queued by code outside this vector env is left strictly alone.
+        stale = [
+            obj
+            for obj in og.sim._objects_to_initialize
+            if id(obj.scene) in our_scenes and _is_dead(obj)
+        ]
+        if stale:
+            og.log.warning(
+                "Dropping %d removed object(s) that a sibling scene's eviction left on the sim init "
+                "queue: %s"
+                % (len(stale), ", ".join(f"scene{obj.scene.idx}/{obj.name}" for obj in stale))
+            )
+            stale_ids = {id(obj) for obj in stale}
+            og.sim._objects_to_initialize = [
+                obj for obj in og.sim._objects_to_initialize if id(obj) not in stale_ids
+            ]
+
+        # (a) Anything still queued is not an orphan -- it is about to be initialized normally.
+        # (After a play() the queue should already be empty; this only guards against a future
+        # caller.)
         queued = {id(obj) for obj in og.sim._objects_to_initialize}
         orphans = [
             obj

@@ -46,6 +46,20 @@ light attribute passes them while doing nothing at all, or while doing it to the
      else), and SB-NOUN must re-designate main_objects[0] to one of THIS member's own distractors
      and name it in the instruction.
 
+Check 9 was added 2026-08-13 for SB-VRB, the last perturbation to be run vectorized. It is the only
+one whose whole effect is on the TASK rather than on the scene or the instruction: it redraws
+env.task_type, swaps env.task_progression for the new verb's rubric, and rebuilds the instruction
+around it. Checks 1-8 are blind to all three, so without check 9 a totally inert SB-VRB passes:
+
+  9. TASK REWRITTEN -- env.task_type must change to a verb COMPATIBILITY_MATRIX allows, the
+     progression must be the new verb's rubric, the instruction must open with the new verb, and
+     every member's task_progression must be its OWN dict. That last one is not hypothetical: an
+     env_base.py version of it (the module-level rubric assigned rather than deepcopied) is what
+     inflated a 25-rollout vectorized eval to SR 0.960 with the block never grasped. On a put/stack
+     draw it also checks the target object -- SB-VRB is the only perturbation that ADDS an object
+     ("receiver") to a member whose siblings may not have one, so it is the only one where "the
+     target is a live, initialized object in THIS member's own scene" can fail.
+
 A comma-separated --perturbation list runs several perturbations as sequential PHASES against one
 scene build, which is what makes auditing nine of them affordable -- the build is ~6 min and a
 phase is ~1 min. With a list, warmup runs perturbation-free and each phase sets
@@ -70,6 +84,7 @@ global renders before any perturbation runs. It is well under SETTLE_STEPS and c
 moves nothing (<= 4e-5 m at Vec=4), but it is O(N) global work in the reset path.
 """
 import argparse
+import copy
 import time
 import traceback
 
@@ -79,10 +94,21 @@ import omnigibson as og
 import omnigibson.lazy as lazy
 from omnigibson.utils.usd_utils import RigidContactAPI
 
+from realm.environments.env_base import TASK_PROGRESS_RUBRICS
 from realm.environments.env_vector import RealmVectorEnvironment
-from realm.environments.perturbations._helpers import SETTLE_STEPS
+from realm.environments.perturbations._helpers import NEEDS_STOPPED_SIM, SETTLE_STEPS
+# The module-level objects themselves, not a fresh load_task_progressions() copy: check 9 asserts
+# that no member's task_progression IS one of these, and a private copy would make that vacuous.
+from realm.environments.perturbations.sb_vrb import COMPATIBILITY_MATRIX, TASK_PROGRESSIONS
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.sim_config import set_sim_config
+
+# Which verb every task_type must open its instruction with, so that "the instruction and the task
+# type agree" can be checked instead of assumed. sb_vrb.py builds the string from the same mapping.
+TASK_VERB_PHRASE = {
+    "pick": "pick up", "put": "put", "stack": "stack", "rotate": "rotate",
+    "push": "push", "open": "open", "close": "close",
+}
 
 TABLE_Z_MIN = 0.5   # below this the object has left the table (the z-offset bug parked them at ~0.015)
 FROZEN_TOL = 1e-3   # metres; check 7's floor, raised to 4x the measured readback drift if that is larger
@@ -135,8 +161,12 @@ MOVES = {
     "S-INT": "nothing",
 }
 # Deliberately absent: SB-VRB. It rewrites task_type, the task progression and the instruction, so
-# its honest observable is the task rather than any object property. It still gets every other
-# check; an unknown entry reports and asserts nothing.
+# its honest observable is the task rather than any object property. Check 9 below is that
+# observable; an unknown entry here reports and asserts nothing. Note that the instruction is NOT a
+# sound observable for it either: the new verb is drawn from COMPATIBILITY_MATRIX[current verb],
+# which excludes the CURRENT verb but not the task's ORIGINAL one, so from reset 2 on the draw can
+# come back to it -- on pick_spoon, pick -> rotate -> pick regenerates the task's own instruction
+# verbatim. INSTRUCTION["SB-VRB"] = "changed" would therefore fail on a coin flip.
 #
 # Also deliberately absent: SB-NOUN. It moves NOTHING, but it re-points main_objects[0] at a
 # different (stationary) object each reset, so the main-object pose read by check 4 jumps between
@@ -276,6 +306,32 @@ def hold_still(vec_env, steps):
     return results
 
 
+def counting_reset(vec_env):
+    """vec_env.reset() with og.sim.stop/play/step counted. Returns {"stop","play","step"}.
+
+    og.sim.step() is as global as stop()/play(): it advances EVERY scene, and a member that steps it
+    from inside its own reset advances its siblings while feeding them no action. The counts are
+    check 1.
+    """
+    counts = {"stop": 0, "play": 0, "step": 0}
+    real = {k: getattr(og.sim, k) for k in counts}
+
+    def wrap(name):
+        def counted(*a, **k):
+            counts[name] += 1
+            return real[name](*a, **k)
+        return counted
+
+    for k in counts:
+        setattr(og.sim, k, wrap(k))
+    try:
+        vec_env.reset()
+    finally:
+        for k, fn in real.items():
+            setattr(og.sim, k, fn)
+    return counts
+
+
 def run_phase(vec_env, perturbation, resets, steps):
     """Run every check for one perturbation against an already-built vector env."""
     failures = []
@@ -298,15 +354,49 @@ def run_phase(vec_env, perturbation, resets, steps):
         # inside a multi-phase run it would carry S-LANG's string into the next phase and make the
         # "must not touch the instruction" check fail on the WRONG phase. Restore the task default.
         env.instruction = env.cfg["instruction"]
-    vec_env.reset()
+        # Same argument for the task itself, which only SB-VRB rewrites: nothing in reset() restores
+        # task_type or task_progression either, so without this the "unperturbed" baseline below
+        # would run under the PREVIOUS phase's verb, and check 9's first comparison would be against
+        # a leftover rather than against the task. deepcopy for the reason sb_vrb.py and env_base.py
+        # both deepcopy: recompute_task_progression mutates the rubric dict in place, so handing out
+        # the module-level object shares progression between members.
+        env.task_type = env.cfg["task_type"]
+        env.task_progression = copy.deepcopy(TASK_PROGRESSIONS[env.task_type])
+    counting_reset(vec_env)
     base = snapshot(vec_env, want_lights)
     hold_still(vec_env, steps)
-    vec_env.reset()
+    base_counts = counting_reset(vec_env)
     base2 = snapshot(vec_env, want_lights)
     hold_still(vec_env, steps)
     noise = max(pose_delta(base[i]["poses"], base2[i]["poses"])[0] for i in range(num_envs))
     tol = max(FROZEN_TOL, 4 * noise)
     print(f"  [7] unperturbed reset-to-reset drift = {noise:.2e} m  -> tolerance {tol:.2e} m",
+          flush=True)
+
+    # Check 1's step budget, MEASURED rather than assumed, for the same reason as check 7's
+    # tolerance. An unperturbed reset already issues og.sim.step() once per member, inside
+    # og.Environment.reset(get_obs=True) -- that is the floor, and it is what @base_counts reads.
+    # On top of it a perturbed reset may add:
+    #   + SETTLE_STEPS   the ONE shared settle loop RealmVectorEnvironment._settle runs for all
+    #                    members when any of them asked to settle
+    #   + num_envs       the single og.sim.step() inside each member's deferred _post_play block
+    #                    (V-SC, VB-MOBJ, VSB-NOBJ and SB-VRB each register one)
+    # Anything past that is a PER-MEMBER settle loop, which is the regression this check exists to
+    # catch and which costs SETTLE_STEPS * num_envs -- 60 at 2 members against a budget of 34, so
+    # the bound stays comfortably discriminating. The old fixed `> SETTLE_STEPS` bound predated the
+    # add/replace perturbations being run under this harness and would have false-failed all four
+    # of them by ~4 steps.
+    step_budget = base_counts["step"] + SETTLE_STEPS + num_envs
+    # Check 1's stop/play expectation, which is NOT "never" for every perturbation. Adding or
+    # removing an object requires a stopped simulator, so RealmVectorEnvironment.reset() gives the
+    # perturbations in NEEDS_STOPPED_SIM exactly ONE shared cycle covering all members -- that is
+    # the fix, not the bug. The bug was a cycle PER MEMBER (VB-POSE, job 190555), and for a
+    # pose-only perturbation any cycle at all. Asserting an exact count catches both, where the
+    # earlier `if counts["stop"] or counts["play"]` false-failed all four add/replace perturbations
+    # and the earlier "expected 1 of each" printout asserted nothing at all.
+    want_cycles = 1 if perturbation in NEEDS_STOPPED_SIM else 0
+    print(f"  [1] unperturbed reset issues {base_counts['step']} og.sim.step() call(s) "
+          f"-> perturbed-reset budget {step_budget}; expecting {want_cycles} stop/play cycle(s)",
           flush=True)
 
     for env in vec_env.envs:
@@ -322,46 +412,30 @@ def run_phase(vec_env, perturbation, resets, steps):
     ident_base = [obj_identity(e) for e in vec_env.envs]
     print(f"\n[baseline] main-object identity per member: {ident_base}", flush=True)
     prev_ident = [b["identity"] for b in base]   # rolls forward; see the SB-NOUN block below
+    # Same, for check 9: SB-VRB draws its new verb from COMPATIBILITY_MATRIX[the CURRENT verb], so
+    # the comparison has to be against the verb this member had going into this reset, not against
+    # the task's original one.
+    prev_task_type = [e.task_type for e in vec_env.envs]
 
     for r in range(resets):
         # ---- check 1: the reset must not stop, play or over-step the sim ----------------------
-        # og.sim.step() is as global as stop()/play(): it advances EVERY scene, and a member that
-        # steps it from inside its own reset advances its siblings while feeding them no action.
-        # A vector-env reset is allowed exactly one shared settle loop (SETTLE_STEPS, driven by
-        # RealmVectorEnvironment._settle for all members at once), so anything beyond that means a
-        # per-member step loop got in -- and the count then scales with num_envs.
-        counts = {"stop": 0, "play": 0, "step": 0}
-        real_stop, real_play, real_step = og.sim.stop, og.sim.play, og.sim.step
-
-        def counting_stop(*a, **k):
-            counts["stop"] += 1
-            return real_stop(*a, **k)
-
-        def counting_play(*a, **k):
-            counts["play"] += 1
-            return real_play(*a, **k)
-
-        def counting_step(*a, **k):
-            counts["step"] += 1
-            return real_step(*a, **k)
-
-        og.sim.stop, og.sim.play, og.sim.step = counting_stop, counting_play, counting_step
-        try:
-            vec_env.reset()
-        finally:
-            og.sim.stop, og.sim.play, og.sim.step = real_stop, real_play, real_step
+        counts = counting_reset(vec_env)
 
         was_playing = og.sim.is_playing()
         print(f"\n===== {perturbation} reset {r + 1}/{resets} =====", flush=True)
-        print(f"  [1] stop() calls={counts['stop']}  play() calls={counts['play']}  "
-              f"step() calls={counts['step']} (<= {SETTLE_STEPS} expected)  "
+        print(f"  [1] stop() calls={counts['stop']}  play() calls={counts['play']} "
+              f"({want_cycles} of each expected)  "
+              f"step() calls={counts['step']} (<= {step_budget} expected)  "
               f"sim playing after reset={was_playing}", flush=True)
-        if counts["stop"] or counts["play"]:
-            failures.append(f"reset {r+1}: sim was cycled ({counts['stop']} stop / {counts['play']} play)")
-        if counts["step"] > SETTLE_STEPS:
+        if counts["stop"] != want_cycles or counts["play"] != want_cycles:
+            failures.append(f"reset {r+1}: sim was cycled {counts['stop']}x stop / "
+                            f"{counts['play']}x play, expected {want_cycles} of each")
+        if counts["step"] > step_budget:
             failures.append(f"reset {r+1}: sim was stepped {counts['step']} times during reset, more "
-                            f"than the single shared settle loop of {SETTLE_STEPS} -- a per-member "
-                            f"step loop is advancing every sibling scene")
+                            f"than the budget of {step_budget} (an unperturbed reset's "
+                            f"{base_counts['step']} + one shared settle loop of {SETTLE_STEPS} + one "
+                            f"deferred post-play step per member) -- a per-member step loop is "
+                            f"advancing every sibling scene")
         if not was_playing:
             failures.append(f"reset {r+1}: sim not playing after reset")
 
@@ -444,7 +518,101 @@ def run_phase(vec_env, perturbation, resets, steps):
                                     f"{len(b_ident['distractors'])} -> "
                                     f"{len(ident['distractors'])} -- objects are leaking")
 
+            # ---- check 9: SB-VRB rewrote the TASK, and consistently ------------------------
+            if perturbation == "SB-VRB":
+                prev_tt, tt = prev_task_type[i], env.task_type
+                scene = env.omnigibson_env.scene
+                tgt = env.target_objects[0] if env.target_objects else None
+                print(f"  [9] member {i} (scene {scene.idx}): task_type {prev_tt!r} -> {tt!r}, "
+                      f"progression {list(env.task_progression)}, target="
+                      f"{None if tgt is None else (tgt.name, getattr(tgt, 'category', '?'), tgt.scene.idx)}, "
+                      f"{len(scene.objects)} objects in scene", flush=True)
+
+                # The draw excludes the current verb (no key of COMPATIBILITY_MATRIX lists itself),
+                # so "unchanged" is not a random outcome -- it means sb_vrb never ran for this member.
+                if tt == prev_tt:
+                    failures.append(f"reset {r+1}: member {i} task_type still {tt!r} -- SB-VRB is a "
+                                    f"no-op for this member")
+                if tt not in COMPATIBILITY_MATRIX.get(prev_tt, []):
+                    failures.append(f"reset {r+1}: member {i} task_type {prev_tt!r} -> {tt!r}, which "
+                                    f"COMPATIBILITY_MATRIX does not allow")
+                # The progression rubric must follow the verb. If it does not, the rollout is scored
+                # against the OLD skill's stages while the policy is asked for the new one.
+                if list(env.task_progression) != list(TASK_PROGRESSIONS.get(tt, {})):
+                    failures.append(f"reset {r+1}: member {i} task_progression "
+                                    f"{list(env.task_progression)} is not the rubric for {tt!r} "
+                                    f"({list(TASK_PROGRESSIONS.get(tt, {}))})")
+                # The deepcopy in sb_vrb.py. Assigning TASK_PROGRESSIONS[verb] directly would give
+                # every member that drew the same verb ONE shared dict, and recompute_task_progression
+                # mutates it in place -- the exact defect that inflated a 25-rollout vectorized eval
+                # to SR 0.960 with the object never grasped.
+                if env.task_progression is TASK_PROGRESSIONS.get(tt) or \
+                        env.task_progression is TASK_PROGRESS_RUBRICS.get(tt):
+                    failures.append(f"reset {r+1}: member {i} task_progression IS the module-level "
+                                    f"rubric object -- it is shared with every other member that "
+                                    f"draws {tt!r}")
+                # The policy must be asked for the verb the progression scores.
+                phrase = TASK_VERB_PHRASE.get(tt)
+                if phrase and not snap[i]["instruction"].startswith(phrase):
+                    failures.append(f"reset {r+1}: member {i} instruction "
+                                    f"{snap[i]['instruction']!r} does not open with the new verb "
+                                    f"{phrase!r} (task_type {tt!r})")
+                if tt in ("put", "stack"):
+                    # The vector-specific half. On a task whose YAML has no target (pick_spoon),
+                    # SB-VRB ADDS a "receiver" -- an object present in this member's scene and
+                    # absent from a sibling's. Every step of that is where a name-keyed global
+                    # lookup can hand back the wrong scene's object: env.target_objects[0] must be
+                    # THIS scene's live, initialized object.
+                    if tgt is None:
+                        failures.append(f"reset {r+1}: member {i} task_type {tt!r} needs a target "
+                                        f"object and has none")
+                    else:
+                        if tgt.scene.idx != scene.idx:
+                            failures.append(f"reset {r+1}: member {i} target {tgt.name!r} lives in "
+                                            f"scene {tgt.scene.idx}, not its own scene {scene.idx}")
+                        if scene.object_registry("name", tgt.name) is not tgt:
+                            failures.append(f"reset {r+1}: member {i} target {tgt.name!r} is not the "
+                                            f"object its own scene registry holds under that name -- "
+                                            f"a stale handle survived replace_obj")
+                        if not tgt.initialized:
+                            failures.append(f"reset {r+1}: member {i} target {tgt.name!r} was never "
+                                            f"initialized -- it was evicted from the sim's init "
+                                            f"queue and the repair missed it")
+                # ...and it has to be somewhere the robot can reach. Read in SCENE frame and
+                # compared against this member's own spawn_bbox, which is the frame sb_vrb places
+                # it in: a placement bug that used a WORLD quantity would land member 0 (whose
+                # scene origin is the world origin) correctly and put every other member's target
+                # metres away, which no other check here would notice.
+                if tgt is not None and getattr(env, "spawn_bbox", None) is not None:
+                    tp = _np(tgt.get_position_orientation(frame="scene")[0])
+                    xmin, xmax, ymin, ymax = env.spawn_bbox[:4]
+                    margin = 0.2
+                    inside = (xmin - margin <= tp[0] <= xmax + margin
+                              and ymin - margin <= tp[1] <= ymax + margin)
+                    print(f"  [9] member {i}: target scene-frame xy=({tp[0]:.3f}, {tp[1]:.3f}) "
+                          f"z={tp[2]:.3f}, spawn box x[{xmin:.2f},{xmax:.2f}] "
+                          f"y[{ymin:.2f},{ymax:.2f}] -> inside={inside}", flush=True)
+                    if not inside:
+                        failures.append(f"reset {r+1}: member {i} target {tgt.name!r} sits at "
+                                        f"scene-frame xy=({tp[0]:.3f}, {tp[1]:.3f}), outside its "
+                                        f"own spawn box x[{xmin:.2f},{xmax:.2f}] "
+                                        f"y[{ymin:.2f},{ymax:.2f}] (+-{margin} m)")
+
         prev_ident = [s["identity"] for s in snap]
+        prev_task_type = [e.task_type for e in vec_env.envs]
+
+        if perturbation == "SB-VRB" and num_envs > 1:
+            # The members' progression dicts must be N DISTINCT objects. Per-member the check above
+            # only rules out the module-level one; two members could still share a third dict.
+            prog_ids = [id(e.task_progression) for e in vec_env.envs]
+            if len(set(prog_ids)) < num_envs:
+                failures.append(f"reset {r+1}: members share a task_progression dict "
+                                f"({len(set(prog_ids))}/{num_envs} distinct) -- one member's "
+                                f"progress would be credited to another")
+            tgts = [e.target_objects[0] for e in vec_env.envs if e.target_objects]
+            if len({id(t) for t in tgts}) < len(tgts):
+                failures.append(f"reset {r+1}: two members hold the SAME target object instance -- "
+                                f"a name-keyed lookup crossed scenes")
 
         if perturbation == "V-LIGHT" and num_envs > 1:
             # Each member draws its own intensity from U(20000, 750000), so two members landing on
@@ -466,6 +634,16 @@ def run_phase(vec_env, perturbation, resets, steps):
             if missing:
                 failures.append(f"reset {r+1}: member {i} (scene {scene_idx}) main-object links "
                                 f"NOT rows: {missing}")
+            # Perturbation-independent, and the general form of the bug the whole add/replace family
+            # kept hitting: a sibling's remove_object() evicts a freshly added object from the
+            # simulator's GLOBAL init queue by NAME, so it stays in the scene and on the stage but
+            # is never initialized. RealmVectorEnvironment._repair_init_queue() repairs that,
+            # and this is the independent statement that the repair worked -- previously the only
+            # evidence was the absence of an unrelated assert from dump_state() much later.
+            uninit = [o.name for o in env.omnigibson_env.scene.objects if not o.initialized]
+            if uninit:
+                failures.append(f"reset {r+1}: member {i} (scene {scene_idx}) has uninitialized "
+                                f"objects after reset: {uninit}")
 
         # ---- step a little, then checks 3-5 ---------------------------------------------------
         results = hold_still(vec_env, steps)
