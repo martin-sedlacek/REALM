@@ -27,6 +27,12 @@ LOG=$LOGDIR/$NAME.log
 squeue -h -j "$ALLOC" -o "%T" | grep -q RUNNING || {
   echo "go: allocation $ALLOC is not RUNNING" >&2; exit 1; }
 
+# `sed -i` rewrites a file and drops its mode, so an edited script silently loses +x and srun dies
+# with a bare "Permission denied" / exit 13 that looks nothing like the real cause. Catch it here.
+if [ -f "$1" ] && [ ! -x "$1" ]; then
+  echo "go: $1 is not executable (sed -i drops the mode -- chmod 755 it)" >&2; exit 1
+fi
+
 {
   echo "### go: $NAME"
   echo "### started: $(date -Is)"

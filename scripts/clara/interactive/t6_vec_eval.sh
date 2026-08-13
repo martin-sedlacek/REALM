@@ -13,7 +13,7 @@ import socket,sys
 s=socket.socket(); s.settimeout(2)
 sys.exit(0 if s.connect_ex(('127.0.0.1',${PORT:-8000}))==0 else 1)" \
   || { echo "### no policy server on :${PORT:-8000}" >&2; exit 1; }
-echo "### vec eval: num_envs=$NUM_ENVS repeats=$REPEATS max_steps=$MAX_STEPS run_id=$RUN_ID rod=$ROD"
+echo "### vec eval: num_envs=$NUM_ENVS repeats=$REPEATS max_steps=$MAX_STEPS run_id=$RUN_ID rod=$ROD robot=${ROBOT:-DROID}"
 MODE=oglite ./scripts/clara/interactive/rr \
   python -u examples/04_vector_evaluate.py \
     --num_envs "$NUM_ENVS" --repeats "$REPEATS" --max_steps "$MAX_STEPS" --horizon 8 \
@@ -21,5 +21,5 @@ MODE=oglite ./scripts/clara/interactive/rr \
     --model_type openpi --model_name "${MODEL_NAME:-checkpoints_pi05_droid_jointpos}" \
     --port "${PORT:-8000}" --host 127.0.0.1 \
     --experiment_name "$EXPERIMENT" --run_id "$RUN_ID" --log_dir /logs \
-    --robot DROID --rendering_mode rt $ROD_FLAG
+    --robot "${ROBOT:-DROID}" --rendering_mode rt $ROD_FLAG
 echo "### vec eval exit: $?"
