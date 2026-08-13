@@ -17,10 +17,11 @@ import omnigibson.utils.usd_utils as uu
 
 print("=== macro state after set_sim_config() ===")
 for k in ("INCREMENTAL_CONTACT_CACHE", "PROXIMITY_GATE_ENABLED", "PROXIMITY_GATE_RADIUS",
-          "CONTACT_REPORTING_PATTERNS"):
+          "CONTACT_REPORTING_PATTERNS", "ENABLE_VISUAL_UPDATES", "OBJECT_STATE_UPDATE_WHITELIST",
+          "RENDER_ON_STEP", "USE_GPU_DYNAMICS"):
     print(f"  gm.{k} = {getattr(gm, k, '<undefined>')}")
 print("=== env vars ===")
-for k in ("REALM_INCREMENTAL_CONTACT_CACHE", "REALM_PROXIMITY_GATE"):
+for k in ("REALM_INCREMENTAL_CONTACT_CACHE", "REALM_PROXIMITY_GATE", "REALM_GPU_DYNAMICS"):
     print(f"  {k} = {os.environ.get(k, '<unset>')}")
 print("=== live source ===")
 print(f"  usd_utils: {inspect.getfile(uu)}")

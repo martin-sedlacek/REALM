@@ -55,6 +55,20 @@ def set_sim_config(robot="DROID"):
     # contact-dependent metrics (collisions_env, is_grasping) start behaving oddly.
     if "REALM_PROXIMITY_GATE" in os.environ:
         gm.PROXIMITY_GATE_ENABLED = os.environ["REALM_PROXIMITY_GATE"] == "1"
+    # Which device runs rigid-body physics. OmniGibson defaults this to False, i.e. the CPU solver
+    # with the MBP broadphase; True switches PhysX to GPU dynamics with the GPU broadphase
+    # (simulator.py: enable_gpu_dynamics / set_broadphase_type). Unlike the two macros above this is
+    # NOT an OG-lite addition -- it is stock 3.9.1 and works in either container.
+    #
+    # Two things to know before using it:
+    #   - it changes the solver, so trajectories are not bit-identical to a CPU run and results are
+    #     not directly comparable to CPU-collected baselines;
+    #   - the GPU path is bounded by gm.GPU_*_CAPACITY macros. If a scene exceeds them PhysX warns
+    #     and can drop contacts rather than failing, so check the log for capacity messages before
+    #     trusting collision-dependent metrics.
+    # Off by default; export REALM_GPU_DYNAMICS=1 to switch.
+    if "REALM_GPU_DYNAMICS" in os.environ:
+        gm.USE_GPU_DYNAMICS = os.environ["REALM_GPU_DYNAMICS"] == "1"
     gm.RENDER_VIEWER_CAMERA=False
     # OG 3.9.1 asserts that isosurface HQ rendering runs at >=60 FPS, but REALM renders at 5-30 Hz
     # (see above), so enabling it aborts at env creation. Disabled unconditionally until the

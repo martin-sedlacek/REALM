@@ -56,7 +56,7 @@ mkdir -p "$TMPROOT" "$APPDATA/appdata"
 # Pass through the REALM/OG knobs only when the caller set them, so an unset var does not
 # become the string "".
 PASS_ENV=()
-for v in REALM_INCREMENTAL_CONTACT_CACHE REALM_PROXIMITY_GATE OMNIGIBSON_HEADLESS; do
+for v in REALM_INCREMENTAL_CONTACT_CACHE REALM_PROXIMITY_GATE REALM_GPU_DYNAMICS OMNIGIBSON_HEADLESS; do
   if [ -n "${!v:-}" ]; then PASS_ENV+=(--env "$v=${!v}"); fi
 done
 
