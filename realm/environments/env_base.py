@@ -37,6 +37,9 @@ class RealmEnvironmentBase:
         self.main_objects = main_objects
         self.target_objects = target_objects
 
+        # Build-time seed only. Correct while main_objects[0] is still the object the task config
+        # declared, which stops being true the moment a perturbation swaps it -- every reset
+        # re-takes these from the live object via capture_mo_reference() below.
         self.mo_pos_orig = np.array(mo_cfgs[0]["position"])
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
@@ -90,6 +93,43 @@ class RealmEnvironmentBase:
             "TOGGLED_ON": self.check_toggled_on_condition,
             "POURED": self.check_pour # TODO: pouring
         }
+
+    def capture_mo_reference(self):
+        """Re-take mo_pos_orig / mo_rot_orig from whatever main_objects[0] points at RIGHT NOW.
+
+        These two are the START-OF-ROLLOUT reference the progression stages are judged against:
+        check_lift_and_distance_condition() (LIFT_SLIGHT, LIFT_LARGE, PUSH) measures both the lift
+        `pos.z - mo_pos_orig.z` and the travel `||pos - mo_pos_orig||`, and check_rotated() (ROTATED)
+        measures against mo_rot_orig. __init__ seeds them from the task config, which is only right
+        while main_objects[0] is still the object the config declared -- and several perturbations
+        change that DURING reset(), after the seed:
+
+            SB-NOUN   pops a random distractor and swaps it into main_objects[0] (sb_noun.py)
+            VSB-NOBJ  replaces main_objects[0] with a freshly sampled object (vsb_nobj.py)
+            VB-MOBJ   replaces main_objects[0] with a rescaled copy (vb_mobj.py)
+
+        Without this the reference described one object while the checks read another. Measured
+        2026-08-13, SB-NOUN on task 0, 6 resets (scripts/clara/interactive/t11_mopos_ref.py): right
+        after reset() the reference sat 0.111-0.465 m (mean 0.285 m) from the object being scored,
+        and LIFT_SLIGHT answered True AT REST on 3 of 6 resets -- progression that never happened.
+
+        Call this ONLY at the end of a reset, never while stepping. It records where the object
+        STARTED; a reference that followed the object would drive both terms to zero and make every
+        lift/distance check permanently False, silently deleting the stage instead of fixing it.
+        t11_mopos_ref.py's [FROZEN] section tests that direction explicitly.
+
+        Kept as one method rather than a line in each perturbation so a future perturbation that
+        swaps the object cannot forget it: every reset path ends here. The call sites are
+        RealmEnvironmentDynamic.apply_perturbations() (the phase that does the swapping, and the
+        tail of reset()) plus both warmups. A vector env needs its own call in
+        RealmVectorEnvironment.reset(), because apply_perturbations() runs there before the shared
+        play -- exactly as it already needs its own settle and its own deferred post-play drain.
+        """
+        # Stored as OmniGibson hands them back (torch, cloned -- RigidDynamicPrim.get_position_
+        # orientation defaults to clone=True, so this is a snapshot and not a view onto the physics
+        # buffer). Deliberately NOT converted to numpy: this is byte-for-byte what warmup() has
+        # always stored, so no historical number moves.
+        self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
 
     def  reset_joints(self, target_drawer_loc: str = "top"):
         if self.task_type in ["open_drawer", "close_drawer"]:

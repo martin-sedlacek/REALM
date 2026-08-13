@@ -102,6 +102,7 @@ class RealmVectorEnvironment:
             4. ONE og.sim.play(), then repair of the sim's object-init queue
             5. work the perturbations deferred because it needs a playing sim
             6. ONE settle loop driving all members together, if any asked for it
+            7. every member re-takes its main-object scoring reference
 
         Mirrors the batching already used for scene fixes in __init__ and for the warmup loop.
         Returns a list of per-member (obs, info).
@@ -145,6 +146,15 @@ class RealmVectorEnvironment:
             self._settle()
         for env in self.envs:
             env.wants_settle = False
+
+        # 7. every member re-takes its lift/distance/rotation reference from the object it will
+        #    actually be scored on. RealmEnvironmentDynamic.reset() does this at its own tail; a
+        #    vector env drives the phases itself, so it has to make the call itself too -- same
+        #    reason the settle and the deferred post-play work are hoisted up here. It goes LAST,
+        #    after the shared play and settle, because a replaced object is not initialized (and a
+        #    settling one has not stopped moving) before that. See capture_mo_reference().
+        for env in self.envs:
+            env.capture_mo_reference()
 
         return [(obs, res[1]) for obs, res in zip(obss, results)]
 
@@ -276,8 +286,10 @@ class RealmVectorEnvironment:
             actions = [env.warmup_action(t, ee_cmd) for env, ee_cmd in zip(self.envs, ee_cmds)]
             results = self.step(actions)
 
+        # Refine the reference now the arms have settled, mirroring the single-env warmup. reset()
+        # above already took it from the right object; this only updates it to the settled pose.
         for env in self.envs:
-            env.mo_pos_orig, env.mo_rot_orig = env.main_objects[0].get_position_orientation()
+            env.capture_mo_reference()
         og.log.info("Vector warmup finished.")
         return results
 
