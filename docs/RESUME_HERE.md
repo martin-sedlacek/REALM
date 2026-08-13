@@ -15,7 +15,7 @@ threads that were open then are now resolved; what replaced them is at the botto
 | robolab asset (`droid_robolab`, `_v2`) | done, SR 0.750 / TP 0.850 under OG-lite |
 | Apptainer sif + dataset on clara | done, checksums matched |
 | repo cleanup + file splits | done |
-| **vectorized environments** | **root-caused and fixed** -- [docs/vector_env/README.md](vector_env/README.md) |
+| **vectorized environments** | **working end to end: SR 0.960 over 25 pi0.5 rollouts** -- [docs/vector_env/README.md](vector_env/README.md) |
 | **OG-lite incremental contact cache** | **verified and measured: -23% of `Simulator.step`** -- [docs/perf/og391_step_profile.md](perf/og391_step_profile.md) s9 |
 | **pre-port vs ported phase benchmark** | **done** -- [docs/perf/og391_step_profile.md](perf/og391_step_profile.md) s8 |
 
@@ -88,8 +88,28 @@ Still open, and both found while measuring the above:
    the fix, but it points at per-scene state being clobbered by the global play/stop that
    `Simulator.import_scene` runs for every import.
 
-The other vectorization gaps (perturbations that cycle the sim, `reset_joints()` stepping the sim,
-EE control in world vs scene frame, `evaluate()` still single-env) are unchanged and listed in
+### Vectorized evaluation now works end to end
+
+`realm/vector_eval.py` + `examples/04_vector_evaluate.py` run `repeats` rollouts in waves of
+`num_envs`, sequential (non-batched) inference, same four artifacts as the single-env path.
+Render-on-demand is implemented for vector envs too -- the render decision ORs across members because
+`og.sim.render_on_step()` is a single global flag.
+
+**Verified: 25 rollouts x 500 steps, task 0, Default, `DROID_robolab`, pi0.5, 4 envs -> SR 0.960
+(24/25), TP 0.984**, against a single-env baseline of SR 1.000 at n=10. The one failure is coherent
+(3 drops, stalled at `MOVE_CLOSE`, block never leaves the table). Sustained stepping is flat over 200
+steps. Details and the throughput table: [docs/vector_env/README.md](vector_env/README.md).
+
+**Capacity on one 46 GB L40S:** first scene 5204 MiB, each additional ~2728 MiB -> ~10 scenes
+loadable with the pi0.5 server on the same card, ~14 with the policy served elsewhere. `play()` costs
+more on top, so those are upper bounds.
+
+**Next lever is batched inference, not more scenes.** Inference is sequential and O(N): ~+22 ms per
+step per extra member, which overtakes the simulation term near 8 members and flattens per-member
+throughput.
+
+The remaining vectorization gaps (perturbations that cycle the sim, `reset_joints()` stepping the sim,
+EE control in world vs scene frame, per-member tasks/perturbations) are unchanged and listed in
 [docs/vector_env/README.md](vector_env/README.md).
 
 ## Closed: the incremental contact cache (was "open thread 2")
