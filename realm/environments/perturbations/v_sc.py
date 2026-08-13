@@ -108,16 +108,14 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
     # adding it there would be an unverified change to a working path. It is only needed because of
     # the multi-scene coupling described above.
     #
-    # KNOWN BROKEN, do not trust V-SC vectorized yet: this call still asserts "Object must be
-    # initialized before dumping state!" from scene.dump_state(), even though the shared
-    # og.sim.play() and an og.sim.step() have both already run. Objects added by replace_obj while
-    # the sim was stopped are apparently not initialised by play()+step() alone -- initialisation
-    # happens in Simulator._non_physics_step() for objects queued in _objects_to_initialize, and
-    # objects added while stopped seem not to be on that queue. Construction solves the equivalent
-    # problem by calling og.Environment.post_play_load() per member after its single play (see
-    # env_vector.__init__), which is the next thing to try; it was not done here because
-    # post_play_load() also reloads observation/action spaces and calls reset(), so re-running it on
-    # every reset needs checking before it is trusted.
+    # This used to assert "Object must be initialized before dumping state!" here even though the
+    # shared og.sim.play() and an og.sim.step() had both already run. The cause was NOT that objects
+    # added while stopped miss the simulator's init queue -- they do reach it -- but that
+    # Simulator._pre_remove_object() prunes that GLOBAL queue by NAME ALONE, and every member of a
+    # vector env is built from the same task config, so member 1's remove_object("corkscrew")
+    # evicted member 0's freshly-added "corkscrew" and nothing ever initialised it. Fixed in
+    # RealmVectorEnvironment._initialize_evicted_objects(), which re-queues the orphans right after
+    # the shared play(); read that docstring for the full write-up. Nothing is needed here.
     def _post_play():
         og.sim.step()
         if env.in_vec_env:

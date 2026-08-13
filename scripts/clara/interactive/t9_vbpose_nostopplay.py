@@ -20,8 +20,11 @@ Five checks, all of which failed (or were meaningless) before the fix:
      silently scores zero rather than failing.
   3. GRASP CHECK LIVE -- check_grasp_condition() must run without raising for every member.
      Before the dtype fix in OG-lite this raised IndexError from an empty float32 index tensor.
-  4. PERTURBATION STILL PERTURBS -- the main object pose must actually vary across resets, and
-     differ between members. A "fix" that quietly stopped moving anything would pass 1-3.
+  4. PERTURBATION STILL PERTURBS -- whatever the perturbation is supposed to re-randomise must
+     actually vary across resets, and members must differ. A "fix" that quietly stopped moving
+     anything would pass 1-3. What counts as "varying" is per-perturbation (see MOVES): the main
+     object's pose for VB-POSE, the external sensors for V-VIEW, and the planted distractors'
+     categories/positions for V-SC, which by design never moves the main object at all.
   5. KEEP_STILL HOLDS -- objects must stay on the table. Teleporting on a live sim leaves the
      pre-teleport velocity attached; without keep_still() the object launches out of its new pose.
      This is the specific regression the live-write path could introduce.
@@ -68,29 +71,53 @@ def row_report(env):
 MOVES = {
     "VB-POSE": "objects",
     "V-VIEW": "cameras",
-    "V-SC": "objects",
+    # NOT "objects". V-SC re-places and re-models the DISTRACTORS -- README: "Randomly spawn new
+    # distractors in the scene" -- and passes the main and target objects to
+    # get_non_colliding_positions_for_objects as objects_to_skip, so they are deliberately left
+    # exactly where the restore put them. Measured with the working V-SC (2 members x 3 resets):
+    # main-object xy spread was 0.0000 for both members, i.e. asserting "objects" here is a
+    # guaranteed false failure that says nothing about whether V-SC ran.
+    "V-SC": "distractors",
+    # "size": VB-MOBJ rescales the main object while RESTORING its pose, so "did it move" is the
+    # wrong question -- but leaving it unmapped is worse, because then nothing verifies it did
+    # ANYTHING. Measured: VB-MOBJ passed with object spread 0.0000 and no expectation, which is
+    # indistinguishable from a no-op. The observable is the AABB extent (measured 0.0190 / 0.0276
+    # spread with a working VB-MOBJ, against 0.0000 for Default).
     "VB-MOBJ": "size",
+    # "identity": VSB-NOBJ REPLACES the object, so neither pose nor size sees it. Compared against a
+    # baseline captured before the first reset. CAVEAT: the replacement is sampled, so a lone
+    # identity failure means "re-run before believing", not proof of breakage.
     "VSB-NOBJ": "identity",
     "Default": "nothing",
 }
-# "size" exists because VB-MOBJ rescales the main object while RESTORING its pose, so the object's
-# xy never changes and an "objects" expectation would be a confident false failure -- but leaving it
-# out entirely is worse: VB-MOBJ then passes every check while nothing verifies it did ANYTHING.
-# That is the exact hole this map exists to close (measured: VB-MOBJ passed with object spread
-# 0.0000 and no expectation, which is indistinguishable from the perturbation being a no-op).
-# The observable is the object's AABB extent across resets.
-#
-# "identity" is for perturbations that REPLACE the main object with a different model (VSB-NOBJ):
-# pose is restored and size is clamped, so the only honest observable is which object it now is.
-# Compared against the baseline captured BEFORE the first reset, and reported either way.
-#
-# CAVEAT, so a failure here is read correctly: the replacement category is SAMPLED, so there is a
-# small chance of drawing the original (or the same one repeatedly) by luck, which would look like a
-# no-op. Treat a lone identity failure as "re-run before believing", not as proof of breakage.
-#
-# Still absent: SB-VRB. It rewrites env.task_type, the task progression AND the instruction, so its
-# honest observable is the instruction/task, not the object -- and the harness does not record that
-# yet. It gets every other check; an unknown entry reports and asserts nothing.
+# Deliberately absent: SB-VRB. It rewrites task_type, the task progression AND the instruction, so
+# its honest observable is the task/instruction rather than any object property, and this harness
+# does not record that yet. It still gets every other check; check 4 just reports and asserts
+# nothing, which is what an unknown entry does.
+
+
+def planted_objects(env):
+    """(name, category, scene-frame xy) for every object REALM planted in this member's scene.
+
+    Everything REALM puts on the table is in env.cfg["objects"] -- main object, target, declared
+    distractors, and the extra distractors V-SC's presence makes env_config sample. Read by NAME out
+    of the scene registry rather than from env.distractors, because replace_obj swaps an object by
+    removing it and adding a new one under the same name, which leaves env.distractors holding
+    references to removed prims.
+
+    Scene frame, so the ~25.3 m tile offset between members does not swamp the comparison.
+    """
+    scene = env.omnigibson_env.scene
+    out = []
+    for cfg in env.cfg["objects"]:
+        obj = scene.object_registry("name", cfg["name"])
+        if obj is None:
+            out.append((cfg["name"], "<missing>", 0.0, 0.0))
+            continue
+        pos = obj.get_position_orientation(frame="scene")[0]
+        pos = pos.cpu().numpy() if hasattr(pos, "cpu") else np.asarray(pos)
+        out.append((cfg["name"], obj.category, round(float(pos[0]), 4), round(float(pos[1]), 4)))
+    return tuple(sorted(out))
 
 
 def obj_identity(env):
@@ -123,15 +150,23 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
     failures = []
     poses_by_reset = []
     cams_by_reset = []
+    planted_by_reset = []
     sizes_by_reset = []
     ident_by_reset = []
-    # Baseline identity, captured BEFORE any reset so a replacement is detectable even if every
+    # Baseline identity, captured BEFORE any reset so a replacement is still detectable if every
     # reset happens to draw the same model as every other reset.
     ident_base = [obj_identity(e) for e in vec_env.envs]
     print(f"\n[baseline] main-object identity per member: {ident_base}", flush=True)
 
+    # Check 1's expectation depends on the perturbation. A pose-only one (VB-POSE, V-VIEW) must not
+    # cycle the sim AT ALL. One that adds or removes objects (V-SC and the rest of NEEDS_STOPPED_SIM)
+    # genuinely cannot avoid a stopped sim, so the contract there is not "zero" but "EXACTLY ONE for
+    # the whole reset": RealmVectorEnvironment.reset() hoists the cycle out of the per-member loop, so
+    # a count of N is the bug this script exists to catch and 1 is correct.
+    expected_cycles = 1 if perturbation in NEEDS_STOPPED_SIM else 0
+
     for r in range(resets):
-        # ---- check 1: the reset must not stop the sim ----------------------------------------
+        # ---- check 1: the reset must cycle the sim expected_cycles times, no more ------------
         counts = {"stop": 0, "play": 0}
         real_stop, real_play = og.sim.stop, og.sim.play
 
@@ -151,27 +186,12 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
 
         was_playing = og.sim.is_playing()
         print(f"\n===== reset {r + 1}/{resets} =====", flush=True)
-
-        # The expected count depends on the perturbation, and getting this wrong reads as a code bug.
-        #
-        #   pose-only (VB-POSE, V-VIEW, Default, ...)  -> 0 stop / 0 play. Nothing needs a stopped
-        #       sim, so any cycling at all is the per-member disruption this work removed.
-        #   NEEDS_STOPPED_SIM (V-SC, VB-MOBJ, VSB-NOBJ, SB-VRB) -> EXACTLY 1 stop / 1 play, no
-        #       matter how many members. Those perturbations add or remove objects and genuinely
-        #       need a stopped sim, so RealmVectorEnvironment.reset() does ONE cycle for all of them.
-        #       Asserting 0 here would flag correct batching as a failure -- which it did, for
-        #       VB-MOBJ, until this check learned the difference. Asserting "<= 1" rather than "any"
-        #       is the point: N cycles for N members is the original bug, and 1 is the fix.
-        expect_cycle = 1 if perturbation in NEEDS_STOPPED_SIM else 0
         print(f"  [1] stop() calls={counts['stop']}  play() calls={counts['play']}  "
-              f"(expected {expect_cycle} each for {perturbation})  "
-              f"sim playing after reset={was_playing}", flush=True)
-        if counts["stop"] != expect_cycle or counts["play"] != expect_cycle:
-            failures.append(
-                f"reset {r+1}: sim cycled {counts['stop']} stop / {counts['play']} play, "
-                f"expected {expect_cycle} each -- more than one cycle means it is being done per "
-                f"member instead of once for all members"
-            )
+              f"(expected {expected_cycles} of each)  sim playing after reset={was_playing}",
+              flush=True)
+        if counts["stop"] != expected_cycles or counts["play"] != expected_cycles:
+            failures.append(f"reset {r+1}: sim cycled {counts['stop']} stop / {counts['play']} play, "
+                            f"expected {expected_cycles} of each")
         if not was_playing:
             failures.append(f"reset {r+1}: sim not playing after reset")
 
@@ -185,6 +205,14 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
                 failures.append(f"reset {r+1}: member {i} (scene {scene_idx}) main-object links "
                                 f"NOT rows: {missing}")
 
+        # Snapshot for check 4 BEFORE stepping, so it measures what the perturbation produced rather
+        # than where physics and the arm subsequently pushed things.
+        planted_by_reset.append([planted_objects(e) for e in vec_env.envs])
+        sizes_by_reset.append(np.array([
+            (lambda e: (e.cpu().numpy() if hasattr(e, "cpu") else np.asarray(e)))(
+                env.main_objects[0].aabb_extent) for env in vec_env.envs], dtype=float))
+        ident_by_reset.append([obj_identity(e) for e in vec_env.envs])
+
         # ---- step a little, then checks 3-5 ---------------------------------------------------
         ee_cmds = [e.warmup_ee_cmd() for e in vec_env.envs]
         results = None
@@ -193,7 +221,6 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
             results = vec_env.step(actions)
 
         poses = []
-        sizes = []
         for i, (env, res) in enumerate(zip(vec_env.envs, results)):
             obs = res[0]
 
@@ -212,19 +239,10 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
             if pos[2] < TABLE_Z_MIN:
                 failures.append(f"reset {r+1}: member {i} main object left the table (z={pos[2]:.3f})")
 
-            # AABB extent is the observable for rescaling perturbations (VB-MOBJ), which restore
-            # pose and so are invisible to the xy check above.
-            ext = env.main_objects[0].aabb_extent
-            ext = ext.cpu().numpy() if hasattr(ext, "cpu") else np.asarray(ext)
-            sizes.append(np.asarray(ext, dtype=float))
-
             print(f"  [3/5] member {i}: grasping={grasping}  "
-                  f"main-object xyz=({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})  "
-                  f"aabb=({ext[0]:.4f}, {ext[1]:.4f}, {ext[2]:.4f})", flush=True)
+                  f"main-object xyz=({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})", flush=True)
 
         poses_by_reset.append(np.array(poses))
-        sizes_by_reset.append(np.array(sizes))
-        ident_by_reset.append([obj_identity(e) for e in vec_env.envs])
         cams_by_reset.append(np.array([camera_poses(e) for e in vec_env.envs]))
 
     # ---- check 4: the perturbation must actually move what it claims to move -----------------
@@ -237,34 +255,50 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
 
     obj = np.array(poses_by_reset)                           # (resets, members, 3)
     cam = np.array(cams_by_reset)                            # (resets, members, 7*n_sensors)
-    siz = np.array(sizes_by_reset)                           # (resets, members, 3)
     for i in range(num_envs):
         obj_spread = obj[:, i, :2].ptp(axis=0)               # xy range across resets, per member
         cam_spread = cam[:, i, :].ptp(axis=0).max() if cam.size else 0.0
-        siz_spread = siz[:, i, :].ptp(axis=0).max() if siz.size else 0.0
+
+        # How the planted objects differ between consecutive resets: how many swapped CATEGORY (a
+        # replace_obj that actually picked a new model) and how many MOVED. A V-SC that silently
+        # became a no-op scores 0 on both and fails below, which the main-object pose cannot detect.
+        recat, removed_xy = 0, 0
+        for r in range(1, resets):
+            prev = {n: (c, x, y) for n, c, x, y in planted_by_reset[r - 1][i]}
+            for n, c, x, y in planted_by_reset[r][i]:
+                if n not in prev:
+                    continue
+                recat += prev[n][0] != c
+                removed_xy += abs(prev[n][1] - x) > 1e-4 or abs(prev[n][2] - y) > 1e-4
         print(f"  member {i}: object xy spread=({obj_spread[0]:.4f}, {obj_spread[1]:.4f})  "
-              f"camera max spread={cam_spread:.4f}  size spread={siz_spread:.4f}  "
-              f"identities={sorted({ident_base[i]} | {ident_by_reset[r][i] for r in range(resets)})}",
-              flush=True)
+              f"camera max spread={cam_spread:.4f}  planted objects: {recat} category change(s), "
+              f"{removed_xy} xy change(s) across {max(resets - 1, 0)} reset transition(s)", flush=True)
         if resets > 1:
             obj_moved = not np.all(obj_spread < 1e-4)
             cam_moved = cam_spread > 1e-4
-            siz_changed = siz_spread > 1e-4
-            if expect == "size" and not siz_changed:
-                failures.append(f"member {i}: main object never changed size across resets -- "
-                                f"{perturbation} is a no-op")
+            if expect == "distractors" and recat == 0 and removed_xy == 0:
+                failures.append(f"member {i}: no planted object changed category or position across "
+                                f"resets -- {perturbation} is a no-op")
             if expect == "objects" and not obj_moved:
                 failures.append(f"member {i}: main object never moved across resets -- "
                                 f"{perturbation} is a no-op")
             if expect == "cameras" and not cam_moved:
                 failures.append(f"member {i}: external cameras never moved across resets -- "
                                 f"{perturbation} is a no-op")
-            seen = {ident_base[i]} | {ident_by_reset[r][i] for r in range(resets)}
-            ident_changed = len(seen) > 1
+            siz = np.array(sizes_by_reset)
+            siz_spread = siz[:, i, :].ptp(axis=0).max() if siz.size else 0.0
+            siz_changed = siz_spread > 1e-4
+            seen_ident = {ident_base[i]} | {ident_by_reset[k][i] for k in range(resets)}
+            ident_changed = len(seen_ident) > 1
+            print(f"  member {i}: size spread={siz_spread:.4f}  identities={sorted(seen_ident)}",
+                  flush=True)
+            if expect == "size" and not siz_changed:
+                failures.append(f"member {i}: main object never changed size across resets -- "
+                                f"{perturbation} is a no-op")
             if expect == "identity" and not ident_changed:
                 failures.append(f"member {i}: main object identity never changed from "
-                                f"{ident_base[i]} across {resets} resets -- {perturbation} is a "
-                                f"no-op (or the sampler drew the same model every time; re-run)")
+                                f"{ident_base[i]} -- {perturbation} is a no-op (or the sampler drew "
+                                f"the same model every time; re-run)")
             if expect == "nothing" and (obj_moved or cam_moved or siz_changed or ident_changed):
                 failures.append(f"member {i}: {perturbation} changed something it should not "
                                 f"(object={obj_moved}, camera={cam_moved}, size={siz_changed}, "
@@ -286,24 +320,9 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
         for f in failures:
             print(f"  - {f}", flush=True)
     else:
-        # Spell out what was ACTUALLY asserted for this perturbation. The old wording was fixed text
-        # claiming "no sim cycling ... poses vary", which is false for a NEEDS_STOPPED_SIM
-        # perturbation (one batched cycle is correct) and false for a rescaling one (VB-MOBJ
-        # restores pose; its sizes are what vary). A summary that misdescribes the checks is how a
-        # green run turns into false confidence.
-        cycle_txt = (f"exactly one batched stop/play per reset (not {num_envs})"
-                     if perturbation in NEEDS_STOPPED_SIM else "no sim cycling")
-        moved_txt = {
-            "objects": "object poses vary per member",
-            "cameras": "camera poses vary per member",
-            "size": "object size varies per member (pose correctly restored)",
-            "identity": "object identity changes",
-            "nothing": "nothing moved, as expected for a no-op perturbation",
-        }.get(MOVES.get(perturbation), "NO effect assertion for this perturbation -- unverified "
-                                       "that it does anything")
-        print(f"PASSED -- {perturbation}, {resets} resets x {num_envs} members: {cycle_txt}; "
-              f"main object is a contact row in every scene; grasp check live; {moved_txt}; "
-              f"nothing left the table.", flush=True)
+        print(f"PASSED -- {resets} resets x {num_envs} members: {expected_cycles} sim stop/play per "
+              f"reset, main object is a contact row in every scene, grasp check live, "
+              f"{expect or 'nothing asserted to'} vary, nothing left the table.", flush=True)
     print("=" * 70, flush=True)
     return 1 if failures else 0
 

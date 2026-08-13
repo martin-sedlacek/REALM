@@ -29,6 +29,13 @@ NUM_ENVS=${NUM_ENVS:-2}
 RESETS=${RESETS:-3}
 STEPS=${STEPS:-15}
 ROBOT=${ROBOT:-DROID_robolab_v2}
+# Task matters for coverage, not just for variety: a perturbation can take a completely different
+# code path depending on the task's main-object TYPE. VB-MOBJ rescales a PrimitiveObject but
+# REMOVES AND RE-ADDS a DatasetObject, and only the second path touches the add/remove machinery.
+# Task 0 (put_green_block_into_bowl) and 6 (stack_cubes) are PrimitiveObject; 1,2,3,4,5,7 are
+# DatasetObject; 8,9 (open/close_drawer) do not currently load at all on this port (cabinet.usd,
+# TypeError missing 'preset_name'). So a task-0 pass does NOT imply a perturbation is safe.
+TASK_ID=${TASK_ID:-0}
 TAG=${TAG:-sweep}
 
 [ -n "$ALLOCS" ] || { echo "ERROR: set ALLOCS to one or more running interactive job IDs" >&2; exit 1; }
@@ -38,7 +45,7 @@ read -r -a ALLOC_ARR <<< "$ALLOCS"
 n_alloc=${#ALLOC_ARR[@]}
 echo "=================================================================="
 echo " t9 sweep: ${#} perturbation(s) over $n_alloc alloc(s)"
-echo " num_envs=$NUM_ENVS resets=$RESETS steps=$STEPS robot=$ROBOT"
+echo " num_envs=$NUM_ENVS resets=$RESETS steps=$STEPS task=$TASK_ID robot=$ROBOT"
 echo "=================================================================="
 
 pids=()
@@ -47,13 +54,13 @@ i=0
 for pert in "$@"; do
   alloc=${ALLOC_ARR[$((i % n_alloc))]}
   log="$LOGS/t9_${TAG}_${pert}.log"
-  echo "[sweep] $pert -> alloc $alloc -> $log"
+  echo "[sweep] $pert (task $TASK_ID) -> alloc $alloc -> $log"
   (
     cd "$REALM_ROOT" || exit 1
     MODE=oglite srun --jobid="$alloc" --overlap -n1 ./scripts/clara/interactive/rr \
       python -u scripts/clara/interactive/t9_vbpose_nostopplay.py \
         --num_envs "$NUM_ENVS" --resets "$RESETS" --steps "$STEPS" \
-        --robot "$ROBOT" --perturbation "$pert"
+        --task_id "$TASK_ID" --robot "$ROBOT" --perturbation "$pert"
   ) > "$log" 2>&1 &
   pids+=($!)
   perts+=("$pert")
