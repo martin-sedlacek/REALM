@@ -473,3 +473,81 @@ and Isaac's `SimulationApp.close()` takes the process down hard -- `atexit` hand
 blocks do **not** run. A first round of these jobs exited 0, ran to completion and wrote no results
 at all. Hook `og.shutdown`, not `atexit`. Both profilers here now do, plus a periodic checkpoint
 every 400 samples.
+
+## 9. The incremental contact cache: measured, and it works
+
+Interleaved A/B on the held allocation, 2026-08-13. OG-lite 3.9.1 both sides, differing only by
+`REALM_INCREMENTAL_CONTACT_CACHE`. **pi0.5**, not `debug` -- the debug client returns a constant
+action, so the gripper never contacts anything and the cache never leaves its cheap mode, which is
+the regime where the fold matters least. Task 0, perturbation 0, 2 repeats x 300 steps, horizon 8,
+proximity gate on (default) in every run. Order: off, on, off, on. n=2 per side.
+
+| | fold OFF | fold ON | delta |
+| --- | --: | --: | --: |
+| `update_contact_cache` median | 23.99 ms | **0.070 ms** | **-99.7%** |
+| `update_contact_cache` total | 15.29 s | 0.078 s | -99.5% |
+| `add_contacts_from_physics_step` median | 0.322 ms | 0.725 ms | **+125%** |
+| `add_contacts_from_physics_step` total | 1.62 s | 4.25 s | +163% |
+| `_non_physics_step` median | 24.34 ms | **0.351 ms** | **-98.6%** |
+| `_non_physics_step` total | 16.26 s | 0.443 s | -97.3% |
+| **`Simulator.step` median** | 76.90 ms | **52.84 ms** | **-31.3%** |
+| **`Simulator.step` total** | 48.95 s | **37.67 s** | **-23.0%** |
+
+### The work moves, and the net is a real win
+
+The 99.7% drop in `update_contact_cache` is not free -- the fold does the same work per physics
+substep instead of in one batch at the end, which is why `add_contacts_from_physics_step` gets 2.3x
+more expensive. Netting the two, per run:
+
+| | contact-cache work |
+| --- | --: |
+| OFF: `update` 15.29 s + `add` 1.62 s | **16.91 s** |
+| ON: flush 0.08 s + `add` 4.25 s | **4.33 s** |
+
+**-74% of all contact-cache time**, which lands as **-23% of total `Simulator.step` time**.
+
+The accounting closes independently: `_sim_context.step(render=False)` -- the substeps, where the
+fold runs -- rises 5.97 -> 6.36 ms (+0.39 ms x 8 substeps = +3.1 ms per control step), matching the
++0.40 ms x 8 rise in `add_contacts_from_physics_step`. `_sim_context.step(render=True)` is unchanged
+(+1.0%, not resolved), as it should be: the fold does not touch rendering.
+
+### Why n=2 is enough here, unlike section 6
+
+Section 6 failed because the **fastest stock run beat every OG-lite run** -- the ordering did not
+survive run selection. That is the test to apply, not spread-vs-gap, and `analyze_ab.py` now runs it
+directly. Every headline metric here is **fully separated**:
+
+| metric | worst ON | best OFF | separated |
+| --- | --: | --: | --- |
+| `update_contact_cache` median | 0.071 ms | 6.49 ms | 91x, yes |
+| `_non_physics_step` median | 0.359 ms | 6.81 ms | 19x, yes |
+| `Simulator.step` median | 53.42 ms | 65.41 ms | yes |
+| `Simulator.step` total | 37.84 s | 42.02 s | yes |
+
+No pairing of runs reverses the conclusion.
+
+### The fold also removes the variance
+
+The `off` condition swings hugely between two nominally identical runs -- `update_contact_cache`
+median 6.49 ms vs 41.50 ms, a 145.9% spread. That is section 4's bimodality: the cost tracks the
+number of contact pairs, which jumps the moment the gripper touches something, so it is
+trajectory-dependent. The `on` condition is nearly constant (0.071 / 0.068 ms, 5.2% spread). For
+sweep planning that predictability may matter as much as the mean.
+
+### Caveats
+
+1. **n=2 per side.** Separated at every pairing, but not replicated further.
+2. **One `off` run terminated early** -- 605 `Simulator.step` calls against 662 for the other three,
+   a pi0.5 rollout ending early. Its totals are therefore *lower*, which flatters the `off`
+   condition, so the comparison is conservative rather than inflated.
+3. Measured with the proximity gate **on** in both arms. The fold's benefit on top of a gated
+   contact matrix is what is reported; it has not been measured with `REALM_PROXIMITY_GATE=0`.
+
+**Recommendation:** `REALM_INCREMENTAL_CONTACT_CACHE=1` is worth turning on by default for OG-lite
+runs, subject to a correctness check on a long rollout -- the 2-step equivalence check in the section
+above is weak evidence that the folded matrix matches the batched one.
+
+```bash
+N=2 ./tmp/interactive/t2_ab_contact.sh          # needs the pi0.5 server on :8000
+python tmp/interactive/analyze_ab.py tmp/interactive/prof
+```
