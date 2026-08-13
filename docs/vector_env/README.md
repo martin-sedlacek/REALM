@@ -200,9 +200,21 @@ construction, then 2 of 2 resets bring the chair back. REALM calls `reset()` onc
 every repeat after the first runs with an object the task config asked to delete -- 24 of 25 at the
 usual `--repeats 25`.
 
+**CORRECTION (2026-08-14), measured after the vectorization work landed.** "Every scene, including
+scene 0" no longer holds, and neither does commit `56e05ce`'s "scenes 1..N-1". Re-measured from the
+rendered frames of the vector integrity matrix: at `--num_envs 2` the chair is in env1 and not env0;
+at `--num_envs 3` it is in **env2 only**, with env0 AND env1 clean. So the survivor is the LAST
+member, not every member and not every member but the first. That is the same last-member signature
+as the sibling init-queue eviction (see PERTURBATIONS.md), which prunes a GLOBAL queue by object
+NAME while every member is built from the same task YAML -- worth checking whether the two share a
+cause before fixing this one separately. Whether the single-env behaviour above also changed has NOT
+been re-measured; the correction covers vector envs only.
+
 **It is a port regression: not an issue on OmniGibson 1.1.1** (per Martin, 2026-08-13). Results
 collected on the old stack are unaffected; og391 results are. Candidate fix:
-`scene.update_initial_file()` after applying the scene fixes. Not yet implemented.
+`scene.update_initial_file()` after applying the scene fixes. Not yet implemented -- note that
+several perturbations now call exactly that for the same reason (see PERTURBATIONS.md), so the fix
+has precedent in the codebase.
 
 ## The fix
 
