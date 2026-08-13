@@ -153,9 +153,13 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
     # vec-only, for the same reason as in v_sc.py: single-env SB-VRB has never called this and works,
     # so adding it there would be an unverified change to a working path.
     #
-    # UNTESTED and expected to hit the same wall as V-SC: update_initial_file() -> scene.dump_state()
-    # asserts "Object must be initialized before dumping state!" for objects added while the sim was
-    # stopped. See the long note in v_sc.py; whatever fixes it there applies here unchanged.
+    # The wall this used to be expected to hit -- update_initial_file() -> scene.dump_state()
+    # asserting "Object must be initialized before dumping state!" -- is fixed, in
+    # RealmVectorEnvironment._initialize_evicted_objects() rather than in any perturbation, so it
+    # applies here too. STILL UNVERIFIED END TO END, though: only V-SC has actually been run
+    # vectorized (t9_vbpose_nostopplay.py --perturbation V-SC, 2 members x 3 resets). SB-VRB also
+    # ADDS a "receiver" that the other members' scenes do not have, which is a case V-SC never
+    # exercises, so run it before trusting it.
     def _post_play():
         og.sim.step()
         if env.in_vec_env:

@@ -99,7 +99,7 @@ class RealmVectorEnvironment:
             1. every member restores its own scene                    (no global state touched)
             2. ONE og.sim.stop(), if any member's perturbation needs it
             3. every member's perturbations run
-            4. ONE og.sim.play()
+            4. ONE og.sim.play(), then repair of the sim's object-init queue
             5. work the perturbations deferred because it needs a playing sim
             6. ONE settle loop driving all members together, if any asked for it
 
@@ -121,6 +121,10 @@ class RealmVectorEnvironment:
 
         if needs_stop:
             og.sim.play()
+            # play() initializes the objects the perturbations just added -- but not all of them.
+            # See _initialize_evicted_objects for why, and why this has to run before anything reads
+            # or dumps a scene's state.
+            self._initialize_evicted_objects()
 
         for env in self.envs:
             for fn in env.deferred_post_play:
@@ -133,6 +137,75 @@ class RealmVectorEnvironment:
             env.wants_settle = False
 
         return [(obs, res[1]) for obs, res in zip(obss, results)]
+
+    def _initialize_evicted_objects(self):
+        """Initialize objects that a SIBLING member's remove_object() knocked off the sim's init queue.
+
+        Adding an object appends it to the GLOBAL og.sim._objects_to_initialize
+        (Simulator._post_import_object), and Simulator._non_physics_step() initializes everything on
+        that queue as soon as the sim is playing. og.sim.play() runs _non_physics_step() itself, so
+        the single batched play() above should be enough for every member -- and it is what makes
+        __init__ work, where all N scenes' objects are added while stopped and initialized by one
+        play(). Yet V-SC still asserted "Object must be initialized before dumping state!" out of
+        scene.dump_state().
+
+        The reason is that Simulator._pre_remove_object() prunes that queue by NAME ALONE
+        (omnigibson/simulator.py:1089-1093 in OG 3.9.1):
+
+            for i, initialize_obj in enumerate(self._objects_to_initialize):
+                if obj.name == initialize_obj.name:
+                    self._objects_to_initialize.pop(i)
+                    break
+
+        Object names are unique per SCENE (scene.add_object asserts against that scene's registry),
+        NOT per simulator, and every member of a vector env is built from the same task config -- so
+        all N scenes contain a "corkscrew", a "wineglass", a "cube", and so on. The perturbations that
+        swap an object do it as remove_object() + add_object() under the SAME name (see
+        _helpers.replace_obj), and reset() runs all members' perturbations inside one stopped window,
+        so the queue holds several members' pending objects at once. Member 1's
+        remove_object("corkscrew") then matches member 0's freshly-added "corkscrew" and pops THAT
+        instead: the object stays on the stage and in scene 0's registry, but is off the queue, so no
+        play() or step() will ever initialize it. The last member is always fine, which is why the
+        failure looks like "every scene but the last one".
+
+        Single-env never hit this: with one scene there is no sibling to collide with, and each
+        perturbation's own play() drains the queue before the next thing runs.
+
+        The real fix belongs upstream -- _pre_remove_object should match on identity, or at least on
+        (scene, name), not on name -- but OG-lite is a shared checkout here, so we repair the queue
+        instead. Re-queueing the orphans and running one _non_physics_step() sends them through
+        exactly the path play() would have used (obj.initialize(), keep_still(), update_handles(),
+        joint-break bookkeeping), so the resulting state is what it would have been had the eviction
+        never happened. It is deliberately NOT og.Environment.post_play_load(): that also reloads the
+        observation/action spaces, rebases the scene's initial file and calls reset(), none of which
+        belongs in the middle of a reset.
+        """
+        # Anything still queued is not an orphan -- it is about to be initialized normally. (After a
+        # play() the queue should already be empty; this only guards against a future caller.)
+        queued = {id(obj) for obj in og.sim._objects_to_initialize}
+        orphans = [
+            obj
+            for env in self.envs
+            for obj in env.omnigibson_env.scene.objects
+            if not obj.initialized and id(obj) not in queued
+        ]
+        if not orphans:
+            return
+
+        # warning, not info: OmniGibson pins the root logger to WARNING (simulator.py:294), so
+        # og.log.info() is silently dropped and this line would never be seen. It is also genuinely
+        # warning-worthy -- it reports that we are papering over an upstream bug -- and it only fires
+        # on resets where an eviction actually happened.
+        og.log.warning(
+            "Re-queueing %d object(s) evicted from the sim init queue by a sibling scene: %s"
+            % (len(orphans), ", ".join(f"scene{obj.scene.idx}/{obj.name}" for obj in orphans))
+        )
+        og.sim._objects_to_initialize.extend(orphans)
+        og.sim._non_physics_step()
+        # Loud rather than silent: if this ever stops working the next symptom is the same opaque
+        # "Object must be initialized before dumping state!" from an unrelated call site.
+        failed = [f"scene{obj.scene.idx}/{obj.name}" for obj in orphans if not obj.initialized]
+        assert not failed, f"objects still uninitialized after re-queueing: {failed}"
 
     def _settle(self, steps=SETTLE_STEPS):
         """Let every member's scene come to rest, on one shared step loop.

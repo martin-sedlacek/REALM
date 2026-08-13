@@ -20,8 +20,11 @@ Five checks, all of which failed (or were meaningless) before the fix:
      silently scores zero rather than failing.
   3. GRASP CHECK LIVE -- check_grasp_condition() must run without raising for every member.
      Before the dtype fix in OG-lite this raised IndexError from an empty float32 index tensor.
-  4. PERTURBATION STILL PERTURBS -- the main object pose must actually vary across resets, and
-     differ between members. A "fix" that quietly stopped moving anything would pass 1-3.
+  4. PERTURBATION STILL PERTURBS -- whatever the perturbation is supposed to re-randomise must
+     actually vary across resets, and members must differ. A "fix" that quietly stopped moving
+     anything would pass 1-3. What counts as "varying" is per-perturbation (see MOVES): the main
+     object's pose for VB-POSE, the external sensors for V-VIEW, and the planted distractors'
+     categories/positions for V-SC, which by design never moves the main object at all.
   5. KEEP_STILL HOLDS -- objects must stay on the table. Teleporting on a live sim leaves the
      pre-teleport velocity attached; without keep_still() the object launches out of its new pose.
      This is the specific regression the live-write path could introduce.
@@ -37,6 +40,7 @@ import omnigibson as og
 from omnigibson.utils.usd_utils import RigidContactAPI
 
 from realm.environments.env_vector import RealmVectorEnvironment
+from realm.environments.perturbations._helpers import NEEDS_STOPPED_SIM
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.sim_config import set_sim_config
 
@@ -67,13 +71,43 @@ def row_report(env):
 MOVES = {
     "VB-POSE": "objects",
     "V-VIEW": "cameras",
-    "V-SC": "objects",
+    # NOT "objects". V-SC re-places and re-models the DISTRACTORS -- README: "Randomly spawn new
+    # distractors in the scene" -- and passes the main and target objects to
+    # get_non_colliding_positions_for_objects as objects_to_skip, so they are deliberately left
+    # exactly where the restore put them. Measured with the working V-SC (2 members x 3 resets):
+    # main-object xy spread was 0.0000 for both members, i.e. asserting "objects" here is a
+    # guaranteed false failure that says nothing about whether V-SC ran.
+    "V-SC": "distractors",
     "Default": "nothing",
 }
 # Deliberately absent: VSB-NOBJ, VB-MOBJ, SB-VRB. Those swap an object's model or rescale it while
 # RESTORING its pose, so "did it move" is the wrong question for them and asserting it would produce
 # a confident false failure. They still get every other check; check 4 just reports and asserts
 # nothing, which is what an unknown entry does.
+
+
+def planted_objects(env):
+    """(name, category, scene-frame xy) for every object REALM planted in this member's scene.
+
+    Everything REALM puts on the table is in env.cfg["objects"] -- main object, target, declared
+    distractors, and the extra distractors V-SC's presence makes env_config sample. Read by NAME out
+    of the scene registry rather than from env.distractors, because replace_obj swaps an object by
+    removing it and adding a new one under the same name, which leaves env.distractors holding
+    references to removed prims.
+
+    Scene frame, so the ~25.3 m tile offset between members does not swamp the comparison.
+    """
+    scene = env.omnigibson_env.scene
+    out = []
+    for cfg in env.cfg["objects"]:
+        obj = scene.object_registry("name", cfg["name"])
+        if obj is None:
+            out.append((cfg["name"], "<missing>", 0.0, 0.0))
+            continue
+        pos = obj.get_position_orientation(frame="scene")[0]
+        pos = pos.cpu().numpy() if hasattr(pos, "cpu") else np.asarray(pos)
+        out.append((cfg["name"], obj.category, round(float(pos[0]), 4), round(float(pos[1]), 4)))
+    return tuple(sorted(out))
 
 
 def camera_poses(env):
@@ -100,9 +134,17 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
     failures = []
     poses_by_reset = []
     cams_by_reset = []
+    planted_by_reset = []
+
+    # Check 1's expectation depends on the perturbation. A pose-only one (VB-POSE, V-VIEW) must not
+    # cycle the sim AT ALL. One that adds or removes objects (V-SC and the rest of NEEDS_STOPPED_SIM)
+    # genuinely cannot avoid a stopped sim, so the contract there is not "zero" but "EXACTLY ONE for
+    # the whole reset": RealmVectorEnvironment.reset() hoists the cycle out of the per-member loop, so
+    # a count of N is the bug this script exists to catch and 1 is correct.
+    expected_cycles = 1 if perturbation in NEEDS_STOPPED_SIM else 0
 
     for r in range(resets):
-        # ---- check 1: the reset must not stop the sim ----------------------------------------
+        # ---- check 1: the reset must cycle the sim expected_cycles times, no more ------------
         counts = {"stop": 0, "play": 0}
         real_stop, real_play = og.sim.stop, og.sim.play
 
@@ -123,9 +165,11 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
         was_playing = og.sim.is_playing()
         print(f"\n===== reset {r + 1}/{resets} =====", flush=True)
         print(f"  [1] stop() calls={counts['stop']}  play() calls={counts['play']}  "
-              f"sim playing after reset={was_playing}", flush=True)
-        if counts["stop"] or counts["play"]:
-            failures.append(f"reset {r+1}: sim was cycled ({counts['stop']} stop / {counts['play']} play)")
+              f"(expected {expected_cycles} of each)  sim playing after reset={was_playing}",
+              flush=True)
+        if counts["stop"] != expected_cycles or counts["play"] != expected_cycles:
+            failures.append(f"reset {r+1}: sim cycled {counts['stop']} stop / {counts['play']} play, "
+                            f"expected {expected_cycles} of each")
         if not was_playing:
             failures.append(f"reset {r+1}: sim not playing after reset")
 
@@ -138,6 +182,10 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
             if missing:
                 failures.append(f"reset {r+1}: member {i} (scene {scene_idx}) main-object links "
                                 f"NOT rows: {missing}")
+
+        # Snapshot for check 4 BEFORE stepping, so it measures what the perturbation produced rather
+        # than where physics and the arm subsequently pushed things.
+        planted_by_reset.append([planted_objects(e) for e in vec_env.envs])
 
         # ---- step a little, then checks 3-5 ---------------------------------------------------
         ee_cmds = [e.warmup_ee_cmd() for e in vec_env.envs]
@@ -184,11 +232,27 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
     for i in range(num_envs):
         obj_spread = obj[:, i, :2].ptp(axis=0)               # xy range across resets, per member
         cam_spread = cam[:, i, :].ptp(axis=0).max() if cam.size else 0.0
+
+        # How the planted objects differ between consecutive resets: how many swapped CATEGORY (a
+        # replace_obj that actually picked a new model) and how many MOVED. A V-SC that silently
+        # became a no-op scores 0 on both and fails below, which the main-object pose cannot detect.
+        recat, removed_xy = 0, 0
+        for r in range(1, resets):
+            prev = {n: (c, x, y) for n, c, x, y in planted_by_reset[r - 1][i]}
+            for n, c, x, y in planted_by_reset[r][i]:
+                if n not in prev:
+                    continue
+                recat += prev[n][0] != c
+                removed_xy += abs(prev[n][1] - x) > 1e-4 or abs(prev[n][2] - y) > 1e-4
         print(f"  member {i}: object xy spread=({obj_spread[0]:.4f}, {obj_spread[1]:.4f})  "
-              f"camera max spread={cam_spread:.4f}", flush=True)
+              f"camera max spread={cam_spread:.4f}  planted objects: {recat} category change(s), "
+              f"{removed_xy} xy change(s) across {max(resets - 1, 0)} reset transition(s)", flush=True)
         if resets > 1:
             obj_moved = not np.all(obj_spread < 1e-4)
             cam_moved = cam_spread > 1e-4
+            if expect == "distractors" and recat == 0 and removed_xy == 0:
+                failures.append(f"member {i}: no planted object changed category or position across "
+                                f"resets -- {perturbation} is a no-op")
             if expect == "objects" and not obj_moved:
                 failures.append(f"member {i}: main object never moved across resets -- "
                                 f"{perturbation} is a no-op")
@@ -215,9 +279,9 @@ def main(num_envs, resets, steps, task_id, robot, perturbation):
         for f in failures:
             print(f"  - {f}", flush=True)
     else:
-        print(f"PASSED -- {resets} resets x {num_envs} members: no sim cycling, main object is a "
-              f"contact row in every scene, grasp check live, poses vary, nothing left the table.",
-              flush=True)
+        print(f"PASSED -- {resets} resets x {num_envs} members: {expected_cycles} sim stop/play per "
+              f"reset, main object is a contact row in every scene, grasp check live, "
+              f"{expect or 'nothing asserted to'} vary, nothing left the table.", flush=True)
     print("=" * 70, flush=True)
     return 1 if failures else 0
 
