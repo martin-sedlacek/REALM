@@ -16,34 +16,35 @@ threads that were open then are now resolved; what replaced them is at the botto
 | Apptainer sif + dataset on clara | done, checksums matched |
 | repo cleanup + file splits | done |
 | **vectorized environments** | **root-caused and fixed** -- [docs/vector_env/README.md](vector_env/README.md) |
-| **OG-lite incremental contact cache** | **correctness verified; timings still open** -- [docs/perf/og391_step_profile.md](perf/og391_step_profile.md) |
-| **pre-port vs ported phase benchmark** | **in flight** -- see below |
+| **OG-lite incremental contact cache** | **verified and measured: -23% of `Simulator.step`** -- [docs/perf/og391_step_profile.md](perf/og391_step_profile.md) s9 |
+| **pre-port vs ported phase benchmark** | **done** -- [docs/perf/og391_step_profile.md](perf/og391_step_profile.md) s8 |
 
 ## Running anything at all: the Apptainer harness
 
 The old workflow was `docker exec realm_stock` / `docker exec realm_oglite`. Clara has no Docker.
-Both conditions are now one image plus a bind, wrapped in `tmp/interactive/rr`:
+Both conditions are now one image plus a bind, wrapped in `scripts/clara/interactive/rr`:
 
 ```bash
-MODE=stock  ./tmp/interactive/rr python -u examples/02_evaluate.py ...   # image's own 3.9.1
-MODE=oglite ./tmp/interactive/rr python -u examples/02_evaluate.py ...   # OG-lite fork bound in
-ALLOC=<jobid> ./tmp/interactive/go <logname> ./tmp/interactive/<script>.sh   # run + tee + EXIT marker
+MODE=stock  ./scripts/clara/interactive/rr python -u examples/02_evaluate.py ...   # image's own 3.9.1
+MODE=oglite ./scripts/clara/interactive/rr python -u examples/02_evaluate.py ...   # OG-lite fork bound in
+ALLOC=<jobid> ./scripts/clara/interactive/go <logname> ./scripts/clara/interactive/<script>.sh   # run + tee + EXIT marker
 ```
 
-`tmp/` is gitignored. That is exactly how `tmp/fork_ab_profile.py` was lost when the last machine
-went away, so **copy anything worth keeping out of `tmp/` before the allocation ends.**
+The harness lives under `scripts/clara/interactive/`, i.e. **tracked**. It used to live in `tmp/`,
+which is gitignored -- that is exactly how `tmp/fork_ab_profile.py` was lost when the last machine
+went away. Only artifacts (`tmp/interactive/logs/`, `tmp/interactive/prof/`) stay in `tmp/`.
 
 | file | what |
 | --- | --- |
-| `tmp/interactive/rr` | container wrapper, `MODE=stock\|oglite` |
-| `tmp/interactive/go` | run a script in the held allocation, tee to `tmp/interactive/logs/<name>.log` |
-| `tmp/interactive/show_macros.py` | prove a flag actually reached `gm` before spending a run on it |
-| `tmp/interactive/check_run.py` | the four REALM pass criteria, so "exit 0" can't be mistaken for a pass |
-| `tmp/interactive/t1_scene_probe.py` | per-member scene dump: names, z distribution, stage prims, fixes either side |
-| `tmp/interactive/profile_step.py` | contact-cache / `_non_physics_step` timing (replaces the lost `fork_ab_profile.py`) |
-| `tmp/interactive/profile_phases.py` | cold start / reset / step phases, **portable across 1.1.1 and 3.9.1** |
-| `tmp/interactive/t2_ab_contact.sh` + `analyze_ab.py` | interleaved A/B of the incremental contact cache |
-| `tmp/interactive/sbatch_phase_ref_og{111,391}.sh` + `compare_phases.py` | the pre-port vs ported benchmark |
+| `scripts/clara/interactive/rr` | container wrapper, `MODE=stock\|oglite` |
+| `scripts/clara/interactive/go` | run a script in the held allocation, tee to `tmp/interactive/logs/<name>.log` |
+| `scripts/clara/interactive/show_macros.py` | prove a flag actually reached `gm` before spending a run on it |
+| `scripts/clara/interactive/check_run.py` | the four REALM pass criteria, so "exit 0" can't be mistaken for a pass |
+| `scripts/clara/interactive/t1_scene_probe.py` | per-member scene dump: names, z distribution, stage prims, fixes either side |
+| `scripts/clara/interactive/profile_step.py` | contact-cache / `_non_physics_step` timing (replaces the lost `fork_ab_profile.py`) |
+| `scripts/clara/interactive/profile_phases.py` | cold start / reset / step phases, **portable across 1.1.1 and 3.9.1** |
+| `scripts/clara/interactive/t2_ab_contact.sh` + `analyze_ab.py` | interleaved A/B of the incremental contact cache |
+| `scripts/clara/interactive/sbatch_phase_ref_og{111,391}.sh` + `compare_phases.py` | the pre-port vs ported benchmark |
 
 ## Closed: vector env scene fixes (was "open thread 1")
 
@@ -82,43 +83,58 @@ The other vectorization gaps (perturbations that cycle the sim, `reset_joints()`
 EE control in world vs scene frame, `evaluate()` still single-env) are unchanged and listed in
 [docs/vector_env/README.md](vector_env/README.md).
 
-## Closed: the incremental contact cache runs (was "open thread 2")
+## Closed: the incremental contact cache (was "open thread 2")
 
-`gm.INCREMENTAL_CONTACT_CACHE=1` has now been exercised for the first time and **passes** all four
-criteria, with `collisions_self=1, collisions_env=0` matching the stock container exactly. Flag
-reaching `gm` was confirmed before booting the sim, so it is not a null test.
+`gm.INCREMENTAL_CONTACT_CACHE=1` passes all four correctness criteria, with
+`collisions_self=1, collisions_env=0` matching the stock container exactly.
 
-**Timings are still unmeasured.** `tmp/interactive/t2_ab_contact.sh` is written and the pi0.5 server
-recipe is in it; run `N=3 ./tmp/interactive/t2_ab_contact.sh` with the server up, then
-`analyze_ab.py`. Two things that harness already encodes:
+**Measured under pi0.5** (interleaved, n=2/side, OG-lite both arms, gate on both) --
+[section 9](perf/og391_step_profile.md):
 
-- **Do not A/B with `--model_type debug`.** It returns a *constant* action, so the gripper never
-  touches anything and the contact matrix never leaves its cheap ~23-28 ms mode -- the regime where
-  the fold matters least. Use pi0.5.
-- `--render_on_demand` does **not** confound it: `update_contact_cache()` runs before the `blind`
-  early-out in `_non_physics_step`, so a blind step still pays the full contact cache.
+| | fold OFF | fold ON | delta |
+| --- | --: | --: | --: |
+| `update_contact_cache` median | 23.99 ms | 0.070 ms | -99.7% |
+| `add_contacts_from_physics_step` median | 0.322 ms | 0.725 ms | +125% |
+| net contact-cache work per run | 16.91 s | 4.33 s | **-74%** |
+| **`Simulator.step` median** | 76.90 ms | 52.84 ms | **-31%** |
+| **`Simulator.step` total** | 48.95 s | 37.67 s | **-23%** |
 
-`REALM_PROXIMITY_GATE=0` is still untested.
+The fold moves work out of the batched update and into the per-substep fold, and the net is a real
+win. Every headline metric is **fully separated** -- the worst `on` run beats the best `off` run --
+which is the test section 6's fork comparison failed, so n=2 suffices. It also removes the variance:
+`off` swings 145.9% between identical runs, `on` 5.2%.
 
-## In flight: pre-port vs ported phase benchmark
+**Recommendation: turn it on by default for OG-lite runs**, subject to a correctness check on a long
+rollout -- the 2-step equivalence evidence is weak.
 
-Reference numbers for cold start / reset / per-step on the **pre-port** stack (REALM@dev + OG-lite,
-OmniGibson 1.1.1, `realm-dm.sif`) against the ported one, same eval arguments, same profiler:
+Still untested: `REALM_PROXIMITY_GATE=0`.
+
+## Done: pre-port vs ported phase benchmark
+
+Jobs **190216 / 190217 / 190218**, one profiler in both checkouts, identical eval args. Full table
+and caveats: [section 8](perf/og391_step_profile.md).
+
+| | og111 + OG-lite | og391 stock | og391 + OG-lite |
+| --- | --: | --: | --: |
+| cold start | 278.3 s | 251.0 s | 257.5 s |
+| **rollout** (3 resets + 390 steps) | 309.7 s | 160.1 s | **90.3 s** |
+| reset, median/repeat | **2.88 s** | 6.43 s | 9.20 s |
+
+- **The port is 1.9x faster at rollout, 3.4x with OG-lite.**
+- Cold start improves only ~10%, and is a wash: the Isaac import got **3.7x slower** (12.7 -> 47.6 s)
+  while env creation got faster (265.7 -> 203.4 s).
+- **Reset regressed 2.2-3.2x** -- the one place the port is clearly worse. At 25 repeats that is
+  +89 s (stock) / +158 s (OG-lite) of per-repeat overhead vs 1.1.1. **Not investigated; this is the
+  most concrete open performance item.**
+- Only cold start and rollout wall are comparable across stacks: 1.1.1's `--og_lite` routes blind
+  steps through `step_blind()`, bypassing `RealmEnv.step` and skipping `_non_physics_step` entirely.
 
 ```bash
-sbatch tmp/interactive/sbatch_phase_ref_og111.sh                                   # 1.1.1 + OG-lite
-OGLITE=0 LABEL=og391_stock  sbatch tmp/interactive/sbatch_phase_ref_og391.sh       # 3.9.1 stock
-OGLITE=1 LABEL=og391_oglite sbatch tmp/interactive/sbatch_phase_ref_og391.sh       # 3.9.1 + fork
-python tmp/interactive/compare_phases.py /mnt/home_lustre/sedlam56/projects/REALM/logs/phase_ref
+sbatch scripts/clara/interactive/sbatch_phase_ref_og111.sh
+OGLITE=0 LABEL=og391_stock  sbatch scripts/clara/interactive/sbatch_phase_ref_og391.sh
+OGLITE=1 LABEL=og391_oglite sbatch scripts/clara/interactive/sbatch_phase_ref_og391.sh
+python scripts/clara/interactive/compare_phases.py ~/projects/REALM/logs/phase_ref
 ```
-
-Jobs 190213 / 190214 / 190215 (190212 died: it resolved `realm` from whichever directory `sbatch`
-was submitted from rather than the repo bound at `/app` -- both scripts now pass
-`apptainer --pwd /app`).
-
-Caveats to carry into the writeup: all three landed on the same node and ran concurrently, which
-controls for machine state but inflates absolute numbers; and `--model_type debug` means constant
-actions and no gripper contact, so per-step figures are a floor rather than a pi0.5 rollout cost.
 
 ## Gotchas that have already cost time
 
@@ -133,22 +149,26 @@ actions and no gripper contact, so per-step figures are a floor rather than a pi
    `python -c "import inspect, omnigibson.utils.usd_utils as uu; print('PROXIMITY_GATE' in inspect.getsource(uu))"`.
 3. **Set the container's working directory explicitly** (`apptainer --pwd /app`). Otherwise the job
    inherits the submit directory and can import a *different* REALM checkout than the one it bound.
-4. **Exit code 0 is not sufficient evidence.** The OG-lite failure mode asserts inside an Isaac
-   callback and then segfaults. `tmp/interactive/check_run.py` encodes the real criteria: no
+4. **`atexit` never fires under Isaac.** `og.shutdown()` -> `SimulationApp.close()` takes the process
+   down hard, so `atexit` handlers and `finally` blocks are skipped. Three phase jobs and four A/B
+   runs completed, exited 0 and wrote **nothing at all** -- no crash to find, just silence. Hook
+   `og.shutdown`; both profilers here do, plus a checkpoint every 400 samples.
+5. **Exit code 0 is not sufficient evidence.** The OG-lite failure mode asserts inside an Isaac
+   callback and then segfaults. `scripts/clara/interactive/check_run.py` encodes the real criteria: no
    `Traceback` / `Segmentation fault` / `row mismatch` in the log, **and** all four artifacts written
    with a populated data row.
-5. **Registry removal is not stage removal.** `scene.remove_object()` ends in
+6. **Registry removal is not stage removal.** `scene.remove_object()` ends in
    `delete_or_deactivate_prim()`, which may *deactivate*. A deactivated prim still passes
    `IsValid()`; only `IsActive()` tells you whether it still renders.
-6. **Never `conda run` without `--no-capture-output`** (only relevant if you go back to a `conda run`
+7. **Never `conda run` without `--no-capture-output`** (only relevant if you go back to a `conda run`
    workflow; `rr` does not use one). It buffers all output until exit, so killing the process
    destroys the entire log.
-7. **Run-to-run variance reached 17%** with identical code. n>=3 per side, interleaved, before
+8. **Run-to-run variance reached 17%** with identical code. n>=3 per side, interleaved, before
    believing any single-digit difference. Compare stepping time, never wall clock -- startup is 64%
    of wall.
-8. **A GPU Slurm gives you is not necessarily empty.** Check
+9. **A GPU Slurm gives you is not necessarily empty.** Check
    `nvidia-smi --query-compute-apps=...` on a fresh allocation before trusting any timing.
-9. A YAML trailing comma makes `False,` parse as the truthy **string** `"False,"`. This silently
+10. A YAML trailing comma makes `False,` parse as the truthy **string** `"False,"`. This silently
    turned on gravity compensation for every DROID variant once.
 
 ## Still deferred (agreed, not forgotten)

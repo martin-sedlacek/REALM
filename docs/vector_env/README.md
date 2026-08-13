@@ -54,11 +54,11 @@ shape as OmniGibson's own `VectorEnvironment`.
 
 ## Reproduce
 
-On Clara (Apptainer, no Docker), from a held L40S allocation -- `tmp/interactive/rr` supplies the
+On Clara (Apptainer, no Docker), from a held L40S allocation -- `scripts/clara/interactive/rr` supplies the
 binds and picks stock vs OG-lite:
 
 ```bash
-MODE=stock ./tmp/interactive/rr \
+MODE=stock ./scripts/clara/interactive/rr \
   python -u examples/03_vector_first_frames.py --num_envs 4 --task_id 0 \
     --out_dir /logs/vector_first_frames
 ```
@@ -95,7 +95,7 @@ resident. On a 46 GB L40S with no policy server, 4 scenes are comfortable.
 
 ## What the scene fixes actually do: they work
 
-Measured 2026-08-13 with `tmp/interactive/t1_scene_probe.py`, which wraps the real
+Measured 2026-08-13 with `scripts/clara/interactive/t1_scene_probe.py`, which wraps the real
 `apply_scene_fixes_from_cfg` and dumps the scene immediately either side of it, per member. At
 `num_envs=4`, task 0, stock container:
 
@@ -224,7 +224,7 @@ behaviour is bit-identical, which matters because that is the path every product
 assigned by `Scene.load()` after this method returns.
 
 Because the fix lives in OG-lite, vector envs must now run with the OG-lite bind
-(`MODE=oglite` in `tmp/interactive/rr`); the stock image still has the upstream behaviour.
+(`MODE=oglite` in `scripts/clara/interactive/rr`); the stock image still has the upstream behaviour.
 
 ### Verified
 
@@ -270,7 +270,7 @@ and it is visible in the fixed montage as the black chair with the checkered sea
 ## Environment notes
 
 Originally two Docker containers, `realm_stock` and `realm_oglite`. On Clara there is no Docker, so
-the same two conditions are one image plus a bind, selected by `MODE` in `tmp/interactive/rr`:
+the same two conditions are one image plus a bind, selected by `MODE` in `scripts/clara/interactive/rr`:
 
 | MODE | OmniGibson that is live |
 | --- | --- |

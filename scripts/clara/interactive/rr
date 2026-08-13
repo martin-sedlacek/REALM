@@ -1,0 +1,77 @@
+#!/bin/bash
+# rr -- run a command inside the REALM og391 container on an already-held Slurm allocation.
+#
+# Replaces the `docker exec realm_stock` / `docker exec realm_oglite` loop from the retired
+# workstation. Same two conditions, expressed as a bind rather than two containers:
+#
+#   MODE=stock   image's own OmniGibson 3.9.1 at /behavior-src/OmniGibson  (default)
+#   MODE=oglite  host OG-lite_og391/omnigibson bound over the image's package
+#
+# Usage:
+#   ./scripts/clara/interactive/rr python -u examples/03_vector_first_frames.py --num_envs 1 --task_id 0
+#   MODE=oglite ./scripts/clara/interactive/rr python -u examples/02_evaluate.py ...
+#   MODE=oglite REALM_INCREMENTAL_CONTACT_CACHE=1 ./scripts/clara/interactive/rr python ...
+#
+# Notes:
+#   - `apptainer run`, never `exec`: the %runscript activates conda env `behavior` (python 3.11).
+#     `exec` lands on the base python with no omnigibson.
+#   - NEVER wrap the command in `bash -lc`. Apptainer binds $HOME by default, so a *login* shell
+#     re-sources the host ~/.bashrc, which prepends /home/sedlam56/miniconda3/bin to PATH and
+#     shadows the container's conda env -- you get host python 3.12 and
+#     `ModuleNotFoundError: No module named 'omnigibson'`. Use `bash -c`, or just call python
+#     directly. Confirmed here 2026-08-13.
+#   - /tmp is bound to Lustre. The node's real /tmp is node-local and wiped; NUMBA_CACHE_DIR
+#     (=/tmp/numba_cache, set by the image) must be writable and must survive.
+#   - `conda run` is not involved at all here, so the --no-capture-output trap does not apply.
+
+set -uo pipefail
+
+REALM_ROOT=/mnt/home_lustre/sedlam56/projects/REALM_og391
+OGLITE_ROOT=/mnt/home_lustre/sedlam56/projects/OG-lite_og391
+REALM_DATA=$REALM_ROOT/data/datasets            # -> REALM/data/datasets_og391
+REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
+REALM_SIF=$REALM_ROOT/realm_og391.sif
+APPDATA=$REALM_ROOT/data/cache                  # OMNIGIBSON_APPDATA_PATH=/cache/appdata
+
+MODE=${MODE:-stock}
+JOB=${SLURM_JOB_ID:-interactive}
+TMPROOT=$REALM_ROOT/tmp/$JOB
+
+[ -f "$REALM_SIF" ]  || { echo "rr: no SIF at $REALM_SIF" >&2; exit 1; }
+[ -d "$REALM_DATA/behavior-1k-assets" ] || { echo "rr: no dataset at $REALM_DATA" >&2; exit 1; }
+[ -d "$REALM_LOGS" ] || { echo "rr: no log dir at $REALM_LOGS" >&2; exit 1; }
+
+OGLITE_BIND=()
+case "$MODE" in
+  stock)  ;;
+  oglite)
+    [ -d "$OGLITE_ROOT/omnigibson" ] || { echo "rr: no OG-lite at $OGLITE_ROOT" >&2; exit 1; }
+    OGLITE_BIND=(--bind "$OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson)
+    ;;
+  *) echo "rr: MODE must be stock or oglite (got '$MODE')" >&2; exit 1 ;;
+esac
+
+mkdir -p "$TMPROOT" "$APPDATA/appdata"
+
+# Pass through the REALM/OG knobs only when the caller set them, so an unset var does not
+# become the string "".
+PASS_ENV=()
+for v in REALM_INCREMENTAL_CONTACT_CACHE REALM_PROXIMITY_GATE OMNIGIBSON_HEADLESS; do
+  if [ -n "${!v:-}" ]; then PASS_ENV+=(--env "$v=${!v}"); fi
+done
+
+exec apptainer run --userns --nv --writable-tmpfs \
+  --bind "$REALM_ROOT":/app \
+  --bind "$REALM_DATA":/data \
+  --bind "$APPDATA":/cache \
+  --bind "$REALM_LOGS":/logs \
+  --bind "$TMPROOT":/tmp \
+  "${OGLITE_BIND[@]}" \
+  --env TMPDIR=/tmp \
+  --env OMNIGIBSON_HEADLESS="${OMNIGIBSON_HEADLESS:-1}" \
+  --env NVIDIA_DRIVER_CAPABILITIES=all \
+  --env CUDA_VISIBLE_DEVICES=0 \
+  --env PYTHONUNBUFFERED=1 \
+  "${PASS_ENV[@]}" \
+  "$REALM_SIF" \
+  "$@"

@@ -257,7 +257,7 @@ untested.
 ### Update 2026-08-13 (Clara, L40S job 190155): the incremental fold is VERIFIED CORRECT
 
 Run 2 above has now been executed. `gm.INCREMENTAL_CONTACT_CACHE=1` **passes**, so the incremental
-fold is no longer unexercised. Harness: `tmp/interactive/` (`rr` for the container, `t2_inc_on.sh`
+fold is no longer unexercised. Harness: `scripts/clara/interactive/` (`rr` for the container, `t2_inc_on.sh`
 for the run, `check_run.py` for the criteria).
 
 It was confirmed to be a real test before the simulator booted — the flag reaching `gm` is not
@@ -289,7 +289,7 @@ Two notes for whoever does the timing A/B:
    cache. The ROD default being on does not reduce the call count.
 
 `tmp/fork_ab_profile.py` did not survive the old machine; it is recreated as
-`tmp/interactive/profile_step.py` (+ `analyze_ab.py`, `t2_ab_contact.sh`).
+`scripts/clara/interactive/profile_step.py` (+ `analyze_ab.py`, `t2_ab_contact.sh`).
 
 Its author's note: the 23 unit tests do not touch `initialize_view`, which needs a live PhysX view, so
 a REALM run is the only thing that confirms the gated path builds. Fallback if it regresses is
@@ -381,7 +381,7 @@ against the host checkout; a bind mount existing does not prove the import resol
 ## 8. Pre-port (OG 1.1.1) vs ported (3.9.1): the reference benchmark
 
 Measured 2026-08-13, Clara, jobs **190216 / 190217 / 190218**. One profiler
-(`tmp/interactive/profile_phases.py`) staged into *both* checkouts, patching only what exists in
+(`scripts/clara/interactive/profile_phases.py`) staged into *both* checkouts, patching only what exists in
 both. Identical eval arguments everywhere: task 0, perturbation 0, 3 repeats x 100 steps
 (390 control steps including warmup), horizon 8, robot DROID, `--model_type debug`,
 `rendering_mode rt`.
@@ -462,10 +462,10 @@ It also lands exactly where section 4 predicted: `_non_physics_step`, which is ~
 Reproduce:
 
 ```bash
-sbatch tmp/interactive/sbatch_phase_ref_og111.sh
-OGLITE=0 LABEL=og391_stock  sbatch tmp/interactive/sbatch_phase_ref_og391.sh
-OGLITE=1 LABEL=og391_oglite sbatch tmp/interactive/sbatch_phase_ref_og391.sh
-python tmp/interactive/compare_phases.py ~/projects/REALM/logs/phase_ref
+sbatch scripts/clara/interactive/sbatch_phase_ref_og111.sh
+OGLITE=0 LABEL=og391_stock  sbatch scripts/clara/interactive/sbatch_phase_ref_og391.sh
+OGLITE=1 LABEL=og391_oglite sbatch scripts/clara/interactive/sbatch_phase_ref_og391.sh
+python scripts/clara/interactive/compare_phases.py ~/projects/REALM/logs/phase_ref
 ```
 
 **Instrumentation trap that cost three jobs:** `examples/02_evaluate.py` ends with `og.shutdown()`,
@@ -548,6 +548,6 @@ runs, subject to a correctness check on a long rollout -- the 2-step equivalence
 above is weak evidence that the folded matrix matches the batched one.
 
 ```bash
-N=2 ./tmp/interactive/t2_ab_contact.sh          # needs the pi0.5 server on :8000
-python tmp/interactive/analyze_ab.py tmp/interactive/prof
+N=2 ./scripts/clara/interactive/t2_ab_contact.sh          # needs the pi0.5 server on :8000
+python scripts/clara/interactive/analyze_ab.py tmp/interactive/prof
 ```

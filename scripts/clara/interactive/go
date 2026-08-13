@@ -1,0 +1,42 @@
+#!/bin/bash
+# go <logname> <script> [args...]
+#
+# Run a script inside the held Slurm allocation, teeing everything to
+# tmp/interactive/logs/<logname>.log and finishing with an explicit EXIT marker.
+#
+# Exists because passing multi-line command strings through `srun --overlap bash -c '...'`
+# collapsed the newlines and produced a mangled single command that ran silently for a minute
+# before anyone noticed. Everything executable goes in a file now.
+#
+#   ./scripts/clara/interactive/go inc_on ./scripts/clara/interactive/t2_inc_on.sh
+#
+# ALLOC is the job id of the interactive allocation.
+
+set -uo pipefail
+
+ALLOC=${ALLOC:-190155}
+ROOT=/mnt/home_lustre/sedlam56/projects/REALM_og391
+LOGDIR=$ROOT/tmp/interactive/logs
+
+[ $# -ge 2 ] || { echo "usage: go <logname> <script> [args...]" >&2; exit 2; }
+NAME=$1; shift
+
+mkdir -p "$LOGDIR"
+LOG=$LOGDIR/$NAME.log
+
+squeue -h -j "$ALLOC" -o "%T" | grep -q RUNNING || {
+  echo "go: allocation $ALLOC is not RUNNING" >&2; exit 1; }
+
+{
+  echo "### go: $NAME"
+  echo "### started: $(date -Is)"
+  echo "### cmd: $*"
+  echo "### alloc: $ALLOC"
+} > "$LOG"
+
+srun --jobid="$ALLOC" --overlap --chdir="$ROOT" "$@" >> "$LOG" 2>&1
+EXIT=$?
+echo "### EXIT_CODE=$EXIT" >> "$LOG"
+echo "### finished: $(date -Is)" >> "$LOG"
+echo "go: $NAME exited $EXIT (log: $LOG)"
+exit $EXIT
