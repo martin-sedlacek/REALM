@@ -21,6 +21,14 @@ robots:
     has_base_column: false
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
+    # Drop the dead second wrist camera, exactly as DROID_robolab.yaml does -- read the long comment
+    # there for why it is an include and not an exclude, and why the camera index in
+    # ROBOT_OBS_PROFILES has to move with it. v2 comes out of the same converter
+    # (scripts/convert_robolab_gripper_usd.py) as v1 and is described as differing only in geometry,
+    # so it is ASSUMED to name its cameras the same way; that assumption is not silent, because
+    # assert_wrist_camera() hard-fails at build time if this filter leaves the robot without the
+    # `wrist_camera_flipped` prim its profile names.
+    include_sensor_names: ["wrist_camera_flipped"]
     control_freq: 15
     action_normalize: False
     action_type: "continuous"

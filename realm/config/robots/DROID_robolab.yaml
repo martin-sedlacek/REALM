@@ -21,6 +21,31 @@ robots:
     has_base_column: false
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
+    # The asset mounts TWO cameras on the gripper's base_link and only one is ever consumed:
+    # `wrist_camera_flipped`, whose extrinsics match droid.usd's `gripper_link_camera` to the
+    # millimetre. The other, `wrist_camera`, is yawed 180 deg and frames the floor and the wall
+    # behind the table; nothing reads it, but OmniGibson still gave it a full 1280x720 RTX render
+    # product and re-rendered and read it back every step.
+    #
+    # Dropping it is not (only) about the render cost. Render products are what the RTX descriptor
+    # and parameter-block pools are sized for, and those pools -- not VRAM -- cap a vectorized run:
+    # at num_envs=16 the pool ran dry while loading scene 10 and the process segfaulted with
+    # "Unable to allocate descriptor sets" / "Failed to allocate ParameterBlock resources", with only
+    # ~17 of 46 GB of VRAM in use. This takes one env from 3 render products to 2.
+    #
+    # It MUST be an include, not an exclude. Robot._load_sensors matches by SUBSTRING
+    # (`name in prim_path`), and "wrist_camera" is a substring of "wrist_camera_flipped", so
+    # `exclude_sensor_names: ["wrist_camera"]` would silently remove BOTH cameras and leave the
+    # policy with a black wrist image.
+    #
+    # AND IT DOES NOT TRAVEL ALONE: OmniGibson numbers a link's cameras by creation order and never
+    # counts the ones it filtered out, so the survivor here is `Camera:0`, not `Camera:1`.
+    # ROBOT_OBS_PROFILES in realm/inference/utils.py carries the matching wrist_camera_idx=0 plus the
+    # prim name it has to resolve to, and assert_wrist_camera() (called from
+    # RealmEnvironmentDynamic.bind_scene_handles) fails the build if the two ever drift apart. Left
+    # unpaired, the stale index would just make extract_from_obs fall back to "the first camera on
+    # the robot" with a printed warning and a clean exit code.
+    include_sensor_names: ["wrist_camera_flipped"]
     control_freq: 15
     action_normalize: False
     action_type: "continuous"
