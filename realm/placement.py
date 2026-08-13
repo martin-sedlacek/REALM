@@ -26,9 +26,20 @@ def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: li
             "relative_prim_path": obj._relative_prim_path
         }
 
+        # Park the object clear of everything so its AABB can be read without neighbours touching it.
+        #
+        # frame="scene", so "clear of everything" means clear of ITS OWN scene. In world frame these
+        # coordinates land in scene 0's airspace no matter which scene the object belongs to --
+        # vector-env scenes are tiled ~25 m apart along +x, so every member's object gets parked in
+        # the same column above member 0. It is restored below in world frame (matching the world
+        # capture above), so it round-trips either way and nothing observed a wrong pose; but with
+        # several members' objects stacked in one place, an AABB read there is measuring a spot other
+        # members are also using. Scene-relative keeps each object above its own tile.
+        #
+        # Also replaces set_position/set_orientation, both deprecated and world-frame-only, with the
+        # one call that can express a frame at all.
         far_pos = np.random.random((3,)) * 3 + np.array([0, 0, 20])
-        obj.set_position(far_pos)
-        obj.set_orientation([0, 0, 0, 1])
+        obj.set_position_orientation(position=far_pos, orientation=[0, 0, 0, 1], frame="scene")
         # The step here only exists to flush the pose change before reading the AABB -- it is not a
         # physics settle. OG 3.9.1 asserts `is_playing()` inside step(), and callers such as the V-SC
         # perturbation run this while the simulator is stopped (it has to be stopped to add/remove
