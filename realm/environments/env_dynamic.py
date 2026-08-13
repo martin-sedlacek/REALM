@@ -214,7 +214,9 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
         task_progression = self.recompute_task_progression(obs)
         if "V-AUG" in self.active_perturbations:
-            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha)
+            # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
+            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
+                                          robot_name=self.robot.name)
         return obs, task_progression, terminated, truncated, info
 
     def construct_environment_config(self):
@@ -375,7 +377,9 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         if "V-AUG" in self.active_perturbations:
             self.v_aug_sigma = np.random.uniform(0.0, 2.5)
             self.v_aug_alpha = np.random.uniform(0.25, 1.5)
-            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha)
+            # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
+            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
+                                          robot_name=self.robot.name)
         return obs
 
     def _robot2world(self, action):
@@ -401,7 +405,9 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         task_progression = self.recompute_task_progression(obs)
 
         if "V-AUG" in self.active_perturbations:
-            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha)
+            # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
+            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
+                                          robot_name=self.robot.name)
 
         return obs, task_progression, terminated, truncated, info
 

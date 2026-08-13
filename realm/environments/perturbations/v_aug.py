@@ -7,6 +7,10 @@ import cv2
 import numpy as np
 import torch
 
+# Same import as realm/environments/env_base.py uses, and for the same reason: the module, not the
+# package, so the environment side does not pull in the inference client's transport deps.
+from realm.inference.utils import wrist_camera_obs_key
+
 
 def apply_blur_and_contrast(obs, sigma=None, alpha=None, robot_name='DROID'):
     # 1. Random Gaussian Blur
@@ -45,9 +49,31 @@ def apply_blur_and_contrast(obs, sigma=None, alpha=None, robot_name='DROID'):
             )
         ).to(base_im.device)
 
-    # TODO: this will only work for DORID dict structure right now:
-    wrist_im = obs[robot_name][f'{robot_name}:gripper_link_camera:Camera:0']['rgb']
-    obs[robot_name][f'{robot_name}:gripper_link_camera:Camera:0']['rgb'][..., :3] = torch.tensor(
+    # The wrist observation key is <robot>:<link>:Camera:<idx>, and BOTH halves depend on the robot:
+    # obs is keyed by robot.name, and only droid.usd mounts the camera on `gripper_link_camera`.
+    # This used to hardcode robot_name='DROID' and that link, and all three call sites in
+    # env_dynamic.py omitted robot_name -- so on the robolab assets (DROID_robolab /
+    # DROID_robolab_v2, the default robot for every eval since 2026-08-13) the lookup was
+    # obs['DROID'], which does not exist, and V-AUG died with a KeyError inside reset(). Resolve
+    # the key from the robot profile instead, exactly as inference/utils.extract_from_obs does, so
+    # the two cannot disagree about which image the policy sees.
+    wrist_key = wrist_camera_obs_key(robot_name)
+    robot_obs = obs.get(robot_name, {})
+    if wrist_key not in robot_obs:
+        # Mirrors extract_from_obs's fallback: any camera on the robot beats no augmentation, and a
+        # robot with no wrist camera at all (config/robots/DROID_no_wrist_cam.yaml) is a legitimate
+        # configuration -- augmenting only the external views is correct there, not an error.
+        cam_keys = [k for k in robot_obs if ":Camera:" in k]
+        if not cam_keys:
+            print(f"[V-AUG] WARNING: no camera on '{robot_name}' in obs; augmenting the external "
+                  f"views only.")
+            return obs
+        print(f"[V-AUG] WARNING: no '{wrist_key}' in obs; augmenting '{cam_keys[0]}' instead. "
+              f"Update ROBOT_OBS_PROFILES for '{robot_name}'.")
+        wrist_key = cam_keys[0]
+
+    wrist_im = robot_obs[wrist_key]['rgb']
+    robot_obs[wrist_key]['rgb'][..., :3] = torch.tensor(
         apply_random_image_augmentations(
             wrist_im.cpu().numpy()[..., :3].astype(np.float32)
         )
