@@ -114,7 +114,7 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
     # Simulator._pre_remove_object() prunes that GLOBAL queue by NAME ALONE, and every member of a
     # vector env is built from the same task config, so member 1's remove_object("corkscrew")
     # evicted member 0's freshly-added "corkscrew" and nothing ever initialised it. Fixed in
-    # RealmVectorEnvironment._initialize_evicted_objects(), which re-queues the orphans right after
+    # RealmVectorEnvironment._repair_init_queue(), which re-queues the orphans right after
     # the shared play(); read that docstring for the full write-up. Nothing is needed here.
     def _post_play():
         og.sim.step()

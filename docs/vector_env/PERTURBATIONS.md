@@ -80,10 +80,28 @@ initialises it.
 Fingerprint: the repair names exactly the YAML-**named** distractors and none of the per-member
 sampled `distractor_<i>` ones, whose names do not collide.
 
-Worked around in `RealmVectorEnvironment._requeue_evicted_objects()`.
-**The proper fix is upstream and is NOT applied**: `_pre_remove_object` should match on identity
-(equivalently `(scene, name)`), which is strictly narrower and always correct, since
-`scene.add_object` already forbids two live same-named objects in one scene.
+**Fixed upstream 2026-08-14** in OG-lite: `_pre_remove_object` now matches on **identity**, which is
+strictly narrower than the name test and always the correct entry, since `scene.add_object` already
+forbids two live same-named objects in one scene. Against the fork the repair below finds nothing.
+
+`RealmVectorEnvironment._repair_init_queue()` is **kept**, as a net rather than a workaround, because
+the OG-lite bind is optional and the fix does not travel with the image. `rr` defaults to
+`MODE=stock`, and `MODE=stockfix` — the configuration `make_stock_patch.sh` exists to prepare and
+that both build recipes wire in — binds only `scenes/scene_base.py`, so it still runs the stock
+`simulator.py`. Under either, the eviction is live and this repair is the only thing between it and
+an opaque `Object must be initialized before dumping state!` (or `prim view [...] is not a valid
+view` out of `play()`) raised from an unrelated call site much later. It is two comprehensions per
+reset that needs a stopped sim, and it announces itself loudly, so the presence or absence of its
+warning now also tells you which OmniGibson a run used.
+
+Measured, `t9_vbpose_nostopplay.py --num_envs 2 --resets 3`, one warmup reset + 3 perturbed resets:
+
+| | stock `simulator.py` | OG-lite identity match |
+| --- | --- | --- |
+| V-SC | 4 x `Re-queueing 5 object(s) ... scene0/corkscrew, table_knife, wineglass, water_glass, bottle_of_wine` | **0** |
+| VSB-NOBJ | 4 x `Re-queueing 1 object(s) ... scene0/cube` | **0** |
+
+Both PASS either way — the repair worked; it just no longer has anything to repair.
 
 ### 3. The repair running too late
 
