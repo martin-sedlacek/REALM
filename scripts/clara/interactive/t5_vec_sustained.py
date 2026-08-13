@@ -19,6 +19,7 @@ scenes 1..N-1 are still wrong by construction.
         python -u scripts/clara/interactive/t5_vec_sustained.py --num_envs 4 --steps 200
 """
 import argparse
+import subprocess
 import time
 
 import numpy as np
@@ -31,6 +32,18 @@ from realm.inference import extract_from_obs
 from realm.sim_config import set_sim_config
 
 TABLE_Z_MIN = 0.5   # anything below this has fallen off the table; the z-bug put them at ~0.015
+
+
+def gpu_mem():
+    """(used, total) MiB for the whole card -- includes any resident policy server, which is the
+    operationally relevant figure since that is how REALM runs."""
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"],
+            text=True).strip().splitlines()[0]
+        return tuple(int(x.strip()) for x in out.split(","))
+    except Exception:
+        return (-1, -1)
 
 
 def member_state(env):
@@ -50,7 +63,12 @@ def main(num_envs, steps, task_id, robot, check_every):
         perturbations=[SUPPORTED_PERTURBATIONS[0]],
         robot=robot,
     )
+    used, total = gpu_mem()
+    print(f"\n[mem] after building AND playing {num_envs} envs: {used}/{total} MiB used, "
+          f"{total - used} MiB free", flush=True)
     results = vec_env.warmup()
+    used, total = gpu_mem()
+    print(f"[mem] after warmup: {used}/{total} MiB used, {total - used} MiB free", flush=True)
 
     # Hold-still actions, so anything that moves is physics or a bug rather than a commanded motion.
     ee_cmds = [e.warmup_ee_cmd() for e in vec_env.envs]
@@ -87,6 +105,8 @@ def main(num_envs, steps, task_id, robot, check_every):
             recent = 1000 * np.mean(times[-check_every:])
             print(f"  step {t+1:>4}  {recent:6.1f} ms/step   " + "  ".join(note), flush=True)
 
+    used, total = gpu_mem()
+    print(f"\n[mem] after {steps} steps: {used}/{total} MiB used, {total - used} MiB free")
     print("\n########## SUMMARY ##########")
     print(f"  steps completed      : {steps}")
     print(f"  ms/step first quarter: {1000 * np.mean(times[:max(1, steps//4)]):.1f}")

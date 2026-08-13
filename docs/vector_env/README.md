@@ -390,3 +390,49 @@ against ~90-130 ms/step for a single env. Startup is paid once for all 25 rollou
 vary a lot *between* waves (209 to 500). Members do differ -- `collisions_env` ranges 2 to 23 within
 one wave -- so they are not running identical trajectories; they are reset together and pi0.5 paces
 them similarly. Worth remembering if you ever treat per-wave results as independent samples.
+
+## How many environments fit on one L40S
+
+Measured 2026-08-13 on a 46068 MiB L40S with the pi0.5 policy server resident (11839 MiB), which is
+the operating configuration -- REALM shares one card between the sim and the policy.
+`scripts/clara/interactive/t7_env_capacity.py` builds members one at a time and reports GPU memory
+after each, so one run gives the per-scene cost instead of one run per candidate `num_envs`.
+
+| scenes loaded | GPU used | free | increment |
+| --: | --: | --: | --: |
+| 0 (server + Isaac boot) | 11839 | 34229 | -- |
+| 1 | 17043 | 29025 | **+5204** |
+| 2 | 19799 | 26269 | +2756 |
+| 3 | 22499 | 23569 | +2700 |
+
+**The first scene costs 5204 MiB and every one after it ~2728 MiB.** The gap is one-time renderer and
+Isaac allocation, not scene data.
+
+Projected **load** ceiling, keeping 3000 MiB free:
+
+| configuration | scenes loadable |
+| --- | --: |
+| with the pi0.5 server on the same card | **10** |
+| sim only (policy served elsewhere) | **14** |
+
+**Load is not the binding limit.** `og.sim.play()` builds the contact and articulation views on top of
+this, so the number that actually runs is lower. Treat the table above as an upper bound and confirm
+with `t5_vec_sustained.py` at the candidate N, which reports memory around `play()`.
+
+### Throughput is what decides whether more envs help
+
+| configuration | ms per shared step | ms per **member**-step |
+| --- | --: | --: |
+| 4 members, no inference, render every step | 153.6 | 38.4 |
+| 4 members, pi0.5 + ROD (25-rollout eval) | ~230 | ~58 |
+| **1** member, pi0.5 + ROD (final wave of the same eval) | 163 | 163 |
+
+Going 1 -> 4 members cut per-member cost 163 -> 58 ms, a 2.8x throughput gain for 4x the scenes --
+strongly sublinear, which is why more members help at all.
+
+**But inference is sequential and O(N).** One policy call per member per chunk boundary means the
+amortised inference cost per step grows as `N * c / horizon`. From the 1-vs-4-member figures above
+that is roughly +22 ms per step per extra member, so it overtakes the simulation term somewhere
+around 8 members and per-member throughput flattens. Past that point the fix is **batched
+inference**, not more scenes -- which is the deferred item in
+[Other known gaps](#other-known-gaps-in-vectorization-not-yet-investigated).
