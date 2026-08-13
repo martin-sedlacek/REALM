@@ -266,11 +266,35 @@ and it is visible in the fixed montage as the black chair with the checkered sea
   the EE controller interprets an absolute-pose command in world or scene coordinates has not been
   checked, and the tiles are offset from each other. Joint control is unaffected. The first-frame
   test barely moves the arm, so it would not have caught this.
-- **`evaluate()` is still single-env.** Running a vectorized rollout also needs the inference client
-  to batch N observations per step; nothing has been done there.
+- ~~**`evaluate()` is still single-env.**~~ **Done 2026-08-13** -- `realm/vector_eval.py` +
+  `examples/04_vector_evaluate.py`. It runs `repeats` rollouts in waves of `num_envs` and writes the
+  same four artifacts as the single-env path. Inference is **sequential on purpose** (one policy call
+  per member per chunk boundary, never batched): batching is a separate change and would hide desync
+  bugs behind a fixed-shape batch. Members desync by construction -- a finished member is marked
+  inactive, finalised immediately, and fed its last action as a hold command while the others run on.
 - All members currently run the same task config, differing only in sampled object placement.
   Per-member perturbations or tasks would need `VectorEnvironment`-style construction from a list of
   configs rather than one.
+
+## Sustained stepping
+
+The first-frame smoke test proves construction and tiling; it takes one step, so it says nothing
+about stability. `scripts/clara/interactive/t5_vec_sustained.py` drives the vector env for a
+rollout's worth of steps and checks, every 50 steps, that no member has gone non-finite, that members
+stay pairwise **distinct** (a shared-state bug would collapse them onto each other), that the task
+objects stay on the table -- the regression guard for the 100 m z-offset -- and that per-step time is
+not drifting.
+
+4 members x 200 shared steps, `MODE=oglite`:
+
+```
+step   50   153.6 ms/step   m0..m3: mo_z=0.820 to_z=0.839
+step  200   153.6 ms/step   m0..m3: mo_z=0.820 to_z=0.839
+ms/step first quarter: 153.6      last quarter: 153.6      checks failed: 0
+```
+
+Flat to within 0.1% across the run, and **153.6 ms for 4 members is 38 ms per member-step** against
+~90-130 ms for a single env.
 
 ## Environment notes
 
