@@ -4,8 +4,12 @@
 # Replaces the `docker exec realm_stock` / `docker exec realm_oglite` loop from the retired
 # workstation. Same two conditions, expressed as a bind rather than two containers:
 #
-#   MODE=stock   image's own OmniGibson 3.9.1 at /behavior-src/OmniGibson  (default)
-#   MODE=oglite  host OG-lite_og391/omnigibson bound over the image's package
+#   MODE=stock    image's own OmniGibson 3.9.1 at /behavior-src/OmniGibson  (default)
+#   MODE=oglite   host OG-lite_og391/omnigibson bound over the image's package
+#   MODE=stockfix image's own OmniGibson plus ONLY the z-offset patch, one file bound over the
+#                 stock package. This is what the SIF should eventually ship: measured 2026-08-14,
+#                 that single patch is the entire OG-lite delta the vectorized eval path needs.
+#                 Run scripts/clara/interactive/make_stock_patch.sh once to produce the file.
 #
 # Usage:
 #   ./scripts/clara/interactive/rr python -u examples/03_vector_first_frames.py --num_envs 1 --task_id 0
@@ -40,6 +44,7 @@ REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
 REALM_SIF=$REALM_ROOT/realm_og391.sif
 APPDATA=$REALM_ROOT/data/cache                  # OMNIGIBSON_APPDATA_PATH=/cache/appdata
 
+STOCK_PATCH=${STOCK_PATCH:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch/scene_base.py}
 MODE=${MODE:-stock}
 JOB=${SLURM_JOB_ID:-interactive}
 TMPROOT=$REALM_ROOT/tmp/$JOB
@@ -51,11 +56,18 @@ TMPROOT=$REALM_ROOT/tmp/$JOB
 OGLITE_BIND=()
 case "$MODE" in
   stock)  ;;
+  stockfix)
+    # Bind ONE patched file over the stock package rather than the whole fork. Without it, scenes
+    # other than 0 load their objects ~100 m high and the task object falls to z=0.015 -- measured
+    # on this image for both Default and V-SC, and it was the ONLY thing that failed.
+    [ -f "$STOCK_PATCH" ] || { echo "rr: no patched scene_base.py at $STOCK_PATCH -- run scripts/clara/interactive/make_stock_patch.sh" >&2; exit 1; }
+    OGLITE_BIND=(--bind "$STOCK_PATCH":/behavior-src/OmniGibson/omnigibson/scenes/scene_base.py)
+    ;;
   oglite)
     [ -d "$OGLITE_ROOT/omnigibson" ] || { echo "rr: no OG-lite at $OGLITE_ROOT" >&2; exit 1; }
     OGLITE_BIND=(--bind "$OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson)
     ;;
-  *) echo "rr: MODE must be stock or oglite (got '$MODE')" >&2; exit 1 ;;
+  *) echo "rr: MODE must be stock, stockfix or oglite (got '$MODE')" >&2; exit 1 ;;
 esac
 
 mkdir -p "$TMPROOT" "$APPDATA/appdata"
