@@ -23,6 +23,14 @@ and `frames/montage_wrist.png`.
 > [What the scene fixes actually do](#what-the-scene-fixes-actually-do-they-work). The visible
 > symptom was real; the attributed cause was not.
 
+> **Retracted 2026-08-14:** this document also said the removed chair comes back in the LAST member
+> only, and suggested that might make it the same bug as the init-queue eviction. **It comes back in
+> EVERY member**; the last-member appearance was a one-reset pose artifact, and the two bugs are
+> unrelated. Both are now fixed --
+> [reset re-adds the removed chair](#second-independent-bug-reset-re-adds-the-removed-chair) (REALM,
+> `rebase_initial_file()`) and the init-queue name prune (OG-lite, `_pre_remove_object` now matches
+> on identity; see PERTURBATIONS.md §2).
+
 ## What was added
 
 | file | what |
@@ -180,7 +188,11 @@ objects consequently rest on the floor at z ~ 0.02 instead of on a table top at 
 It also explains the montage asymmetry that the earlier writeup read as "env1-3 are alike":
 **scene_3 recovers almost fully on reset (only the pinned table stays up) while scenes 1 and 2 do
 not**, which is why env3 shows a full kitchen and env1/env2 show a bare room. Scene 3 is the last
-member reset; why the earlier members do not keep their restored poses is not yet established.
+member reset; **why the earlier members do not keep their restored poses is answered below** --
+`Scene.restore()` cycles the global `og.sim.stop()`/`play()` when it has objects to add, and
+`stop()` reverts every scene to its state at the last `play()`, so a sibling's later cycle discards
+the poses `load_state()` just applied. See
+["Last member only" was a POSE artifact](#last-member-only-was-a-pose-artifact-not-a-presence-one---and-not-the-eviction-bug).
 
 Two more things the earlier writeup got wrong, both now measured: the chair removal **succeeds in
 every scene**, and "a chair env0 does not have" is `straight_chair_pmpwwi_1`, which is never in
@@ -191,8 +203,10 @@ qpos (`q0=[0.0056, -0.4623, -0.1084]`), so nothing about the differences is robo
 
 `n_objects` goes 127 -> **128** after warmup **in every scene, including scene 0**, and
 `straight_chair_pmpwwi_0` returns to `active=True`. `Scene.reset(hard=True)` calls
-`restore(self._initial_file)`, and `_initial_file` was captured at the end of `Scene.initialize()` --
-before `apply_scene_fixes_from_cfg` ever ran. So the first reset undoes the removal.
+`restore(self._initial_file)`, and `_initial_file` is last written by
+`og.Environment.post_play_load()` -> `scene.update_initial_file()` (`Scene.initialize()` sets it
+first) -- both **before** `apply_scene_fixes_from_cfg` ever runs. So the first reset undoes the
+removal.
 
 Since scene 0 is affected too, this is not a vector-env bug at all. **Confirmed on the single-env
 production path** with `scripts/clara/interactive/t3_single_env_chair.py`: removal is correct after

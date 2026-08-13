@@ -72,7 +72,7 @@ either move to `set_position_orientation(frame="scene")` or convert explicitly v
 ### 2. A sibling scene evicting objects from the init queue
 
 `Simulator._pre_remove_object` prunes the **global** `og.sim._objects_to_initialize` **by name
-alone** (OG-lite `simulator.py:1090-1093`). Names are unique per *scene*, not per simulator, and
+alone** (`omnigibson/simulator.py`). Names are unique per *scene*, not per simulator, and
 every member is built from the same task YAML — so member 1's `remove_object("corkscrew")` evicts
 **member 0's** freshly added corkscrew. It stays on the stage and in the registry, but nothing ever
 initialises it.
@@ -101,7 +101,13 @@ Measured, `t9_vbpose_nostopplay.py --num_envs 2 --resets 3`, one warmup reset + 
 | V-SC | 4 x `Re-queueing 5 object(s) ... scene0/corkscrew, table_knife, wineglass, water_glass, bottle_of_wine` | **0** |
 | VSB-NOBJ | 4 x `Re-queueing 1 object(s) ... scene0/cube` | **0** |
 
-Both PASS either way — the repair worked; it just no longer has anything to repair.
+Both PASS either way — the repair worked; it just no longer has anything to repair. Per-member object
+poses and contact-row counts are identical before and after, so the only thing that changed is that
+nothing is evicted.
+
+**Follow-up worth doing:** add the `_pre_remove_object` one-liner to `make_stock_patch.sh` and to the
+two build recipes alongside the `scene_base.py` patch. Until that happens, `MODE=stockfix` and the
+rebuilt SIF carry the bug, and the net above is what keeps them working.
 
 ### 3. The repair running too late
 
