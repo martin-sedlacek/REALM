@@ -386,7 +386,13 @@ def run_phase(vec_env, perturbation, resets, steps):
     # the bound stays comfortably discriminating. The old fixed `> SETTLE_STEPS` bound predated the
     # add/replace perturbations being run under this harness and would have false-failed all four
     # of them by ~4 steps.
-    step_budget = base_counts["step"] + SETTLE_STEPS + num_envs
+    # measured base + one shared settle + the deferred _post_play step each member queues -- and
+    # that last term ONLY for perturbations that need a stopped sim, since they are the only ones
+    # that defer anything. Unconditionally allowing it gave pose-only perturbations num_envs of
+    # slack they never use (38 vs the 34 they need at Vec=4), which is budget a per-member step loop
+    # could hide in. Measured at Vec=4: V-SC needs 38 = 4 per-member reset obs + 4 deferred + 30.
+    step_budget = base_counts["step"] + SETTLE_STEPS + (
+        num_envs if perturbation in NEEDS_STOPPED_SIM else 0)
     # Check 1's stop/play expectation, which is NOT "never" for every perturbation. Adding or
     # removing an object requires a stopped simulator, so RealmVectorEnvironment.reset() gives the
     # perturbations in NEEDS_STOPPED_SIM exactly ONE shared cycle covering all members -- that is

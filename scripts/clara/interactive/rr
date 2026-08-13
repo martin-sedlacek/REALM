@@ -26,7 +26,14 @@
 
 set -uo pipefail
 
-REALM_ROOT=/mnt/home_lustre/sedlam56/projects/REALM_og391
+# Derived from this script's own location, not hardcoded. It used to name the main checkout
+# absolutely, which quietly defeated git-worktree isolation: a worktree's copy of this script still
+# bound the MAIN checkout at /app, so edits to realm/ in the worktree had no effect on the run while
+# edits to harness scripts did (rr sets no --pwd, so the container inherits the caller's cwd and
+# resolves the script path against the worktree). Measured 2026-08-13: CWD=<worktree> but
+# realm/__init__.py=/app/... from the shared tree. Two agents' fixes were tested against code they
+# had not edited. Deriving the root makes an isolated worktree actually isolated.
+REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 OGLITE_ROOT=/mnt/home_lustre/sedlam56/projects/OG-lite_og391
 REALM_DATA=$REALM_ROOT/data/datasets            # -> REALM/data/datasets_og391
 REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
