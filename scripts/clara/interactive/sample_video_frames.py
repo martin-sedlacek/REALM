@@ -20,12 +20,14 @@ import pandas as pd
 from PIL import Image
 
 
-def frames_from_mp4_bytes(blob, n):
-    """Decode and return n evenly spaced frames. imageio's ffmpeg plugin ships in the container."""
+def frames_from_mp4_bytes(blob, n, tail=0):
+    """Decode and return n frames: evenly spaced, or the last n when tail is set."""
     import imageio.v3 as iio
     frames = list(iio.imiter(io.BytesIO(blob), plugin="pyav", format="rgb24"))
     if not frames:
         return []
+    if tail:
+        return frames[-min(tail, len(frames)):], len(frames)
     idx = np.linspace(0, len(frames) - 1, min(n, len(frames))).astype(int)
     return [frames[i] for i in idx], len(frames)
 
@@ -48,6 +50,11 @@ def main():
     ap.add_argument("--frames", type=int, default=8)
     ap.add_argument("--cols", type=int, default=4)
     ap.add_argument("--scale", type=float, default=0.5, help="downscale so the sheet stays readable")
+    ap.add_argument("--tail", type=int, default=0,
+                    help="instead of sampling across the clip, take the last N frames. Under "
+                         "render_on_demand a clip is ~1 frame per action chunk, so an evenly "
+                         "spaced sample can miss the moment that decides success; the end state "
+                         "is what tells you whether the object was actually placed.")
     a = ap.parse_args()
 
     vdir = os.path.join(a.run_dir, "videos")
@@ -63,7 +70,7 @@ def main():
             rep = int(row["repeat"])
             if wanted is not None and rep not in wanted:
                 continue
-            got = frames_from_mp4_bytes(row["video"], a.frames)
+            got = frames_from_mp4_bytes(row["video"], a.frames, tail=a.tail)
             if not got:
                 print(f"  run {rep}: no frames decoded")
                 continue

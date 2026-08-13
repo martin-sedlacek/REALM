@@ -318,3 +318,75 @@ path either way.
   `python -c "import inspect, omnigibson.utils.usd_utils as uu; print('PROXIMITY_GATE' in inspect.getsource(uu))"`.
 - The repo is bind-mounted at `/app` and `REALM/logs` at `/logs`, so write artifacts to `/logs/...`.
   `logs/` is gitignored, which is why the frames here were copied into `docs/vector_env/`.
+
+## A real vectorized evaluation: 25 rollouts, pi0.5
+
+Run 2026-08-13 (Clara, allocation 190155). Task 0 `put_green_block_into_bowl`, `Default`
+perturbation, robot `DROID_robolab`, pi0.5 (`pi05_droid_jointpos`), `num_envs=4`, `repeats=25`,
+`max_steps=500`, horizon 8, render-on-demand ON, `MODE=oglite`.
+
+```bash
+ALLOC=<jobid> NUM_ENVS=4 REPEATS=25 MAX_STEPS=500 ROD=1 ROBOT=DROID_robolab \
+  RUN_ID=vec25_robolab EXPERIMENT=vec_pi05 \
+  ./scripts/clara/interactive/go vec_eval_full ./scripts/clara/interactive/t6_vec_eval.sh
+```
+
+### Result
+
+| | |
+| --- | --: |
+| **SR** | **0.960** (24/25) |
+| **task_progression** | **0.984** (min 0.60) |
+| stages | 24 SUCCESS, 1 MOVE_CLOSE |
+| collisions_self | 0.00 (all runs) |
+| collisions_env | 8.88 mean, range 1-23 |
+| object_drops | 0.32 mean, range 0-3 |
+| joint_path_length | 10.76 mean |
+| cart_path_length | 1.73 mean |
+| wall | 1586.8 s total, of which 640.5 s building the 4 envs |
+
+**This matches the single-env baseline for the same task and robot: SR 1.000 at n=10.** 24/25 against
+10/10 is well within binomial noise. Stock `DROID` would have been the wrong config to verify
+against -- it scores ~0.200 here, where a vectorized result of 0.16 or 0.24 could not be told from
+either noise or breakage, and where hardly any rollout would reach the success path.
+
+`run_id` 0..24 are all present exactly once, so no wave dropped or duplicated a rollout.
+
+### The success gate is real, not a proxy
+
+`put` runs REACH -> GRASP -> LIFT_SLIGHT -> MOVE_CLOSE -> **PLACE_INTO**, and `PLACE_INTO` is
+`(OnTop(block, bowl) or Inside(block, bowl)) and not is_grasping` -- an OmniGibson object-state query
+plus release. `task_progression == 1.0` therefore means the block really was placed and let go.
+
+The single failure is coherent: **run 24**, TP 0.60 = 3 of 5 stages, stalled at `MOVE_CLOSE`, with
+**3 object_drops** -- it grasped the block and lost it three times, then ran out the full 500 steps.
+`eval/run024_failure_sheet.png` shows exactly that: the arm reaches the block over and over, and the
+block never leaves the table. It is a policy failure, not an infrastructure one.
+
+### Desync worked
+
+Members finish at different steps and the wave keeps running:
+
+| wave | steps | wall | note |
+| --- | --: | --: | --- |
+| 1 | 416 | 100.8 s | members finished at 414, 414, 415, 415 |
+| 2 | 209 | 47.6 s | |
+| 3 | 334 | 78.3 s | |
+| 4 | 354 | 81.8 s | |
+| 5 | 299 | 69.7 s | members finished at 298, 299, 299, 299 |
+| 6 | 319 | 72.4 s | |
+| 7 | 500 | 81.3 s | **1 of 4 members recorded** (25 = 6x4 + 1); the other three still step |
+
+Wave 7 is the useful one: with a single active member it runs 500 steps in 81.3 s (163 ms/step)
+against ~230 ms/step when four members are active, which is the sequential inference cost showing up
+exactly where it should and confirms the inactive-member hold path is cheap.
+
+### Throughput
+
+2431 shared steps in 531.9 s of stepping = **219 ms per shared step, i.e. ~55 ms per member-step**,
+against ~90-130 ms/step for a single env. Startup is paid once for all 25 rollouts either way.
+
+**Caveat:** rollout lengths cluster tightly *within* a wave (e.g. wave 3: all four at 334 steps) and
+vary a lot *between* waves (209 to 500). Members do differ -- `collisions_env` ranges 2 to 23 within
+one wave -- so they are not running identical trajectories; they are reset together and pi0.5 paces
+them similarly. Worth remembering if you ever treat per-wave results as independent samples.
