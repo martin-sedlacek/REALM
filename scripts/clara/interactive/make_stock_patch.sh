@@ -22,11 +22,11 @@
 # render-on-demand plumbing -- is performance at these scene counts. Visible here as 268 contact
 # rows on stock versus 49-51 with the fork.
 #
-# The patch is also wired into .docker/realm_og391.def with a build-time grep guard, so a rebuilt
-# SIF ships it and this script plus MODE=stockfix become unnecessary. This exists to test the change
-# BEFORE anyone pays for a rebuild, and because `apptainer build --fakeroot` fails on Lustre here
-# ("failed to change uid and gids on /image/rootfs/var/mail"), so the rebuild has to happen
-# elsewhere.
+# The patch is wired into BOTH build recipes -- .docker/realm_og391.def and
+# .docker/realm_og391.Dockerfile -- each with a build-time grep guard, so a rebuilt image ships it
+# and this script plus MODE=stockfix become unnecessary. This exists to test the change BEFORE a
+# rebuild, and because `apptainer build --fakeroot` cannot run on this Lustre filesystem ("failed to
+# change uid and gids on /image/rootfs/var/mail"), so the rebuild happens elsewhere.
 set -uo pipefail
 
 REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)

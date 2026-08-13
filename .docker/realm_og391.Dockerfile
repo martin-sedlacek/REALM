@@ -14,13 +14,27 @@ ENV CONDA_PIP="/opt/conda/envs/behavior/bin/pip"
 
 COPY realm/misc/entity_prim_og391.patch /opt/entity_prim_og391.patch
 COPY realm/misc/usd_object_og391.patch /opt/usd_object_og391.patch
+COPY realm/misc/scene_base_zoffset_og391.patch /opt/scene_base_zoffset_og391.patch
 COPY packages/openpi-client /opt/openpi-client
 
-# Relax the OmniGibson kinematic-tree assertions that reject our custom robot USDs.
-# Fails the build loudly if a patch no longer applies to this OmniGibson version.
+# Relax the OmniGibson kinematic-tree assertions that reject our custom robot USDs, and fix
+# scene-file objects loading ~100 m too high in every scene except index 0 -- without that third
+# patch the vectorized eval path is unusable, because the task object has nothing to rest on and
+# falls to z=0.015 in scenes 1..N. Measured on this image at num_envs=2 for both Default and V-SC;
+# scene 0 passed every check because its origin IS the world origin, which is why no single-env run
+# ever showed it. Taken from the OG-lite fork (ef7442b); it is the ONLY part of that fork the
+# perturbations need, the rest being performance.
+#
+# Fails the build loudly if a patch no longer applies to this OmniGibson version, and the greps
+# below fail it if a patch silently applied nothing.
 RUN patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch && \
     patch -p1 -d /behavior-src/OmniGibson < /opt/usd_object_og391.patch && \
-    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch
+    patch -p1 -d /behavior-src/OmniGibson < /opt/scene_base_zoffset_og391.patch && \
+    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch && \
+    grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py && \
+    grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/objects/usd_object.py && \
+    grep -q "Re-apply the object poses now that the scene prim is at its final position" \
+        /behavior-src/OmniGibson/omnigibson/scenes/scene_base.py
 
 # Keep OmniGibson's own pins (numpy<2, torch 2.7, pydantic) intact.
 COPY .docker/og391-constraints.txt /opt/og391-constraints.txt
