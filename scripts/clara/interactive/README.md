@@ -37,7 +37,9 @@ ALLOC=190155 ./scripts/clara/interactive/go inc_on ./scripts/clara/interactive/t
 | file | what it is for |
 | --- | --- |
 | `show_macros.py` | prove a flag actually reached `gm` **before** spending a run on it |
-| `check_run.py` | the four REALM pass criteria; exit 0 alone is not one of them |
+| `check_run.py` | the REALM pass criteria; exit 0 alone is not one of them. `--repeats N` also demands the full rollout count and `--newer-than EPOCH` that the artifacts are *this* run's; `sbatch_eval_pi05.sh` gates on it and exits non-zero when it fails |
+| `t10_bhobj_props.py` | does B-HOBJ's mass / stiffness / damping / max-effort perturbation compound across resets? `--legacy` re-measures the pre-fix drift, `--add_articulated` reaches the joint half |
+| `t11_eval_gate.sh` | does `sbatch_eval_pi05.sh` still refuse to call a crashed run a success? Host-only, seconds, no allocation -- run it after touching either that script or `check_run.py` |
 | `t1_scene_probe.py` / `t1_probe.sh` | per-member scene dump for vector envs: names, z distribution, stage prims, state either side of the scene fixes |
 | `t1_frames.sh` | the 4-env first-frame montage |
 | `t2_inc_on.sh` | correctness gate for `gm.INCREMENTAL_CONTACT_CACHE` |
