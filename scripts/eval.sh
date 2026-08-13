@@ -664,6 +664,18 @@ case "$EVAL_ENV" in
             exit 1
         fi
 
+
+# Sanity-check the image against the port, because the failure otherwise is confusing and slow.
+# OmniGibson 3.9.1 lives at /behavior-src in this port's image; the pre-port 1.1.1 image has it at
+# /omnigibson-src. The shell profile on the dev machine still exports REALM_SIF pointing at the
+# 1.1.1 image, so running this from an og391 checkout picks up the wrong container and dies several
+# minutes later with "No module named 'omnigibson'" or a missing-path assert. Warn rather than
+# fail: passing a deliberately different image is legitimate.
+if ! $SIF_CMD exec "$REALM_SIF" test -d /behavior-src 2>/dev/null; then
+    echo "WARNING: $REALM_SIF has no /behavior-src -- that looks like the PRE-PORT (1.1.1) image," >&2
+    echo "         but this checkout is the og391 port. Set REALM_SIF to the og391 image if that" >&2
+    echo "         was not deliberate." >&2
+fi
         $SIF_CMD exec \
             --userns \
             --nv \
