@@ -408,31 +408,48 @@ after each, so one run gives the per-scene cost instead of one run per candidate
 **The first scene costs 5204 MiB and every one after it ~2728 MiB.** The gap is one-time renderer and
 Isaac allocation, not scene data.
 
-Projected **load** ceiling, keeping 3000 MiB free:
+Projected **load** ceiling from that marginal figure, keeping 3000 MiB free: ~10 scenes with the
+server on the card, ~14 without. **That extrapolation turned out to be pessimistic** -- see below.
 
-| configuration | scenes loadable |
+### Measured at 8 envs: it fits easily
+
+Full `RealmVectorEnvironment`, built *and played*, `DROID_robolab`, 100 shared steps
+(`t5_vec_sustained.py`):
+
+| | |
 | --- | --: |
-| with the pi0.5 server on the same card | **10** |
-| sim only (policy served elsewhere) | **14** |
+| after building and playing 8 envs | **28533 / 46068 MiB used, 17535 MiB free** |
+| after warmup and 100 steps | 28339 MiB, 17729 MiB free (flat) |
+| checks failed | 0 |
 
-**Load is not the binding limit.** `og.sim.play()` builds the contact and articulation views on top of
-this, so the number that actually runs is lower. Treat the table above as an upper bound and confirm
-with `t5_vec_sustained.py` at the candidate N, which reports memory around `play()`.
+8 scenes played cost 28533 - 11839 = **16694 MiB including the one-time overhead, ~2087 MiB per
+scene on average** -- less than the 2728 MiB marginal the load probe measured over its first three
+scenes. Isaac pools memory and later scenes reuse it, so **linear extrapolation from a handful of
+scenes overestimates**. Do not trust the projection above; measure at the N you care about.
 
-### Throughput is what decides whether more envs help
+With 17.5 GB still free at 8 envs, memory is clearly not the wall.
 
-| configuration | ms per shared step | ms per **member**-step |
-| --- | --: | --: |
-| 4 members, no inference, render every step | 153.6 | 38.4 |
-| 4 members, pi0.5 + ROD (25-rollout eval) | ~230 | ~58 |
-| **1** member, pi0.5 + ROD (final wave of the same eval) | 163 | 163 |
+### Throughput is the wall, and it bites before memory does
 
-Going 1 -> 4 members cut per-member cost 163 -> 58 ms, a 2.8x throughput gain for 4x the scenes --
-strongly sublinear, which is why more members help at all.
+Same protocol both rows (rendering every step, no policy in the loop):
 
-**But inference is sequential and O(N).** One policy call per member per chunk boundary means the
-amortised inference cost per step grows as `N * c / horizon`. From the 1-vs-4-member figures above
-that is roughly +22 ms per step per extra member, so it overtakes the simulation term somewhere
-around 8 members and per-member throughput flattens. Past that point the fix is **batched
-inference**, not more scenes -- which is the deferred item in
-[Other known gaps](#other-known-gaps-in-vectorization-not-yet-investigated).
+| members | ms per shared step | ms per **member**-step | member-steps/s |
+| --: | --: | --: | --: |
+| 4 | 153.6 | **38.4** | **26.0** |
+| 8 | 452.0 | 56.5 | 17.7 |
+
+**Doubling from 4 to 8 members makes aggregate throughput ~32% worse**, not better: per-member cost
+rises 38.4 -> 56.5 ms and total member-steps/s falls 26.0 -> 17.7. Stability is not the problem --
+the 8-env run was flat to 0.2% across 100 steps and passed every check. The simulation itself stops
+scaling; note this test has **no inference at all**, so it is not the sequential-policy-call cost.
+
+**So the useful operating point is at or below 4 envs on one L40S, and adding scenes past that is
+counterproductive.** Memory would allow far more; the step loop will not.
+
+For reference, the 25-rollout pi0.5 eval at 4 members with render-on-demand ran ~230 ms per shared
+step (~58 ms per member-step), against 163 ms per step for a single active member in its final wave.
+Sequential inference costs roughly +22 ms per step per extra member on top of the simulation term.
+
+**Where to look next**, in order: find out what saturates between 4 and 8 members (GPU render
+throughput for N x 3 cameras, CPU for N scenes' physics, or the contact matrices) -- that is what
+would raise the ceiling. Batched inference only helps once the simulation scales.
