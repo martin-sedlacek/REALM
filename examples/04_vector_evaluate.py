@@ -36,6 +36,13 @@ if __name__ == "__main__":
     p.add_argument("--rendering_mode", type=str, default="rt")
     p.add_argument("--multi-view", dest="multi_view", action="store_true")
     p.add_argument("--no_record", action="store_true")
+    p.add_argument("--render_on_demand", action=argparse.BooleanOptionalAction, default=True,
+                   help="render only on the steps whose observation feeds inference; physics-only "
+                        "in between. ON by default, matching examples/02_evaluate.py. The render "
+                        "decision is global across members (og.sim.render_on_step is one flag for "
+                        "every scene), so it is the OR over members that need fresh images.")
+    p.add_argument("--n_pre_obs_renders", type=int, default=2)
+    p.add_argument("--max_render_interval", type=int, default=8)
     a = p.parse_args()
 
     run_id = a.run_id or "vec"
@@ -47,5 +54,7 @@ if __name__ == "__main__":
         model_type=a.model_type, model_name=a.model_name, port=a.port, host=a.host,
         log_dir=log_dir, rendering_mode=a.rendering_mode, robot=a.robot,
         multi_view=a.multi_view, no_record=a.no_record, task_cfg_path=a.task_cfg_path,
+        render_on_demand=a.render_on_demand, n_pre_obs_renders=a.n_pre_obs_renders,
+        max_render_interval=a.max_render_interval,
     )
     og.shutdown()

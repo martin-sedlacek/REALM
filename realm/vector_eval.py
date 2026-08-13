@@ -59,7 +59,7 @@ class _Member:
             self.recorder = VideoRecorder(log_dir, ts, run_id, task, perturbation)
 
     # -- metrics, identical in definition to realm/eval.py ------------------------------------
-    def observe(self, obs, robot_name):
+    def observe(self, obs, robot_name, obs_is_fresh=True):
         env = self.env
         base_im, _, base_im_second, _, wrist_im, robot_state, gripper_state = extract_from_obs(
             obs, robot_name=robot_name)
@@ -86,7 +86,9 @@ class _Member:
                 self.drops += 1
         self._was_grasping = is_grasping
 
-        if self.recorder is not None:
+        # Under render_on_demand `obs` only carries a new frame on render steps; recording the
+        # blind steps in between would pad the mp4 with duplicates of the last rendered frame.
+        if self.recorder is not None and obs_is_fresh:
             self.recorder.add_frame(base_im, wrist_im, base_im_second)
         self.qpos.append(np.concatenate((robot_state, np.atleast_1d(np.array(gripper_state)))))
         return base_im, base_im_second, wrist_im, robot_state, gripper_state, ee_pos, ee_rot
@@ -160,6 +162,7 @@ def evaluate_vectorized(
         model_type="openpi", model_name="model", port=8000, host="127.0.0.1",
         log_dir="/logs", rendering_mode="rt", robot="DROID", multi_view=False,
         no_record=False, task_cfg_path=None,
+        render_on_demand=True, n_pre_obs_renders=2, max_render_interval=8,
 ):
     start = time.perf_counter()
     set_sim_config(robot=robot)
@@ -198,6 +201,8 @@ def evaluate_vectorized(
             c.reset()
 
         t = 0
+        steps_since_render = 0
+        obs_is_fresh = True   # warmup() rendered every step
         wave_start = time.perf_counter()
         while t < max_steps and any(m is not None and m.active for m in members):
             actions = []
@@ -214,7 +219,8 @@ def evaluate_vectorized(
 
                 obs = step_results[i][0]
                 (base_im, base_im_second, wrist_im, robot_state,
-                 gripper_state, ee_pos, ee_rot) = m.observe(obs, vec_env.envs[i].robot.name)
+                 gripper_state, ee_pos, ee_rot) = m.observe(
+                    obs, vec_env.envs[i].robot.name, obs_is_fresh=obs_is_fresh)
 
                 if m.buf.empty():
                     env = vec_env.envs[i]
@@ -242,7 +248,25 @@ def evaluate_vectorized(
                 m.last_action = act
                 actions.append(act)
 
-            step_results = vec_env.step(actions)
+            if render_on_demand:
+                # og.sim.render_on_step() is GLOBAL -- one flag for every scene -- so the decision
+                # has to be the OR across active members: if ANY of them needs fresh images next
+                # iteration, the whole batch renders. In practice members stay in phase, because
+                # each active member pops exactly one action per step and they all refill on the
+                # same boundary, so this costs no more renders than the single-env path.
+                # max_render_interval bounds how far the renderer may lag physics.
+                need_render = any(m is not None and m.active and m.buf.empty() for m in members)
+                need_render = need_render or (steps_since_render + 1) >= max_render_interval
+                with og.sim.render_on_step(need_render):
+                    step_results = vec_env.step(
+                        actions,
+                        n_render_iterations=n_pre_obs_renders if need_render else 1,
+                    )
+                steps_since_render = 0 if need_render else steps_since_render + 1
+                obs_is_fresh = need_render
+            else:
+                step_results = vec_env.step(actions)
+                obs_is_fresh = True
 
             for i, m in enumerate(members):
                 if m is None or not m.active:

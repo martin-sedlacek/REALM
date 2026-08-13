@@ -73,11 +73,16 @@ class RealmVectorEnvironment:
         """Reset every member. Returns a list of per-member (obs, info)."""
         return [env.reset() for env in self.envs]
 
-    def step(self, actions):
+    def step(self, actions, n_render_iterations=1):
         """Apply one action per member and advance the shared simulator once.
 
         Args:
             actions (list): one action per member, same format as RealmEnvironmentDynamic.step
+            n_render_iterations (int): render passes before observations are read. Mirrors
+                og.Environment.step: one render happens inside og.sim.step() when rendering is
+                enabled, and this issues the remaining n-1 as explicit og.sim.render() calls. The
+                flush is GLOBAL -- one pass refreshes every scene -- so it is done once here rather
+                than per member.
 
         Returns:
             list: per-member (obs, task_progression, terminated, truncated, info)
@@ -86,6 +91,8 @@ class RealmVectorEnvironment:
         for env, action in zip(self.envs, actions):
             env.pre_step(action)
         og.sim.step()
+        for _ in range(n_render_iterations - 1):
+            og.sim.render()
         return [env.post_step(action) for env, action in zip(self.envs, actions)]
 
     def warmup(self):
