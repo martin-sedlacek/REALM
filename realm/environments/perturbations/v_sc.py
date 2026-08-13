@@ -11,7 +11,13 @@ from realm.placement import (
     get_objects_by_names,
     get_default_objects_cfg,
 )
-from realm.environments.perturbations._helpers import replace_obj
+from realm.environments.perturbations._helpers import (
+    after_play,
+    replace_obj,
+    settle,
+    sim_play,
+    sim_stop,
+)
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
@@ -19,7 +25,10 @@ if TYPE_CHECKING:
 
 def v_sc(env: "RealmEnvironmentDynamic") -> None:
     # --------------- Translation ---------------
-    og.sim.stop()
+    # sim_stop/sim_play rather than og.sim.stop()/play(): those are global, so in a vector env
+    # RealmVectorEnvironment.reset() does ONE cycle for every member and these no-op. V-SC genuinely
+    # needs the stopped sim -- it calls scene.remove_object() and replace_obj().
+    sim_stop(env)
 
     obj_cfgs = copy.deepcopy(env.cfg["objects"])
     num_mo_to = len(env.target_objects + env.main_objects)
@@ -28,7 +37,13 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
         for cfg in obj_cfgs:
             if cfg["name"] == scene_obj.name:
                 if "position" not in cfg:
-                    cfg["position"] = scene_obj.get_position_orientation()[0].tolist()
+                    # Scene frame: this backfills the same cfg["position"] that
+                    # get_non_colliding_positions_for_objects rewrites from the scene-relative
+                    # spawn_bbox below, so it must be in that frame. See vb_pose._place for the
+                    # full write-up -- reading this in world frame agrees with scene frame only
+                    # for scene 0, whose origin IS the world origin, so it is invisible single-env
+                    # and silently wrong for every other member of a vector env.
+                    cfg["position"] = scene_obj.get_position_orientation(frame="scene")[0].tolist()
                 if "bounding_box" not in cfg:
                     cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
 
@@ -57,8 +72,13 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
         env.cfg["objects"] = env.cfg["objects"][:num_mo_to + num_distractors]
 
     # --------------- Set Position ---------------
+    # frame="scene" because obj["position"] came from the scene-relative spawn_bbox above. NOTE the
+    # old call was set_position(), which is deprecated AND world-frame-only (it forwards to
+    # set_position_orientation(position=...) with no frame), so there was no way to express the
+    # right frame through it.
     for obj in env.cfg["objects"]:
-        env.omnigibson_env.scene.object_registry("name", obj["name"]).set_position(obj["position"])
+        env.omnigibson_env.scene.object_registry("name", obj["name"]).set_position_orientation(
+            position=obj["position"], frame="scene")
 
     # --------------- Replace the objects models ---------------
     distractor_obj_cfgs = get_default_objects_cfg(env.omnigibson_env.scene, [obj.name for obj in env.distractors])
@@ -73,12 +93,38 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
         l = [c for c in l if c not in excluded_categories]
         _, _ = replace_obj(env, distractor, included_categories=l, maximum_dim=0.12)
 
-    og.sim.play()
-    env.reset_joints()
-    # fake rest to get to original pose after stopping sim
-    # Nothing reads a camera here, so skip the render pass on each step. gm.HEADLESS does NOT do
-    # this -- og.sim.step() renders every call regardless; only this context actually suppresses it.
-    # Object states and contact caching still update normally inside it.
-    with og.sim.render_on_step(False):
-        for _ in range(30):
-            env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+    sim_play(env)
+
+    # update_initial_file() is REQUIRED here, not an optimisation, and V-SC was missing it while
+    # vsb_nobj/vb_mobj both have it. Without it the scene's initial file still describes the objects
+    # this perturbation just replaced, so the NEXT scene.reset() has to remove the new ones and re-add
+    # the old ones. Those re-added objects are uninitialised until the sim steps, and
+    # og.sim.dump_state() -- which batch_remove_objects calls -- iterates EVERY scene
+    # (simulator.py:2093). So in a vector env member 0's half-restored scene made member 1's reset
+    # assert "Object must be initialized before dumping state!". Single-env never saw it: with one
+    # scene there is no sibling to trip over. Capturing the post-perturbation state as the new
+    # baseline means restore() has nothing to add or remove at all.
+    # DELIBERATELY vec-only. Single-env V-SC has never called update_initial_file() and works, so
+    # adding it there would be an unverified change to a working path. It is only needed because of
+    # the multi-scene coupling described above.
+    #
+    # KNOWN BROKEN, do not trust V-SC vectorized yet: this call still asserts "Object must be
+    # initialized before dumping state!" from scene.dump_state(), even though the shared
+    # og.sim.play() and an og.sim.step() have both already run. Objects added by replace_obj while
+    # the sim was stopped are apparently not initialised by play()+step() alone -- initialisation
+    # happens in Simulator._non_physics_step() for objects queued in _objects_to_initialize, and
+    # objects added while stopped seem not to be on that queue. Construction solves the equivalent
+    # problem by calling og.Environment.post_play_load() per member after its single play (see
+    # env_vector.__init__), which is the next thing to try; it was not done here because
+    # post_play_load() also reloads observation/action spaces and calls reset(), so re-running it on
+    # every reset needs checking before it is trusted.
+    def _post_play():
+        og.sim.step()
+        if env.in_vec_env:
+            env.omnigibson_env.scene.update_initial_file()
+        env.reset_joints()
+
+    after_play(env, _post_play)
+    # Let the re-placed objects come to rest. No-op in a vector env, where the shared settle runs
+    # once for all members instead of stepping the global sim 30 times per member.
+    settle(env)

@@ -31,7 +31,14 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
         return cam_pos, cam_orientation
 
     # TODO: in some cases, the objects are not fully visible - add a look_at or similar to minimize these cases
-    og.sim.stop()
+    #
+    # No og.sim.stop()/play() around this loop. That cycle is GLOBAL while REALM applies
+    # perturbations per member inside reset(), so vectorized it tore down every other member's scene
+    # mid-reset -- the failure mode measured for VB-POSE in job 190555, where three of four members
+    # lost their main object from the contact view and silently scored zero. Nothing here needs a
+    # stopped sim: these are external VisionSensor prims, i.e. XForms rather than rigid bodies, so a
+    # pose write is a USD transform update that applies whether or not physics is running, and there
+    # is no velocity to zero afterwards (contrast vb_pose._place, which must keep_still()).
     for i in range(len(env.omnigibson_env.external_sensors)):
         robot_pos = env.cfg["robots"][0]["position"]
         robot_rot = env.cfg["robots"][0]["orientation"]
@@ -55,6 +62,11 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
         base_cam_config = env.cfg["env"]["external_sensors"][i]
         pose_frame = base_cam_config["pose_frame"]
         env.omnigibson_env.external_sensors[base_cam_config["name"]].set_position_orientation(new_cam_pos, new_cam_orientation, pose_frame)
-    og.sim.play()
+    # This reset() existed to restore scene state that og.sim.stop() had clobbered. With the stop
+    # gone it is redundant -- RealmEnvironmentDynamic.reset() already reset this member immediately
+    # before calling the perturbation, and nothing above moves an object. Kept anyway so the
+    # post-state is bit-identical to the stop/play version; REALM runs one perturbation per eval, so
+    # it cannot undo a sibling perturbation's object placement. Drop it if perturbations are ever
+    # composed, where restoring objects after a pose perturbation WOULD silently erase it.
     obs, _ = env.omnigibson_env.reset()
     env.reset_joints()

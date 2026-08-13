@@ -28,6 +28,7 @@ from realm.geometry import (
     robot_to_world,
     world_to_robot,
 )
+from realm.inference.utils import assert_wrist_camera
 from realm.sim_config import set_rendering_mode
 
 import omnigibson as og
@@ -128,6 +129,13 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         # in_vec_env defers og.sim.play() and everything that depends on a playing simulator to
         # RealmVectorEnvironment, which plays once for all members. See environments/env_vector.py.
         self.in_vec_env = in_vec_env
+        # Work a perturbation deferred because it needs a playing sim, which in a vector env does
+        # not exist until every member's perturbation has run. Drained by
+        # RealmVectorEnvironment.reset() right after its single og.sim.play(); always empty in a
+        # single env, where perturbations/_helpers.after_play() runs the work inline instead.
+        self.deferred_post_play = []
+        # Set by perturbations/_helpers.settle() in a vector env to request the shared settle loop.
+        self.wants_settle = False
         self._mo_cfgs = mo_cfgs
         self._to_cfgs = to_cfgs
         self._dist_cfgs = dist_cfgs
@@ -155,6 +163,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         assert len(self.omnigibson_env.robots) == 1  # assumes single robot, single arm
         self.robot = self.omnigibson_env.robots[0]
         self.robot_finger_links = {self.robot._links[link] for link in self.robot.finger_link_names[self.robot.default_arm]}
+        # Which physical camera the wrist observation comes from is decided by a creation-order index
+        # in ROBOT_OBS_PROFILES, and getting it wrong costs a silent warning rather than a crash.
+        # Check it here, once per member, before anything steps.
+        self.wrist_camera_key = assert_wrist_camera(self.robot)
 
         self.main_objects = [self.omnigibson_env.scene.object_registry("name", mo["name"]) for mo in mo_cfgs]
         self.target_objects = [self.omnigibson_env.scene.object_registry("name", to["name"]) for to in to_cfgs]
@@ -325,20 +337,46 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         return obs, rew, terminated, truncated, info
 
     def reset(self):
-        obs, _ = self.omnigibson_env.reset()
+        """Single-env reset. Vector envs must drive the two phases below directly instead.
+
+        The split exists because a perturbation's sim-state management is GLOBAL: see
+        RealmVectorEnvironment.reset(), which interleaves one shared stop/play/settle around all
+        members' perturbations rather than letting each member cycle the simulator on its own.
+        """
+        obs, info = self.reset_pre_perturbation()
+        obs = self.apply_perturbations(obs)
+        return obs, info
+
+    def reset_pre_perturbation(self):
+        """Phase 1 of reset: restore this member's scene and clear its task bookkeeping.
+
+        Touches no global simulator state, so a vector env can run it for every member up front.
+        """
+        obs, info = self.omnigibson_env.reset()
         self.reset_joints()
 
         self.was_lifted = False
         for k in self.task_progression.keys():
             self.task_progression[k] = False
 
+        self.deferred_post_play.clear()
+        self.wants_settle = False
+        return obs, info
+
+    def apply_perturbations(self, obs):
+        """Phase 2 of reset: run this member's perturbations.
+
+        In a vector env the caller is responsible for the surrounding sim state -- perturbations
+        route their stop/play/step/settle through perturbations/_helpers, which no-op or defer here
+        and let RealmVectorEnvironment do each of them exactly once for all members.
+        """
         for p in self.active_perturbations:
             self.supported_pertrubations[p]()
         if "V-AUG" in self.active_perturbations:
             self.v_aug_sigma = np.random.uniform(0.0, 2.5)
             self.v_aug_alpha = np.random.uniform(0.25, 1.5)
             obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha)
-        return obs, _
+        return obs
 
     def _robot2world(self, action):
         base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0

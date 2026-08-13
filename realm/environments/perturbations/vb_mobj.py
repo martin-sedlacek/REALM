@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import omnigibson as og
 from omnigibson.objects import DatasetObject, PrimitiveObject, USDObject
 from realm.placement import get_default_objects_cfg
+from realm.environments.perturbations._helpers import after_play, settle, sim_play, sim_stop
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
@@ -26,14 +27,14 @@ def vb_mobj(env: "RealmEnvironmentDynamic") -> None:
 
     if type(mo) == PrimitiveObject:
         # assumes the primitives have a default scale 1,1,1 hence the orig bbox can be used as replacement
-        og.sim.stop()
+        # sim_stop/sim_play rather than og.sim.stop()/play(): those are global, so a vector env
+        # batches ONE cycle for every member and these no-op. Rescaling a prim needs the sim stopped.
+        sim_stop(env)
         scale = torch.tensor([s1, s2, s3])
         mo.scale = torch.tensor(env.mo_bbox_orig) * scale
-        og.sim.play()
-        # No camera is read here; skip the per-step render pass (see og.sim.render_on_step docs).
-        with og.sim.render_on_step(False):
-            for _ in range(30):
-                env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+        sim_play(env)
+        # Let the rescaled object come to rest; no-op in a vector env, which settles once for all.
+        settle(env)
     else:
         obj_name = mo.name
         obj_relative_prim_path = mo._relative_prim_path
@@ -43,7 +44,8 @@ def vb_mobj(env: "RealmEnvironmentDynamic") -> None:
         if type(mo) == DatasetObject:
             obj_cfg = get_default_objects_cfg(env.omnigibson_env.scene, [mo.name])[obj_name]
 
-        og.sim.stop()
+        # Genuinely needs the stopped sim: this removes and re-adds an object.
+        sim_stop(env)
         scene.remove_object(mo)
 
         if env.task_type in ["open_drawer", "close_drawer"]:
@@ -69,7 +71,13 @@ def vb_mobj(env: "RealmEnvironmentDynamic") -> None:
             raise NotImplementedError()
 
         env.main_objects = [new_obj]
-        og.sim.play()
-        og.sim.step()
-        env.omnigibson_env.scene.update_initial_file()  # renamed from update_initial_state() in OG 3.9.1
-        env.reset_joints()
+        sim_play(env)
+
+        # Needs a PLAYING sim -- og.sim.step() asserts it and update_initial_file() must capture the
+        # post-play state -- so in a vector env this waits for the shared play.
+        def _post_play():
+            og.sim.step()
+            env.omnigibson_env.scene.update_initial_file()  # renamed from update_initial_state() in OG 3.9.1
+            env.reset_joints()
+
+        after_play(env, _post_play)

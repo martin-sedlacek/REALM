@@ -21,6 +21,11 @@ import numpy as np
 import omnigibson as og
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic, WARMUP_STEPS
+from realm.environments.perturbations._helpers import (
+    NEEDS_STOPPED_SIM,
+    SETTLE_STEPS,
+    settle_action,
+)
 
 
 class RealmVectorEnvironment:
@@ -31,10 +36,18 @@ class RealmVectorEnvironment:
     member), not from different task files.
     """
 
-    def __init__(self, num_envs, **env_kwargs):
+    def __init__(self, num_envs, on_first_env_built=None, **env_kwargs):
         """
         Args:
             num_envs (int): number of parallel environments
+            on_first_env_built (None or callable): invoked once, right after member 0 exists.
+                Isaac is not running until the first og.Environment is created, so carb settings
+                cannot be touched before then -- but they must be set BEFORE the remaining scenes
+                load if they are to affect how the renderer sizes its pools. That is the window
+                this hook exists for: at 16 members the RTX descriptor/parameter-block pools run
+                out while loading scene 10 ("Unable to allocate descriptor sets") and the process
+                segfaults, long before GPU memory is a concern. Passing a lighter renderer profile
+                here is what makes higher member counts reachable.
             **env_kwargs: forwarded verbatim to each RealmEnvironmentDynamic
         """
         assert num_envs >= 1, f"num_envs must be >= 1, got {num_envs}"
@@ -49,6 +62,8 @@ class RealmVectorEnvironment:
         for i in range(num_envs):
             og.log.info(f"  environment {i + 1}/{num_envs}")
             self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, **env_kwargs))
+            if i == 0 and on_first_env_built is not None:
+                on_first_env_built()
 
         # Play once for every scene, then let each member finish the loading that needs a live sim.
         og.sim.play()
@@ -70,8 +85,74 @@ class RealmVectorEnvironment:
 
     # ============================== [ROLLOUT] ==============================
     def reset(self):
-        """Reset every member. Returns a list of per-member (obs, info)."""
-        return [env.reset() for env in self.envs]
+        """Reset every member, doing each GLOBAL simulator operation exactly once.
+
+        A member's reset is not self-contained: perturbations stop, play and step the simulator, and
+        every one of those acts on ALL scenes. Running `[env.reset() for env in self.envs]` therefore
+        had each member tear down and rebuild its siblings' scenes mid-reset. Measured (job 190555,
+        VB-POSE Vec=4): the main object dropped out of the contact view for scenes 1, 2 and 3, so 18
+        of 25 rollouts logged zero environment collisions and never left REACH -- and the job still
+        exited 0.
+
+        So the per-member work is split into phases and the global operations are hoisted out:
+
+            1. every member restores its own scene                    (no global state touched)
+            2. ONE og.sim.stop(), if any member's perturbation needs it
+            3. every member's perturbations run
+            4. ONE og.sim.play()
+            5. work the perturbations deferred because it needs a playing sim
+            6. ONE settle loop driving all members together, if any asked for it
+
+        Mirrors the batching already used for scene fixes in __init__ and for the warmup loop.
+        Returns a list of per-member (obs, info).
+        """
+        results = [env.reset_pre_perturbation() for env in self.envs]
+
+        # Only cycle the sim if a perturbation actually requires a stopped one (adding or removing
+        # objects). Pose-only perturbations such as VB-POSE and V-VIEW write on a live sim, and
+        # cycling for them would reintroduce the very disruption this method exists to avoid.
+        needs_stop = any(
+            p in NEEDS_STOPPED_SIM for env in self.envs for p in env.active_perturbations
+        )
+        if needs_stop:
+            og.sim.stop()
+
+        obss = [env.apply_perturbations(res[0]) for env, res in zip(self.envs, results)]
+
+        if needs_stop:
+            og.sim.play()
+
+        for env in self.envs:
+            for fn in env.deferred_post_play:
+                fn()
+            env.deferred_post_play.clear()
+
+        if any(env.wants_settle for env in self.envs):
+            self._settle()
+        for env in self.envs:
+            env.wants_settle = False
+
+        return [(obs, res[1]) for obs, res in zip(obss, results)]
+
+    def _settle(self, steps=SETTLE_STEPS):
+        """Let every member's scene come to rest, on one shared step loop.
+
+        Deliberately goes through the underlying OmniGibson env rather than this class's step():
+        post_step() calls recompute_task_progression(), which MUTATES task_progression, so settling
+        through it would credit the rollout with progress made before the policy ever acted. The
+        single-env path avoids this the same way, by calling omnigibson_env.step() rather than
+        RealmEnvironmentDynamic.step().
+        """
+        actions = [settle_action(env) for env in self.envs]
+        # Nothing reads a camera here, so skip the render pass on each step. gm.HEADLESS does NOT do
+        # this -- og.sim.step() renders every call regardless; only this context suppresses it.
+        with og.sim.render_on_step(False):
+            for _ in range(steps):
+                for env, action in zip(self.envs, actions):
+                    env.omnigibson_env._pre_step(action)
+                og.sim.step()
+                for env, action in zip(self.envs, actions):
+                    env.omnigibson_env._post_step(action)
 
     def step(self, actions, n_render_iterations=1):
         """Apply one action per member and advance the shared simulator once.
