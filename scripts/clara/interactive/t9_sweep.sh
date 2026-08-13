@@ -16,7 +16,13 @@
 # verdict line is what matters ("PASSED" / "FAILED -- N problem(s)").
 set -uo pipefail
 
-REALM_ROOT=${REALM_ROOT:-/mnt/home_lustre/sedlam56/projects/REALM_og391}
+# Derived from this script's own location, NOT from $REALM_ROOT. The shell profile on this machine
+# exports REALM_ROOT=/home/sedlam56/projects/REALM -- the PRE-PORT 1.1.1 checkout -- along with
+# REALM_SIF pointing at the 1.1.1 image. A `${REALM_ROOT:-<og391 default>}` here therefore resolved
+# to the wrong repo entirely and the run died with "rr: No such file or directory". A silent version
+# of that mistake would be far worse: an og391 script quietly evaluating against the old stack.
+# Deriving the root from the script path makes it impossible to point at the wrong tree.
+REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 LOGS=${LOGS:-/mnt/home_lustre/sedlam56/projects/REALM/logs}
 ALLOCS=${ALLOCS:-}
 NUM_ENVS=${NUM_ENVS:-2}
