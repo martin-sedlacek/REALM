@@ -85,7 +85,7 @@ def main(task_id, robot, repeats):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--task_id", type=int, default=0)
-    p.add_argument("--robot", type=str, default="DROID")
+    p.add_argument("--robot", type=str, default="DROID_robolab_v2")
     p.add_argument("--repeats", type=int, default=2)
     a = p.parse_args()
     main(a.task_id, a.robot, a.repeats)

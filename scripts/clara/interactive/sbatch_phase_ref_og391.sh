@@ -31,7 +31,7 @@ PERT_ID=${PERT_ID:-0}
 REPEATS=${REPEATS:-3}
 MAX_STEPS=${MAX_STEPS:-100}
 HORIZON=${HORIZON:-8}
-ROBOT=${ROBOT:-DROID}
+ROBOT=${ROBOT:-DROID_robolab_v2}
 # render_on_demand is ON by default in this branch, which is what --og_lite approximates on 1.1.1.
 ROD=${ROD:-1}
 OGLITE=${OGLITE:-0}

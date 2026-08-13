@@ -113,7 +113,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--max_envs", type=int, default=12)
     p.add_argument("--task_id", type=int, default=0)
-    p.add_argument("--robot", type=str, default="DROID_robolab")
+    p.add_argument("--robot", type=str, default="DROID_robolab_v2")
     p.add_argument("--reserve", type=int, default=3000, help="MiB of VRAM to keep free")
     a = p.parse_args()
     main(a.max_envs, a.task_id, a.robot, a.reserve)

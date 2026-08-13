@@ -11,7 +11,7 @@ from omnigibson.macros import gm
 
 from realm.sim_config import set_sim_config
 
-set_sim_config(robot=os.environ.get("REALM_ROBOT", "DROID"))
+set_sim_config(robot=os.environ.get("REALM_ROBOT", "DROID_robolab_v2"))
 
 import omnigibson.utils.usd_utils as uu
 

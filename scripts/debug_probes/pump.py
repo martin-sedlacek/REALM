@@ -5,7 +5,7 @@ shared namespace, and writes captured stdout to /dbg/outbox/<name>.out. A probe 
 instead of a fresh 5-minute boot.
 
 Differs from tmp/dbg_session/pump.py (the 2026-08-10 velocity-fix session):
-  - the robot config is read from $REALM_ROBOT (default DROID_robolab), not hardcoded to DROID,
+  - the robot config is read from $REALM_ROBOT (default DROID_robolab_v2), not hardcoded to DROID,
     so the same pump serves the stock asset for A/B without an edit.
   - it connects an InferenceClient to the pi0.5 server on $REALM_PORT, and exposes rollout(),
     a faithful reduction of realm/eval.py's loop. The known robolab gap (task_progression 0.0,
@@ -32,7 +32,7 @@ for stale in ("/dbg/READY", "/dbg/BOOT_FAILED", "/dbg/STOP"):
     if os.path.exists(stale):
         os.remove(stale)
 
-ROBOT = os.environ.get("REALM_ROBOT", "DROID_robolab")
+ROBOT = os.environ.get("REALM_ROBOT", "DROID_robolab_v2")
 TASK_CFG = os.environ.get(
     "REALM_TASK_CFG", "REALM_DROID10/put_green_block_into_bowl/default.yaml"
 )

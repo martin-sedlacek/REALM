@@ -217,7 +217,7 @@ if __name__ == "__main__":
     p.add_argument("--num_envs", type=int, default=2)
     p.add_argument("--task_id", type=int, default=0)
     p.add_argument("--perturbation_id", type=int, default=0)
-    p.add_argument("--robot", type=str, default="DROID")
+    p.add_argument("--robot", type=str, default="DROID_robolab_v2")
     p.add_argument("--rendering_mode", type=str, default="rt")
     p.add_argument("--frames_dir", type=str, default=None,
                    help="also save per-member frames + montages here (requires --warmup)")

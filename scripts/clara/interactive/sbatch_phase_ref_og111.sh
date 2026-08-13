@@ -33,6 +33,9 @@ PERT_ID=${PERT_ID:-0}
 REPEATS=${REPEATS:-3}
 MAX_STEPS=${MAX_STEPS:-100}
 HORIZON=${HORIZON:-8}
+# Stays on stock DROID: this is the PRE-PORT 1.1.1 checkout, which has no robolab config at all --
+# neither v1 nor v2 (the robolab asset is og391-only work). The point of this job is a historical
+# reference for the old stack, so its robot has to be one the old stack actually has.
 ROBOT=${ROBOT:-DROID}
 # OG-lite on-demand rendering, so this matches og391's render_on_demand default (ON).
 OG_LITE_RENDER=${OG_LITE_RENDER:-1}

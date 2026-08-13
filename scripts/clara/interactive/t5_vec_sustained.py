@@ -125,7 +125,7 @@ if __name__ == "__main__":
     p.add_argument("--num_envs", type=int, default=4)
     p.add_argument("--steps", type=int, default=200)
     p.add_argument("--task_id", type=int, default=0)
-    p.add_argument("--robot", type=str, default="DROID")
+    p.add_argument("--robot", type=str, default="DROID_robolab_v2")
     p.add_argument("--check_every", type=int, default=50)
     a = p.parse_args()
     main(a.num_envs, a.steps, a.task_id, a.robot, a.check_every)

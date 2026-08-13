@@ -331,11 +331,34 @@ ALLOC=<jobid> NUM_ENVS=4 REPEATS=25 MAX_STEPS=500 ROD=1 ROBOT=DROID_robolab \
   ./scripts/clara/interactive/go vec_eval_full ./scripts/clara/interactive/t6_vec_eval.sh
 ```
 
-### Result
+### Result -- RETRACTED 2026-08-13, the SR is invalid
+
+> **Do not use the numbers in this section.** Every member of a wave shared ONE
+> `task_progression` dict, because `env_base.py:48` assigned the module-level
+> `TASK_PROGRESS_RUBRICS[task_type]` without copying it and
+> `recompute_task_progression` mutates it in place. Progression therefore became an **OR across
+> members** and stuck there (line 222 short-circuits on `is_completed_flag or checker(obs)`, so a
+> stage already flagged by another member is never re-checked). One member grasping marked `GRASP`
+> done for all four.
+>
+> Spotted by Martin from the videos: rollouts scored `SUCCESS` with the block never grasped. The
+> giveaway was in the report all along -- members of a wave share identical
+> `task_progression_timestamps`.
+>
+> So **SR 0.960 is an upper bound of the form "at least one member of the wave succeeded"**, not a
+> per-rollout success rate. The true value is unknown and likely much lower.
+>
+> Fixed by deep-copying the rubric per environment. **The eval must be re-run**; SR cannot be
+> recovered from the stored artifacts, because `PLACE_INTO` needs object poses and only qpos and
+> actions were saved. The per-member trajectories (`qpos/`, `actions/`, `videos/`) ARE valid --
+> only the progression, stage and SR columns are contaminated.
+>
+> Single-env is unaffected: one environment per process means one reference, and `reset()` clears
+> it. The single-env baseline of SR 1.000 at n=10 still stands.
 
 | | |
 | --- | --: |
-| **SR** | **0.960** (24/25) |
+| ~~**SR**~~ | ~~0.960 (24/25)~~ **invalid** |
 | **task_progression** | **0.984** (min 0.60) |
 | stages | 24 SUCCESS, 1 MOVE_CLOSE |
 | collisions_self | 0.00 (all runs) |

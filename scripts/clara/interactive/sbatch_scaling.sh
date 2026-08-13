@@ -21,15 +21,15 @@
 # Eval arguments are identical to sbatch_phase_ref_og391.sh so the results drop straight into the
 # section-8 table as extra columns.
 #
-#SBATCH --job-name realm-maxjuice
+#SBATCH --job-name realm-scaling
 #SBATCH --partition l40s
 #SBATCH --gres=gpu:L40S:1
 #SBATCH --nodes 1
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task 32
 #SBATCH --mem 120G
-#SBATCH --time 01:30:00
-#SBATCH --output=/mnt/home_lustre/sedlam56/projects/REALM/logs/phase_maxjuice_%j.log
+#SBATCH --time 02:00:00
+#SBATCH --output=/mnt/home_lustre/sedlam56/projects/REALM/logs/scaling_%j.log
 
 set -uo pipefail
 
@@ -60,7 +60,7 @@ OUT=/logs/phase_ref/${LABEL}_${JOB}.json
 [ -f "$REALM_ROOT/scripts/clara/interactive/profile_phases.py" ] || { echo "ERROR: no profiler" >&2; exit 1; }
 case "$REALM_LOGS" in /tmp/*) echo "ERROR: refusing to write artifacts under /tmp" >&2; exit 1;; esac
 
-mkdir -p "$REALM_ROOT/tmp/$JOB" "$APPDATA/appdata" "$REALM_LOGS/phase_ref"
+mkdir -p "$REALM_ROOT/tmp/$JOB" "$APPDATA/appdata" "$REALM_LOGS/scaling"
 
 ROD_FLAG="--no-render_on_demand"
 [ "$ROD" = "1" ] && ROD_FLAG="--render_on_demand"
@@ -88,34 +88,13 @@ apptainer run --userns --nv --writable-tmpfs --pwd /app \
   --env NVIDIA_DRIVER_CAPABILITIES=all \
   --env CUDA_VISIBLE_DEVICES=0 \
   --env PYTHONUNBUFFERED=1 \
-  --env REALM_INCREMENTAL_CONTACT_CACHE="$INC" \
-  --env REALM_PROXIMITY_GATE="$GATE" \
-  --env REALM_GPU_DYNAMICS="$GPU_DYN" \
-  --env REALM_TORCH_DEVICE="${TORCH_DEVICE:-cuda:0}" \
   "$REALM_SIF" \
-  python -u /app/scripts/clara/interactive/profile_phases.py --out "$OUT" --label "$LABEL" -- \
-    --task_id "$TASK_ID" \
-    --perturbation_id "$PERT_ID" \
-    --repeats "$REPEATS" \
-    --max_steps "$MAX_STEPS" \
-    --horizon "$HORIZON" \
-    --model_name debug \
-    --model_type debug \
-    --port 8000 \
-    --robot "$ROBOT" \
-    --experiment_name phase_ref \
-    --run_id "${LABEL}_${JOB}" \
-    --log_dir /logs \
-    --rendering_mode rt \
-    $ROD_FLAG
+  python -u /app/scripts/clara/interactive/t8_vec_scaling.py \
+    --num_envs "${NUM_ENVS:-4}" --steps "${STEPS:-96}" --horizon "${HORIZON:-8}" \
+    --robot "${ROBOT:-DROID_robolab_v2}" \
+    --out "/logs/scaling/scaling_n${NUM_ENVS:-4}_${JOB}.json"
 EXIT=$?
 
-echo "[maxjuice] exited $EXIT"
-# GPU dynamics is bounded by the gm.GPU_*_CAPACITY macros; PhysX warns and can drop contacts rather
-# than failing when a scene exceeds them, so surface those before anyone trusts the numbers.
-echo "--- PhysX capacity / GPU warnings (want: none) ---"
-grep -iE "capacity|gpu buffer|overflow|exceed" "$REALM_LOGS/phase_maxjuice_${JOB}.log" 2>/dev/null | head -20 \
-  || echo "(none)"
-echo "[maxjuice] json: $REALM_LOGS/phase_ref/${LABEL}_${JOB}.json"
+echo "[scaling] exited $EXIT"
 [ "$EXIT" -eq 0 ] && rm -rf "$REALM_ROOT/tmp/$JOB"
 exit $EXIT
