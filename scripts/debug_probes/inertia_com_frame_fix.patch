@@ -1,5 +1,5 @@
 --- /tmp/claude-51436/-mnt-home-lustre-sedlam56-projects-REALM-og391/9c6947ff-3816-4b8f-91da-31650375e7e7/scratchpad/rigid_prim_stock.py	2026-08-15 00:54:49.602351933 +0200
-+++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 00:54:10.000000000 +0200
++++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 00:57:02.000000000 +0200
 @@ -25,6 +25,19 @@
  # Create module logger
  log = create_module_logger(module_name=__name__)
@@ -20,12 +20,11 @@
  # Create settings for this module
  m = create_module_macros(module_path=__file__)
  
-@@ -217,8 +230,37 @@
+@@ -217,8 +230,38 @@
                  self._collision_meshes[mesh_name] = mesh
  
                  volume, com = get_mesh_volume_and_com(mesh.prim)
 -                # We need to transform the volume and CoM from the mesh's local frame to the link's local frame
--                local_pos, local_orn = mesh.get_position_orientation(frame="parent")
 +                # We need to transform the volume and CoM from the mesh's local frame to the link's local frame.
 +                #
 +                # PATCH (inertia-diff): frame="parent" is the mesh's IMMEDIATE parent prim
@@ -51,6 +50,7 @@
 +                # panda_link6 a 0.0004 mm parent->link residual, so an unscoped fix would perturb
 +                # two arm links' CoM by ~17 um. Every other arm link's parent->link transform is
 +                # exactly identity, i.e. the fix is a no-op there regardless.
+                 local_pos, local_orn = mesh.get_position_orientation(frame="parent")
 +                if self.prim_path.split("/")[-1] in _COM_FRAME_FIX_LINKS:
 +                    mesh_pos, mesh_orn = mesh.get_position_orientation()
 +                    link_pos, link_orn = self.get_position_orientation()
