@@ -103,6 +103,13 @@ ap.add_argument("--outer-dr", type=float, default=None, help="... dampingRatio o
 ap.add_argument("--max-effort", type=float, default=None,
                 help="max_effort (N m) on the driven finger_joint. Authored 16.5, and the position "
                      "drive saturates there in every gain rung, so it plausibly matters more than kp.")
+ap.add_argument("--pad-cc-stiffness", type=float, default=None,
+                help="physxMaterial:compliantContactStiffness on the two PAD links' physics materials. "
+                     "PhysX 5's compliant contact: a finite value makes the contact a spring instead "
+                     "of a hard constraint, so the object visibly sinks into the pad. A third avenue "
+                     "if the mimic constraint turns out not to be tunable. 0 = hard (the default).")
+ap.add_argument("--pad-cc-damping", type=float, default=None,
+                help="physxMaterial:compliantContactDamping on the same materials")
 ap.add_argument("--variant-usd", default=None,
                 help="load a VARIANT robolab USD instead of the shipped one (see "
                      "scripts/debug_probes/make_mimic_variant.py). Use this when a runtime mimic write "
@@ -123,7 +130,7 @@ ap.add_argument("--solver-pos-iter", type=int, default=None,
                      "bigger constraint residual = apparent compliance. Blunt: it softens the arm's "
                      "joints too.")
 ap.add_argument("--rungs", default="",
-                help="SWEEP MODE: 'name=nf/dr/onf/odr/me/spi/kp/kd,name2=...'. Each rung gets its OWN unloaded "
+                help="SWEEP MODE: 'name=nf/dr/onf/odr/me/spi/kp/kd/ccs/ccd,name2=...'. Each rung gets its OWN unloaded "
                      "calibration sweep, free close (jaw-gap zero) and squeeze, all in one process. "
                      "'-' leaves the authored value. Repeat a rung to measure within-run "
                      "repeatability -- do that, it is the error bar on every other rung.")
@@ -418,6 +425,55 @@ def usd_drive(jname):
     return out
 
 
+def pad_material_prims():
+    """The physics-material prims bound to the two PAD links' collision geoms.
+
+    PhysX applies compliant contact per MATERIAL, so softening "the pads" means finding whatever
+    material their collision geoms resolved to. Returned keyed by link/geom so the log says which.
+    """
+    out = {}
+    for ln in FL:
+        for gname, gm in robot.links[ln].collision_meshes.items():
+            pm = None
+            try:
+                pm = gm.get_applied_physics_material()
+            except Exception as e:
+                print(f"  [warn] no physics material for {ln}/{gname}: {e!r}")
+            if pm is None:
+                continue
+            prim = getattr(pm, "prim", None)
+            if prim is None:
+                prim = og.sim.stage.GetPrimAtPath(pm.prim_path)
+            out[f"{ln}/{gname}"] = prim
+    return out
+
+
+def pad_cc_state():
+    out = {}
+    for k, prim in PAD_MATS.items():
+        for a in ("compliantContactStiffness", "compliantContactDamping"):
+            at = prim.GetAttribute(f"physxMaterial:{a}")
+            out[f"{k}.{a}"] = None if not at.IsValid() else at.Get()
+    return out
+
+
+def pad_cc_set(stiff=None, damp=None):
+    """Write compliant-contact parameters on the pad materials. Same editing_usd() rule as mimic_set."""
+    wrote = {}
+    with og.sim.editing_usd():
+        for k, prim in PAD_MATS.items():
+            for a, v in (("compliantContactStiffness", stiff), ("compliantContactDamping", damp)):
+                if v is None:
+                    continue
+                nm = f"physxMaterial:{a}"
+                at = prim.GetAttribute(nm)
+                if not at.IsValid():
+                    at = prim.CreateAttribute(nm, lazy.pxr.Sdf.ValueTypeNames.Float, custom=False)
+                at.Set(float(v))
+                wrote[f"{k}.{a}"] = float(v)
+    return wrote
+
+
 hdr("MIMIC CONSTRAINT / EFFORT STATE -- as authored, before any override")
 # FIRST: is naturalFrequency even a thing in THIS build? An attribute that is not in the schema the
 # runtime was built against is inert text in the file -- omni.physx never reads it, and the mimic
@@ -440,6 +496,17 @@ if not NF_IN_SCHEMA:
           "      read an attribute that is not in its schema, so those values are INERT TEXT and the\n"
           "      mimic constraint is solved RIGIDLY from gearing/offset alone. A --mimic-nf sweep is\n"
           "      then expected to change nothing, and that null result IS the measurement.")
+_mpd = _reg.FindAppliedAPIPrimDefinition("PhysxMaterialAPI")
+_mprops = list(_mpd.GetPropertyNames()) if _mpd is not None else []
+CC_IN_SCHEMA = "physxMaterial:compliantContactStiffness" in _mprops
+print(f"  PhysxMaterialAPI compliant-contact props = "
+      f"{[x for x in _mprops if 'ompliant' in x] or '(none)'}   in-schema={CC_IN_SCHEMA}")
+PAD_MATS = pad_material_prims()
+print(f"  pad physics materials ({len(PAD_MATS)}): "
+      + (", ".join(f"{k} -> {v.GetPath()}" for k, v in PAD_MATS.items()) or "(none found)"))
+PAD_CC0 = pad_cc_state()
+for k, v in PAD_CC0.items():
+    print(f"    {k:<62} = {v}")
 print(f"  mimic joints ({len(MIMIC_JOINTS)}): {MIMIC_JOINTS}")
 print(f"  the four INNER ones this sweep softens: {INNER_MIMIC}")
 print(f"  the driven joint: {DRIVEN_J}")
@@ -454,7 +521,7 @@ EFFORT0 = jget(robot.joints[DRIVEN_J], "max_effort")
 
 
 def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=None, kd=None,
-                   label=""):
+                   ccs=None, ccd=None, label=""):
     """Apply one rung's mimic / effort values and READ THEM BACK. Returns what is live afterwards."""
     wrote = {}
     if nf is not None or dr is not None:
@@ -462,6 +529,10 @@ def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=N
     if onf is not None or odr is not None:
         assert OUTER_J in MIMIC_JOINTS, f"{OUTER_J} is not a mimic joint on this asset"
         wrote.update(mimic_set([OUTER_J], nf=onf, dr=odr))
+    if ccs is not None or ccd is not None:
+        w = pad_cc_set(ccs, ccd)
+        print(f"  [override {label or 'single'}] pad compliant contact -> {w}")
+        wrote.update(w)
     eff = None
     if me is not None:
         eff = effort_set(DRIVEN_J, me)
@@ -497,12 +568,12 @@ def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=N
 OVERRIDE_SINGLE = None
 if any(v is not None for v in (args.mimic_nf, args.mimic_dr, args.outer_nf, args.outer_dr,
                               args.max_effort, args.solver_pos_iter, args.drive_kp,
-                              args.drive_kd)):
+                              args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping)):
     hdr("APPLYING THE SINGLE-SHOT OVERRIDE (before the calibration sweep, so the reference curve "
         "belongs to THIS configuration)")
     OVERRIDE_SINGLE = apply_override(args.mimic_nf, args.mimic_dr, args.outer_nf, args.outer_dr,
                                      args.max_effort, args.solver_pos_iter, args.drive_kp,
-                                     args.drive_kd)
+                                     args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping)
 
 print("\n  finger link geometry:")
 p8_0, q8_0 = robot.links[L8].get_position_orientation()
@@ -911,13 +982,16 @@ summary = dict(robot=ROBOT, task=args.task_cfg, joint_names=joint_names,
                    None if gc.isaac_kd is None else _np(gc.isaac_kd).tolist()),
                mimic_authored={k: (None if v is None else float(v)) for k, v in MIMIC0.items()},
                mimic_nf_in_schema=NF_IN_SCHEMA, mimic_schema_props=SCHEMA_PROPS,
+               compliant_contact_in_schema=CC_IN_SCHEMA,
+               pad_materials=[str(v.GetPath()) for v in PAD_MATS.values()],
                mimic_joints=MIMIC_JOINTS, inner_mimic=INNER_MIMIC, driven_joint=DRIVEN_J,
                max_effort_authored=EFFORT0,
                override_single=None if OVERRIDE_SINGLE is None else dict(
                    mimic_nf=args.mimic_nf, mimic_dr=args.mimic_dr, outer_nf=args.outer_nf,
                    outer_dr=args.outer_dr, max_effort=args.max_effort,
                    solver_pos_iter=args.solver_pos_iter, drive_kp=args.drive_kp,
-                   drive_kd=args.drive_kd),
+                   drive_kd=args.drive_kd, pad_cc_stiffness=args.pad_cc_stiffness,
+                   pad_cc_damping=args.pad_cc_damping),
                close_target=None if CLOSE_TARGET is None else CLOSE_TARGET.tolist(),
                ctrl_dof=[int(i) for i in CTRL_DOF], squeezes={}, rungs={})
 
@@ -1039,6 +1113,7 @@ def analyse(label, cal, sq, pre, r_open, free_rows):
     out["n_contact_final"] = int(last["n_contact"])
     out["frac_both_pads"] = float(np.mean([r["n_contact"] == 2 for r in sq]))
     out["mimic_live"] = {k: (None if v is None else float(v)) for k, v in mimic_state().items()}
+    out["pad_cc_live"] = {k: (None if v is None else float(v)) for k, v in pad_cc_state().items()}
     out["max_effort_live"] = jget(robot.joints[DRIVEN_J], "max_effort")
     out["stiffness_live"] = jget(robot.joints[DRIVEN_J], "stiffness")
     out["damping_live"] = jget(robot.joints[DRIVEN_J], "damping")
@@ -1088,12 +1163,13 @@ else:
             if not part:
                 continue
             name, _, vals = part.partition("=")
-            fields = (vals.split("/") + ["-"] * 8)[:8]
+            fields = (vals.split("/") + ["-"] * 10)[:10]
             conv = lambda s: None if s.strip() in ("-", "") else float(s)  # noqa: E731
             out.append(dict(name=name.strip(), nf=conv(fields[0]), dr=conv(fields[1]),
                             onf=conv(fields[2]), odr=conv(fields[3]), me=conv(fields[4]),
                             spi=None if conv(fields[5]) is None else int(conv(fields[5])),
-                            kp=conv(fields[6]), kd=conv(fields[7])))
+                            kp=conv(fields[6]), kd=conv(fields[7]),
+                            ccs=conv(fields[8]), ccd=conv(fields[9])))
         return out
 
     RUNGS = parse_rungs(RUNGS_SPEC)
@@ -1101,7 +1177,8 @@ else:
     for k, rg in enumerate(RUNGS):
         print(f"  [{k}] {rg['name']:<14} inner nf={rg['nf']} dr={rg['dr']}   "
               f"{OUTER_J} nf={rg['onf']} dr={rg['odr']}   max_effort={rg['me']}  "
-              f"solver_pos_iter={rg['spi']}  kp={rg['kp']} kd={rg['kd']}")
+              f"solver_pos_iter={rg['spi']}  kp={rg['kp']} kd={rg['kd']}  "
+              f"cc={rg['ccs']}/{rg['ccd']}")
     print("  Every rung takes its OWN unloaded calibration sweep and free close, so its jaw-gap zero "
           "and reference kinematics belong to its own configuration.")
     print("  A repeated rung is the ERROR BAR: if 'default' and its repeat differ by X, no other "
@@ -1113,9 +1190,9 @@ else:
         f0 = len(rows)
         hdr(f"RUNG {k + 1}/{len(RUNGS)}: {RUNG}   inner nf={rg['nf']} dr={rg['dr']}  "
             f"outer nf={rg['onf']} dr={rg['odr']}  max_effort={rg['me']}  spi={rg['spi']}  "
-            f"kp={rg['kp']} kd={rg['kd']}")
+            f"kp={rg['kp']} kd={rg['kd']}  cc={rg['ccs']}/{rg['ccd']}")
         live = apply_override(rg["nf"], rg["dr"], rg["onf"], rg["odr"], rg["me"], rg["spi"],
-                              rg["kp"], rg["kd"], label=RUNG)
+                              rg["kp"], rg["kd"], rg["ccs"], rg["ccd"], label=RUNG)
         park_cube()
         p = f"{RUNG}_"
         r_open = do(f"{p}open", GRIP_OPEN, args.open_steps, verbose_every=15)
@@ -1143,7 +1220,7 @@ else:
     hdr("SWEEP TABLE -- squeeze B (immovable object), the clean compliance number")
     print(f"  {'rung':<16} {'inner nf':>9} {'dr':>6} {'outer nf':>10} {'odr':>5} {'maxeff':>7} {'spi':>4} {'kp':>9} "
           f"{'jaw@stall':>10} {'past obj':>9} {'jawflex':>8} {'unres q':>8} {'F_l':>7} {'F_r':>7} "
-          f"{'Fmax':>7} {'jflex':>8} {'um/N':>7} {'pads':>5} {'held':>5} {'gresid':>8}")
+          f"{'Fmax':>7} {'jflex':>8} {'um/N':>7} {'pads':>5} {'held':>5} {'gresid':>8} {'cc':>10}")
     tbl = []
     for name, rec in summary["rungs"].items():
         b = rec["squeezes"].get("B")
@@ -1162,7 +1239,7 @@ else:
               f"{b['force_l_N']:>7.2f} {b['force_r_N']:>7.2f} {b['max_force_N']:>7.2f} "
               f"{jf:>8.5f} {b['um_per_N']:>7.1f} {b['n_contact_final']:>5} "
               f"{'-' if a is None else ('YES' if a.get('held') else 'NO'):>5} "
-              f"{max(rec['gear_resid'].values()):>8.5f}")
+              f"{max(rec['gear_resid'].values()):>8.5f} {str(sp['ccs']):>10}")
         tbl.append((name, b))
     if len(tbl) > 1:
         jaws = np.array([b["jaw_final_mm"] for _, b in tbl])
