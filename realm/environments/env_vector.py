@@ -10,7 +10,8 @@ Construction is three-phase because og.sim.play() and og.sim.stop() are global:
 
     1. build every member with in_vec_env=True   (loads scenes, does not play)
     2. og.sim.play() once, then post_play_load() + bind_scene_handles() per member
-    3. one stop/play cycle around apply_scene_fixes_from_cfg() for all members, then finalize
+    3. one stop/play cycle around apply_scene_fixes_from_cfg() for all members, then rebase every
+       member's reset baseline onto the fixed scene, then finalize
 
 Poses stay scene-relative throughout: REALM's external cameras use pose_frame "parent" and are
 loaded into their own env's scene, and robots default to frame "scene", so each member's camera
@@ -80,6 +81,11 @@ class RealmVectorEnvironment:
         for env in self.envs:
             env.apply_scene_fixes_from_cfg(manage_sim_state=False)
         og.sim.play()
+        # After the shared play(), because Scene.save() asserts a non-stopped sim. The single-env
+        # path makes this call inside apply_scene_fixes_from_cfg, right after its own play(); here
+        # the play is hoisted out for all members, so the rebase has to be hoisted with it.
+        for env in self.envs:
+            env.rebase_initial_file()
 
         for env in self.envs:
             env.finalize_setup()
@@ -188,6 +194,28 @@ class RealmVectorEnvironment:
     def _repair_init_queue(self):
         """Undo the damage a SIBLING member's remove_object() did to the sim's global init queue.
 
+        FIXED UPSTREAM 2026-08-14. OG-lite's Simulator._pre_remove_object now matches on IDENTITY
+        instead of on name, so against that fork this method finds nothing and prints nothing.
+
+        KEPT ANYWAY, as a net rather than a workaround, because the fix does not travel with the
+        image: scripts/clara/interactive/rr defaults to MODE=stock, and MODE=stockfix -- the
+        configuration make_stock_patch.sh prepares and both build recipes wire in -- binds only
+        scenes/scene_base.py, so it still runs the STOCK simulator.py. Under either of those the
+        eviction is live, and this is the only thing between it and an opaque "Object must be
+        initialized before dumping state!" (or "prim view [...] is not a valid view" out of play())
+        raised from an unrelated call site much later. It costs two comprehensions per reset that
+        needs a stopped sim, and it announces itself loudly, so whether its warning appears now also
+        tells you which OmniGibson a run used.
+
+        Measured, t9_vbpose_nostopplay.py --num_envs 2 --resets 3 (one warmup + 3 perturbed resets),
+        both PASS either way -- the repair worked; it just has nothing left to repair:
+
+            stock simulator.py      V-SC      4 x "Re-queueing 5 object(s) ... scene0/corkscrew,
+                                              table_knife, wineglass, water_glass, bottle_of_wine"
+                                    VSB-NOBJ  4 x "Re-queueing 1 object(s) ... scene0/cube"
+            OG-lite identity match  V-SC      0
+                                    VSB-NOBJ  0
+
         Two symmetric repairs, both caused by the same upstream bug (see below):
           (a) a LIVE object was knocked off the queue and would never be initialized;
           (b) a REMOVED object kept its slot and would be initialized after its prim was deleted.
@@ -236,9 +264,10 @@ class RealmVectorEnvironment:
         pop always takes the right entry, and each perturbation's own play() drains the queue before
         the next thing runs.
 
-        The real fix belongs upstream -- _pre_remove_object should match on identity, or at least on
-        (scene, name), not on name -- but OG-lite is a shared checkout here, so we repair the queue
-        instead. Re-queueing the orphans and running one _non_physics_step() sends them through
+        The real fix belongs upstream and is now applied there (identity match, see the header of
+        this docstring); the rest of this paragraph describes what this method does when it runs
+        against an OmniGibson that still has the bug. Re-queueing the orphans and running one
+        _non_physics_step() sends them through
         exactly the path play() would have used (obj.initialize(), keep_still(), update_handles(),
         joint-break bookkeeping), so the resulting state is what it would have been had the eviction
         never happened. It is deliberately NOT og.Environment.post_play_load(): that also reloads the

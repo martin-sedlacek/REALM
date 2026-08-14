@@ -70,12 +70,29 @@ SUPPORTED_TASKS = _const_list("SUPPORTED_TASKS")
 SUPPORTED_PERTURBATIONS = _const_list("SUPPORTED_PERTURBATIONS")
 
 # Tasks that cannot currently build at all, so a failure here is expected and is NOT evidence about
-# the vector path. cabinet.usd raises "TypeError: missing a required argument: 'preset_name'" in
-# omnigibson/prims/material_prim.py during scene load; it fails single-env too. Reported as KNOWN
-# rather than skipped, because silently omitting them would hide the day they start working -- or
-# the day something else joins them.
-KNOWN_BROKEN_TASKS = {8: "cabinet.usd: material_prim get_material missing 'preset_name'",
-                      9: "cabinet.usd: material_prim get_material missing 'preset_name'"}
+# the vector path. Both are blocked by the same `drawer` main object
+# (custom_assets/impact_drawer/usd/cabinet.usd) and fail single-env too. Reported as KNOWN rather
+# than skipped, because silently omitting them would hide the day they start working -- or the day
+# something else joins them.
+#
+# The blocker MOVED on 2026-08-14 and this string moved with it. It used to be
+# "TypeError: missing a required argument: 'preset_name'" out of MaterialPrim.get_material; that is
+# fixed upstream in OG-lite (OmniSurfaceMaterialPrim now defaults preset_name=None). Loading now gets
+# past the material entirely and imports scene 0, then dies on the object's own authored transform in
+# XFormPrim._set_xform_properties, which rewrites the xformOp order to [translate, orient, scale],
+# writes back the pose it just read, re-reads it and asserts the two agree. For cabinet.usd they
+# do not:
+#
+#   AssertionError: /World/scene_0/drawer:
+#     old_pos tensor([0.0243, 0.8223, -0.0317])  new_pos tensor([2.3468e-04, 8.1015e-01, -6.3757e-02])
+#     old_orn tensor([0.0007, 0.7068, 0.7073, 0.0102])  new_orn tensor([0.7071, -0.0109, -0.0109, 0.7070])
+#
+# The two quaternions carry the same component magnitudes in a different order, which points at the
+# asset's authored orientation rather than at the `orientation:` in the task YAML (applied later).
+# Not investigated further.
+_DRAWER_XFORM = ("cabinet.usd: XFormPrim._set_xform_properties assert on the authored transform "
+                 "(old_orn 0.0007,0.7068,0.7073,0.0102 vs new_orn 0.7071,-0.0109,-0.0109,0.7070)")
+KNOWN_BROKEN_TASKS = {8: _DRAWER_XFORM, 9: _DRAWER_XFORM}
 
 # Signatures that mean the run died even though it exited 0.
 CRASH_MARKERS = re.compile(

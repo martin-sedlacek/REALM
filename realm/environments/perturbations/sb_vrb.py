@@ -179,7 +179,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
     #
     # The wall this used to be expected to hit -- update_initial_file() -> scene.dump_state()
     # asserting "Object must be initialized before dumping state!" -- is fixed, in
-    # RealmVectorEnvironment._initialize_evicted_objects() rather than in any perturbation, so it
+    # RealmVectorEnvironment._repair_init_queue() rather than in any perturbation, so it
     # applies here too. STILL UNVERIFIED END TO END, though: only V-SC has actually been run
     # vectorized (t9_vbpose_nostopplay.py --perturbation V-SC, 2 members x 3 resets). SB-VRB also
     # ADDS a "receiver" that the other members' scenes do not have, which is a case V-SC never

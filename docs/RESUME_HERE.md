@@ -65,28 +65,34 @@ Fixed in OG-lite `ef7442b`; verified at `num_envs=4` (`above_50m=0` in all four 
 back on the table at z=0.82 instead of 0.015 on the floor, `docs/vector_env/frames_fixed/`).
 **Vector envs must now run `MODE=oglite`** -- the fix lives in the fork, not the image.
 
-Still open, and both found while measuring the above:
+Both threads that were open here are now **closed** (2026-08-14):
 
-1. **`reset()` re-adds the removed object -- confirmed on the single-env production path.**
-   `Scene.reset(hard=True)` restores from `_initial_file`, captured at the end of
-   `Scene.initialize()`, i.e. *before* `apply_scene_fixes_from_cfg` ever runs. Measured directly with
-   `scripts/clara/interactive/t3_single_env_chair.py` on plain single-env construction, no vector
-   machinery: removal is correct after construction, then **2 of 2 resets bring
-   `straight_chair_pmpwwi_0` back** (`n_objects` 127 -> 128, `active=True`). Since REALM calls
-   `reset()` once per repeat, **every repeat after the first runs with an object the task config
-   asked to delete** -- at `--repeats 25` that is 24 of 25 rollouts, with the extra chair beside the
-   table the robot works at.
+1. **`reset()` re-adds the removed object -- FIXED.** `Scene.reset(hard=True)` restores from
+   `_initial_file`, which `og.Environment.post_play_load()` captures *before*
+   `apply_scene_fixes_from_cfg` ever runs, so the first reset undid the removal:
+   `straight_chair_pmpwwi_0` came back (`n_objects` 127 -> 128) in **every** member of a Vec=3 env
+   and on the plain single-env path. Since REALM calls `reset()` once per repeat, every repeat after
+   the first ran with an object the task config asked to delete -- 24 of 25 at `--repeats 25`.
 
-   **This is a port regression, not a historical problem: it is not an issue on 1.1.1** (per
-   Martin, 2026-08-13 -- do not spend time re-verifying it there). So results collected on the old
-   stack are unaffected; results collected on og391 are.
+   **It is a port regression, not a historical problem: not an issue on 1.1.1** (per Martin,
+   2026-08-13 -- do not re-verify there). Results on the old stack are unaffected; og391 results are.
 
-   Candidate fix: `scene.update_initial_file()` after applying the scene fixes, so the post-fix scene
-   becomes what reset restores. Not yet implemented or tested.
-2. **Why scenes 1..N-2 do not recover on reset but the last one does.** Pre-fix, scene_3 came back
-   to `above_50m=1` (just the pinned table) after warmup while scenes 1 and 2 stayed at 70. Moot for
-   the fix, but it points at per-scene state being clobbered by the global play/stop that
-   `Simulator.import_scene` runs for every import.
+   Fixed by `RealmEnvironmentDynamic.rebase_initial_file()` (`scene.update_initial_file()`) right
+   after the scene fixes on both paths. Probes: `scripts/clara/interactive/t12_vec_chair.py`
+   (vector, per member) and `t3_single_env_chair.py` (single env).
+2. **Why scenes 1..N-2 do not recover on reset but the last one does -- ANSWERED, and it was not the
+   init-queue eviction.** `Scene.restore()` cycles `og.sim.stop()` / `og.sim.play()` whenever it has
+   objects to add; that cycle is global, and `og.sim.stop()` reverts every scene to its state at the
+   last `play()`. So a member's restored poses -- applied by `load_state()` *after* its own play --
+   are thrown away by the *next* member's `stop()`. Only the last member has no sibling behind it.
+   With thread 1 fixed there is nothing to add, no member cycles the sim, and the asymmetry is gone.
+   Write-up: [docs/vector_env/README.md](vector_env/README.md).
+
+Also fixed upstream, 2026-08-14: **`Simulator._pre_remove_object` pruned the global init queue by
+object NAME**, so in a vector env one member's `remove_object` evicted a sibling's freshly added
+object of the same name and nothing ever initialised it. OG-lite now matches on identity.
+`RealmVectorEnvironment._repair_init_queue()` is kept as a net, because `MODE=stock` /
+`MODE=stockfix` still ship the stock `simulator.py`.
 
 ### Vectorized evaluation now works end to end
 

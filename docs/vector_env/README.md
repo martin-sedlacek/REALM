@@ -23,6 +23,14 @@ and `frames/montage_wrist.png`.
 > [What the scene fixes actually do](#what-the-scene-fixes-actually-do-they-work). The visible
 > symptom was real; the attributed cause was not.
 
+> **Retracted 2026-08-14:** this document also said the removed chair comes back in the LAST member
+> only, and suggested that might make it the same bug as the init-queue eviction. **It comes back in
+> EVERY member**; the last-member appearance was a one-reset pose artifact, and the two bugs are
+> unrelated. Both are now fixed --
+> [reset re-adds the removed chair](#second-independent-bug-reset-re-adds-the-removed-chair) (REALM,
+> `rebase_initial_file()`) and the init-queue name prune (OG-lite, `_pre_remove_object` now matches
+> on identity; see PERTURBATIONS.md §2).
+
 ## What was added
 
 | file | what |
@@ -180,7 +188,11 @@ objects consequently rest on the floor at z ~ 0.02 instead of on a table top at 
 It also explains the montage asymmetry that the earlier writeup read as "env1-3 are alike":
 **scene_3 recovers almost fully on reset (only the pinned table stays up) while scenes 1 and 2 do
 not**, which is why env3 shows a full kitchen and env1/env2 show a bare room. Scene 3 is the last
-member reset; why the earlier members do not keep their restored poses is not yet established.
+member reset; **why the earlier members do not keep their restored poses is answered below** --
+`Scene.restore()` cycles the global `og.sim.stop()`/`play()` when it has objects to add, and
+`stop()` reverts every scene to its state at the last `play()`, so a sibling's later cycle discards
+the poses `load_state()` just applied. See
+["Last member only" was a POSE artifact](#last-member-only-was-a-pose-artifact-not-a-presence-one---and-not-the-eviction-bug).
 
 Two more things the earlier writeup got wrong, both now measured: the chair removal **succeeds in
 every scene**, and "a chair env0 does not have" is `straight_chair_pmpwwi_1`, which is never in
@@ -191,8 +203,10 @@ qpos (`q0=[0.0056, -0.4623, -0.1084]`), so nothing about the differences is robo
 
 `n_objects` goes 127 -> **128** after warmup **in every scene, including scene 0**, and
 `straight_chair_pmpwwi_0` returns to `active=True`. `Scene.reset(hard=True)` calls
-`restore(self._initial_file)`, and `_initial_file` was captured at the end of `Scene.initialize()` --
-before `apply_scene_fixes_from_cfg` ever ran. So the first reset undoes the removal.
+`restore(self._initial_file)`, and `_initial_file` is last written by
+`og.Environment.post_play_load()` -> `scene.update_initial_file()` (`Scene.initialize()` sets it
+first) -- both **before** `apply_scene_fixes_from_cfg` ever runs. So the first reset undoes the
+removal.
 
 Since scene 0 is affected too, this is not a vector-env bug at all. **Confirmed on the single-env
 production path** with `scripts/clara/interactive/t3_single_env_chair.py`: removal is correct after
@@ -200,21 +214,64 @@ construction, then 2 of 2 resets bring the chair back. REALM calls `reset()` onc
 every repeat after the first runs with an object the task config asked to delete -- 24 of 25 at the
 usual `--repeats 25`.
 
-**CORRECTION (2026-08-14), measured after the vectorization work landed.** "Every scene, including
-scene 0" no longer holds, and neither does commit `56e05ce`'s "scenes 1..N-1". Re-measured from the
-rendered frames of the vector integrity matrix: at `--num_envs 2` the chair is in env1 and not env0;
-at `--num_envs 3` it is in **env2 only**, with env0 AND env1 clean. So the survivor is the LAST
-member, not every member and not every member but the first. That is the same last-member signature
-as the sibling init-queue eviction (see PERTURBATIONS.md), which prunes a GLOBAL queue by object
-NAME while every member is built from the same task YAML -- worth checking whether the two share a
-cause before fixing this one separately. Whether the single-env behaviour above also changed has NOT
-been re-measured; the correction covers vector envs only.
-
 **It is a port regression: not an issue on OmniGibson 1.1.1** (per Martin, 2026-08-13). Results
-collected on the old stack are unaffected; og391 results are. Candidate fix:
-`scene.update_initial_file()` after applying the scene fixes. Not yet implemented -- note that
-several perturbations now call exactly that for the same reason (see PERTURBATIONS.md), so the fix
-has precedent in the codebase.
+collected on the old stack are unaffected; og391 results are.
+
+#### "Last member only" was a POSE artifact, not a presence one -- and NOT the eviction bug
+
+Two frame-based readings disagreed with the paragraph above: commit `56e05ce` read "scenes 1..N-1",
+and a re-measurement off the vector integrity matrix read "env1 of 2 / **env2 of 3**, with env0 and
+env1 clean". That is the same last-member fingerprint as the sibling init-queue eviction
+(PERTURBATIONS.md §2), so the obvious question was whether the two share a cause. **They do not.**
+
+`scripts/clara/interactive/t12_vec_chair.py` reports, per member, registry membership, stage
+validity, world pose and `_initial_file` membership. At `--num_envs 3`, before either fix:
+
+| phase | member 0 | member 1 | member 2 |
+| --- | --- | --- | --- |
+| after construction | absent | absent | absent |
+| after reset #1 | **present**, at its scene ORIGIN, z = **-0.051** | **present**, same | **present**, real pose (y -1.419, z 0.426) |
+| after reset #2 | **present**, real pose | **present**, real pose | **present**, real pose |
+
+`in_initial_file` is `True` in **every** member at construction. That alone rules the eviction bug
+out: the restore source is identical in all members, and the eviction only decides *which* entry
+gets popped off the init queue. Confirmed by running the same probe against the OG-lite identity-match
+fix with no other change -- the verdict is byte-for-byte the same `FAIL ... member(s) [0, 1, 2]`.
+
+The asymmetry is in the POSE and lasts exactly one reset. `Scene.restore()` cycles `og.sim.stop()` /
+`og.sim.play()` whenever it has objects to add; that cycle is **global**, and `og.sim.stop()` reverts
+every scene to its state at the last `play()`. Member *i*'s chair is created at the scene origin,
+initialised by member *i*'s own `play()`, and moved to its real pose by `load_state()` **after** that
+play -- so member *i+1*'s `stop()` throws the pose away again. Only the last member has no sibling
+behind it. From the second reset on there is nothing left to add, nobody cycles the sim, and every
+member shows the chair correctly placed. A chair sunk into the floor at the scene origin is not
+"beside the table", which is exactly how the frames read.
+
+This also settles the question left open [above](#why-it-presented-as-the-scene-fixes-only-apply-to-scene-0)
+-- "why the earlier members do not keep their restored poses is not yet established": same mechanism.
+
+#### The fix
+
+`RealmEnvironmentDynamic.rebase_initial_file()` -> `scene.update_initial_file()`, called once right
+after the scene fixes on **both** paths: in `post_play_setup()` for a single env, and in
+`RealmVectorEnvironment.__init__` after the shared `og.sim.play()` for a vector env (it has to be
+after a play, because `Scene.save()` asserts a non-stopped sim). The fixed scene becomes the reset
+baseline, so `restore()` has nothing to add and the extra per-member stop/play cycle goes with it.
+Several perturbations already call `update_initial_file()` for the same reason (PERTURBATIONS.md).
+
+Verified. `in_initial_file` is now `False` in every member at construction, and:
+
+```
+t12_vec_chair.py --num_envs 3 --resets 2
+  PASS -- the removal of 'straight_chair_pmpwwi_0' survives 2 reset(s) in all 3 member(s).
+t3_single_env_chair.py --repeats 2
+  PASS -- the removal survives 2 reset(s).
+```
+
+`n_objects` stays at 127 through construction and both resets in all three members, where before it
+went 127 -> 128 on the first reset. `t9_vbpose_nostopplay.py` V-SC and VSB-NOBJ still PASS at
+`--num_envs 2 --resets 3`, with check 1's stop/play accounting unchanged (1 cycle per perturbed
+reset for a `NEEDS_STOPPED_SIM` perturbation).
 
 ## The fix
 
@@ -261,9 +318,10 @@ Compare the pre-fix table in
 objects were at z ~ 0.015 in scenes 1-3, i.e. on the floor. All four tiles now render the table
 with every task object on it.
 
-**Not fixed by this, and still open:** the reset still re-adds `straight_chair_pmpwwi_0`
-(`active=True`, `n_objects` 128) in every scene -- that is the separate `_initial_file` bug above,
-and it is visible in the fixed montage as the black chair with the checkered seat.
+**Not fixed by this** (and visible in the fixed montage as the black chair with the checkered seat):
+the reset re-added `straight_chair_pmpwwi_0` (`active=True`, `n_objects` 128) in every scene. That is
+the separate `_initial_file` bug above, **fixed 2026-08-14** by `rebase_initial_file()`; the montage
+predates that fix.
 
 ## Other known gaps in vectorization (not yet investigated)
 

@@ -151,11 +151,12 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
         A vector env cannot call this directly: apply_scene_fixes_from_cfg() cycles og.sim.stop()/
         play(), which are global, so one member cannot cycle them without disturbing the others.
-        RealmVectorEnvironment instead calls the three pieces below itself, batching the stop/play
+        RealmVectorEnvironment instead calls the four pieces below itself, batching the stop/play
         across all members. The per-member ordering is identical either way.
         """
         self.bind_scene_handles()
         self.apply_scene_fixes_from_cfg()
+        self.rebase_initial_file()
         self.finalize_setup()
 
     def bind_scene_handles(self):
@@ -297,6 +298,34 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
 
             if manage_sim_state:
                 og.sim.play()
+
+    def rebase_initial_file(self):
+        """Make the scene AS FIXED the one reset() restores.
+
+        og.Environment.post_play_load() captures scene._initial_file (via scene.update_initial_file)
+        BEFORE apply_scene_fixes_from_cfg ever runs, so it still lists every object the scene config
+        asked to REMOVE. Scene.reset(hard=True) restores that file, and restore() re-adds anything
+        the file has and the registry does not -- so the first reset undoes the removal. REALM calls
+        reset() once per repeat, which means every repeat after the first ran with the object the
+        task config deletes (measured: `straight_chair_pmpwwi_0` back in all 3 members of a Vec=3
+        env, n_objects 127 -> 128, and the same on the single-env path via t3_single_env_chair.py).
+        Re-capturing here makes the fixed scene the baseline, so restore() has nothing to add.
+
+        Also removes a stop/play cycle PER MEMBER from the first reset of a vector env, which is
+        what made that reset's damage member-dependent: restore() cycles the sim when it has objects
+        to add, that cycle is GLOBAL, and og.sim.stop() reverts every scene to its state at the last
+        play(). A sibling's later cycle therefore threw away the pose load_state() had just given
+        the object this member re-added -- measured at Vec=3, where after the first reset the chair
+        sat at its member's scene ORIGIN (z = -0.051, under the floor) in members 0 and 1 and at its
+        real furniture pose only in the last member. That is where the "last member only" reading of
+        this bug came from; it is a transient of the extra cycles, and it disappears from the second
+        reset on, when there is nothing left to add.
+
+        Separate from apply_scene_fixes_from_cfg's body rather than at its tail because Scene.save()
+        asserts a non-stopped sim (it dumps joint state) -- the fixes themselves run stopped, and a
+        vector env runs them for every member inside ONE stopped window and plays once afterwards.
+        """
+        self.omnigibson_env.scene.update_initial_file()
 
     def disable_visual_toggles(self):
         for obj in self.omnigibson_env.scene.objects:

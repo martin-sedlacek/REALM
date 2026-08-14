@@ -1,19 +1,18 @@
 """Does `reset()` undo `apply_scene_fixes_from_cfg`'s object removal in the SINGLE-env path?
 
 Found while debugging the vector env: after warmup, `n_objects` went 127 -> 128 and
-`straight_chair_pmpwwi_0` was back to `active=True` in **every** scene, including scene 0.
-`Scene.reset(hard=True)` restores `self._initial_file`, which `Scene.initialize()` captures before
-REALM's scene fixes ever run.
-
-Scene 0 being affected means this is probably not a vector-env bug at all -- the single-env path
-calls `reset()` once per repeat, so every production REALM eval may be running with a chair the task
-config asked to delete. That is what this checks, on the plain single-env construction path with no
-vector machinery involved.
+`straight_chair_pmpwwi_0` was back to `active=True`. `Scene.reset(hard=True)` restores
+`self._initial_file`, which is captured by `og.Environment.post_play_load()` -- before REALM's scene
+fixes ever run. Nothing about that is vector-specific, and the single-env path calls `reset()` once
+per repeat, so every production REALM eval was running with a chair the task config asked to delete.
+This checks that, on the plain single-env construction path with no vector machinery involved.
 
     MODE=stock ./scripts/clara/interactive/rr \
         python -u scripts/clara/interactive/t3_single_env_chair.py --task_id 0
 
-Reports PASS if the removal survives reset, FAIL if the object comes back.
+Reports PASS if the removal survives reset, FAIL if the object comes back. Fixed 2026-08-14 by
+`RealmEnvironmentDynamic.rebase_initial_file()`; this PASSes at 2 of 2 resets since. Its vector-env
+sibling is `t12_vec_chair.py`, which reports the same per member.
 """
 import argparse
 
@@ -71,8 +70,7 @@ def main(task_id, robot, repeats):
     print(f"  after construction : registry={reg0} renders={ren0}   (want False/False)")
     back = [r for r in results if r[0] or r[1]]
     if not reg0 and not ren0 and not back:
-        print(f"  PASS -- the removal survives {repeats} reset(s); the vector-env observation does "
-              f"NOT extend to the single-env path.")
+        print(f"  PASS -- the removal survives {repeats} reset(s).")
     elif not reg0 and not ren0 and back:
         print(f"  FAIL -- removal is correct at construction but {len(back)}/{repeats} reset(s) "
               f"bring '{WATCH}' back. Every production repeat after the first runs with an object "
