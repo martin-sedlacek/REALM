@@ -82,8 +82,15 @@ an A/B without an edit.
   (`JOINT_MAPPING_MATCH`), the frame the controller's eef pose is in vs `env._world2robot`
   (`HEIGHT_OFFSET_CONSISTENT` -- see below), `og.sim.device`, the resolved wrist-camera key, and 8
   real steps of the debug action with the pose error per step. `REALM_ROBOT=<config>`.
-- `ee_press_compliance.py` -- drives the CLOSED gripper straight down into the table under EE
-  control and records the external view, to test whether the robolab 2F-85 fingers are compliant.
+- `ee_press_compliance.py` -- drives the **OPEN** gripper straight down onto the table under EE
+  control and records it, to test whether the 2F-85 fingertips curl inward when they catch on a
+  surface. `REALM_GRIP` selects the jaw state and defaults to `open`; it was hardcoded CLOSED until
+  2026-08-14, and a closed jaw braces the two pads against each other along the linkage's stiff axis,
+  which geometrically forbids the inward curl -- every press number taken before that flip is about a
+  different experiment. The descent is adaptive (it lands when the arm's tracking lag exceeds
+  `REALM_SHORT_TH`, then overtravels `REALM_OVERTRAVEL` past the ACHIEVED landing height) and
+  external_sensor0 is re-aimed every step, perpendicular to the closing plane and clamped to stay
+  `REALM_CAM_MIN_ABOVE` above the table top.
   Picks its own descent column (nearest table-height surface in front of the robot, then the point
   on it furthest from every object standing on it), verifies the commanded orientation round-trips
   before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
