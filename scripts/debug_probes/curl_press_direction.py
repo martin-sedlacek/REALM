@@ -108,6 +108,13 @@ ap.add_argument("--rungs", default="nf1000a=1000/0.05,nf100=100/0.05",
                      "FIELD IN EVERY RUNG: a '-' leaves whatever the previous rung left, it does not "
                      "restore the authored value. Repeat a rung to get the error bar.")
 ap.add_argument("--mimic-joints", default=None, help="override which mimic joints nf/dr apply to")
+ap.add_argument("--ref-gains", default="/logs/gripper_squeeze/robolab_ref_gains.json",
+                help="RoboLab's own runtime parameter dump. At startup this probe dumps REALM's "
+                     "gripper joints in the SAME schema and prints a field-by-field diff, matches "
+                     "included. A rung whose 6th field is 1 then CLOSES the gripper half of that "
+                     "diff and re-dumps to prove it is empty before measuring -- 'replicate, verify, "
+                     "then measure', rather than testing one parameter at a time. ARM joints are "
+                     "diffed and REPORTED but never written: arm physics stays byte-identical.")
 ap.add_argument("--states", default="open",
                 help="gripper states to press in: 'open', 'closed', or 'open,closed'. OPEN is the "
                      "informative one -- see the docstring.")
@@ -363,8 +370,10 @@ def leader_set(me=None, kp=None, kd=None, label=""):
     return live
 
 
-def apply_override(nf, dr, label="", me=None, kp=None, kd=None):
+def apply_override(nf, dr, label="", me=None, kp=None, kd=None, rl=False):
     wrote = mimic_set(INNER_MIMIC, nf=nf, dr=dr) if (nf is not None or dr is not None) else {}
+    if rl:
+        match_robolab(label)
     lead = leader_set(me=me, kp=kp, kd=kd, label=label)
     live = mimic_state()
     bad = [k for k, v in wrote.items()
@@ -376,6 +385,138 @@ def apply_override(nf, dr, label="", me=None, kp=None, kd=None):
               + (f"   *** MISMATCH {bad} ***" if bad else "   (all writes read back)"))
     assert not bad, f"mimic write did not stick: {bad}"
     return live
+
+
+
+# ---------------------------------------------------------------- RoboLab replication
+# "Replicate RoboLab's gripper field-for-field, VERIFY the replication, then measure" -- rather than
+# testing one parameter at a time, which is how eight rungs of the leader sweep came back negative.
+# The deliverable is the verified ZERO DIFF, not the individual writes.
+#
+# ARM JOINTS ARE DIFFED AND REPORTED BUT NEVER WRITTEN. Arm physics stays byte-identical.
+GRIPPER_JOINTS = [n for n in grip_names]
+REF_FIELDS = ("stiffness", "damping", "max_force", "lower", "upper", "max_velocity",
+              "friction", "armature")
+# joint_prim attribute name for each reference field
+REF_ATTR = dict(stiffness="stiffness", damping="damping", max_force="max_effort",
+                lower="lower_limit", upper="upper_limit", max_velocity="max_velocity",
+                friction="friction", armature="armature")
+# `max_effort` reading exactly 100.0 is joint_prim.py:370's DEFAULT_MAX_EFFORT sentinel for "raw
+# magnitude above INF_EFFORT_THRESHOLD", i.e. effectively unlimited. RoboLab's followers author
+# FLT_MAX, which lands in exactly that class, so 100.0-vs-3.4e38 is a MATCH, not a difference, and
+# the reported number cannot be used to verify it. Flagged rather than silently compared.
+INF_EFFORT = 3.4028234663852886e38
+DEFAULT_MAX_EFFORT_SENTINEL = 100.0
+# Limits are radians in the reference dump; joint_prim reports DEGREES for a revolute joint.
+ANGULAR = True
+
+REF = None
+if args.ref_gains and os.path.exists(args.ref_gains):
+    REF = json.load(open(args.ref_gains))["runtime"]
+    print(f"\n  reference gains: {args.ref_gains} ({len(REF)} joints)")
+else:
+    print(f"\n  [warn] no reference gains at {args.ref_gains}; --rungs match_robolab will be a no-op")
+
+
+def dump_gains():
+    """REALM's live joint parameters, in robolab_ref_gains.json's schema."""
+    out = {}
+    for n in joint_names:
+        j = robot.joints[n]
+        d = {}
+        for f in REF_FIELDS:
+            v = jget(j, REF_ATTR[f])
+            if f in ("lower", "upper") and v is not None:
+                v = float(np.radians(v))       # joint_prim reports degrees for revolute joints
+            d[f] = v
+        out[n] = d
+    return out
+
+
+def gains_diff(live, joints, tol=1e-4):
+    """Field-by-field against REF. Returns [(joint, field, ref, live)] for the MISMATCHES."""
+    bad = []
+    for n in joints:
+        if REF is None or n not in REF:
+            continue
+        for f in REF_FIELDS:
+            r, v = REF[n].get(f), live[n].get(f)
+            if r is None or v is None:
+                continue
+            # the max_effort display sentinel: both "unlimited" -> equal
+            if f == "max_force" and r >= INF_EFFORT * 0.5 and v == DEFAULT_MAX_EFFORT_SENTINEL:
+                continue
+            if abs(r - v) > tol * max(1.0, abs(r)):
+                bad.append((n, f, r, v))
+    return bad
+
+
+def print_gains_table(live, label):
+    hdr(f"GRIPPER PARAMETER DIFF vs RoboLab -- {label}")
+    print(f"  {'joint':<34} {'field':<13} {'RoboLab':>22} {'REALM':>22}  match")
+    n_match = n_diff = 0
+    for n in GRIPPER_JOINTS + arm_joint_names:
+        if REF is None or n not in REF:
+            continue
+        for f in REF_FIELDS:
+            r, v = REF[n].get(f), live[n].get(f)
+            sent = (f == "max_force" and r is not None and r >= INF_EFFORT * 0.5
+                    and v == DEFAULT_MAX_EFFORT_SENTINEL)
+            same = sent or (r is not None and v is not None
+                            and abs(r - v) <= 1e-4 * max(1.0, abs(r)))
+            n_match += bool(same)
+            n_diff += (not same)
+            mark = "OK" if same else "***"
+            if sent:
+                mark = "OK(sentinel)"
+            print(f"  {n:<34} {f:<13} {('%.9g' % r) if r is not None else 'None':>22} "
+                  f"{('%.9g' % v) if v is not None else 'None':>22}  {mark}"
+                  + ("   [ARM -- reported, never written]" if n in arm_joint_names else ""))
+    print(f"\n  {n_match} fields match, {n_diff} differ (arm rows included and never written)")
+    return n_diff
+
+
+def match_robolab(label=""):
+    """Write RoboLab's values onto the GRIPPER joints, then re-dump and prove the diff is empty."""
+    assert REF is not None, "--ref-gains missing; cannot replicate"
+    hdr(f"REPLICATING RoboLab's GRIPPER, field for field  [{label}]")
+    before = dump_gains()
+    print_gains_table(before, "BEFORE")
+    wrote = []
+    for n in GRIPPER_JOINTS:
+        if n not in REF:
+            continue
+        j = robot.joints[n]
+        for f in REF_FIELDS:
+            r = REF[n].get(f)
+            if r is None:
+                continue
+            attr = REF_ATTR[f]
+            val = float(np.degrees(r)) if f in ("lower", "upper") else float(r)
+            if f == "max_force" and r >= INF_EFFORT * 0.5:
+                val = INF_EFFORT           # FLT_MAX; reads back as the 100.0 sentinel
+            try:
+                setattr(j, attr, val)
+                wrote.append((n, f, val))
+            except Exception as e:
+                print(f"  [warn] {n}.{attr} = {val} failed: {e!r}")
+    print(f"\n  wrote {len(wrote)} gripper fields")
+    after = dump_gains()
+    n_diff = print_gains_table(after, "AFTER")
+    bad = gains_diff(after, GRIPPER_JOINTS)
+    print(f"\n  ROBOLAB_MATCH_RESIDUAL {len(bad)} gripper field(s) still differ: {bad}")
+    print(f"  ROBOLAB_MATCH_{'VERIFIED' if not bad else 'INCOMPLETE'}")
+    summary.setdefault("robolab_match", []).append(
+        dict(label=label, wrote=len(wrote), residual=[list(map(str, b)) for b in bad],
+             verified=not bad, before=before, after=after))
+    return not bad
+
+
+# The startup diff, printed before anything is written, so the field-by-field comparison exists on
+# the record whether or not any rung asks for replication.
+if REF is not None:
+    _n0 = print_gains_table(dump_gains(), "AS SHIPPED (no writes yet)")
+    print(f"  ROBOLAB_STARTUP_DIFF {_n0} field(s) differ")
 
 
 # ---------------------------------------------------------------- geometry / frames
@@ -946,7 +1087,7 @@ def write_clip(path, sel, crop):
 WRITTEN = []
 
 
-def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None):
+def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None, rl=False):
     """UNLOADED reference (object parked 1.3 m away) -> ramp the object up into finger @ln's tip until
     contact, then --tip-past steps further -> park it again and check the deflection comes back."""
     grip = GRIP[state]
@@ -954,7 +1095,7 @@ def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None):
     lab = f"{rung}_{which}"
     hdr(f"RUNG {rung}  JAWS {state}  PRESSING {ln} ({which})   inner-mimic nf={nf} dr={dr}  "
         f"leader me={me} kp={kp} kd={kd}")
-    apply_override(nf, dr, label=rung, me=me, kp=kp, kd=kd)
+    apply_override(nf, dr, label=rung, me=me, kp=kp, kd=kd, rl=rl)
     park_pusher()
     for _ in range(args.rest_steps):
         do_step(cmd, grip, f"{lab}_{state}_rest", rung, state)
@@ -1011,12 +1152,12 @@ def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None):
     return rec
 
 
-def press_cycle(rung, state, nf, dr, me=None, kp=None, kd=None):
+def press_cycle(rung, state, nf, dr, me=None, kp=None, kd=None, rl=False):
     """hover (unloaded reference) -> descend -> press -> retract, for one rung and gripper state."""
     grip = GRIP[state]
     f0 = len(rows)
     hdr(f"RUNG {rung}  JAWS {state}   inner-mimic nf={nf} dr={dr}  leader me={me} kp={kp} kd={kd}")
-    apply_override(nf, dr, label=rung, me=me, kp=kp, kd=kd)
+    apply_override(nf, dr, label=rung, me=me, kp=kp, kd=kd, rl=rl)
     # rise to the hover height first, with the gripper command for this state already applied
     cmd[2] = Z_CONTACT + args.hover
     for _ in range(args.rest_steps):
@@ -1122,9 +1263,10 @@ def parse_rungs(spec):
         if not part:
             continue
         name, _, vals = part.partition("=")
-        f = (vals.split("/") + ["-"] * 5)[:5]
+        f = (vals.split("/") + ["-"] * 6)[:6]
         conv = lambda s: None if s.strip() in ("-", "") else float(s)  # noqa: E731
-        out.append((name.strip(), conv(f[0]), conv(f[1]), conv(f[2]), conv(f[3]), conv(f[4])))
+        out.append((name.strip(), conv(f[0]), conv(f[1]), conv(f[2]), conv(f[3]), conv(f[4]),
+                    bool(conv(f[5]))))
     return out
 
 
@@ -1133,21 +1275,21 @@ assert all(s in GRIP for s in STATES), f"--states must be from {list(GRIP)}"
 RUNGS = parse_rungs(args.rungs)
 hdr(f"{len(RUNGS)} RUNGS x {len(STATES)} GRIPPER STATES, one process")
 print(f"  leader {LEADER} AS AUTHORED: {leader_state()}")
-for name, nf, dr, me, kp, kd in RUNGS:
-    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp} isaac_kd={kd}")
+for name, nf, dr, me, kp, kd, rl in RUNGS:
+    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp} isaac_kd={kd}   match_robolab={rl}")
 print(f"  states: {STATES};  '-' means LEAVE WHAT THE PREVIOUS RUNG LEFT, not 'restore authored'")
 
 TIP_FINGERS = (FL if args.tip_fingers == "both" else [args.tip_fingers])
 assert all(f in FL for f in TIP_FINGERS), f"--tip-fingers must name one of {FL} or 'both'"
-for name, nf, dr, me, kp, kd in RUNGS:
+for name, nf, dr, me, kp, kd, rl in RUNGS:
     for state in STATES:
         if LOAD == "tip":
             # Each fingertip in turn: two independent replicates of the same claim per rung, and the
             # per-finger sign is what the target behaviour is actually about.
             for ln in TIP_FINGERS:
-                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R", me=me, kp=kp, kd=kd)
+                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R", me=me, kp=kp, kd=kd, rl=rl)
         else:
-            press_cycle(name, state, nf, dr, me=me, kp=kp, kd=kd)
+            press_cycle(name, state, nf, dr, me=me, kp=kp, kd=kd, rl=rl)
 
 # ---------------------------------------------------------------- the table
 hdr("CURL TABLE -- every press, signed. + = INWARD, - = OUTWARD SPLAY")
