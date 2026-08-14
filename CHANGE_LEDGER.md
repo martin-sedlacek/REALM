@@ -95,6 +95,34 @@ result reported for this fix used `MODE=stockfix`.
 `.docker/realm_og391.Dockerfile`; `rigid_prim` appears **zero** times in either. A rebuilt image will
 not contain this fix. Left that way deliberately — carrying it into the image was scoped out.
 
+### ⚠ The loader patch fixes ONE of three sites with the same defect
+
+`grep 'frame="parent"'` in OmniGibson finds **three** places that compose to the geom's immediate
+parent rather than to the link:
+
+| site | feeds | patched by `83b21d5`? |
+| --- | --- | --- |
+| `prims/rigid_prim.py:324` | centre of mass → inertia | **yes** |
+| `prims/geom_prim.py:250` `points_in_parent_frame` | the collision **hull** | **no** |
+| `utils/object_utils.py:88` `compute_base_aligned_bboxes` | **base-aligned bounding boxes** | **no** |
+
+The hull site is what put `collision_boundary_points_world` **116 mm** from the pad link origins and
+made hull-derived tip separation read **backwards** — the measurement failure that cost hours of
+direction confusion. Measured: on the unpatched asset the hull and hull-free observables have
+*opposite signs* on the right finger; after the asset-side fix they agree to 0.003 mm and the offset
+collapses from 129.0 mm to 4.8 mm.
+
+**The bbox site reaches live REALM code, not just diagnostics.** `get_base_aligned_bbox()` is called
+at `realm/environments/perturbations/_helpers.py:200` and `realm/environments/perturbations/sb_vrb.py:74`,
+both in perturbation object replacement. Any object whose collision geometry sits under an
+intermediate Xform can therefore receive a **wrong bounding box during a perturbation**. Not measured
+on any BEHAVIOR object — flagged, not quantified.
+
+**Consequence for choosing a route:** the asset-side fixes (`xform-flatten`, or `--mass --anchor`)
+repair all three sites at once, because they remove the dropped transform rather than compensating for
+it in one consumer. The loader patch repairs one. That is an argument for the asset route on
+correctness grounds, independent of the maintenance argument.
+
 ---
 
 ## 2. REALM — shipped behaviour
