@@ -51,11 +51,27 @@ def run_joint_resets(envs):
     step, N members' writes at a time. With one member the emitted calls are identical to the
     pre-batching straight-line version, so single-env behaviour is unchanged.
 
-    UNVERIFIED END TO END: the only task types that reach a non-empty @pending are open_drawer and
-    close_drawer, and neither loads on this port (cabinet.usd -> TypeError: missing a required
-    argument: 'preset_name' in omnigibson/prims/material_prim.py). This body has therefore never
-    executed; it was written by construction from the straight-line version it replaced, not
-    confirmed against a running drawer task. Anything else takes the early return above.
+    VERIFIED END TO END 2026-08-14, once open_drawer/close_drawer started loading (they are the only
+    task types that reach a non-empty @pending; everything else takes the early return above). This
+    docstring used to say UNVERIFIED, on the grounds that neither task could build. Measured on
+    task 8, Default, with the openness of every drawer read back after each reset:
+
+        num_envs=2  reset issues 57 og.sim.step() calls  (2 per-member reset obs + 55 shared)
+        num_envs=1  reset issues 56                      (1 + 55)
+
+    57 rather than 110 is the batching. And the outcome is right, not just the count: member 1
+    lands every one of its five drawer joints on the commanded normalized -1.0000, and member 0
+    lands on exactly the state a num_envs=1 run of the same task produces, joint for joint. Both
+    halves matter -- the count alone would also be satisfied by a loop that stepped once and wrote
+    nothing.
+
+    SEPARATE, PRE-EXISTING, NOT THIS FUNCTION'S DOING: in SCENE 0 the drawers do not reach the
+    commanded position at all (target joint settles ~0.17-0.19 m of a 0.30 m range, and joints 02/03
+    stop at 0.2289/0.2288 m in every run, which is a geometric stop rather than a control failure).
+    That reproduces identically at num_envs=1 with this function bypassed, so it is a property of
+    the task in scene 0 and not of the batching. Scene 0's cabinet also sits 44 mm higher than
+    scene 1's (root-link z 0.544 vs 0.500) and scene 1's drawers close perfectly, which is where to
+    start looking.
     """
     pending = [env for env in envs if env.pending_joint_reset is not None]
     if not pending:
@@ -246,9 +262,9 @@ class RealmEnvironmentBase:
         -- rather than quietly leave a drawer in the wrong start state and score the rollout
         against it.
 
-        Only open_drawer/close_drawer reach any of this, and neither task loads on this port, so
-        the batching is UNVERIFIED end to end. Every other task takes the early return below, which
-        is what it always did and costs nothing either way.
+        Only open_drawer/close_drawer reach any of this; every other task takes the early return
+        below, which is what it always did and costs nothing either way. Both drawer tasks load as
+        of 2026-08-14, so the batching is measured rather than assumed -- see run_joint_resets().
         """
         if self.task_type not in ("open_drawer", "close_drawer"):
             self.mo_joint = None

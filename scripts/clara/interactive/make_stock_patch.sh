@@ -39,14 +39,24 @@ REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 REALM_SIF=${REALM_SIF_OG391:-/mnt/home_lustre/sedlam56/projects/REALM/realm_og391.sif}
 OUT_DIR=${OUT_DIR:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch}
 # Every OmniGibson patch the vectorized eval path needs, as "<patch stem>:<file it patches>".
-# scene_base is the only one required for CORRECTNESS of scene loading, but the other two matter:
+# scene_base is the only one required for CORRECTNESS of scene loading, but the others matter:
 # without simulator_initqueue, a sibling scene evicts freshly-added objects from the global init
 # queue and REALM has to repair it at runtime; without material_prim_preset, any asset whose
-# material resolves to OmniSurface will not load at all.
+# material resolves to OmniSurface will not load at all; without the two *_rootlink patches,
+# open_drawer/close_drawer cannot load, because OmniGibson places an articulation by the entity
+# prim while READING the root link's pose, and cabinet.usd is the only asset here whose base_link
+# is not at the entity origin.
+#
+# NOTE the two *_rootlink stems patch files the image ALREADY patches at build time
+# (entity_prim_og391.patch) or ships stock (xform_prim.py). Each is applied to a fresh copy of the
+# image's own file, so what comes out is the image's version plus this hunk -- which is exactly
+# what MODE=stockfix then binds back over it.
 PATCHES=(
   "scene_base_zoffset:omnigibson/scenes/scene_base.py"
   "simulator_initqueue:omnigibson/simulator.py"
   "material_prim_preset:omnigibson/prims/material_prim.py"
+  "xform_prim_rootlink:omnigibson/prims/xform_prim.py"
+  "entity_prim_rootlink:omnigibson/prims/entity_prim.py"
 )
 ALLOC=${ALLOC:-${SLURM_JOB_ID:-}}
 
@@ -75,6 +85,10 @@ grep -q "initialize_obj is obj" "$OUT_DIR/omnigibson/simulator.py" \
   || { echo "init-queue marker missing" >&2; exit 1; }
 grep -q "preset_name=None" "$OUT_DIR/omnigibson/prims/material_prim.py" \
   || { echo "preset_name marker missing" >&2; exit 1; }
+grep -q "current_orientation = XFormPrim.get_position_orientation(self)" "$OUT_DIR/omnigibson/prims/xform_prim.py" \
+  || { echo "xform_prim root-link marker missing" >&2; exit 1; }
+grep -q "root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))" "$OUT_DIR/omnigibson/prims/entity_prim.py" \
+  || { echo "entity_prim root-link marker missing" >&2; exit 1; }
 
 echo "wrote ${#PATCHES[@]} patched file(s) under $OUT_DIR/omnigibson/"
 echo "use with:  MODE=stockfix ./scripts/clara/interactive/rr <cmd>"

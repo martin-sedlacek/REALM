@@ -6,9 +6,9 @@
 #
 #   MODE=stock    image's own OmniGibson 3.9.1 at /behavior-src/OmniGibson  (default)
 #   MODE=oglite   host OG-lite_og391/omnigibson bound over the image's package
-#   MODE=stockfix image's own OmniGibson plus the three patched files under $STOCK_PATCH, bound
+#   MODE=stockfix image's own OmniGibson plus the patched files under $STOCK_PATCH, bound
 #                 individually. This is what the rebuilt SIF ships -- both build recipes apply the
-#                 same three patches, so stockfix and a rebuilt image behave identically.
+#                 same patches, so stockfix and a rebuilt image behave identically.
 #                 Run scripts/clara/interactive/make_stock_patch.sh once to produce them.
 #
 # Usage:

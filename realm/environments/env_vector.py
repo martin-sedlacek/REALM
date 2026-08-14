@@ -350,8 +350,9 @@ class RealmVectorEnvironment:
         each member's scene N times over while driving only one member's joints -- the same defect
         the settle loop and the stop/play cycle were hoisted out of the per-member loop for. In a
         vector env reset_joints() therefore only records a plan; this drains them all at once. See
-        env_base.run_joint_resets for the full write-up, including why it is UNVERIFIED
-        (open_drawer/close_drawer do not load on this port, so nothing here executes today).
+        env_base.run_joint_resets for the full write-up, including the 2026-08-14 measurement that
+        replaced its UNVERIFIED note: 57 shared steps at num_envs=2 against 56 at num_envs=1, and
+        every member's drawers landing where a single env puts them.
 
         Called at every point a member could have recorded a plan: after construction's
         finalize_setup() loop, after phase 1 of reset(), and after the perturbations. reset() then

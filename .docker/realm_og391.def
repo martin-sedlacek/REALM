@@ -16,6 +16,8 @@ From: stanfordvl/behavior:3.9.1
     realm/misc/scene_base_zoffset_og391.patch /opt/scene_base_zoffset_og391.patch
     realm/misc/simulator_initqueue_og391.patch /opt/simulator_initqueue_og391.patch
     realm/misc/material_prim_preset_og391.patch /opt/material_prim_preset_og391.patch
+    realm/misc/xform_prim_rootlink_og391.patch /opt/xform_prim_rootlink_og391.patch
+    realm/misc/entity_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch
     .docker/og391-constraints.txt /opt/og391-constraints.txt
     packages/openpi-client /opt/openpi-client
 
@@ -53,8 +55,23 @@ From: stanfordvl/behavior:3.9.1
     # resolves to OmniSurface therefore failed to load at all.
     patch -p1 -d /behavior-src/OmniGibson < /opt/material_prim_preset_og391.patch
 
+    # An articulation was placed by whichever prim happened to be read rather than by its ROOT LINK.
+    # XFormPrim._set_xform_properties read the pose through the VIRTUAL self.get_position_orientation()
+    # -- EntityPrim overrides it to return the root link's pose -- and wrote it back through the pinned
+    # XFormPrim.set_position_orientation, which authors the ENTITY prim's xformOps; and
+    # EntityPrim.set_position_orientation's stopped-sim branch simply ASSERTED that the two coincide.
+    # Both hold for every BEHAVIOR dataset asset, whose base_link sits at the entity origin, and for no
+    # DCC export that does not: REALM's custom_assets/impact_drawer/usd/cabinet.usd has base_link at
+    # Ry(180) + 4 cm, so open_drawer/close_drawer could not load at all. Taken from the OG-lite fork
+    # (7c59ed5). Both hunks are no-ops when the root link IS at the entity origin, so no other asset's
+    # placement moves. NOTE entity_prim.py is patched twice -- this one after the root-link relaxation
+    # above, which touches an unrelated part of the file.
+    patch -p1 -d /behavior-src/OmniGibson < /opt/xform_prim_rootlink_og391.patch
+    patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_rootlink_og391.patch
+
     rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch \
-       /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch
+       /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch \
+       /opt/xform_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch
 
     CONDA_PIP=/opt/conda/envs/behavior/bin/pip
 
@@ -127,4 +144,8 @@ PY
         /behavior-src/OmniGibson/omnigibson/scenes/scene_base.py
     grep -q "initialize_obj is obj" /behavior-src/OmniGibson/omnigibson/simulator.py
     grep -q "preset_name=None" /behavior-src/OmniGibson/omnigibson/prims/material_prim.py
+    grep -q "current_orientation = XFormPrim.get_position_orientation(self)" \
+        /behavior-src/OmniGibson/omnigibson/prims/xform_prim.py
+    grep -q "root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))" \
+        /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py
     echo "REALM patches present"
