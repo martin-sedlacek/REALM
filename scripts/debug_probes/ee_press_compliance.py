@@ -624,7 +624,8 @@ _ref = [r for r in rows if r["tag"] == "hold"][-1]
 if ach_contact is not None:
     print(f"  landing height (achieved z) = {ach_contact:+.4f}; each row is one commanded depth past it.")
     print(f"  pivL/pivR are left/right_inner_finger_joint in DEGREES from the unloaded pose; dtipL/dtipR "
-          f"are each pad's OWN inner tip coordinate, inboard-positive, so one pad doing all the work shows.")
+          f"are each pad's OWN inner tip motion, BOTH normalised to inboard-positive (raw side 1 is\n"
+          "  inboard-NEGATIVE because its inboard direction is -AXIS8), so one pad doing all the work shows.")
     print(f"  {'overtrav':>8} {'lag':>7} {'pivL':>7} {'pivR':>7} {'F_l':>6} {'F_r':>6} "
           f"{'d tip':>8} {'d heel':>8} {'dtipL':>7} {'dtipR':>7}   verdict")
     _seen = set()
@@ -644,7 +645,7 @@ if ach_contact is not None:
               f"{np.degrees(r['gq'][PIV_IDX[0]] - _ref0['gq'][PIV_IDX[0]]):>+7.2f} "
               f"{np.degrees(r['gq'][PIV_IDX[1]] - _ref0['gq'][PIV_IDX[1]]):>+7.2f} "
               f"{r['f_l']:>6.1f} {r['f_r']:>6.1f} {dt:>+8.3f} {dh:>+8.3f} "
-              f"{(r['tip0'] - _ref['tip0']) * 1000:>+7.3f} {(r['tip1'] - _ref['tip1']) * 1000:>+7.3f}   "
+              f"{(r['tip0'] - _ref['tip0']) * 1000:>+7.3f} {-(r['tip1'] - _ref['tip1']) * 1000:>+7.3f}   "
               f"{'tips IN' if dt < 0 and dh > 0 else ('tips OUT' if dt > 0 and dh < 0 else 'translating' if dt * dh > 0 else '-')}")
 else:
     print("  contact was never detected, so there is no ladder to print")
@@ -696,8 +697,8 @@ _r0 = [r for r in rows if r["tag"] == "hold"][-1]
 print(f"  PER PAD at the deepest press:")
 for k, ln in enumerate(finger_links):
     print(f"    {ln:<22} pivot {np.degrees(last['gq'][PIV_IDX[k]] - _r0['gq'][PIV_IDX[k]]):+7.2f} deg   "
-          f"own inner tip moved {(last['tip' + str(k)] - _r0['tip' + str(k)]) * 1000:+7.3f} mm inboard, "
-          f"heel {(last['heel' + str(k)] - _r0['heel' + str(k)]) * 1000:+7.3f} mm   "
+          f"own inner tip moved {(1 if k == 0 else -1) * (last['tip' + str(k)] - _r0['tip' + str(k)]) * 1000:+7.3f} mm inboard, "
+          f"heel {(1 if k == 0 else -1) * (last['heel' + str(k)] - _r0['heel' + str(k)]) * 1000:+7.3f} mm   "
           f"contact force {(last['f_l'] if k == 0 else last['f_r']):6.2f} N")
 print(f"  arm stall: the tracking lag topped out at {_stall['max_lag'] * 1000:.1f} mm "
       f"(descend step {_stall['at']}); commanding deeper than that buys no more force from this arm")
