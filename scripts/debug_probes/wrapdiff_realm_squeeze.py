@@ -114,7 +114,8 @@ ident = dict(
     og_sim_device=str(getattr(og.sim, "device", None)),
     og_physics_dt=str(og.sim.get_physics_dt()),
     env_REALM_GPU_DYNAMICS=str(os.environ.get("REALM_GPU_DYNAMICS")),
-    restore_follower_drive=str(args.restore_follower_drive),
+    env_REALM_ALLOW_DRIVEN_UNUSED_DOFS=str(os.environ.get("REALM_ALLOW_DRIVEN_UNUSED_DOFS")),
+    variant_usd=str(args.variant_usd),
 )
 try:
     pc = og.sim._physics_context
