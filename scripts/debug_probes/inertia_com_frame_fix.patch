@@ -1,0 +1,62 @@
+--- /tmp/claude-51436/-mnt-home-lustre-sedlam56-projects-REALM-og391/9c6947ff-3816-4b8f-91da-31650375e7e7/scratchpad/rigid_prim_stock.py	2026-08-15 00:54:49.602351933 +0200
++++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 00:54:10.000000000 +0200
+@@ -25,6 +25,19 @@
+ # Create module logger
+ log = create_module_logger(module_name=__name__)
+ 
++# --- inertia-diff patch -------------------------------------------------------------------------
++# Links whose collision-geom -> link frame composition is repaired in update_meshes(). Restricted to
++# the gripper so the arm stays bit-identical; see the comment at the use site.
++_COM_FRAME_FIX_LINKS = frozenset({
++    "base_link",
++    "left_outer_knuckle", "right_outer_knuckle",
++    "left_outer_finger", "right_outer_finger",
++    "left_inner_finger", "right_inner_finger",
++    "left_inner_knuckle", "right_inner_knuckle",
++})
++# ------------------------------------------------------------------------------------------------
++
++
+ # Create settings for this module
+ m = create_module_macros(module_path=__file__)
+ 
+@@ -217,8 +230,37 @@
+                 self._collision_meshes[mesh_name] = mesh
+ 
+                 volume, com = get_mesh_volume_and_com(mesh.prim)
+-                # We need to transform the volume and CoM from the mesh's local frame to the link's local frame
+-                local_pos, local_orn = mesh.get_position_orientation(frame="parent")
++                # We need to transform the volume and CoM from the mesh's local frame to the link's local frame.
++                #
++                # PATCH (inertia-diff): frame="parent" is the mesh's IMMEDIATE parent prim
++                # (xform_prim.py: "get position relative to the object parent"), which is the link
++                # ONLY when the geom is a direct child of it. When a collision Xform sits between
++                # the link and the Mesh -- as it does throughout the robolab gripper, where the
++                # collision APIs are on `Defeatured_*_01` Xforms and GEOM_TYPES excludes Xform, so
++                # the wrapped geom is the Mesh beneath -- that intermediate transform is silently
++                # dropped and the CoM written here is wrong by exactly it.
++                #
++                # Measured on droid_robolab_v2.usd: every left/right link pair came out with an
++                # IDENTICAL CoM including the sign of y, which is impossible for a mirrored pair,
++                # and the two pads landed 128.3 mm from their true centroid. That displacement
++                # enters the pad's inertia about its pivot as m*d^2 = 1.57e-4 kg m^2 against a true
++                # 1.9e-6, inflating it 77x -- and a PhysX mimic joint realises k ~ omega^2 * I, so
++                # the fingertips came out ~77x too stiff at the authored naturalFrequency.
++                #
++                # Composing world->link instead is correct for any nesting depth.
++                #
++                # SCOPED TO THE GRIPPER ON PURPOSE. The experiment this patch exists for requires
++                # the arm to stay bit-identical. The seven panda_joint* DOFs are untouched either
++                # way (this code writes no joint state), but panda_link4 carries a 0.0198 deg and
++                # panda_link6 a 0.0004 mm parent->link residual, so an unscoped fix would perturb
++                # two arm links' CoM by ~17 um. Every other arm link's parent->link transform is
++                # exactly identity, i.e. the fix is a no-op there regardless.
++                if self.prim_path.split("/")[-1] in _COM_FRAME_FIX_LINKS:
++                    mesh_pos, mesh_orn = mesh.get_position_orientation()
++                    link_pos, link_orn = self.get_position_orientation()
++                    inv_link_orn = T.quat_inverse(link_orn)
++                    local_pos = T.quat2mat(inv_link_orn) @ (mesh_pos - link_pos)
++                    local_orn = T.quat_multiply(inv_link_orn, mesh_orn)
+                 vols.append(volume * th.prod(mesh.scale))
+                 coms.append(T.quat2mat(local_orn) @ (com * mesh.scale) + local_pos)
+                 # If the ratio between the max extent and min radius is too large (i.e. shape too oblong), use
