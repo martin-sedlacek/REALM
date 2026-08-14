@@ -77,8 +77,19 @@ import numpy as np
 np.set_printoptions(precision=4, suppress=True, linewidth=220)
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--robot", default="DROID_robolab_v2_ee_control",
-                help="must be an EE-control config: the press needs the hand driven downward")
+ap.add_argument("--load", default="tip", choices=("tip", "ee"),
+                help="how the press load is applied. 'tip' (default): the arm holds reset_qpos under "
+                     "JOINT control and a PINNED object is ramped UP into one fingertip, 0.5 mm per "
+                     "step, until contact is detected and then past it -- no IK, no arm motion, and "
+                     "the contact force is read from the contact view. 'ee': EE control descends the "
+                     "hand onto the table (ee_press_compliance.py's load case). *** MEASURED "
+                     "2026-08-14, job 191032: 'ee' DOES NOT PRESS on this build. The commanded z fell "
+                     "117 mm while the achieved z moved 0.2 mm and panda_link8's world z moved 0.1 mm "
+                     "-- the arm never left the hover pose, so nothing ever touched the table and "
+                     "every deflection it reports is noise. Do not use it until EE control is fixed; "
+                     "see the `verify-ee` line. ***")
+ap.add_argument("--robot", default="DROID_robolab_v2",
+                help="joint-control config for --load tip, an *_ee_control one for --load ee")
 ap.add_argument("--task-cfg", default="REALM_DROID10/put_green_block_into_bowl/default.yaml")
 ap.add_argument("--out", default="/logs/gripper_squeeze")
 ap.add_argument("--tag", default="curl_A", help="output filename prefix")
@@ -91,6 +102,17 @@ ap.add_argument("--mimic-joints", default=None, help="override which mimic joint
 ap.add_argument("--states", default="open",
                 help="gripper states to press in: 'open', 'closed', or 'open,closed'. OPEN is the "
                      "informative one -- see the docstring.")
+ap.add_argument("--pin-mass", type=float, default=200.0,
+                help="--load tip: mass (kg) the pressing object is given so it is immovable")
+ap.add_argument("--tip-gap", type=float, default=0.025,
+                help="--load tip: m below the fingertip the object starts")
+ap.add_argument("--tip-dz", type=float, default=0.0005, help="--load tip: m of object rise per step")
+ap.add_argument("--tip-steps", type=int, default=90, help="--load tip: max ramp steps")
+ap.add_argument("--tip-past", type=int, default=40,
+                help="--load tip: keep ramping this many steps AFTER first contact")
+ap.add_argument("--tip-fingers", default="both",
+                help="--load tip: 'both' presses each fingertip in turn (two independent replicates "
+                     "per rung), or a finger link name for just one")
 ap.add_argument("--hover", type=float, default=0.030, help="m above first contact to start each press")
 ap.add_argument("--press-depth", type=float, default=0.040,
                 help="m of commanded overshoot past the estimated contact height")
@@ -113,6 +135,12 @@ from scipy.spatial.transform import Rotation as Rot  # noqa: E402
 
 import omnigibson as og  # noqa: E402
 import omnigibson.lazy as lazy  # noqa: E402
+from omnigibson.utils.usd_utils import RigidContactAPI  # noqa: E402
+
+try:
+    from realm.environments.contact_utils import _live_impulse_matrix
+except Exception:  # pragma: no cover
+    _live_impulse_matrix = lambda scene_idx: None  # noqa: E731
 
 from realm.sim_config import set_sim_config  # noqa: E402
 from realm.environments.env_dynamic import RealmEnvironmentDynamic  # noqa: E402
@@ -143,10 +171,15 @@ env = RealmEnvironmentDynamic(
     config_path="/app/realm/config", task_cfg_path=args.task_cfg, perturbations=["Default"],
     multi_view=False, no_rendering=False, rendering_mode="rt", robot=args.robot,
 )
-assert env.ee_control, f"{args.robot} is not an EE-control config; the press needs one"
+LOAD = args.load
+if LOAD == "ee":
+    assert env.ee_control, f"{args.robot} is not an EE-control config; --load ee needs one"
+else:
+    assert not env.ee_control, f"{args.robot} is an EE-control config; --load tip needs joint control"
 obs, _ = env.reset()
 obs, _, _, _, _ = env.warmup(obs)
 robot = env.robot
+ARM_Q = np.asarray(env.reset_qpos[:7], dtype=np.float64)
 
 FL = list(robot.finger_link_names[robot.default_arm])
 q_all = _np(robot.get_joint_positions())
@@ -315,7 +348,7 @@ INBOARD = {FL[0]: +1.0, FL[1]: -1.0}   # sign along AXIS pointing at the OTHER f
 # Body-fixed tip / base material points, chosen ONCE here and then TRACKED. Re-taking the extreme
 # every step would let the finger's own rotation change which point is being measured.
 NHULL = {ln: len(hull_world(ln)) for ln in FL}
-TIP_IDX, BASE_IDX = {}, {}
+TIP_IDX, BASE_IDX, SPANS_U = {}, {}, []
 for ln in FL:
     Hw = hull_world(ln)
     Hl = R8_0.inv().apply(Hw - p8_0)
@@ -326,14 +359,87 @@ for ln in FL:
     score = v * INBOARD[ln]                      # bigger = further inboard
     TIP_IDX[ln] = int(np.argmax(np.where(distal, score, -1e9)))
     BASE_IDX[ln] = int(np.argmax(np.where(proximal, score, -1e9)))
+    SPANS_U.append(span)
+    # The hull-vs-origin OFFSET, printed because it is large on this asset and it decides which
+    # observables can be trusted: the pad link origins are symmetric about the flange axis (AXIS and
+    # LONG both come out exactly axis-aligned), so a hull centroid that is not is a transform bug in
+    # collision_boundary_points_world, not geometry. Measured 2026-08-14: ~120 mm along AXIS, the same
+    # ~120 mm the squeeze probe saw between the cube's hull centre and its own pose (`hull_off`).
+    o = R8_0.inv().apply(link_pose(ln)[0] - p8_0)
     print(f"  {ln}: {NHULL[ln]} hull points, long extent {span * 1000:.1f} mm; "
           f"tip pt #{TIP_IDX[ln]} at u={u[TIP_IDX[ln]] * 1000:.1f} v={v[TIP_IDX[ln]] * 1000:+.1f} mm, "
           f"base pt #{BASE_IDX[ln]} at u={u[BASE_IDX[ln]] * 1000:.1f} "
           f"v={v[BASE_IDX[ln]] * 1000:+.1f} mm")
+    print(f"      link ORIGIN at u={o @ LONG * 1000:+.1f} v={o @ AXIS * 1000:+.1f} mm; hull centroid "
+          f"at u={Hl.mean(0) @ LONG * 1000:+.1f} v={Hl.mean(0) @ AXIS * 1000:+.1f} mm  -> HULL-ORIGIN "
+          f"OFFSET du={(Hl.mean(0) - o) @ LONG * 1000:+.1f} dv={(Hl.mean(0) - o) @ AXIS * 1000:+.1f} mm"
+          f"  (a large dv means the hull-based tip/base separations are NOT trustworthy; the "
+          f"origin-based and orientation-based observables are unaffected)")
+FINGER_HALF = float(np.mean(SPANS_U)) / 2.0
+print(f"  finger long extent {FINGER_HALF * 2000:.1f} mm -> tip taken as the pad link origin plus "
+      f"{FINGER_HALF * 1000:.1f} mm along LONG")
 
 # Body-fixed inboard face normal per pad: the direction that IS the inboard closing axis right now.
 # Re-derived per rest reference below, so a rung whose unloaded pose differs gets its own.
 REST = {}          # (rung, state) -> reference dict
+
+# ---------------------------------------------------------------- the pressing object (--load tip)
+# Instead of driving the hand down onto the table (which needs IK, and which does not work on this
+# build -- see --load), the SURFACE is brought to the fingertip: the task object is pinned heavy,
+# gravity disabled, and teleported upward 0.5 mm per step with its pose re-set every step, so contact
+# cannot push it away. That is the squeeze probe's trick rotated 90 degrees: it loads the tip along
+# the finger's LONG axis, which is the press load case, with the arm provably stationary.
+PUSHER = None
+scene_idx = robot.scene.idx
+if LOAD == "tip":
+    PUSHER = env.main_objects[0]
+    PUSH_MASS0 = float(PUSHER.root_link.mass)
+    PUSH_HOME = _np(PUSHER.get_position_orientation()[0])
+    PUSH_HALF = float(_np(PUSHER.aabb_extent).max()) / 2.0
+    PUSH_ROWS = RigidContactAPI.get_contact_row_indices(scene_idx, {PUSHER})
+    FING_COLS = {ln: RigidContactAPI.get_contact_col_indices(scene_idx, {robot.links[ln]}) for ln in FL}
+    print(f"\n  pressing object: {PUSHER.name} mass {PUSH_MASS0:.4f} kg  aabb "
+          f"{_np(PUSHER.aabb_extent) * 1000} mm  half-extent {PUSH_HALF * 1000:.1f} mm")
+
+
+def contact_force(M, ln):
+    """|net contact force| (N) between the pressing object and finger link @ln."""
+    cols = FING_COLS[ln]
+    if M is None or len(PUSH_ROWS) == 0 or len(cols) == 0:
+        return float("nan")
+    sub = M[PUSH_ROWS][:, cols]
+    return float(np.linalg.norm(_np(sub).reshape(-1, 3).sum(axis=0)))
+
+
+def park_pusher():
+    """1.3 m below its home, gravity off, touching nothing. This is what makes the rest reference
+    genuinely UNLOADED -- the flaw that voided the first run was a reference taken in contact."""
+    PUSHER.disable_gravity()
+    PUSHER.set_position_orientation(th.tensor(PUSH_HOME + np.array([0.0, 0.0, -1.3]),
+                                             dtype=th.float32))
+    PUSHER.keep_still()
+
+
+def place_under_tip(ln):
+    """Park the object squarely under finger @ln's tip, one face normal along the finger's long axis.
+
+    The tip position comes from the pad link ORIGIN (which fix_robolab_link_origins.py put on the pad
+    centroid) plus half the finger's length along LONG -- deliberately NOT from
+    collision_boundary_points_world, whose points sit ~120 mm off this asset's pad origins (see the
+    hull note in the identity block).
+    """
+    p8, R8 = T8()
+    a_w, l_w = R8.apply(AXIS), R8.apply(LONG)
+    third = np.cross(a_w, l_w)
+    quat = Rot.from_matrix(np.stack([a_w, l_w, third / np.linalg.norm(third)], axis=1)).as_quat()
+    tip_w = _np(link_pose(ln)[0]) + l_w * FINGER_HALF
+    c = tip_w + l_w * (PUSH_HALF + args.tip_gap)      # LONG points AWAY from the flange = downward
+    PUSHER.root_link.mass = float(args.pin_mass)
+    PUSHER.disable_gravity()
+    PUSHER.set_position_orientation(th.tensor(c, dtype=th.float32),
+                                    th.tensor(quat, dtype=th.float32))
+    PUSHER.keep_still()
+    return c, quat, l_w
 
 
 def pad_geom():
@@ -350,6 +456,7 @@ def pad_geom():
         out[f"tip{k}"] = Hl[TIP_IDX[ln]]
         out[f"base{k}"] = Hl[BASE_IDX[ln]]
         out[f"low{k}"] = float(Hw[:, 2].min())            # lowest world z of this finger's hull
+        out[f"oz{k}"] = float(p[2])                       # pad link ORIGIN world z (hull-free)
         # parent link, for the pivot's own contribution
         par = PARENT.get(PAD_JOINT[ln])
         if par and par in robot.links:
@@ -368,6 +475,19 @@ def measure(tag, cmd6, grip, rung, state):
     ee_w, _ = link_pose(L8)
     r = dict(tag=tag, rung=rung, state=state, q=q, cmd_z=float(cmd6[2]), ach_z=float(ach[2]),
              ee_world_z=float(ee_w[2]), grip=grip, **g)
+    # The arm not moving is a claim, so it is measured on every step, not asserted once.
+    r["arm_dev"] = float(np.abs(q[:7] - ARM_Q).max())
+    if LOAD == "tip":
+        M = _live_impulse_matrix(scene_idx)
+        for k, ln in enumerate(FL):
+            r[f"f{k}"] = contact_force(M, ln)
+        r["n_contact"] = len({f for _, f in RigidContactAPI.get_contact_pairs(
+            scene_idx=scene_idx, query_set={PUSHER},
+            with_set={robot.links[ln] for ln in FL}, current_only=True)})
+        r["touching"] = sorted({f.rsplit("/", 1)[-1] for _, f in RigidContactAPI.get_contact_pairs(
+            scene_idx=scene_idx, query_set={PUSHER},
+            with_set=set(robot.links.values()), current_only=True)})
+        r["push_z"] = float(_np(PUSHER.get_position_orientation()[0])[2])
     r["rpy_err"] = float(np.linalg.norm(
         (Rot.from_euler("xyz", ach[3:]) * Rot.from_euler("xyz", cmd6[3:]).inv()).as_rotvec()))
     ref = REST.get((rung, state))
@@ -426,6 +546,8 @@ def set_rest(rung, state, rows_rest):
 
 # ---------------------------------------------------------------- EE control plumbing
 def ee_pose_robot_frame():
+    if LOAD != "ee":
+        return np.zeros(6)
     p, q = env.get_ee_pose()
     w = np.concatenate([_np(p), Rot.from_quat(_np(q)).as_euler("xyz")])
     return env._world2robot(np.concatenate([w, [0.0]]))[:6]
@@ -466,7 +588,8 @@ def do_step(cmd6, grip, tag, rung="", state=""):
     global obs
     if args.video:
         aim_camera()
-    obs, _, _, _, _ = env.step(np.concatenate([cmd6, [grip]]), n_render_iterations=1)
+    action = np.concatenate([ARM_Q if LOAD == "tip" else cmd6, [grip]])
+    obs, _, _, _, _ = env.step(action, n_render_iterations=1)
     r = measure(tag, cmd6, grip, rung, state)
     r["step"] = len(rows)
     rows.append(r)
@@ -581,7 +704,7 @@ summary = dict(robot=args.robot, tag=PFX, task=args.task_cfg, joint_names=joint_
 SPANS = []
 
 
-def summarise(rung, state, ref, span):
+def summarise(rung, state, ref, span, ln=None, which=""):
     """The verdict block for one press. Everything here is signed: + = INWARD."""
     press = [r for r in rows[span[0]:span[1]] if r["tag"].endswith("press")]
     desc = [r for r in rows[span[0]:span[1]] if r["tag"].endswith("descend")]
@@ -590,10 +713,19 @@ def summarise(rung, state, ref, span):
     # peak of the mean tip rotation over the whole press, signed (max and min, so a sign flip shows)
     curl = np.array([r["curl_in_deg"] for r in press])
     dts = np.array([r["d_tip_sep"] for r in press])
-    hdr(f"PRESS VERDICT  rung={rung}  jaws={state}")
-    print(f"  load: commanded {args.press_depth * 1000:.0f} mm past contact; tracking shortfall "
-          f"{last['dz_track'] * 1000:+.2f} mm; lowest finger hull point {pen * 1000:+.2f} mm below "
-          f"the table top (positive = it really is pressing in)")
+    dps = np.array([r["d_pad_sep"] for r in press])
+    hdr(f"PRESS VERDICT  rung={rung}  jaws={state}" + (f"  finger={ln} ({which})" if ln else ""))
+    if LOAD == "tip":
+        F = max(np.nanmax([r["f0"] for r in press]), np.nanmax([r["f1"] for r in press]))
+        print(f"  load: object pinned at {args.pin_mass} kg and ramped up into the tip; peak contact "
+              f"force {F:.2f} N, final ({last['f0']:.2f}, {last['f1']:.2f}) N, "
+              f"{last['n_contact']} pad contacts, touching {last['touching']}")
+        print(f"  the arm did not move: max |q_arm - reset_qpos| over the press = "
+              f"{max(r['arm_dev'] for r in press):.2e} rad")
+    else:
+        print(f"  load: commanded {args.press_depth * 1000:.0f} mm past contact; tracking shortfall "
+              f"{last['dz_track'] * 1000:+.2f} mm; lowest finger hull point {pen * 1000:+.2f} mm below "
+              f"the table top (positive = it really is pressing in)")
     print(f"  driven joint finger_joint: rest {ref['q'][joint_names.index('finger_joint')]:+.6f} -> "
           f"loaded {last['q'][joint_names.index('finger_joint')]:+.6f} "
           f"(delta {last['q'][joint_names.index('finger_joint')] - ref['q'][joint_names.index('finger_joint')]:+.6f} rad; "
@@ -607,30 +739,38 @@ def summarise(rung, state, ref, span):
               f"{np.degrees(last.get(f'piv_in{k}', float('nan'))):>+14.3f} deg "
               f"{last[f'tip_in{k}'] * 1000:>+10.3f} mm {last[f'base_in{k}'] * 1000:>+11.3f} mm "
               f"{last.get(f'dq{k}', float('nan')):>+11.6f}")
-    print(f"\n  OBSERVABLE 1  tip-to-tip separation change = {last['d_tip_sep'] * 1000:+.3f} mm "
-          f"(NEGATIVE = tips came together = INWARD)")
-    print(f"  OBSERVABLE 1b base-to-base (control)        = {last['d_base_sep'] * 1000:+.3f} mm "
-          f"(both shrinking equally would be the whole jaw closing, not a curl)")
-    print(f"                pad-origin separation change  = {last['d_pad_sep'] * 1000:+.3f} mm")
-    print(f"  OBSERVABLE 2  mean pad rotation about H     = {last['curl_in_deg']:+.3f} deg "
-          f"(POSITIVE = INWARD)")
+    print(f"\n  OBSERVABLE 1 (DISTANCE, hull-free): pad-origin separation change = "
+          f"{last['d_pad_sep'] * 1000:+.3f} mm   (NEGATIVE = pads came together = INWARD)")
+    print(f"  OBSERVABLE 2 (ROTATION, hull-free): mean pad rotation about H   = "
+          f"{last['curl_in_deg']:+.3f} deg   (POSITIVE = INWARD)")
+    print(f"  hull-based, treat as advisory: tip-to-tip {last['d_tip_sep'] * 1000:+.3f} mm, "
+          f"base-to-base {last['d_base_sep'] * 1000:+.3f} mm  -- see the hull-origin offset in the "
+          f"identity block before quoting either")
     print(f"  over the whole press: curl min {curl.min():+.3f} max {curl.max():+.3f} deg; "
-          f"d_tip_sep min {dts.min() * 1000:+.3f} max {dts.max() * 1000:+.3f} mm")
+          f"d_pad_sep min {dps.min() * 1000:+.3f} max {dps.max() * 1000:+.3f} mm")
     # Magnitude gate FIRST: with no deflection at all both signs are noise, and calling that
     # "INWARD" because a micron landed on the right side would be the same mistake as reading |flex|.
-    tiny = abs(last["curl_in_deg"]) < 0.02 and abs(last["d_tip_sep"]) < 20e-6
-    agree = (last["d_tip_sep"] < 0) == (last["curl_in_deg"] > 0)
+    tiny = abs(last["curl_in_deg"]) < 0.05 and abs(last["d_pad_sep"]) < 50e-6
+    agree = (last["d_pad_sep"] < 0) == (last["curl_in_deg"] > 0)
     verdict = ("NO_DEFLECTION" if tiny else
-               "INWARD" if last["curl_in_deg"] > 0 and last["d_tip_sep"] < 0 else
-               "OUTWARD" if last["curl_in_deg"] < 0 and last["d_tip_sep"] > 0 else "DISAGREE")
-    print(f"\n  CURL_VERDICT rung={rung} state={state} direction={verdict} "
-          f"curl_deg={last['curl_in_deg']:+.4f} d_tip_sep_mm={last['d_tip_sep'] * 1000:+.4f} "
-          f"d_base_sep_mm={last['d_base_sep'] * 1000:+.4f} "
+               "INWARD" if last["curl_in_deg"] > 0 and last["d_pad_sep"] < 0 else
+               "OUTWARD" if last["curl_in_deg"] < 0 and last["d_pad_sep"] > 0 else "DISAGREE")
+    print(f"\n  CURL_VERDICT rung={rung} state={state} finger={which or 'both'} direction={verdict} "
+          f"curl_deg={last['curl_in_deg']:+.4f} d_pad_sep_mm={last['d_pad_sep'] * 1000:+.4f} "
+          f"d_tip_sep_mm={last['d_tip_sep'] * 1000:+.4f} "
+          f"force_N={(max(np.nanmax([r.get('f0', np.nan) for r in press]), np.nanmax([r.get('f1', np.nan) for r in press])) if LOAD == 'tip' else float('nan')):.2f} "
           f"pen_mm={pen * 1000:+.3f} shortfall_mm={last['dz_track'] * 1000:+.3f} "
           f"observables_agree={agree}")
     if not agree:
         print("  *** THE TWO OBSERVABLES DISAGREE. Do not pick one; report both. ***")
-    rec = dict(rung=rung, state=state, direction=verdict, observables_agree=bool(agree),
+    rec = dict(rung=rung, state=state, finger=which or "both", finger_link=ln,
+               direction=verdict, observables_agree=bool(agree),
+               load=LOAD,
+               force_N=(float(max(np.nanmax([r.get("f0", np.nan) for r in press]),
+                                  np.nanmax([r.get("f1", np.nan) for r in press])))
+                        if LOAD == "tip" else None),
+               n_contact_final=last.get("n_contact"), touching_final=last.get("touching"),
+               arm_dev_max=float(max(r["arm_dev"] for r in press)),
                curl_in_deg=last["curl_in_deg"],
                d_tip_sep_mm=last["d_tip_sep"] * 1e3, d_base_sep_mm=last["d_base_sep"] * 1e3,
                d_pad_sep_mm=last["d_pad_sep"] * 1e3,
@@ -670,9 +810,9 @@ def annotate(im, i):
     except TypeError:
         font = ImageFont.load_default()
     txt = (f"{PFX}  rung {r['rung'] or '-'}  jaws {r['state'] or '-'}  {r['tag']}  step {i}\n"
-           f"tip-tip {r.get('d_tip_sep', float('nan')) * 1000:+7.2f} mm   "
-           f"base-base {r.get('d_base_sep', float('nan')) * 1000:+7.2f} mm   "
-           f"curl {r.get('curl_in_deg', float('nan')):+6.2f} deg  (+ = INWARD)")
+           f"pad-pad {r.get('d_pad_sep', float('nan')) * 1000:+7.2f} mm   "
+           f"curl {r.get('curl_in_deg', float('nan')):+6.2f} deg  (+ = INWARD)   "
+           f"F {r.get('f0', float('nan')):.1f}/{r.get('f1', float('nan')):.1f} N")
     d.rectangle([0, 0, im.shape[1], int(im.shape[0] * 0.13)], fill=(0, 0, 0))
     d.multiline_text((10, 6), txt, fill=(255, 255, 80), font=font)
     return np.asarray(img)
@@ -699,6 +839,69 @@ def write_clip(path, sel, crop):
 
 
 WRITTEN = []
+
+
+def tip_cycle(rung, state, nf, dr, ln, which):
+    """UNLOADED reference (object parked 1.3 m away) -> ramp the object up into finger @ln's tip until
+    contact, then --tip-past steps further -> park it again and check the deflection comes back."""
+    grip = GRIP[state]
+    f0 = len(rows)
+    lab = f"{rung}_{which}"
+    hdr(f"RUNG {rung}  JAWS {state}  PRESSING {ln} ({which})   inner-mimic nf={nf} dr={dr}")
+    apply_override(nf, dr, label=rung)
+    park_pusher()
+    for _ in range(args.rest_steps):
+        do_step(cmd, grip, f"{lab}_{state}_rest", rung, state)
+    rest_rows = [r for r in rows if r["tag"] == f"{lab}_{state}_rest"]
+    ref = set_rest(rung, state, rest_rows)
+    for i in range(f0, len(rows)):
+        rows[i].update(signed(rows[i], ref))
+    # The reference is only a reference if nothing is touching it. A reference taken IN CONTACT is
+    # exactly what voided the first run (job 191032): the hover was already on the table, so every
+    # delta was measured against a loaded pose.
+    if ref["n_contact"] != 0 or ref["touching"]:
+        print(f"  *** REFERENCE_NOT_UNLOADED: {ref['n_contact']} pad contacts, touching "
+              f"{ref['touching']}. Every number below is a delta from a LOADED pose. ***")
+    print(f"  UNLOADED reference (object parked, {ref['n_contact']} contacts): pad_sep "
+          f"{ref['pad_sep'] * 1000:.3f} mm  tip_sep {ref['tip_sep'] * 1000:.3f} mm  gripper q "
+          f"{ref['q'][grip_idx]}")
+    c, quat, l_w = place_under_tip(ln)
+    print(f"  object pinned at {args.pin_mass} kg, {args.tip_gap * 1000:.0f} mm below the tip of {ln}")
+    first_contact = None
+    for t in range(args.tip_steps):
+        c = c - l_w * args.tip_dz                      # LONG points away from the flange, so -LONG = up
+        PUSHER.set_position_orientation(th.tensor(c, dtype=th.float32),
+                                        th.tensor(quat, dtype=th.float32))
+        PUSHER.keep_still()
+        r = do_step(cmd, grip, f"{lab}_{state}_press", rung, state)
+        if first_contact is None and r["n_contact"] > 0:
+            first_contact = t
+            print(f"    FIRST CONTACT at ramp step {t} ({t * args.tip_dz * 1000:.1f} mm of rise); "
+                  f"touching {r['touching']}")
+        if t % 10 == 0 or (first_contact is not None and t == first_contact + args.tip_past):
+            print(f"    ramp t={t:>3} rise={(t + 1) * args.tip_dz * 1000:5.1f}mm ncon={r['n_contact']} "
+                  f"F=({r['f0']:6.2f},{r['f1']:6.2f})N d_pad_sep={r['d_pad_sep'] * 1000:+7.3f}mm "
+                  f"curl={r['curl_in_deg']:+7.3f}deg "
+                  f"piv=({np.degrees(r.get('piv_in0', float('nan'))):+6.2f},"
+                  f"{np.degrees(r.get('piv_in1', float('nan'))):+6.2f})deg "
+                  f"armdev={r['arm_dev']:.1e}", flush=True)
+        if first_contact is not None and t >= first_contact + args.tip_past:
+            break
+    if first_contact is None:
+        print(f"  *** NEVER TOUCHED: {args.tip_steps * args.tip_dz * 1000:.0f} mm of rise and no "
+              f"contact. The tip estimate or the ramp length is wrong; nothing below means anything.")
+    rec = summarise(rung, state, ref, (f0, len(rows)), ln=ln, which=which)
+    park_pusher()
+    PUSHER.root_link.mass = PUSH_MASS0
+    for _ in range(args.retract_steps):
+        r = do_step(cmd, grip, f"{lab}_{state}_release", rung, state)
+    print(f"  after RELEASE: d_pad_sep {r['d_pad_sep'] * 1000:+.3f} mm, curl {r['curl_in_deg']:+.3f} "
+          f"deg  (back near zero = elastic, not a snap-through)")
+    rec["recovered_pad_sep_mm"] = r["d_pad_sep"] * 1e3
+    rec["recovered_curl_deg"] = r["curl_in_deg"]
+    rec["first_contact_step"] = first_contact
+    finish_cycle(rung, state, which, f0)
+    return rec
 
 
 def press_cycle(rung, state, nf, dr):
@@ -753,13 +956,21 @@ def press_cycle(rung, state, nf, dr):
           f"curl {r['curl_in_deg']:+.3f} deg  (back near zero = elastic, not a snap-through)")
     rec["recovered_tip_sep_mm"] = r["d_tip_sep"] * 1e3
     rec["recovered_curl_deg"] = r["curl_in_deg"]
+    finish_cycle(rung, state, "", f0)
+    return rec
+
+
+def finish_cycle(rung, state, which, f0):
+    """Flush this cycle's json, mp4s, peak still and npz. Called per press so an allocation that
+    expires mid-sweep still leaves everything measured so far on disk."""
+    name = f"{rung}_{which}" if which else rung
     with open(os.path.join(OUT, f"{PFX}_curl.json"), "w") as f:
         json.dump(summary, f, indent=2, default=float)
-    SPANS.append((rung, state, f0, len(rows)))
+    SPANS.append((name, state, f0, len(rows)))
     if args.video:
         sel = list(range(f0, len(rows)))
         for suffix, crop in (("closeup", False), ("closeup_ZOOM", True)):
-            p = write_clip(os.path.join(OUT, f"{PFX}_{rung}_{state}_{suffix}.mp4"), sel, crop)
+            p = write_clip(os.path.join(OUT, f"{PFX}_{name}_{state}_{suffix}.mp4"), sel, crop)
             if p:
                 WRITTEN.append(p)
         # a still at peak load, which is the frame worth putting in front of a human
@@ -767,7 +978,7 @@ def press_cycle(rung, state, nf, dr):
             from PIL import Image
             ip = f0 + len(sel) - args.retract_steps - 1
             Image.fromarray(annotate(np.ascontiguousarray(frames[ip]), ip)).save(
-                os.path.join(OUT, f"{PFX}_{rung}_{state}_peak.png"))
+                os.path.join(OUT, f"{PFX}_{name}_{state}_peak.png"))
         except Exception as e:
             print(f"  [warn] still failed: {e!r}")
     np.savez_compressed(
@@ -816,9 +1027,17 @@ for name, nf, dr in RUNGS:
     print(f"  {name:<12} inner nf={nf} dr={dr}")
 print(f"  states: {STATES};  '-' means LEAVE WHAT THE PREVIOUS RUNG LEFT, not 'restore authored'")
 
+TIP_FINGERS = (FL if args.tip_fingers == "both" else [args.tip_fingers])
+assert all(f in FL for f in TIP_FINGERS), f"--tip-fingers must name one of {FL} or 'both'"
 for name, nf, dr in RUNGS:
     for state in STATES:
-        press_cycle(name, state, nf, dr)
+        if LOAD == "tip":
+            # Each fingertip in turn: two independent replicates of the same claim per rung, and the
+            # per-finger sign is what the target behaviour is actually about.
+            for ln in TIP_FINGERS:
+                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R")
+        else:
+            press_cycle(name, state, nf, dr)
 
 # ---------------------------------------------------------------- the table
 hdr("CURL TABLE -- every press, signed. + = INWARD, - = OUTWARD SPLAY")
