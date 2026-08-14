@@ -38,6 +38,13 @@ ap.add_argument("--max-force", type=float, default=None,
 ap.add_argument("--stiffness", type=float, default=None,
                 help="drive:angular:physics:stiffness on finger_joint (authored 100; OmniGibson "
                      "overwrites it with isaac_kp=1e7 at play, so this alone changes nothing)")
+ap.add_argument("--restore-follower-drive", action="store_true",
+                help="TASK 2: put back the DriveAPI that scripts/convert_robolab_gripper_usd.py:70 "
+                     "strip_mimic_drives removes from the four INNER mimic joints -- zero gains, "
+                     "infinite force limit, exactly as RoboLab's asset carries it. This is the last "
+                     "authored USD difference between the two stacks' grippers. OmniGibson asserts "
+                     "at robot.py:658 that no uncontrolled DOF is driven, so a run using this "
+                     "variant needs MODE=oglite with that assert relaxed.")
 args = ap.parse_args()
 
 # joint prim name -> PhysxMimicJointAPI instance token. The instance is NOT the physics:axis: these
@@ -68,9 +75,32 @@ def joint_over(jname, inst, nf, dr):
     return f'        over "{jname}"\n        {{\n{body}\n        }}\n'
 
 
+def drive_over(jname):
+    """Re-apply the vestigial DriveAPI on a follower: zero gains, unbounded force limit.
+
+    RoboLab's shipped gripper carries exactly this on its four inner mimic joints. The REALM
+    converter strips it because OmniGibson refuses to load a robot whose uncontrolled DOFs are
+    driven; what is written back here is byte-for-byte what was removed, not a stronger drive. A
+    zero-stiffness zero-damping drive should exert no force at all, so if this moves the residual
+    the interesting fact is that PhysX treats "drive present with zero gains" differently from
+    "no drive", e.g. by giving the DOF a driven-joint solver path or a maxForce-bounded reaction.
+    """
+    return (f'        over "{jname}"\n        {{\n'
+            f'            prepend apiSchemas = ["PhysicsDriveAPI:angular"]\n'
+            f'            float drive:angular:physics:stiffness = 0\n'
+            f'            float drive:angular:physics:damping = 0\n'
+            f'            float drive:angular:physics:maxForce = inf\n'
+            f'            uniform token drive:angular:physics:type = "force"\n'
+            f'            float drive:angular:physics:targetPosition = 0\n'
+            f'        }}\n')
+
+
 overs = ""
 for jname, inst in INNER.items():
     overs += joint_over(jname, inst, args.nf, args.dr)
+if args.restore_follower_drive:
+    for jname in INNER:
+        overs += drive_over(jname)
 for jname, inst in OUTER.items():
     overs += joint_over(jname, inst, args.outer_nf, args.outer_dr)
 drive = []
@@ -83,12 +113,13 @@ if drive:
 
 if not overs:
     raise SystemExit("nothing to override -- pass at least one of --nf/--dr/--outer-nf/--outer-dr/"
-                     "--max-force/--stiffness")
+                     "--max-force/--stiffness/--restore-follower-drive")
 
 name = args.name or ("mimic_" + "_".join(
     f"{k}{v:g}" for k, v in (("nf", args.nf), ("dr", args.dr), ("onf", args.outer_nf),
                              ("odr", args.outer_dr), ("mf", args.max_force),
-                             ("st", args.stiffness)) if v is not None).replace(".", "p"))
+                             ("st", args.stiffness)) if v is not None).replace(".", "p")
+                    + ("_followerdrive" if args.restore_follower_drive else ""))
 os.makedirs(args.out, exist_ok=True)
 path = os.path.join(args.out, f"{name}.usda")
 
