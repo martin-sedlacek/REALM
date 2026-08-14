@@ -103,6 +103,12 @@ ap.add_argument("--outer-dr", type=float, default=None, help="... dampingRatio o
 ap.add_argument("--max-effort", type=float, default=None,
                 help="max_effort (N m) on the driven finger_joint. Authored 16.5, and the position "
                      "drive saturates there in every gain rung, so it plausibly matters more than kp.")
+ap.add_argument("--mimic-joints", default=None,
+                help="comma-separated joint names that --mimic-nf/--mimic-dr (and every rung's nf/dr) "
+                     "apply to. Default = the four INNER mimic joints. Set it to "
+                     "'left_inner_finger_joint,right_inner_finger_joint' to soften ONLY the two pad "
+                     "pivots and leave the knuckle couplings stiff -- that localises the yield at the "
+                     "pads instead of letting the whole linkage go slack.")
 ap.add_argument("--pad-cc-stiffness", type=float, default=None,
                 help="physxMaterial:compliantContactStiffness on the two PAD links' physics materials. "
                      "PhysX 5's compliant contact: a finite value makes the contact a spring instead "
@@ -132,7 +138,10 @@ ap.add_argument("--solver-pos-iter", type=int, default=None,
 ap.add_argument("--rungs", default="",
                 help="SWEEP MODE: 'name=nf/dr/onf/odr/me/spi/kp/kd/ccs/ccd,name2=...'. Each rung gets its OWN unloaded "
                      "calibration sweep, free close (jaw-gap zero) and squeeze, all in one process. "
-                     "'-' leaves the authored value. Repeat a rung to measure within-run "
+                     "*** RUNGS ARE CUMULATIVE: '-' means 'leave whatever the PREVIOUS rung left', "
+                     "NOT 'the authored value'. Restate every field an earlier rung "
+                     "touched, or an effort rung following an nf rung silently measures "
+                     "both. Repeat a rung to get the error bar -- do that. ***"
                      "repeatability -- do that, it is the error bar on every other rung.")
 ap.add_argument("--rung-free", type=int, default=1,
                 help="in sweep mode, also do the free-mass squeeze + gravity-hold check per rung")
@@ -366,6 +375,11 @@ def mimic_insts(prim):
 
 MIMIC_JOINTS = [joint_names[i] for i in grip_idx if mimic_insts(robot.joints[joint_names[i]].prim)]
 INNER_MIMIC = [n for n in MIMIC_JOINTS if n != OUTER_J]
+if args.mimic_joints:
+    want = [x.strip() for x in args.mimic_joints.split(",") if x.strip()]
+    bad = [n for n in want if n not in MIMIC_JOINTS]
+    assert not bad, f"--mimic-joints names {bad} which are not mimic joints; have {MIMIC_JOINTS}"
+    INNER_MIMIC = want
 DRIVEN_J = joint_names[int(CTRL_DOF[0])]
 
 
@@ -508,7 +522,8 @@ PAD_CC0 = pad_cc_state()
 for k, v in PAD_CC0.items():
     print(f"    {k:<62} = {v}")
 print(f"  mimic joints ({len(MIMIC_JOINTS)}): {MIMIC_JOINTS}")
-print(f"  the four INNER ones this sweep softens: {INNER_MIMIC}")
+print(f"  the ones this sweep softens ({len(INNER_MIMIC)}): {INNER_MIMIC}"
+      + ("   [--mimic-joints]" if args.mimic_joints else "   [default: the four inner]"))
 print(f"  the driven joint: {DRIVEN_J}")
 MIMIC0 = mimic_state()
 for k, v in MIMIC0.items():
