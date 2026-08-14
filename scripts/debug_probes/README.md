@@ -87,15 +87,17 @@ an A/B without an edit.
   Picks its own descent column (nearest table-height surface in front of the robot, then the point
   on it furthest from every object standing on it), verifies the commanded orientation round-trips
   before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
-  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`). **Superseded as the
-  compliance-MAGNITUDE test by `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads
-  the four-bar along its stiff axis, which is why it measured ~0.13 mm on both assets. That marking
-  does NOT extend to the *direction* question -- "do the tips curl inward when pressed onto a
-  surface" is a press question and a squeeze cannot answer it -- but the successor for that is
-  `curl_press_direction.py --load tip`, not this file: with the jaws shut the two pads touch each
-  other, so an inward curl is blocked geometrically whatever the physics says, and an EE descent has
-  to be *checked* to have descended (2026-08-14, job 191032: 117 mm of commanded descent moved
-  `panda_link8` by 0.2 mm).
+  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`), and carries the signed
+  **tip-vs-heel** direction test. **Superseded as the compliance-MAGNITUDE test by
+  `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads the four-bar along its stiff
+  axis, which is why it measured ~0.13 mm on both assets. That marking does NOT extend to the
+  *direction* question -- "do the tips curl inward when pressed onto a surface" is a press question
+  and a squeeze cannot answer it, which is what the tip/heel block is for. One thing to check before
+  reading any of its numbers as "a press N mm past contact": **that the arm moved at all.** On
+  2026-08-14 (job 191032, `curl_A`) an EE descent commanded 117 mm and moved `panda_link8` 0.2 mm --
+  the fingertips started within millimetres of the table at the reset pose, so the hand was blocked
+  from the first step, the load was real but its depth was not the commanded one, and the "hover"
+  reference was taken already in contact. Log the achieved eef z, not only the commanded one.
 - `curl_press_direction.py` -- the SIGNED press probe: WHICH WAY the fingertips rotate under a press,
   not how far. Default `--load tip` keeps the arm at `reset_qpos` under joint control and ramps a
   200 kg pinned object UP into ONE fingertip, 0.5 mm per step, until the contact view reports contact
