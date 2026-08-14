@@ -7,6 +7,22 @@
 # arm_0 block, `friction` and `armature` are all byte-identical -- verified, not assumed; see
 # scripts/debug_probes/ship_arm_identity.py.
 #
+# MEASURED (alloc 191204, MODE=stock -- the image's own OmniGibson, NO loader patch; each run paired
+# with a DROID_robolab_v2 control in the same session with identical flags):
+#
+#   pad CoM, link frame      v2 [-54.2013, 116.3408, 0.0000] mm on BOTH pads (identical including
+#                               the sign of y -- impossible for a mirrored pair)
+#                            xflat [-3.5890, -4.9363, +0.0007] / [-3.5889, +4.9338, +0.0007] mm
+#   pad I about its pivot    1.496e-04 (77.3x RoboLab) -> 2.9479e-06 (1.52x)
+#   nf_eq                    113.8 / 116.1 -> 810.5 / 810.5   (authored 1000)
+#   curl at AUTHORED nf=1000 L: no deflection (-0.0030) -> +0.3354 deg INWARD
+#                            R: +0.0525          -> +0.3832 deg INWARD  (7.3x)
+#   pad hull vs link origin  (-56.2, -116.1) mm on both pads -> (-3.8, +2.9) / (-3.8, -2.9) mm
+#
+# All of it matches the independent loader-fix route (OG-lite_og391 83b21d5) to within one replicate
+# spread, which is the point: two different interventions, same corrected numbers.
+#
+#
 # DROID with the robolab Franka + Robotiq 2F-85 asset (compliant, mimic-joint gripper).
 #
 # Same arm and same controllers as DROID.yaml -- the only differences come from the gripper being a
