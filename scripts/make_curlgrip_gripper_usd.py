@@ -60,7 +60,6 @@ import os
 import shutil
 
 import omnigibson as og
-import omnigibson.lazy as lazy  # noqa: E402
 
 DEFAULT_SRC = "/app/realm/robots/panda_robotiq/droid_robolab_v2.usd"
 DEFAULT_DST = "/app/realm/robots/panda_robotiq/droid_robolab_curlgrip.usd"
@@ -96,10 +95,19 @@ ap.add_argument("--leader-max-force", type=float, default=None,
                      "be re-gated on tasks 0 and 4 whenever it is used.")
 args = ap.parse_args()
 
+# `omnigibson.lazy` only resolves `pxr` once a Kit app exists, so this has to come before the import
+# -- `import omnigibson as og` on its own leaves lazy.pxr raising AttributeError. Same order as
+# make_padspring_gripper_usd.py.
+og.launch()
+
+import omnigibson.lazy as lazy  # noqa: E402
+
+Usd, Sdf = lazy.pxr.Usd, lazy.pxr.Sdf
+
 
 def find_joints(stage):
     out = {}
-    for prim in lazy.pxr.Usd.PrimRange(stage.GetDefaultPrim()):
+    for prim in Usd.PrimRange(stage.GetDefaultPrim()):
         if "Joint" in prim.GetTypeName():
             out.setdefault(prim.GetName(), prim)
     return out
@@ -115,7 +123,7 @@ def mimic_insts(prim):
 def set_custom_float(prim, name, value):
     at = prim.GetAttribute(name)
     if not at.IsValid():
-        at = prim.CreateAttribute(name, lazy.pxr.Sdf.ValueTypeNames.Float, custom=True)
+        at = prim.CreateAttribute(name, Sdf.ValueTypeNames.Float, custom=True)
     before = at.Get()
     at.Set(float(value))
     return before, at.Get()
@@ -132,7 +140,6 @@ def attr_snapshot(prim):
 
 
 def main():
-    Usd = lazy.pxr.Usd
     assert os.path.exists(args.src), f"no source asset at {args.src}"
     os.makedirs(os.path.dirname(args.dst), exist_ok=True)
     if os.path.abspath(args.src) == os.path.abspath(args.dst):
