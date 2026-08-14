@@ -562,8 +562,52 @@ else:
 _pl, _pr = world_pose(finger_links[0])[0], world_pose(finger_links[1])[0]
 print(f"  after:  pad world z left={_pl[2]:.5f} right={_pr[2]:.5f}  difference "
       f"{(_pr[2] - _pl[2]) * 1000:+.2f} mm")
+LEVELLED_DZ_MM = float((_pr[2] - _pl[2]) * 1000)
+
+# ---------------------------------------------------------------- PHASE 0d: DELIBERATE TILT
+# Levelling the hand collapsed the pad rotation from 5.4 deg to 0.3 deg, which showed the 5.4 was a
+# 4.25 mm accidental hand tilt making ONE fingertip carry the load at its edge -- and the measured
+# ladder says the curl scales with how CONCENTRATED the tip load is. So tilt is a legitimate load
+# geometry in its own right, not the artifact it was retracted as; a real gripper meeting a table
+# off-square lands one tip first. This applies a KNOWN roll on top of the levelled pose, about the
+# same horizontal axis perpendicular to the closing axis, so the tilt is commanded and measured
+# instead of inherited from wherever the arm happened to be.
+#
+# The levelled case stays the control: REALM_TILT_DEG=0 reproduces it exactly (the block no-ops).
+# Expect ASYMMETRY -- at any real tilt one pad takes the load and the other may never touch. That is
+# the physics being probed, so both pads are reported separately either way.
+TILT_DEG = float(os.environ.get("REALM_TILT_DEG", "0.0"))
+if abs(TILT_DEG) > 1e-9:
+    hdr(f"PHASE 0d: DELIBERATE TILT of {TILT_DEG:+.2f} deg about the horizontal axis perpendicular "
+        f"to the closing axis")
+    a_w = (_pr - _pl) / float(np.linalg.norm(_pr - _pl))
+    ax_w = np.cross(a_w, np.array([0.0, 0.0, 1.0]))
+    ax_w /= np.linalg.norm(ax_w)
+    _, q_w = env.get_ee_pose()
+    R_wr = Rot.from_euler("xyz", ee_pose_robot_frame()[3:]) * Rot.from_quat(_np(q_w)).inv()
+    cmd[3:] = (Rot.from_rotvec(R_wr.apply(ax_w) * np.radians(TILT_DEG))
+               * Rot.from_euler("xyz", cmd[3:])).as_euler("xyz")
+    for _ in range(12):
+        do_step(cmd, "tilt")
+    _pl, _pr = world_pose(finger_links[0])[0], world_pose(finger_links[1])[0]
+    d_jaw = float(np.linalg.norm(_pr - _pl))
+    TILT_DZ_MM = float((_pr[2] - _pl[2]) * 1000)
+    # what the SAME tilt is worth as a height difference across the jaw, so it can be compared
+    # against the 4.25 mm the accidental tilt was worth
+    print(f"  commanded {TILT_DEG:+.2f} deg -> pad world z left={_pl[2]:.5f} right={_pr[2]:.5f}, "
+          f"height difference across the jaw {TILT_DZ_MM:+.3f} mm (was {LEVELLED_DZ_MM:+.3f} mm "
+          f"levelled; the accidental tilt that produced the retracted 5.37 deg was 4.25 mm)")
+    print(f"  jaw span {d_jaw * 1000:.2f} mm -> achieved tilt "
+          f"{np.degrees(np.arcsin(np.clip((_pr[2] - _pl[2]) / d_jaw, -1, 1))):+.3f} deg")
+    print(f"  TILT_SET commanded_deg={TILT_DEG:+.3f} achieved_dz_mm={TILT_DZ_MM:+.3f} "
+          f"achieved_deg={np.degrees(np.arcsin(np.clip((_pr[2] - _pl[2]) / d_jaw, -1, 1))):+.3f} "
+          f"lower_pad={finger_links[0] if _pl[2] < _pr[2] else finger_links[1]}")
+else:
+    TILT_DZ_MM = LEVELLED_DZ_MM
+    print(f"  REALM_TILT_DEG=0 -> the LEVELLED control case, unchanged")
+
 for _ in range(10):
-    do_step(cmd, "hold")          # a fresh unloaded reference AT the levelled orientation
+    do_step(cmd, "hold")          # a fresh unloaded reference AT the levelled (+tilted) orientation
 
 _ref0 = [r for r in rows if r["tag"] == "hold"][-1]     # unloaded reference for the pivot angles
 _stall = dict(max_lag=-1e9, at=-1, stuck=0)
@@ -702,6 +746,24 @@ for k, ln in enumerate(finger_links):
           f"contact force {(last['f_l'] if k == 0 else last['f_r']):6.2f} N")
 print(f"  arm stall: the tracking lag topped out at {_stall['max_lag'] * 1000:.1f} mm "
       f"(descend step {_stall['at']}); commanding deeper than that buys no more force from this arm")
+
+# ---- WHICH OF THE NUMBERS ABOVE SURVIVE THE HULL BUG, and the one line the tilt sweep is read from.
+# `collision_boundary_points_world` sits (-56.2,-116.1) mm off the pad link origins on this asset and
+# _HULL_LOCAL bakes that into the link-local tip/heel coordinates, so the tip and heel separations
+# swing about the pad origin on a lever arm of the wrong sign and read BACKWARDS. Two things are
+# unaffected: the pad PIVOT ANGLES, which come from the joint values, and TIP MINUS HEEL, because a
+# common offset cancels in the difference between two points on the same pad. Quote those.
+_pivs = [float(np.degrees(last["gq"][PIV_IDX[k]] - _r0["gq"][PIV_IDX[k]])) for k in range(2)]
+_loaded = int(np.argmax(np.abs(_pivs)))
+print(f"\n  HULL WARNING: 'tip separation' and 'heel separation' above are built on "
+      f"collision_boundary_points_world and read BACKWARDS on this asset. The pad pivot angles "
+      f"(joint values) and tip-minus-heel (offset cancels) are the trustworthy pair.")
+print(f"  TILT_VERDICT robot={ROBOT} tilt_deg={TILT_DEG:+.2f} jaw_dz_mm={TILT_DZ_MM:+.3f} "
+      f"pivL_deg={_pivs[0]:+.4f} pivR_deg={_pivs[1]:+.4f} "
+      f"piv_loaded={finger_links[_loaded]} piv_max_deg={_pivs[_loaded]:+.4f} "
+      f"tip_minus_heel_mm={d_tip - d_heel:+.4f} "
+      f"F_l={last['f_l']:.2f} F_r={last['f_r']:.2f} "
+      f"lag_mm={_stall['max_lag'] * 1000:.1f} overtravel_mm={OVERTRAVEL * 1000:.0f}")
 print(f"  per-pad pivot deviation (rad): the two pad joints are gripper DOFs [2] and [3] in gq; "
       f"full gq delta printed above")
 np.save(os.path.join(OUT_DIR if os.path.isdir(OUT_DIR) else "/tmp", f"{ROBOT}_tipheel.npy"),
