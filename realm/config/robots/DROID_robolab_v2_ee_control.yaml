@@ -52,6 +52,26 @@ robots:
             name: "DroidEndEffectorController"
             mode: "absolute_pose"
             motor_type: "position"
+            # THE ONE LINE THAT MUST NOT BE COPIED FROM DROID_ee_control.yaml.
+            #
+            # droid_ee_controller.py defaults height_offset to 0.87 and adds it to the commanded z
+            # before comparing against the eef pose RELATIVE TO THE ROBOT PRIM. That constant is the
+            # height of the arm base above the robot prim, which is a property of the ASSET:
+            #     droid_mounted.usd    panda_link0 at z = 0.86444 above /panda  -> 0.87 is right
+            #     droid_robolab_v2.usd panda_link0 at z = 0.00000 above /panda  -> 0.87 is 0.87 m of error
+            # The robolab asset is the bare arm (has_base_column: false), and env_config raises the
+            # SPAWN by DROID_BASE_HEIGHT instead, so the robot prim already sits AT the arm base --
+            # the same origin env._world2robot() uses to express the command. The offset must be 0.
+            #
+            # Measured on l40s-01 (job 190727), task 0, debug policy, 8 steps:
+            #     height_offset 0.87 -> controller targets z=1.4425 in the arm-base frame; the arm's
+            #                           maximum wrist reach is 1.187, so it stretches upward and the
+            #                           error goes 0.904 -> 0.711 m and keeps climbing.
+            #     height_offset 0.0  -> error goes 0.090 -> 0.005 m (converges).
+            # NOTE this failure is INVISIBLE to tests/test_vector_integrity.py, which passed the
+            # 0.87 version: nothing crashes, all four artifacts are written, the arm is just in
+            # completely the wrong place.
+            height_offset: 0.0
             control_freq: 15
             use_delta_commands: False
             use_impedances: True

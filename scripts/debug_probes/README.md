@@ -67,3 +67,34 @@ an A/B without an edit.
   them cost a full 10-repeat batch. Note its precondition: the finger link origins must be on the
   pads, or you are measuring the linkage rather than the jaw — see
   `scripts/fix_robolab_link_origins.py`.
+
+- `ee_ik_smoke.py` -- the bottom-up check that dm_robotics end-effector control still works at all.
+  **No GPU and no Isaac**: it only needs the container, so it runs on a login node in ~30 s. Imports
+  `dm_control` / `dm_robotics.moma.effectors`, builds `RobotIKSolver`, prints the MJCF joint order
+  (which is what the OG arm DOFs must match), and drives a closed loop to a reachable target to prove
+  the QP actually solves rather than returning zeros. Run this before blaming the env for an EE bug.
+- `ee_env_probe.py` -- boots one env under an EE-control config and dumps the things that fail
+  silently: the OG joints `dof_idx` selects vs the MJCF chain the IK solves on
+  (`JOINT_MAPPING_MATCH`), the frame the controller's eef pose is in vs `env._world2robot`
+  (`HEIGHT_OFFSET_CONSISTENT` -- see below), `og.sim.device`, the resolved wrist-camera key, and 8
+  real steps of the debug action with the pose error per step. `REALM_ROBOT=<config>`.
+- `ee_press_compliance.py` -- drives the CLOSED gripper straight down into the table under EE
+  control and records the external view, to test whether the robolab 2F-85 fingers are compliant.
+  Picks its own descent column (nearest table-height surface in front of the robot, then the point
+  on it furthest from every object standing on it), verifies the commanded orientation round-trips
+  before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
+  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`).
+
+### EE-control traps (2026-08-14)
+
+- **`robot._controllers[name]` is a `(group_key, controller_idx)` tuple in OG 3.9.1**, not a
+  controller. Resolve through `ControllerView` (`get_mode`, `get_dof_idx`, ...) or
+  `ControllerView._controller_groups[group_key]` for the instance. Reading an attribute off the
+  tuple is what had kept EE control dead since the port.
+- **`height_offset` is a property of the ASSET, not of the controller.** It converts a command in
+  the DROID arm-base frame into the robot-prim frame the controller compares against. 0.87 is right
+  for `droid_mounted.usd` (panda_link0 sits 0.86444 above the prim) and catastrophically wrong for
+  `droid_robolab_v2.usd` (panda_link0 IS the prim). Copying an EE arm block between assets without
+  revisiting it silently moves the target by 0.87 m -- and
+  `tests/test_vector_integrity.py` reports PASS through it.
+
