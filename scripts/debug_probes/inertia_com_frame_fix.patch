@@ -1,57 +1,89 @@
 --- /tmp/claude-51436/-mnt-home-lustre-sedlam56-projects-REALM-og391/9c6947ff-3816-4b8f-91da-31650375e7e7/scratchpad/rigid_prim_stock.py	2026-08-15 00:54:49.602351933 +0200
-+++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 00:57:02.000000000 +0200
-@@ -25,6 +25,19 @@
++++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 01:40:50.000000000 +0200
+@@ -25,6 +25,47 @@
  # Create module logger
  log = create_module_logger(module_name=__name__)
  
-+# --- inertia-diff patch -------------------------------------------------------------------------
-+# Links whose collision-geom -> link frame composition is repaired in update_meshes(). Restricted to
-+# the gripper so the arm stays bit-identical; see the comment at the use site.
-+_COM_FRAME_FIX_LINKS = frozenset({
-+    "base_link",
-+    "left_outer_knuckle", "right_outer_knuckle",
-+    "left_outer_finger", "right_outer_finger",
-+    "left_inner_finger", "right_inner_finger",
-+    "left_inner_knuckle", "right_inner_knuckle",
-+})
-+# ------------------------------------------------------------------------------------------------
++# Links whose collision-geom -> link CoM composition is corrected in update_meshes(). See the long
++# comment at the use site: the defect is general, but only these links' corrected mass properties
++# have been measured, so only these are changed.
++_COM_LINK_FRAME_LINKS = frozenset(
++    {
++        "base_link",
++        "left_outer_knuckle",
++        "right_outer_knuckle",
++        "left_outer_finger",
++        "right_outer_finger",
++        "left_inner_finger",
++        "right_inner_finger",
++        "left_inner_knuckle",
++        "right_inner_knuckle",
++    }
++)
 +
++# A NAME MATCH ALONE IS NOT ENOUGH TO SCOPE THIS.
++#
++# Eight of the names above are Robotiq-specific and effectively unique, but `base_link` is one of the
++# commonest link names in the BEHAVIOR dataset -- `/World/scene_0/breakfast_table_support/base_link`
++# and the like. Keying on the bare name would silently re-derive the CoM, and therefore the inertia
++# and the dynamics, of any such object whose collision geometry happens to sit under an intermediate
++# Xform. The new value would be the correct one, but it would be a behaviour change on objects nobody
++# has measured, and it would invalidate comparison against anything collected earlier.
++#
++# So require the link to actually belong to a Robotiq 2F-85: its parent must also carry the two
++# `*_inner_finger` links, which no BEHAVIOR object has. Structural, so it needs no robot name, no
++# prim-path substring and no config.
++_COM_LINK_FRAME_SIBLINGS = ("left_inner_finger", "right_inner_finger")
++
++
++def _is_robotiq_2f85_link(prim):
++    """True only for a link of a Robotiq 2F-85 gripper, identified by its sibling links."""
++    if prim.GetName() not in _COM_LINK_FRAME_LINKS:
++        return False
++    parent = prim.GetParent()
++    if not (parent and parent.IsValid()):
++        return False
++    return all(parent.GetChild(s).IsValid() for s in _COM_LINK_FRAME_SIBLINGS)
 +
  # Create settings for this module
  m = create_module_macros(module_path=__file__)
  
-@@ -217,8 +230,38 @@
+@@ -217,8 +258,42 @@
                  self._collision_meshes[mesh_name] = mesh
  
                  volume, com = get_mesh_volume_and_com(mesh.prim)
 -                # We need to transform the volume and CoM from the mesh's local frame to the link's local frame
 +                # We need to transform the volume and CoM from the mesh's local frame to the link's local frame.
 +                #
-+                # PATCH (inertia-diff): frame="parent" is the mesh's IMMEDIATE parent prim
-+                # (xform_prim.py: "get position relative to the object parent"), which is the link
-+                # ONLY when the geom is a direct child of it. When a collision Xform sits between
-+                # the link and the Mesh -- as it does throughout the robolab gripper, where the
-+                # collision APIs are on `Defeatured_*_01` Xforms and GEOM_TYPES excludes Xform, so
-+                # the wrapped geom is the Mesh beneath -- that intermediate transform is silently
-+                # dropped and the CoM written here is wrong by exactly it.
++                # This has to compose all the way to the LINK, not to the geom's immediate parent.
++                # `frame="parent"` is documented on XFormPrim.get_position_orientation as "get
++                # position relative to the object parent" -- one level up, which equals the link
++                # frame only when the geom is a direct child of the link. Often it is not:
++                # GEOM_TYPES is {Sphere, Cube, Cone, Cylinder, Mesh}, so when an intermediate Xform
++                # carries the collision APIs and the Mesh sits beneath it, the geom wrapped here is
++                # the Mesh and the Xform -> link transform was silently dropped from the CoM.
 +                #
-+                # Measured on droid_robolab_v2.usd: every left/right link pair came out with an
-+                # IDENTICAL CoM including the sign of y, which is impossible for a mirrored pair,
-+                # and the two pads landed 128.3 mm from their true centroid. That displacement
-+                # enters the pad's inertia about its pivot as m*d^2 = 1.57e-4 kg m^2 against a true
-+                # 1.9e-6, inflating it 77x -- and a PhysX mimic joint realises k ~ omega^2 * I, so
-+                # the fingertips came out ~77x too stiff at the authored naturalFrequency.
++                # Measured on REALM's robolab Robotiq 2F-85, where every collision API sits on a
++                # `Defeatured_*_01` Xform: the dropped transform is a 90 deg (left) / 180 deg
++                # (right) rotation -- the mirror -- so EVERY left/right link pair came out with an
++                # identical CoM including the sign of y, which is impossible for a mirrored pair,
++                # and the two fingertip pads landed 128.3 mm from their true centroid. That
++                # displacement enters each pad's inertia about its own pivot as m*d^2 = 1.57e-4
++                # kg m^2 against a true 1.9e-6, inflating it 77x. A PhysX mimic joint realises a
++                # stiffness k ~ omega^2 * I, so the fingertips came out ~77x too stiff at the
++                # authored naturalFrequency and would not curl under load. Composing to the link
++                # frame brings that ratio to 1.5x and restores the left/right mirror.
 +                #
-+                # Composing world->link instead is correct for any nesting depth.
-+                #
-+                # SCOPED TO THE GRIPPER ON PURPOSE. The experiment this patch exists for requires
-+                # the arm to stay bit-identical. The seven panda_joint* DOFs are untouched either
-+                # way (this code writes no joint state), but panda_link4 carries a 0.0198 deg and
-+                # panda_link6 a 0.0004 mm parent->link residual, so an unscoped fix would perturb
-+                # two arm links' CoM by ~17 um. Every other arm link's parent->link transform is
-+                # exactly identity, i.e. the fix is a no-op there regardless.
++                # DELIBERATELY SCOPED to a Robotiq 2F-85's links. The defect is general -- any link
++                # whose collision geometry sits under an intermediate Xform has a wrong CoM, and
++                # therefore a wrong inertia tensor -- but correcting it everywhere would silently
++                # change the dynamics of every asset already validated against the current
++                # behaviour. Only the links whose corrected values have actually been measured are
++                # touched here; widening it is a separate, deliberate change. The gate is
++                # structural rather than a name match, because `base_link` is not gripper-specific
++                # -- see _is_robotiq_2f85_link.
                  local_pos, local_orn = mesh.get_position_orientation(frame="parent")
-+                if self.prim_path.split("/")[-1] in _COM_FRAME_FIX_LINKS:
++                if _is_robotiq_2f85_link(self._prim):
 +                    mesh_pos, mesh_orn = mesh.get_position_orientation()
 +                    link_pos, link_orn = self.get_position_orientation()
 +                    inv_link_orn = T.quat_inverse(link_orn)
