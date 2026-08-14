@@ -93,11 +93,14 @@ an A/B without an edit.
   axis, which is why it measured ~0.13 mm on both assets. That marking does NOT extend to the
   *direction* question -- "do the tips curl inward when pressed onto a surface" is a press question
   and a squeeze cannot answer it, which is what the tip/heel block is for. One thing to check before
-  reading any of its numbers as "a press N mm past contact": **that the arm moved at all.** On
-  2026-08-14 (job 191032, `curl_A`) an EE descent commanded 117 mm and moved `panda_link8` 0.2 mm --
-  the fingertips started within millimetres of the table at the reset pose, so the hand was blocked
-  from the first step, the load was real but its depth was not the commanded one, and the "hover"
-  reference was taken already in contact. Log the achieved eef z, not only the commanded one.
+  reading any of its numbers as "a press N mm past contact": **where the arm actually stopped.** It
+  descends and it presses -- both this probe's own control run and `curl_A` (job 191032) reach the
+  table -- but it STALLS there, and every further commanded millimetre then moves `panda_link8` by
+  microns (117 mm of command -> 0.2 mm of motion in `curl_A`). Two consequences: the commanded depth
+  is not the achieved one, and a "hover" pose computed from geometry can already be in contact, which
+  silently makes the rest reference a LOADED pose. Log the achieved eef z and the pad world z against
+  the table top, which this probe prints, and treat `pads went -N mm BELOW the surface` (a negative
+  number) as the signal that the contact is not where the arithmetic thinks it is.
 - `curl_press_direction.py` -- the SIGNED press probe: WHICH WAY the fingertips rotate under a press,
   not how far. Default `--load tip` keeps the arm at `reset_qpos` under joint control and ramps a
   200 kg pinned object UP into ONE fingertip, 0.5 mm per step, until the contact view reports contact

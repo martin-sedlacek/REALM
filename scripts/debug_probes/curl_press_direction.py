@@ -83,11 +83,12 @@ ap.add_argument("--load", default="tip", choices=("tip", "ee"),
                      "step, until contact is detected and then past it -- no IK, no arm motion, and "
                      "the contact force is read from the contact view. 'ee': EE control descends the "
                      "hand onto the table (ee_press_compliance.py's load case). *** MEASURED "
-                     "2026-08-14, job 191032: 'ee' DOES NOT PRESS on this build. The commanded z fell "
-                     "117 mm while the achieved z moved 0.2 mm and panda_link8's world z moved 0.1 mm "
-                     "-- the arm never left the hover pose, so nothing ever touched the table and "
-                     "every deflection it reports is noise. Do not use it until EE control is fixed; "
-                     "see the `verify-ee` line. ***")
+                     "2026-08-14, job 191032, and then re-read: the arm DOES descend (436 mm, "
+                     "1.4067 -> 0.9704 m) and it DOES press. But it reaches the table during the "
+                     "TRAVERSE and stalls there, after which 117 mm of further commanded descent "
+                     "moves it 0.2 mm -- so the commanded depth is meaningless and, worse, the hover "
+                     "pose each rung's reference is taken at is ALREADY IN CONTACT. Only cross-rung "
+                     "comparisons at one arm pose survive from that mode. Use 'tip'. ***")
 ap.add_argument("--robot", default="DROID_robolab_v2",
                 help="joint-control config for --load tip, an *_ee_control one for --load ee")
 ap.add_argument("--task-cfg", default="REALM_DROID10/put_green_block_into_bowl/default.yaml")
