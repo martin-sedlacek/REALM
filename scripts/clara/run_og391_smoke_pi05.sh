@@ -16,7 +16,7 @@
 # point into ~/projects/REALM, which is where the 36 GB og391 dataset was rsynced and where every
 # REALM eval writes its reports.
 #
-# Usage (from the REALM_og391 root):
+# Usage (from anywhere -- the paths come from this script's location, not from the cwd):
 #   sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   TASK_ID=1 REPEATS=5 sbatch scripts/clara/run_og391_smoke_pi05.sh
 #   MULTI_VIEW=1 sbatch scripts/clara/run_og391_smoke_pi05.sh   # second video panel for review only
@@ -34,15 +34,34 @@
 
 set -uo pipefail
 
-REALM_ROOT=/mnt/home_lustre/sedlam56/projects/REALM_og391
-OPENPI_ROOT=/mnt/home_lustre/sedlam56/projects/openpi
-
-# Shared with ~/projects/REALM on purpose: the 36 GB behavior-1k-assets + robot assets live there and
-# must not be copied, and results belong in the same log tree as every other REALM eval.
-REALM_DATA=$REALM_ROOT/data/datasets          # -> REALM/data/datasets_og391
-REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
-REALM_SIF=$REALM_ROOT/realm_og391.sif         # -> REALM/realm_og391.sif
-APPDATA=$REALM_ROOT/data/cache                # OMNIGIBSON_APPDATA_PATH=/cache/appdata
+# REALM_ROOT / REALM_SIF / REALM_DATA / REALM_APPDATA / REALM_LOGS, all derived from this script's
+# own location. The big artifacts are shared with ~/projects/REALM on purpose -- the 36 GB
+# behavior-1k-assets + robot assets live there and must not be copied, and results belong in the same
+# log tree as every other REALM eval -- and paths.sh reaches them through this checkout's own
+# symlinks (realm_og391.sif, data/datasets) with the shared store as the fallback.
+#
+# NOT ${REALM_ROOT:-...} / ${REALM_SIF:-...}: the profile exports both, naming the pre-port 1.1.1
+# tree and image, so a default written that way is never reached. See scripts/clara/lib/paths.sh.
+#
+# The #SBATCH --output above cannot use any of this -- Slurm parses those directives before a shell
+# exists. It names the shared log tree, which the rename does not move, so it stays literal.
+#
+# Locating paths.sh needs more than ${BASH_SOURCE[0]} here. Under sbatch, Slurm ships this script's
+# TEXT to the node and runs a copy at /var/spool/slurmd/job<N>/slurm_script, so BASH_SOURCE points
+# into the spool dir -- verified 2026-08-14 by probe job 191043. `scontrol show job` still reports
+# the absolute path sbatch was handed; $SLURM_SUBMIT_DIR is the last resort. Every candidate is
+# tested before use, and not finding paths.sh is FATAL: set -e is off, so carrying on would leave
+# $REALM_ROOT at the value the shell profile exports -- the PRE-PORT 1.1.1 checkout.
+_lib=$(cd "$(dirname "${BASH_SOURCE[0]}")/lib" 2>/dev/null && pwd)
+if [ ! -f "${_lib:-/nonexistent}/paths.sh" ]; then
+  _cmd=$(scontrol show job "${SLURM_JOB_ID:-}" 2>/dev/null | tr ' ' '\n' | sed -n 's/^Command=//p' | head -1)
+  _lib=$(cd "$(dirname "${_cmd:-/nonexistent}")/lib" 2>/dev/null && pwd)
+fi
+[ -f "${_lib:-/nonexistent}/paths.sh" ] || _lib=${SLURM_SUBMIT_DIR:-$PWD}/scripts/clara/lib
+[ -f "$_lib/paths.sh" ] || { echo "ERROR: cannot locate scripts/clara/lib/paths.sh (BASH_SOURCE=${BASH_SOURCE[0]} SLURM_SUBMIT_DIR=${SLURM_SUBMIT_DIR:-unset})" >&2; exit 1; }
+source "$_lib/paths.sh"
+[ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source $_lib/paths.sh" >&2; exit 1; }
+OPENPI_ROOT=/mnt/home_lustre/sedlam56/projects/openpi   # a different project; unaffected by the move
 
 TASK_ID=${TASK_ID:-0}                 # 0 = put_green_block_into_bowl
 PERT_ID=${PERT_ID:-0}                 # 0 = Default (no perturbation)
@@ -103,7 +122,7 @@ JOB=${SLURM_JOB_ID:-local}
 # /tmp is node-local (200 G, wiped when the job ends). Every artifact path must be on Lustre.
 case "$REALM_ROOT$REALM_LOGS" in /tmp/*) echo "ERROR: refusing to write artifacts under /tmp" >&2; exit 1;; esac
 
-mkdir -p "$REALM_ROOT/tmp/$JOB" "$APPDATA/appdata" "$REALM_LOGS/$EXPERIMENT"
+mkdir -p "$REALM_ROOT/tmp/$JOB" "$REALM_APPDATA/appdata" "$REALM_LOGS/$EXPERIMENT"
 
 echo "=================================================================="
 echo " REALM og391 smoke test -- pi0.5"
@@ -145,14 +164,14 @@ sys.exit(0 if s.connect_ex(('127.0.0.1',$PORT))==0 else 1)
 done
 
 #--- 2. REALM eval client, inside the 3.9.1 container ---------------------------------------------
-# --log_dir /logs rather than letting it default to /app/logs: REALM_og391/logs is a symlink to
-# REALM/logs, and a symlink to an unbound host path dangles inside the container.
+# --log_dir /logs rather than letting it default to /app/logs: this checkout's own logs/ is a symlink
+# into the shared store, and a symlink to an unbound host path dangles inside the container.
 cd "$REALM_ROOT" || exit 1
 
 apptainer run --userns --nv --writable-tmpfs \
   --bind "$REALM_ROOT":/app \
   --bind "$REALM_DATA":/data \
-  --bind "$APPDATA":/cache \
+  --bind "$REALM_APPDATA":/cache \
   --bind "$REALM_LOGS":/logs \
   --bind "$REALM_ROOT/tmp/$JOB":/tmp \
   --env TMPDIR=/tmp \

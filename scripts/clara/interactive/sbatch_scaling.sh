@@ -33,12 +33,30 @@
 
 set -uo pipefail
 
-REALM_ROOT=/mnt/home_lustre/sedlam56/projects/REALM_og391
-OGLITE_ROOT=/mnt/home_lustre/sedlam56/projects/OG-lite_og391
-REALM_DATA=$REALM_ROOT/data/datasets
-REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
-REALM_SIF=$REALM_ROOT/realm_og391.sif
-APPDATA=$REALM_ROOT/data/cache
+# REALM_ROOT / REALM_SIF / REALM_DATA / REALM_APPDATA / REALM_LOGS / REALM_OGLITE_ROOT, all derived
+# from this script's own location rather than written out here, so a worktree profiles ITS OWN
+# checkout and moving the tree costs no edit. Read paths.sh before adding a path of your own: the
+# profile EXPORTS REALM_ROOT and REALM_SIF pointing at the pre-port 1.1.1 tree and image, so
+# `${REALM_ROOT:-<default>}` silently selects the wrong stack.
+#
+# The #SBATCH --output above cannot use any of this -- Slurm parses those directives before a shell
+# exists. It names the shared log tree, which the rename does not move, so it stays literal.
+#
+# Locating paths.sh needs more than ${BASH_SOURCE[0]} here. Under sbatch, Slurm ships this script's
+# TEXT to the node and runs a copy at /var/spool/slurmd/job<N>/slurm_script, so BASH_SOURCE points
+# into the spool dir -- verified 2026-08-14 by probe job 191043. `scontrol show job` still reports
+# the absolute path sbatch was handed; $SLURM_SUBMIT_DIR is the last resort. Every candidate is
+# tested before use, and not finding paths.sh is FATAL: set -e is off, so carrying on would leave
+# $REALM_ROOT at the value the shell profile exports -- the PRE-PORT 1.1.1 checkout.
+_lib=$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" 2>/dev/null && pwd)
+if [ ! -f "${_lib:-/nonexistent}/paths.sh" ]; then
+  _cmd=$(scontrol show job "${SLURM_JOB_ID:-}" 2>/dev/null | tr ' ' '\n' | sed -n 's/^Command=//p' | head -1)
+  _lib=$(cd "$(dirname "${_cmd:-/nonexistent}")/../lib" 2>/dev/null && pwd)
+fi
+[ -f "${_lib:-/nonexistent}/paths.sh" ] || _lib=${SLURM_SUBMIT_DIR:-$PWD}/scripts/clara/lib
+[ -f "$_lib/paths.sh" ] || { echo "ERROR: cannot locate scripts/clara/lib/paths.sh (BASH_SOURCE=${BASH_SOURCE[0]} SLURM_SUBMIT_DIR=${SLURM_SUBMIT_DIR:-unset})" >&2; exit 1; }
+source "$_lib/paths.sh"
+[ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source $_lib/paths.sh" >&2; exit 1; }
 
 TASK_ID=${TASK_ID:-0}
 PERT_ID=${PERT_ID:-0}
@@ -56,11 +74,11 @@ OUT=/logs/phase_ref/${LABEL}_${JOB}.json
 
 [ -f "$REALM_SIF" ]                     || { echo "ERROR: no SIF at $REALM_SIF" >&2; exit 1; }
 [ -d "$REALM_DATA/behavior-1k-assets" ] || { echo "ERROR: no dataset at $REALM_DATA" >&2; exit 1; }
-[ -d "$OGLITE_ROOT/omnigibson" ]        || { echo "ERROR: no OG-lite at $OGLITE_ROOT" >&2; exit 1; }
+[ -d "$REALM_OGLITE_ROOT/omnigibson" ]  || { echo "ERROR: no OG-lite at $REALM_OGLITE_ROOT" >&2; exit 1; }
 [ -f "$REALM_ROOT/scripts/clara/interactive/profile_phases.py" ] || { echo "ERROR: no profiler" >&2; exit 1; }
 case "$REALM_LOGS" in /tmp/*) echo "ERROR: refusing to write artifacts under /tmp" >&2; exit 1;; esac
 
-mkdir -p "$REALM_ROOT/tmp/$JOB" "$APPDATA/appdata" "$REALM_LOGS/scaling"
+mkdir -p "$REALM_ROOT/tmp/$JOB" "$REALM_APPDATA/appdata" "$REALM_LOGS/scaling"
 
 ROD_FLAG="--no-render_on_demand"
 [ "$ROD" = "1" ] && ROD_FLAG="--render_on_demand"
@@ -79,10 +97,10 @@ nvidia-smi --query-compute-apps=pid,used_memory,name --format=csv
 apptainer run --userns --nv --writable-tmpfs --pwd /app \
   --bind "$REALM_ROOT":/app \
   --bind "$REALM_DATA":/data \
-  --bind "$APPDATA":/cache \
+  --bind "$REALM_APPDATA":/cache \
   --bind "$REALM_LOGS":/logs \
   --bind "$REALM_ROOT/tmp/$JOB":/tmp \
-  --bind "$OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson \
+  --bind "$REALM_OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson \
   --env TMPDIR=/tmp \
   --env OMNIGIBSON_HEADLESS=1 \
   --env NVIDIA_DRIVER_CAPABILITIES=all \

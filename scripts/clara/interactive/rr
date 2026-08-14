@@ -30,21 +30,30 @@
 
 set -uo pipefail
 
-# Derived from this script's own location, not hardcoded. It used to name the main checkout
-# absolutely, which quietly defeated git-worktree isolation: a worktree's copy of this script still
-# bound the MAIN checkout at /app, so edits to realm/ in the worktree had no effect on the run while
-# edits to harness scripts did (rr sets no --pwd, so the container inherits the caller's cwd and
-# resolves the script path against the worktree). Measured 2026-08-13: CWD=<worktree> but
-# realm/__init__.py=/app/... from the shared tree. Two agents' fixes were tested against code they
-# had not edited. Deriving the root makes an isolated worktree actually isolated.
-REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
-OGLITE_ROOT=/mnt/home_lustre/sedlam56/projects/OG-lite_og391
-REALM_DATA=$REALM_ROOT/data/datasets            # -> REALM/data/datasets_og391
-REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
-REALM_SIF=$REALM_ROOT/realm_og391.sif
-APPDATA=$REALM_ROOT/data/cache                  # OMNIGIBSON_APPDATA_PATH=/cache/appdata
+# Every path comes from lib/paths.sh, derived there from ITS own location -- never hardcoded, never
+# read out of the environment. Two reasons, both of which have already cost real time:
+#
+#   1. Worktree isolation. This script used to name the main checkout absolutely, so a worktree's
+#      copy still bound the MAIN checkout at /app: edits to realm/ in the worktree had no effect on
+#      the run while edits to harness scripts did (rr sets no --pwd, so the container inherits the
+#      caller's cwd and resolves the script path against the worktree). Measured 2026-08-13:
+#      CWD=<worktree> but realm/__init__.py=/app/... from the shared tree. Two agents' fixes were
+#      tested against code they had not edited.
+#   2. The profile EXPORTS REALM_ROOT and REALM_SIF naming the PRE-PORT 1.1.1 tree and image, so a
+#      `${REALM_SIF:-<og391 default>}` here selects the wrong container without saying so. The full
+#      account is in the header of scripts/clara/lib/paths.sh -- read it before adding a path.
+#
+# Sets REALM_ROOT, REALM_SIF, REALM_DATA (-> /data), REALM_APPDATA (-> /cache), REALM_LOGS
+# (-> /logs), REALM_OGLITE_ROOT and REALM_STOCK_PATCH.
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/paths.sh"
+# A failed `source` is not fatal by itself (no set -e), and $REALM_ROOT would then hold the
+# value the shell profile exports -- the PRE-PORT 1.1.1 checkout -- so this run would silently
+# evaluate the wrong tree. paths.sh sets REALM_PATHS_SH last and does not export it.
+[ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source scripts/clara/lib/paths.sh" >&2; exit 1; }
 
-STOCK_PATCH=${STOCK_PATCH:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch}
+# STOCK_PATCH keeps its own override: unlike the REALM_* names, nothing in the shell profile touches
+# it, and MODE=stockfix is routinely pointed at a freshly built patch dir.
+STOCK_PATCH=${STOCK_PATCH:-$REALM_STOCK_PATCH}
 MODE=${MODE:-stock}
 JOB=${SLURM_JOB_ID:-interactive}
 TMPROOT=$REALM_ROOT/tmp/$JOB
@@ -73,13 +82,13 @@ case "$MODE" in
     done < <(find "$STOCK_PATCH/omnigibson" -name '*.py')
     ;;
   oglite)
-    [ -d "$OGLITE_ROOT/omnigibson" ] || { echo "rr: no OG-lite at $OGLITE_ROOT" >&2; exit 1; }
-    OGLITE_BIND=(--bind "$OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson)
+    [ -d "$REALM_OGLITE_ROOT/omnigibson" ] || { echo "rr: no OG-lite at $REALM_OGLITE_ROOT" >&2; exit 1; }
+    OGLITE_BIND=(--bind "$REALM_OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson)
     ;;
   *) echo "rr: MODE must be stock, stockfix or oglite (got '$MODE')" >&2; exit 1 ;;
 esac
 
-mkdir -p "$TMPROOT" "$APPDATA/appdata"
+mkdir -p "$TMPROOT" "$REALM_APPDATA/appdata"
 
 # Pass through the REALM/OG knobs only when the caller set them, so an unset var does not
 # become the string "".
@@ -91,7 +100,7 @@ done
 exec apptainer run --userns --nv --writable-tmpfs \
   --bind "$REALM_ROOT":/app \
   --bind "$REALM_DATA":/data \
-  --bind "$APPDATA":/cache \
+  --bind "$REALM_APPDATA":/cache \
   --bind "$REALM_LOGS":/logs \
   --bind "$TMPROOT":/tmp \
   "${OGLITE_BIND[@]}" \

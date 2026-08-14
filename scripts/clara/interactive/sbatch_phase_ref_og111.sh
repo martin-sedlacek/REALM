@@ -22,11 +22,33 @@
 
 set -uo pipefail
 
-REALM_ROOT=/mnt/home_lustre/sedlam56/projects/REALM          # 1.1.1 checkout, branch dev
+# DELIBERATELY the pre-port tree, and therefore deliberately NOT sourced from lib/paths.sh, which
+# resolves the og391 stack. This is the one script here that is supposed to point elsewhere.
+REALM_ROOT=${REALM_OG111_ROOT:-/mnt/home_lustre/sedlam56/projects/REALM}  # 1.1.1 checkout, branch dev
 OGLITE_ROOT=/mnt/home_lustre/sedlam56/projects/OG-lite       # 1.1.1 fork
 REALM_DATA=$REALM_ROOT/data                                  # datasets/ is the 1.1.1 tree
 REALM_LOGS=$REALM_ROOT/logs
 REALM_SIF=/home/sedlam56/apptainer/realm-dm.sif              # the 1.1.1 image (per ~/.bashrc)
+
+# A GUARD, not decoration. ~/projects/REALM is the 1.1.1 checkout today, but it is also the
+# DESTINATION of the pending REALM_og391 -> REALM rename. The moment that happens, the path above
+# silently becomes the PORTED tree: this job would copy the profiler into it (see below) and profile
+# 3.9.1 code with the 1.1.1 image while labelling the output "og111" -- a wrong historical reference
+# that nothing else would catch. Two markers separate the trees: the 1.1.1 tree has
+# realm/misc/modified_entity_prim.py; the ported one has realm/misc/*_og391.patch.
+#
+# After the rename, point REALM_OG111_ROOT at wherever the 1.1.1 checkout ended up. Do not edit the
+# default to make this pass.
+[ -f "$REALM_ROOT/realm/misc/modified_entity_prim.py" ] || {
+  echo "ERROR: $REALM_ROOT is not the OmniGibson 1.1.1 checkout (no realm/misc/modified_entity_prim.py)." >&2
+  echo "       Set REALM_OG111_ROOT to the 1.1.1 tree. This job is a reference for the OLD stack." >&2
+  exit 1; }
+if compgen -G "$REALM_ROOT/realm/misc/*_og391.patch" >/dev/null; then
+  echo "ERROR: $REALM_ROOT is the PORTED og391 checkout, not the 1.1.1 one -- it carries" >&2
+  echo "       realm/misc/*_og391.patch. The rename to ~/projects/REALM has happened; set" >&2
+  echo "       REALM_OG111_ROOT to wherever the 1.1.1 tree now lives." >&2
+  exit 1
+fi
 
 TASK_ID=${TASK_ID:-0}
 PERT_ID=${PERT_ID:-0}
