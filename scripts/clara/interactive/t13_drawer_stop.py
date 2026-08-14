@@ -1,0 +1,235 @@
+"""Why do a drawer task's cabinet joints not reach the commanded openness?
+
+`RealmEnvironmentBase.reset_joints()` commands every openable joint of the task cabinet to a
+normalized -1.0 (fully closed) via `utils.reset_joints_batched`, which TELEPORTS the joint
+(`JointPrim.set_pos(..., normalized=True)` with drive=False writes `set_joint_positions`) and then
+steps. A joint that does not stay where it was put is therefore being pushed back out by
+depenetration, not failing to be driven -- so this probe reports, per member:
+
+  * the cabinet's root-link pose (world AND scene frame), its entity-prim pose, and the local
+    transform between them -- cabinet.usd authors base_link away from the entity origin, which is
+    what OG-lite 7c59ed5 is about, so the two are not interchangeable here
+  * every openable joint: limits, commanded position, achieved position, residual
+  * `init_openness_fraction`, the number `open_drawer`/`close_drawer` are actually scored against
+  * what the cabinet's links are in CONTACT with at the stuck pose, and which bodies' AABBs
+    OVERLAP the target drawer link right after it is teleported home -- i.e. the obstruction
+
+    ./run python -u scripts/clara/interactive/t13_drawer_stop.py --num_envs 2 --task_id 8
+
+`--dz a,b,...` re-runs the joint reset after shifting member i's cabinet by dz[i] in z. That is the
+causality test for the "scene 0's cabinet sits 44 mm higher than scene 1's" lead: if where the
+joints stop does not move with the cabinet, the height is a coincidence and the obstruction is
+something else.
+"""
+import argparse
+
+import torch as th
+
+import omnigibson as og
+import omnigibson.utils.transform_utils as T
+from omnigibson.prims.xform_prim import XFormPrim
+from omnigibson.utils.usd_utils import get_local_pose
+
+from realm.environments.contact_utils import get_impulse_contacts
+from realm.environments.env_base import run_joint_resets
+from realm.environments.env_vector import RealmVectorEnvironment
+from realm.environments.utils import get_openable_joints
+from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
+from realm.sim_config import set_sim_config
+
+
+def f3(v):
+    return tuple(round(float(x), 4) for x in (v.cpu() if hasattr(v, "cpu") else v))
+
+
+def pose_block(env, i):
+    cabinet = env.main_objects[0]
+    scene = env.omnigibson_env.scene
+    scene_pos = scene._pose_info["pos_ori"][0]
+    root_w = cabinet.get_position_orientation()
+    root_s = cabinet.get_position_orientation(frame="scene")
+    ent_w = XFormPrim.get_position_orientation(cabinet)
+    root_local = get_local_pose(cabinet.root_link.prim_path)
+    print(f"  member {i} (scene {scene.idx}) cabinet={cabinet.name!r} prim={cabinet.prim_path}")
+    print(f"      scene prim pos      {f3(scene_pos)}")
+    print(f"      root link  (world)  pos={f3(root_w[0])} ori={f3(root_w[1])}")
+    print(f"      root link  (scene)  pos={f3(root_s[0])} ori={f3(root_s[1])}")
+    print(f"      entity prim (world) pos={f3(ent_w[0])} ori={f3(ent_w[1])}")
+    print(f"      root_local (base_link rel. entity prim) pos={f3(root_local[0])} ori={f3(root_local[1])}")
+    print(f"      root_link_name={cabinet.root_link_name!r}  fixed_base={cabinet.fixed_base}  "
+          f"scale={f3(cabinet.scale)}")
+    aabb_lo, aabb_hi = cabinet.aabb
+    print(f"      cabinet aabb        lo={f3(aabb_lo)} hi={f3(aabb_hi)}")
+
+
+def joint_block(env, i, commanded=None):
+    """Per-joint commanded vs achieved. @commanded maps joint name -> normalized target."""
+    cabinet = env.main_objects[0]
+    joints = get_openable_joints(cabinet)
+    print(f"  member {i}: {len(joints)} openable joints; target={env.mo_joint.joint_name!r}")
+    rows = []
+    for j in joints:
+        lo, hi = j.lower_limit, j.upper_limit
+        pos, vel, _ = j.get_state()
+        pos = float(pos[0])
+        npos = 2.0 * (pos - lo) / (hi - lo) - 1.0
+        tgt_n = -1.0 if commanded is None else commanded.get(j.joint_name, -1.0)
+        tgt = (tgt_n + 1.0) / 2.0 * (hi - lo) + lo
+        mark = "  <== TARGET" if j is env.mo_joint else ""
+        star = "" if abs(npos - tgt_n) < 1e-3 else "  ** DID NOT REACH **"
+        print(f"      {j.joint_name:<12s} [{j.joint_type:<16s}] limits=[{lo:+.4f},{hi:+.4f}] "
+              f"cmd={tgt:+.4f}({tgt_n:+.2f}) got={pos:+.4f}({npos:+.4f}) "
+              f"resid={pos - tgt:+.4f} vel={float(vel[0]):+.4f}{mark}{star}")
+        rows.append((j.joint_name, pos, npos, tgt, tgt_n))
+    print(f"      init_openness_fraction={float(env.init_openness_fraction):.4f} "
+          f"joint_range={float(env.joint_range):.4f}")
+    return rows
+
+
+def contact_block(env, i):
+    cabinet = env.main_objects[0]
+    scene_idx = env.omnigibson_env.scene.idx
+    links = list(cabinet.links.values())
+    # threshold 0: we want every reported contact, including resting ones -- a depenetration
+    # contact that has already been resolved carries almost no impulse but is the whole story.
+    contacts = get_impulse_contacts(scene_idx, links, impulse_threshold=0.0)
+    print(f"  member {i} contacts on cabinet links:")
+    if not contacts:
+        print("      (none reported)")
+    for path in sorted(contacts):
+        others = sorted(contacts[path])
+        print(f"      {path.split('/')[-1]:<16s} -> {others}")
+
+
+def overlap_block(env, i, link):
+    """Every body in the member's scene whose AABB intersects @link's, right now."""
+    scene = env.omnigibson_env.scene
+    lo, hi = link.aabb
+    hits = []
+    for obj in scene.objects:
+        for lname, l in obj.links.items():
+            if l.prim_path == link.prim_path:
+                continue
+            try:
+                olo, ohi = l.aabb
+            except Exception:
+                continue
+            if bool(th.all(lo < ohi) and th.all(olo < hi)):
+                inter = th.minimum(hi, ohi) - th.maximum(lo, olo)
+                hits.append((float(th.min(inter)), obj.name, lname, f3(inter)))
+    robot = env.robot
+    for lname, l in robot.links.items():
+        olo, ohi = l.aabb
+        if bool(th.all(lo < ohi) and th.all(olo < hi)):
+            inter = th.minimum(hi, ohi) - th.maximum(lo, olo)
+            hits.append((float(th.min(inter)), robot.name, lname, f3(inter)))
+    print(f"  member {i} AABB overlaps with {link.prim_path.split('/')[-1]} "
+          f"(lo={f3(lo)} hi={f3(hi)}):")
+    if not hits:
+        print("      (none)")
+    for depth, oname, lname, inter in sorted(hits, reverse=True):
+        print(f"      {oname}/{lname:<20s} min_penetration={depth:+.4f} overlap_extent={inter}")
+
+
+def report(tag, vec_env):
+    print(f"\n########## {tag} ##########", flush=True)
+    for i, env in enumerate(vec_env.envs):
+        pose_block(env, i)
+    print()
+    for i, env in enumerate(vec_env.envs):
+        joint_block(env, i)
+    print()
+    for i, env in enumerate(vec_env.envs):
+        contact_block(env, i)
+    print(flush=True)
+
+
+def teleport_home_and_look(vec_env):
+    """Teleport every openable joint home, look at the overlaps BEFORE physics resolves them."""
+    print("\n########## teleport-home, pre-step overlap ##########", flush=True)
+    for i, env in enumerate(vec_env.envs):
+        cabinet = env.main_objects[0]
+        for j in get_openable_joints(cabinet):
+            j.set_pos(-1.0, normalized=True)
+            j.set_vel(0)
+    og.sim.render()  # flush the physx->fabric sync so the AABBs below are the teleported ones
+    for i, env in enumerate(vec_env.envs):
+        cabinet = env.main_objects[0]
+        joints = get_openable_joints(cabinet)
+        print(f"  -- member {i} right after teleport, before any step:")
+        for j in joints:
+            pos, _, _ = j.get_state()
+            print(f"      {j.joint_name:<12s} got={float(pos[0]):+.4f}")
+        tgt_link = cabinet.links[env.mo_joint.body1.split("/")[-1]]
+        overlap_block(env, i, tgt_link)
+    print(flush=True)
+
+
+def main(num_envs, task_id, robot, perturbation, dz, resets):
+    set_sim_config(robot=robot)
+    vec_env = RealmVectorEnvironment(
+        num_envs,
+        task_cfg_path=f"REALM_DROID10/{SUPPORTED_TASKS[task_id]}/default.yaml",
+        perturbations=[perturbation],
+        robot=robot,
+    )
+    report("after construction (reset_joints has run once)", vec_env)
+
+    for r in range(resets):
+        vec_env.reset()
+        report(f"after vec_env.reset() #{r + 1}", vec_env)
+
+    teleport_home_and_look(vec_env)
+    # Put the cabinets back to a settled state before the dz experiment.
+    for env in vec_env.envs:
+        env.reset_joints()
+    run_joint_resets(vec_env.envs)
+    report("after a re-driven reset_joints()", vec_env)
+
+    if dz:
+        print(f"\n########## dz experiment: {dz} ##########", flush=True)
+        for i, env in enumerate(vec_env.envs):
+            if i >= len(dz) or dz[i] == 0.0:
+                continue
+            cabinet = env.main_objects[0]
+            pos, ori = cabinet.get_position_orientation(frame="scene")
+            want = pos.clone()
+            want[2] += dz[i]
+            cabinet.set_position_orientation(position=want, orientation=ori, frame="scene")
+            got = cabinet.get_position_orientation(frame="scene")[0]
+            print(f"  member {i}: asked scene z {float(pos[2]):+.4f} -> {float(want[2]):+.4f}, "
+                  f"read back {float(got[2]):+.4f} "
+                  f"({'MOVED' if abs(float(got[2]) - float(want[2])) < 1e-3 else 'DID NOT TAKE'})")
+        for _ in range(5):
+            og.sim.step()
+        for env in vec_env.envs:
+            env.reset_joints()
+        run_joint_resets(vec_env.envs)
+        report(f"after dz={dz} + reset_joints()", vec_env)
+
+    print("\n########## VERDICT ##########", flush=True)
+    for i, env in enumerate(vec_env.envs):
+        cabinet = env.main_objects[0]
+        bad = []
+        for j in get_openable_joints(cabinet):
+            lo, hi = j.lower_limit, j.upper_limit
+            pos = float(j.get_state()[0][0])
+            if abs(pos - lo) > 1e-3:
+                bad.append(f"{j.joint_name}={pos:.4f}(lo={lo:.4f})")
+        print(f"  member {i} (scene {env.omnigibson_env.scene.idx}): "
+              f"init_openness_fraction={float(env.init_openness_fraction):.4f} "
+              f"{'OK -- every joint home' if not bad else 'NOT HOME: ' + ', '.join(bad)}")
+    og.shutdown()
+
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser()
+    p.add_argument("--num_envs", type=int, default=2)
+    p.add_argument("--task_id", type=int, default=8)
+    p.add_argument("--robot", type=str, default="DROID_robolab")
+    p.add_argument("--perturbation", type=str, default=SUPPORTED_PERTURBATIONS[0])
+    p.add_argument("--resets", type=int, default=0)
+    p.add_argument("--dz", type=str, default="", help="comma-separated per-member z shift, e.g. -0.044,0.044")
+    a = p.parse_args()
+    main(a.num_envs, a.task_id, a.robot, a.perturbation,
+         [float(x) for x in a.dz.split(",")] if a.dz else [], a.resets)

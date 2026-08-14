@@ -185,17 +185,33 @@ DatasetObject, so **a task-0 pass says nothing about its add/remove path** — i
 
 - **Upstream `_pre_remove_object` identity match** (see 2). Eliminates the class rather than
   repairing the damage.
-- **`open_drawer` / `close_drawer` do not build**: `cabinet.usd` →
-  `TypeError: missing a required argument: 'preset_name'` in `omnigibson/prims/material_prim.py`.
-  2 of 10 tasks, and with them the drawer branches of SB-NOUN and S-LANG — those are the only tasks
-  with a `synonyms:` block, so S-LANG's synonym path has never executed.
-- **`reset_joints()`'s ~55 global steps per member per reset are now batched, but UNVERIFIED.**
-  `RealmEnvironmentBase.reset_joints()` records a `JointResetPlan` in a vector env and
-  `env_base.run_joint_resets()` drives every member off one shared loop, so a drawer reset costs 55
-  global steps rather than 55·N. It cannot be run end to end while the asset above is broken.
-  `tests/test_joint_reset_batching.py` covers the scheduling half with a stubbed `og.sim` —
-  measured 55 steps at 4 members against 55 at 1, with every member seeing the identical single-env
-  call sequence — but *nothing* has confirmed a real cabinet lands at the right openness.
+- ~~**`open_drawer` / `close_drawer` do not build**~~ (`preset_name` `TypeError`) — CLOSED
+  2026-08-14 by OG-lite `59af7c0`; both tasks load and pass `tests/test_vector_integrity.py`.
+- ~~**`reset_joints()`'s batching is UNVERIFIED**~~ — CLOSED 2026-08-14, measured on a real
+  cabinet; see `env_base.run_joint_resets()`.
+- ~~**Scene 0's drawers never reached the commanded openness**~~ — CLOSED 2026-08-14, and worth
+  reading, because the symptom pointed at three innocent places. `reset_joints()` commanded all five
+  cabinet joints to a normalized -1.0 and in SCENE 0 ONLY the target joint settled at 0.17-0.19 m of
+  a 0.30 m range, with `joint_02`/`joint_03` stopping dead at 0.2289/0.2288 m in every run —
+  `init_openness_fraction` 0.62 where `open_drawer` is scored against 0. Scene 1 was perfect. It was
+  NOT the joint-reset batching (reproduced at `--num_envs 1` with `run_joint_resets` bypassed), NOT
+  `scene_base.py` re-applying object poses only for `idx != 0` (that path touches the scene FILE's
+  objects; the cabinet is a task object added later by `og.Environment._load_objects`), and NOT the
+  44 mm root-link z difference between the two scenes — that was a *consequence*. Scene 0's cabinet
+  was placed **lying on its back**: root-link orientation ~identity instead of the config's
+  `[0.7044, 0.0616, 0.0616, 0.7044]`, so its drawers slid vertically and jammed against
+  `floors_jkaqil_0` and `breakfast_table_support`. `cabinet.usd` is authored `upAxis=Y` on a
+  `upAxis=Z` stage, and Kit's metrics assembler compensates by appending
+  `xformOp:rotateX:unitsResolve = 90` to the referencing prim's `xformOpOrder` — an op no
+  OmniGibson pose setter writes and `XFormPrim._set_xform_properties` does not strip (it lists only
+  the unsuffixed `rotate*`/`transform` ops), so it silently post-multiplies every pose set on that
+  prim: `set_position_orientation(orientation=Q)` lands at `Q · Rx(90)`. It was applied to the FIRST
+  reference to the asset only — the assembler's UnitsAdjust layer is content-hash keyed — which is
+  the whole reason one member differed from another. Fixed in OG-lite
+  `USDObject._preapply_articulation_root` by making the exported asset layer's up axis agree with
+  the stage's, leaving the assembler nothing to insert in any scene.
+  Probes: `scripts/clara/interactive/t13_drawer_stop.py` (outcome), `t14_drawer_pose_trace.py`
+  (which phase), `t15_drawer_xformops.py` (the op itself).
 - **Every vector reset does N global steps and 3N renders before any perturbation**, from
   `og.Environment.reset(get_obs=True)` per member. Measured harmless (<4e-5 m drift), but O(N).
   V-VIEW used to *double* that: it ended with a second per-member `og.Environment.reset()`, left

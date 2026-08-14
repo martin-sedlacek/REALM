@@ -94,7 +94,7 @@ import omnigibson as og
 import omnigibson.lazy as lazy
 from omnigibson.utils.usd_utils import RigidContactAPI
 
-from realm.environments.env_base import TASK_PROGRESS_RUBRICS
+from realm.environments.env_base import JOINT_HOLD_STEPS, JOINT_SETTLE_STEPS, TASK_PROGRESS_RUBRICS
 from realm.environments.env_vector import RealmVectorEnvironment
 from realm.environments.perturbations._helpers import NEEDS_STOPPED_SIM, SETTLE_STEPS
 # The module-level objects themselves, not a fresh load_task_progressions() copy: check 9 asserts
@@ -111,7 +111,31 @@ TASK_VERB_PHRASE = {
 }
 
 TABLE_Z_MIN = 0.5   # below this the object has left the table (the z-offset bug parked them at ~0.015)
+# ... but only for a task whose main object RESTS ON the table. A drawer task's main object is
+# custom_assets/impact_drawer/cabinet.usd, and the number check 5 reads is its ROOT LINK's z, which
+# the task config puts at exactly 0.50 (relative_bbox_position z -0.3 + the part's spawn z 0.8) --
+# not because the cabinet is that low, but because cabinet.usd authors base_link in the middle of
+# the body instead of at its base. That lands ON the constant, so in float32 a perfectly healthy
+# cabinet reads 0.4999 and check 5 reports "main object left the table (z=0.500)".
+# Lowering the constant for everybody is not the fix: 0.5 is what makes a table object that fell to
+# z ~ 0.015 fail, which is the bug the check exists for. So the drawer tasks get their own number.
+# 0.2 leaves the cabinet 0.3 m of slack (it rests at root-link z 0.50 and its lowest geometry is at
+# z 0.31) while still sitting far above the 0.015 signature the check has to catch.
+DRAWER_Z_MIN = 0.2
 FROZEN_TOL = 1e-3   # metres; check 7's floor, raised to 4x the measured readback drift if that is larger
+
+# One SHARED joint-reset loop, as env_base.run_joint_resets issues it: utils.reset_joints_batched's
+# 10 closing + 5 still steps, then JOINT_SETTLE_STEPS + JOINT_HOLD_STEPS free-running. 55 today.
+JOINT_RESET_STEPS = 10 + 5 + JOINT_SETTLE_STEPS + JOINT_HOLD_STEPS
+# The perturbations that call env.reset_joints() themselves, and so pay for a SECOND shared
+# joint-reset loop on top of the unperturbed reset's -- but only on a drawer task, since
+# reset_joints() early-returns for every other task_type. V-VIEW, VB-POSE and SB-NOUN call it inline
+# during apply_perturbations(); V-SC, VB-MOBJ, VSB-NOBJ and SB-VRB from their deferred _post_play
+# blocks. Both land in one of RealmVectorEnvironment.reset()'s drain points, so either way it is one
+# shared loop for all members and NOT one per member -- which is what keeps check 1 discriminating
+# with this term allowed: the per-member regression it exists to catch costs JOINT_RESET_STEPS *
+# num_envs, i.e. 110 of slack at 2 members against the 55 granted here.
+RESETS_JOINTS = frozenset({"V-VIEW", "VB-POSE", "SB-NOUN", "V-SC", "VB-MOBJ", "VSB-NOBJ", "SB-VRB"})
 
 
 def obj_link_paths(obj):
@@ -205,6 +229,16 @@ _LIGHT_PRIM_CACHE = {}   # scene prim path -> [Usd.Prim] carrying inputs:intensi
 def _np(x):
     """Whatever OmniGibson handed back (torch on GPU, torch on CPU, list) as a numpy array."""
     return np.asarray(x.cpu().numpy() if hasattr(x, "cpu") else x, dtype=float)
+
+
+def main_object_z_min(env):
+    """The z below which check 5 calls this member's main object fallen. See TABLE_Z_MIN.
+
+    Keyed on task_type rather than on the object, because it is the TASK that decides whether the
+    main object is supposed to be on the table. env.task_type is re-read every call so that SB-VRB,
+    which redraws it during a reset, gets the threshold for the verb it drew.
+    """
+    return DRAWER_Z_MIN if env.task_type in ("open_drawer", "close_drawer") else TABLE_Z_MIN
 
 
 def obj_identity(env):
@@ -391,7 +425,20 @@ def run_phase(vec_env, perturbation, resets, steps):
     # that defer anything. Unconditionally allowing it gave pose-only perturbations num_envs of
     # slack they never use (38 vs the 34 they need at Vec=4), which is budget a per-member step loop
     # could hide in. Measured at Vec=4: V-SC needs 38 = 4 per-member reset obs + 4 deferred + 30.
-    step_budget = base_counts["step"] + SETTLE_STEPS + (
+    #   + JOINT_RESET_STEPS  the SECOND shared joint-reset loop, on a drawer task under a
+    #                    perturbation that calls reset_joints() itself. @base_counts already
+    #                    contains the first loop -- an unperturbed drawer reset measures 57 steps at
+    #                    2 members, 2 per-member reset obs plus 55 shared -- so this is only the
+    #                    increment, and it is zero on the other eight tasks. Without it check 1
+    #                    false-fails EVERY drawer task: measured 142 steps against a budget of 87 on
+    #                    task 8 under VB-POSE, and 142 - 87 is exactly one loop.
+    drawer_reset_steps = (
+        JOINT_RESET_STEPS
+        if perturbation in RESETS_JOINTS
+        and vec_env.envs[0].task_type in ("open_drawer", "close_drawer")
+        else 0
+    )
+    step_budget = base_counts["step"] + SETTLE_STEPS + drawer_reset_steps + (
         num_envs if perturbation in NEEDS_STOPPED_SIM else 0)
     # Check 1's stop/play expectation, which is NOT "never" for every perturbation. Adding or
     # removing an object requires a stopped simulator, so RealmVectorEnvironment.reset() gives the
@@ -669,8 +716,10 @@ def run_phase(vec_env, perturbation, resets, steps):
             # check 5: object still on the table
             pos = _np(env.main_objects[0].get_position_orientation()[0])
             poses.append(pos)
-            if pos[2] < TABLE_Z_MIN:
-                failures.append(f"reset {r+1}: member {i} main object left the table (z={pos[2]:.3f})")
+            z_min = main_object_z_min(env)
+            if pos[2] < z_min:
+                failures.append(f"reset {r+1}: member {i} main object fell out of its start pose "
+                                f"(z={pos[2]:.4f} < {z_min} for task_type {env.task_type!r})")
 
             print(f"  [3/5] member {i}: grasping={grasping}  "
                   f"main-object xyz=({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})", flush=True)
