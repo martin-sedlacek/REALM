@@ -88,10 +88,73 @@ ap.add_argument("--pin-mass", type=float, default=200.0,
                 help="mass (kg) the cube is given for the immovable-obstacle squeeze")
 ap.add_argument("--cam-dist", type=float, default=0.17, help="close-up camera distance from the pads")
 ap.add_argument("--fps", type=int, default=15)
+# ---- mimic-constraint / effort overrides. See "MIMIC OVERRIDES" below for what these do and why
+# they are probe-local rather than config or asset edits.
+ap.add_argument("--tag", default="",
+                help="prefix for the output filenames, so several configurations share one --out")
+ap.add_argument("--mimic-nf", type=float, default=None,
+                help="physxMimicJoint:<inst>:naturalFrequency written on the four INNER mimic joints "
+                     "(authored 1000). LOWER = softer; 0 means RIGID, not soft -- do not sweep to 0.")
+ap.add_argument("--mimic-dr", type=float, default=None,
+                help="... dampingRatio on the same four (authored 0.05)")
+ap.add_argument("--outer-nf", type=float, default=None,
+                help="naturalFrequency on right_outer_knuckle_joint (authored 1e6 = effectively hard)")
+ap.add_argument("--outer-dr", type=float, default=None, help="... dampingRatio on that one (authored 0)")
+ap.add_argument("--max-effort", type=float, default=None,
+                help="max_effort (N m) on the driven finger_joint. Authored 16.5, and the position "
+                     "drive saturates there in every gain rung, so it plausibly matters more than kp.")
+ap.add_argument("--mimic-joints", default=None,
+                help="comma-separated joint names that --mimic-nf/--mimic-dr (and every rung's nf/dr) "
+                     "apply to. Default = the four INNER mimic joints. Set it to "
+                     "'left_inner_finger_joint,right_inner_finger_joint' to soften ONLY the two pad "
+                     "pivots and leave the knuckle couplings stiff -- that localises the yield at the "
+                     "pads instead of letting the whole linkage go slack.")
+ap.add_argument("--pad-cc-stiffness", type=float, default=None,
+                help="physxMaterial:compliantContactStiffness on the two PAD links' physics materials. "
+                     "PhysX 5's compliant contact: a finite value makes the contact a spring instead "
+                     "of a hard constraint, so the object visibly sinks into the pad. A third avenue "
+                     "if the mimic constraint turns out not to be tunable. 0 = hard (the default).")
+ap.add_argument("--pad-cc-damping", type=float, default=None,
+                help="physxMaterial:compliantContactDamping on the same materials")
+ap.add_argument("--variant-usd", default=None,
+                help="load a VARIANT robolab USD instead of the shipped one (see "
+                     "scripts/debug_probes/make_mimic_variant.py). Use this when a runtime mimic write "
+                     "turns out to be parse-time only. Implemented as a probe-local monkeypatch of "
+                     "Robot.usd_path, NOT as a new robot `model`: the model lookup goes through "
+                     "data/datasets/omnigibson-robot-assets/models/*, which is a symlink tree shared "
+                     "between worktrees.")
+ap.add_argument("--drive-kp", type=float, default=None,
+                help="finger_joint drive stiffness, in the LIVE ARTICULATION VIEW's per-radian "
+                     "convention (OmniGibson forces 1e7 there; the USD authors 100 per DEGREE, which "
+                     "is 5729.578 per radian -- pass 5729.578 for 'the value RoboLab runs')")
+ap.add_argument("--drive-kd", type=float, default=None,
+                help="finger_joint drive damping, same convention (OmniGibson 1e5; the USD's 0.0002 "
+                     "per degree is 0.011459 per radian)")
+ap.add_argument("--solver-pos-iter", type=int, default=None,
+                help="physxArticulation:solverPositionIterationCount on the ROBOT. The mimic "
+                     "constraint is solved by the articulation solver, so fewer iterations leave a "
+                     "bigger constraint residual = apparent compliance. Blunt: it softens the arm's "
+                     "joints too.")
+ap.add_argument("--rungs", default="",
+                help="SWEEP MODE: 'name=nf/dr/onf/odr/me/spi/kp/kd/ccs/ccd,name2=...'. Each rung gets its OWN unloaded "
+                     "calibration sweep, free close (jaw-gap zero) and squeeze, all in one process. "
+                     "*** RUNGS ARE CUMULATIVE: '-' means 'leave whatever the PREVIOUS rung left', "
+                     "NOT 'the authored value'. Restate every field an earlier rung "
+                     "touched, or an effort rung following an nf rung silently measures "
+                     "both. Repeat a rung to get the error bar -- do that. ***"
+                     "repeatability -- do that, it is the error bar on every other rung.")
+ap.add_argument("--rung-free", type=int, default=1,
+                help="in sweep mode, also do the free-mass squeeze + gravity-hold check per rung")
+ap.add_argument("--video", type=int, default=1, help="0 skips every mp4 (frames are still captured)")
+ap.add_argument("--play-cycle-check", type=int, default=1,
+                help="at the very END, stop()/play() and read every override back: does it survive "
+                     "the update_controller_mode() that simulator.py re-runs on each play?")
 args = ap.parse_args()
 
 ROBOT = args.robot
 OUT = args.out
+PFX = args.tag or ROBOT                     # output filename prefix
+RUNGS_SPEC = args.rungs.strip()
 
 import torch as th  # noqa: E402
 from scipy.spatial.transform import Rotation as Rot  # noqa: E402
@@ -126,6 +189,22 @@ def hdr(s):
 
 # ---------------------------------------------------------------- build
 print(f"[squeeze] robot={ROBOT} task={args.task_cfg}", flush=True)
+if args.variant_usd:
+    # Swap the asset BEFORE anything is loaded. Only the robolab v2 path is redirected, so a stock
+    # A/B in the same session is unaffected, and the shipped file is never written to.
+    assert os.path.exists(args.variant_usd), f"no variant USD at {args.variant_usd}"
+    from omnigibson.robots.robot import Robot  # noqa: E402
+    _orig_usd_path = Robot.usd_path.fget
+
+    def _patched_usd_path(self):
+        p = _orig_usd_path(self)
+        if "droid_robolab_v2" in str(p):
+            print(f"[variant] usd_path {p} -> {args.variant_usd}", flush=True)
+            return args.variant_usd
+        return p
+
+    Robot.usd_path = property(_patched_usd_path)
+    print(f"[variant] Robot.usd_path patched -> {args.variant_usd}", flush=True)
 set_sim_config(robot=ROBOT)
 env = RealmEnvironmentDynamic(
     config_path="/app/realm/config", task_cfg_path=args.task_cfg, perturbations=["Default"],
@@ -255,6 +334,262 @@ except Exception as e:
     CLOSE_TARGET = OPEN_TARGET = None
     CTRL_DOF = grip_idx
 
+# ================================================================= MIMIC OVERRIDES
+# The gain A/B (2026-08-14) REFUTED isaac_kp/isaac_kd as the compliance knob: the jaw penetrated the
+# object by 1.20-1.39 mm at every rung from 1e7/1e5 down to 1e3/40, because the position drive
+# saturates at max_effort=16.5 in all of them. That leaves two knobs that nothing in REALM's config
+# touches, and this block is the only place either is written:
+#
+#   1. the PhysX MIMIC CONSTRAINT. The five followers have no drive at all (stiffness 0, damping 0,
+#      max_effort 0 -- joint_prim.set_control_type() forces kp=kd=0 on any mimic DOF), so they are
+#      held purely by PhysxMimicJointAPI. The asset authors naturalFrequency=1000 / dampingRatio=0.05
+#      on the four inner joints and 1e6 / 0 on right_outer_knuckle_joint.
+#      *** naturalFrequency is a SPRING frequency: bigger = stiffer, and ZERO means the constraint is
+#      solved rigidly. So the softening direction is DOWNWARD from 1000, and 0 is the wrong end. ***
+#   2. max_effort on the driven finger_joint, which is what the drive actually saturates at.
+#
+# Both are deliberately probe-local. They are physics hyperparameters: they change grasp behaviour on
+# every task, not just this probe, so realm/config/robots/DROID_robolab_v2.yaml and the shipped USD
+# are left alone and the values are passed on the command line.
+#
+# The mimic attributes are written straight onto the LIVE stage prims (USD-level). Whether omni.physx
+# picks such a write up on an already-parsed articulation is NOT documented anywhere we can rely on,
+# so it is measured rather than assumed: run a sweep whose first and last rungs are the same values
+# and whose middle rungs are extreme. If every rung reports the same jaw gap, the write did not
+# propagate and these numbers mean nothing -- IDENTICAL_RUNGS below says so out loud.
+MIMIC_ATTRS = ("naturalFrequency", "dampingRatio", "gearing", "offset")
+OUTER_J = "right_outer_knuckle_joint"
+
+import omnigibson.lazy as lazy  # noqa: E402
+
+
+def mimic_insts(prim):
+    """The PhysxMimicJointAPI instance names applied to @prim (e.g. ['rotX']), read at runtime.
+
+    The instance token is NOT the joint's physics:axis -- these joints author axis Z and instance
+    rotX -- so it has to be discovered, never guessed.
+    """
+    return [s.split(":", 1)[1] for s in prim.GetAppliedSchemas()
+            if s.startswith("PhysxMimicJointAPI:")]
+
+
+MIMIC_JOINTS = [joint_names[i] for i in grip_idx if mimic_insts(robot.joints[joint_names[i]].prim)]
+INNER_MIMIC = [n for n in MIMIC_JOINTS if n != OUTER_J]
+if args.mimic_joints:
+    want = [x.strip() for x in args.mimic_joints.split(",") if x.strip()]
+    bad = [n for n in want if n not in MIMIC_JOINTS]
+    assert not bad, f"--mimic-joints names {bad} which are not mimic joints; have {MIMIC_JOINTS}"
+    INNER_MIMIC = want
+DRIVEN_J = joint_names[int(CTRL_DOF[0])]
+
+
+def mimic_state():
+    """Every mimic attribute on every mimic gripper joint, keyed 'joint.inst.attr'."""
+    out = {}
+    for n in MIMIC_JOINTS:
+        prim = robot.joints[n].prim
+        for inst in mimic_insts(prim):
+            for a in MIMIC_ATTRS:
+                at = prim.GetAttribute(f"physxMimicJoint:{inst}:{a}")
+                out[f"{n}.{inst}.{a}"] = None if not at.IsValid() else at.Get()
+    return out
+
+
+def mimic_set(names, nf=None, dr=None):
+    """Write naturalFrequency / dampingRatio on @names' mimic APIs. Returns {key: value written}.
+
+    The write MUST sit inside `og.sim.editing_usd()`. Without it OmniGibson's guard raises
+    "USD edit detected outside of og.sim.editing_usd() context!" (simulator.py:1651) -- and that
+    context is also what synchronises the edit into Fabric, i.e. it is the thing that gives the write
+    any chance of reaching PhysX at all. Measured 2026-08-14: writing bare raises immediately.
+    """
+    wrote = {}
+    with og.sim.editing_usd():
+        for n in names:
+            prim = robot.joints[n].prim
+            insts = mimic_insts(prim)
+            assert insts, f"{n} has no PhysxMimicJointAPI -- nothing to soften"
+            for inst in insts:
+                for a, v in (("naturalFrequency", nf), ("dampingRatio", dr)):
+                    if v is None:
+                        continue
+                    at = prim.GetAttribute(f"physxMimicJoint:{inst}:{a}")
+                    assert at.IsValid(), f"{n} has no physxMimicJoint:{inst}:{a}"
+                    at.Set(float(v))
+                    wrote[f"{n}.{inst}.{a}"] = float(v)
+    return wrote
+
+
+def effort_set(jname, v):
+    """max_effort on @jname, through the articulation view. Returns (before, after)."""
+    j = robot.joints[jname]
+    before = jget(j, "max_effort")
+    j.max_effort = float(v)
+    return before, jget(j, "max_effort")
+
+
+def usd_drive(jname):
+    """The USD-authored drive block for @jname, for comparison against the live view."""
+    prim = robot.joints[jname].prim
+    out = {}
+    for a in prim.GetAttributes():
+        nm = a.GetName()
+        if nm.startswith("drive:"):
+            out[nm] = a.Get()
+    return out
+
+
+def pad_material_prims():
+    """The physics-material prims bound to the two PAD links' collision geoms.
+
+    PhysX applies compliant contact per MATERIAL, so softening "the pads" means finding whatever
+    material their collision geoms resolved to. Returned keyed by link/geom so the log says which.
+    """
+    out = {}
+    for ln in FL:
+        for gname, gm in robot.links[ln].collision_meshes.items():
+            pm = None
+            try:
+                pm = gm.get_applied_physics_material()
+            except Exception as e:
+                print(f"  [warn] no physics material for {ln}/{gname}: {e!r}")
+            if pm is None:
+                continue
+            prim = getattr(pm, "prim", None)
+            if prim is None:
+                prim = og.sim.stage.GetPrimAtPath(pm.prim_path)
+            out[f"{ln}/{gname}"] = prim
+    return out
+
+
+def pad_cc_state():
+    out = {}
+    for k, prim in PAD_MATS.items():
+        for a in ("compliantContactStiffness", "compliantContactDamping"):
+            at = prim.GetAttribute(f"physxMaterial:{a}")
+            out[f"{k}.{a}"] = None if not at.IsValid() else at.Get()
+    return out
+
+
+def pad_cc_set(stiff=None, damp=None):
+    """Write compliant-contact parameters on the pad materials. Same editing_usd() rule as mimic_set."""
+    wrote = {}
+    with og.sim.editing_usd():
+        for k, prim in PAD_MATS.items():
+            for a, v in (("compliantContactStiffness", stiff), ("compliantContactDamping", damp)):
+                if v is None:
+                    continue
+                nm = f"physxMaterial:{a}"
+                at = prim.GetAttribute(nm)
+                if not at.IsValid():
+                    at = prim.CreateAttribute(nm, lazy.pxr.Sdf.ValueTypeNames.Float, custom=False)
+                at.Set(float(v))
+                wrote[f"{k}.{a}"] = float(v)
+    return wrote
+
+
+hdr("MIMIC CONSTRAINT / EFFORT STATE -- as authored, before any override")
+# FIRST: is naturalFrequency even a thing in THIS build? An attribute that is not in the schema the
+# runtime was built against is inert text in the file -- omni.physx never reads it, and the mimic
+# constraint is then solved as a rigid equality from gearing/offset alone. Measured on
+# isaacsim 5.1.0 / omni.physx 107.3.26: PhysxMimicJointAPI declares only gearing, offset,
+# referenceJoint, referenceJointAxis, and the shipped _physxSchema.so does not contain the string
+# "naturalFrequency" at all. Printed on every run rather than trusted.
+_reg = lazy.pxr.Usd.SchemaRegistry()
+_pd = _reg.FindAppliedAPIPrimDefinition("PhysxMimicJointAPI")
+SCHEMA_PROPS = list(_pd.GetPropertyNames()) if _pd is not None else []
+NF_IN_SCHEMA = "physxMimicJoint:__INSTANCE_NAME__:naturalFrequency" in SCHEMA_PROPS
+print(f"  PhysxMimicJointAPI schema properties = {SCHEMA_PROPS}")
+print(f"  naturalFrequency in the schema = {NF_IN_SCHEMA};  "
+      f"hasattr(PhysxMimicJointAPI, 'GetNaturalFrequencyAttr') = "
+      f"{hasattr(lazy.pxr.PhysxSchema.PhysxMimicJointAPI, 'GetNaturalFrequencyAttr')}")
+if not NF_IN_SCHEMA:
+    print("  *** MIMIC_NF_NOT_IN_SCHEMA *** the asset authors physxMimicJoint:<inst>:naturalFrequency\n"
+          "      and :dampingRatio, but this build's PhysxMimicJointAPI does not declare either, and\n"
+          "      the shipped _physxSchema.so does not contain the string at all. omni.physx cannot\n"
+          "      read an attribute that is not in its schema, so those values are INERT TEXT and the\n"
+          "      mimic constraint is solved RIGIDLY from gearing/offset alone. A --mimic-nf sweep is\n"
+          "      then expected to change nothing, and that null result IS the measurement.")
+_mpd = _reg.FindAppliedAPIPrimDefinition("PhysxMaterialAPI")
+_mprops = list(_mpd.GetPropertyNames()) if _mpd is not None else []
+CC_IN_SCHEMA = "physxMaterial:compliantContactStiffness" in _mprops
+print(f"  PhysxMaterialAPI compliant-contact props = "
+      f"{[x for x in _mprops if 'ompliant' in x] or '(none)'}   in-schema={CC_IN_SCHEMA}")
+PAD_MATS = pad_material_prims()
+print(f"  pad physics materials ({len(PAD_MATS)}): "
+      + (", ".join(f"{k} -> {v.GetPath()}" for k, v in PAD_MATS.items()) or "(none found)"))
+PAD_CC0 = pad_cc_state()
+for k, v in PAD_CC0.items():
+    print(f"    {k:<62} = {v}")
+print(f"  mimic joints ({len(MIMIC_JOINTS)}): {MIMIC_JOINTS}")
+print(f"  the ones this sweep softens ({len(INNER_MIMIC)}): {INNER_MIMIC}"
+      + ("   [--mimic-joints]" if args.mimic_joints else "   [default: the four inner]"))
+print(f"  the driven joint: {DRIVEN_J}")
+MIMIC0 = mimic_state()
+for k, v in MIMIC0.items():
+    print(f"    {k:<62} = {v}")
+print(f"  {DRIVEN_J} live view: stiffness={jget(robot.joints[DRIVEN_J], 'stiffness')} "
+      f"damping={jget(robot.joints[DRIVEN_J], 'damping')} "
+      f"max_effort={jget(robot.joints[DRIVEN_J], 'max_effort')}")
+print(f"  {DRIVEN_J} USD drive block: {usd_drive(DRIVEN_J)}")
+EFFORT0 = jget(robot.joints[DRIVEN_J], "max_effort")
+
+
+def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=None, kd=None,
+                   ccs=None, ccd=None, label=""):
+    """Apply one rung's mimic / effort values and READ THEM BACK. Returns what is live afterwards."""
+    wrote = {}
+    if nf is not None or dr is not None:
+        wrote.update(mimic_set(INNER_MIMIC, nf=nf, dr=dr))
+    if onf is not None or odr is not None:
+        assert OUTER_J in MIMIC_JOINTS, f"{OUTER_J} is not a mimic joint on this asset"
+        wrote.update(mimic_set([OUTER_J], nf=onf, dr=odr))
+    if ccs is not None or ccd is not None:
+        w = pad_cc_set(ccs, ccd)
+        print(f"  [override {label or 'single'}] pad compliant contact -> {w}")
+        wrote.update(w)
+    eff = None
+    if me is not None:
+        eff = effort_set(DRIVEN_J, me)
+    if kp is not None or kd is not None:
+        j = robot.joints[DRIVEN_J]
+        was = (jget(j, "stiffness"), jget(j, "damping"))
+        if kp is not None:
+            j.stiffness = float(kp)
+        if kd is not None:
+            j.damping = float(kd)
+        print(f"  [override {label or 'single'}] {DRIVEN_J} drive gains {was} -> "
+              f"({jget(j, 'stiffness')}, {jget(j, 'damping')})  [per-radian view convention]")
+    if spi is not None:
+        was = robot.solver_position_iteration_count
+        robot.solver_position_iteration_count = int(spi)
+        print(f"  [override {label or 'single'}] solverPositionIterationCount {was} -> "
+              f"{robot.solver_position_iteration_count}")
+    print(f"  [override {label or 'single'}] wrote {wrote or '(no mimic change)'}"
+          + (f"; max_effort {eff[0]} -> {eff[1]}" if eff else "; max_effort unchanged"))
+    live = mimic_state()
+    bad = [k for k, v in wrote.items() if live.get(k) is None or abs(live[k] - v) > 1e-6 * max(1.0, abs(v))]
+    print(f"  [override {label or 'single'}] READBACK "
+          + ", ".join(f"{k.split('.')[0]}.{k.split('.')[-1]}={live[k]}" for k in sorted(wrote))
+          + (f"   *** MISMATCH on {bad} ***" if bad else "   (all writes read back)"))
+    assert not bad, f"mimic write did not stick: {bad}"
+    return dict(live_mimic=live, max_effort=jget(robot.joints[DRIVEN_J], "max_effort"),
+                stiffness=jget(robot.joints[DRIVEN_J], "stiffness"),
+                damping=jget(robot.joints[DRIVEN_J], "damping"),
+                solver_pos_iter=int(robot.solver_position_iteration_count),
+                solver_vel_iter=int(robot.solver_velocity_iteration_count))
+
+
+OVERRIDE_SINGLE = None
+if any(v is not None for v in (args.mimic_nf, args.mimic_dr, args.outer_nf, args.outer_dr,
+                              args.max_effort, args.solver_pos_iter, args.drive_kp,
+                              args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping)):
+    hdr("APPLYING THE SINGLE-SHOT OVERRIDE (before the calibration sweep, so the reference curve "
+        "belongs to THIS configuration)")
+    OVERRIDE_SINGLE = apply_override(args.mimic_nf, args.mimic_dr, args.outer_nf, args.outer_dr,
+                                     args.max_effort, args.solver_pos_iter, args.drive_kp,
+                                     args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping)
+
 print("\n  finger link geometry:")
 p8_0, q8_0 = robot.links[L8].get_position_orientation()
 for ln in FL:
@@ -339,7 +674,7 @@ def measure(tag, cmd):
     c_a = float(cp @ a)
     pads_mid = (pl + pr) / 2.0
     return dict(
-        tag=tag, cmd=cmd,
+        tag=tag, cmd=cmd, rung=RUNG,
         q=q,
         sep_origin=float(np.linalg.norm(pr - pl)),           # link-origin separation
         gap_hull=r_in - l_in,                                # hull gap (constant offset, see above)
@@ -370,19 +705,27 @@ frames, frames_wide, rows = [], [], []
 
 
 def snap(o):
+    # --video 0 skips the frame COPY, not just the encode: a 12-rung sweep is ~2500 steps and at
+    # 720x1280x3 that would be 20+ GB of retained RGB.
+    if not args.video:
+        return
     ext = o.get("external", {})
     if "external_sensor0" in ext:
         frames.append(ext["external_sensor0"]["rgb"].cpu().numpy()[..., :3].copy())
-    if "external_sensor1" in ext:
+    if "external_sensor1" in ext and not RUNGS_SPEC:
         frames_wide.append(ext["external_sensor1"]["rgb"].cpu().numpy()[..., :3].copy())
 
 
-ZERO = dict(sep=None, hull=None)   # jaw-gap zeros, filled in from the free close (see measure())
+# Jaw-gap zeros, one set PER RUNG. Softening the mimic constraint can in principle shift the
+# unloaded closed pose too, so every rung takes its own free close and every row remembers which
+# rung it belongs to; sharing one zero across rungs would fold that shift into the "compliance".
+RUNG = ""
+ZEROS = {"": dict(sep=None, hull=None)}
 
 
 def jaw(r, which="sep"):
-    """Physical jaw gap (m): the raw measure minus its own value at full unloaded closure."""
-    z = ZERO[which]
+    """Physical jaw gap (m): the raw measure minus ITS OWN RUNG's value at full unloaded closure."""
+    z = ZEROS.get(r.get("rung", ""), ZEROS[""])[which]
     v = r["sep_origin"] if which == "sep" else r["gap_hull"]
     return v if z is None else v - z
 
@@ -438,71 +781,28 @@ try:
 except Exception as e:
     print(f"  [warn] could not reposition external_sensor0, keeping the scene view: {e!r}")
 
-# ---------------------------------------------------------------- phase 1
-hdr("PHASE 1: OPEN -- the reference state")
-r_open = do("open", GRIP_OPEN, args.open_steps, verbose_every=10)
-
-# ---------------------------------------------------------------- phase 2
-# Park the cube out of the way so it cannot interact; it comes back for phases 3 and 4. Gravity goes
-# off first and stays off for the parking (below the floor plane, where nothing can be touched) as
-# well as for the squeezes themselves -- an OPEN hand cannot hold an unsupported object up, and
-# letting it free-fall while the jaws close would end the experiment before it starts.
+# ---------------------------------------------------------------- reusable phase blocks
+# Every phase below is a function so that a SWEEP (--rungs) can repeat the whole open -> calibrate ->
+# free-close -> squeeze cycle once per mimic/effort configuration inside a single process. That
+# matters for more than boot time: all rungs then share one scene instance, one contact-view layout
+# and one arm pose, so a rung-to-rung difference cannot be a boot-to-boot difference. Repeating a
+# rung gives the error bar directly.
 cube_home = _np(cube.get_position_orientation()[0])
-cube.disable_gravity()
-cube.set_position_orientation(th.tensor(cube_home + np.array([0.0, 0.0, -1.3]), dtype=th.float32))
-cube.keep_still()
+CUBE_MASS0 = float(cube.root_link.mass)
 
-hdr("PHASE 1b: SLOW UNLOADED SWEEP -- the linkage's KINEMATICS, densely sampled")
-# The binary drive is a position target with isaac_kp=1e7, which slews the whole 0.785 rad in ONE
-# 15 Hz control step: the free close below yields only ~3 distinct driven-joint angles, and linear
-# interpolation between them misses the four-bar's curvature by 2-3 mm -- twenty times the deflection
-# being measured. So the calibration curve is taken with the leader's drive gains temporarily
-# softened, which slows the sweep without changing the KINEMATIC relation it records (the sweep is
-# unloaded and quasi-static; only the geometry is being read).
-#
-# The poke goes straight onto the joint rather than into the controller config because it must be
-# reversible inside one process. That is only safe because this probe never calls og.sim.stop()/
-# play(): simulator.py re-applies update_controller_mode() on every play, which would silently
-# restore isaac_kp/isaac_kd. Any PERMANENT gain change belongs in the gripper_0 controller config.
-CAL_ROWS = []
-if args.cal_steps > 0:
-    # EVERY controlled DOF, not just the first: the stock asset drives four gripper joints, so
-    # softening one of them leaves the close as fast (and the sweep as sparse) as before.
-    leads = [robot.joints[joint_names[int(i)]] for i in CTRL_DOF]
-    gains0 = [(float(_np(j.stiffness)), float(_np(j.damping))) for j in leads]
-    try:
-        for j in leads:
-            j.stiffness = args.cal_kp
-            j.damping = args.cal_kd
-        print(f"  driven-joint gains {[f'{k:.1e}/{d:.1e}' for k, d in gains0]} -> "
-              f"{[f'{float(_np(j.stiffness)):.1e}/{float(_np(j.damping)):.1e}' for j in leads]}")
-        do("cal_close", GRIP_CLOSE, args.cal_steps, verbose_every=8)
-        do("cal_open", GRIP_OPEN, args.cal_steps, verbose_every=8)
-        CAL_ROWS = phase("cal_close") + phase("cal_open")
-    finally:
-        for j, (k, d) in zip(leads, gains0):
-            j.stiffness = k
-            j.damping = d
-        print(f"  gains restored to "
-              f"{[f'{float(_np(j.stiffness)):.1e}/{float(_np(j.damping)):.1e}' for j in leads]} "
-              f"(must equal {[f'{k:.1e}/{d:.1e}' for k, d in gains0]})")
-    do("reopen_cal", GRIP_OPEN, 10, verbose_every=9)
-    qs = np.array([r["q"][int(CTRL_DOF[0])] for r in CAL_ROWS])
-    print(f"  swept {len(CAL_ROWS)} samples, driven joint {qs.min():+.4f} .. {qs.max():+.4f}, "
-          f"{len(np.unique(np.round(qs, 4)))} distinct values")
 
-hdr("PHASE 2: FREE CLOSE -- nothing between the jaws, at the real drive gains")
-r_free = do("free_close", GRIP_CLOSE, args.close_steps, verbose_every=6)
-# Full unloaded closure = pads touching = zero physical gap. Everything reported as a "jaw gap" from
-# here on is relative to this, which is what makes the two assets comparable.
-ZERO["sep"] = r_free["sep_origin"]
-ZERO["hull"] = r_free["gap_hull"]
-print(f"  jaw-gap zeros taken at full closure: sep_origin={ZERO['sep'] * 1000:.3f} mm, "
-      f"gap_hull={ZERO['hull'] * 1000:.3f} mm -> both now read 0.000 mm when shut")
-print(f"  jaws OPEN therefore measured {jaw(r_open) * 1000:.2f} mm (sep) / "
-      f"{jaw(r_open, 'hull') * 1000:.2f} mm (hull) -- these two agreeing is the cross-check")
+def park_cube():
+    """Park the cube 1.3 m below its home, gravity off, where it can touch nothing.
 
-# ---------------------------------------------------------------- object placement
+    Gravity stays off for the parking AND for the squeezes: an OPEN hand cannot hold an unsupported
+    object up, and letting it free-fall while the jaws travel would end the experiment before it
+    starts. It is restored only in the explicit hold test.
+    """
+    cube.disable_gravity()
+    cube.set_position_orientation(th.tensor(cube_home + np.array([0.0, 0.0, -1.3]), dtype=th.float32))
+    cube.keep_still()
+
+
 def place_cube():
     """Cube centred between the pads, one face normal exactly along the closing axis."""
     p8, R8 = T8()
@@ -518,18 +818,76 @@ def place_cube():
     return M_pads
 
 
-for label, mass, grav_after in (("A", None, True), ("B", args.pin_mass, False)):
-    hdr(f"PHASE 3{label}: REOPEN, then SQUEEZE "
+def cal_sweep(pfx=""):
+    """Slow UNLOADED sweep -> the linkage's kinematics, densely sampled. Returns the rows.
+
+    The binary drive is a position target with isaac_kp=1e7, which slews the whole 0.785 rad in ONE
+    15 Hz control step: the free close yields only ~3-6 distinct driven-joint angles, and linear
+    interpolation between them misses the four-bar's curvature by 2-3 mm -- twenty times the
+    deflection being measured. So this curve is taken with the leader's drive gains temporarily
+    softened, which slows the sweep without changing the KINEMATIC relation it records (the sweep is
+    unloaded and quasi-static; only the geometry is being read).
+
+    The poke goes straight onto the joint rather than into the controller config because it must be
+    reversible inside one process. That is only safe because this probe does not call og.sim.play()
+    between here and the measurement: simulator.py re-applies update_controller_mode() on every play,
+    which would silently restore isaac_kp/isaac_kd. A PERMANENT gain change belongs in gripper_0.
+    """
+    if args.cal_steps <= 0:
+        return []
+    # EVERY controlled DOF, not just the first: the stock asset drives four gripper joints, so
+    # softening one of them leaves the close as fast (and the sweep as sparse) as before.
+    leads = [robot.joints[joint_names[int(i)]] for i in CTRL_DOF]
+    gains0 = [(float(_np(j.stiffness)), float(_np(j.damping))) for j in leads]
+    try:
+        for j in leads:
+            j.stiffness = args.cal_kp
+            j.damping = args.cal_kd
+        print(f"  driven-joint gains {[f'{k:.1e}/{d:.1e}' for k, d in gains0]} -> "
+              f"{[f'{float(_np(j.stiffness)):.1e}/{float(_np(j.damping)):.1e}' for j in leads]}")
+        do(f"{pfx}cal_close", GRIP_CLOSE, args.cal_steps, verbose_every=12)
+        do(f"{pfx}cal_open", GRIP_OPEN, args.cal_steps, verbose_every=12)
+        out = phase(f"{pfx}cal_close") + phase(f"{pfx}cal_open")
+    finally:
+        for j, (k, d) in zip(leads, gains0):
+            j.stiffness = k
+            j.damping = d
+        print(f"  gains restored to "
+              f"{[f'{float(_np(j.stiffness)):.1e}/{float(_np(j.damping)):.1e}' for j in leads]} "
+              f"(must equal {[f'{k:.1e}/{d:.1e}' for k, d in gains0]})")
+    do(f"{pfx}reopen_cal", GRIP_OPEN, 10, verbose_every=9)
+    qs = np.array([r["q"][int(CTRL_DOF[0])] for r in out])
+    print(f"  swept {len(out)} samples, driven joint {qs.min():+.4f} .. {qs.max():+.4f}, "
+          f"{len(np.unique(np.round(qs, 4)))} distinct values")
+    return out
+
+
+def free_close_phase(pfx="", r_open=None):
+    """Unloaded close at the REAL gains. Sets this rung's jaw-gap zeros. Returns the rows."""
+    r_free = do(f"{pfx}free_close", GRIP_CLOSE, args.close_steps, verbose_every=12)
+    # Full unloaded closure = pads touching = zero physical gap. Everything reported as a "jaw gap"
+    # from here on is relative to this, which is what makes rungs and assets comparable.
+    ZEROS[RUNG] = dict(sep=r_free["sep_origin"], hull=r_free["gap_hull"])
+    print(f"  jaw-gap zeros for rung '{RUNG}': sep_origin={ZEROS[RUNG]['sep'] * 1000:.3f} mm, "
+          f"gap_hull={ZEROS[RUNG]['hull'] * 1000:.3f} mm -> both read 0.000 mm when shut")
+    if r_open is not None:
+        print(f"  jaws OPEN therefore measured {jaw(r_open) * 1000:.2f} mm (sep) / "
+              f"{jaw(r_open, 'hull') * 1000:.2f} mm (hull) -- these two agreeing is the cross-check")
+    return phase(f"{pfx}free_close")
+
+
+def squeeze_phase(label, mass, grav_after, pfx=""):
+    """Reopen, place the cube at the pad midpoint, close on it. Returns the hold verdict, if tested."""
+    hdr(f"{pfx}SQUEEZE {label}: REOPEN, then close "
         f"({'mass as authored, free to move' if mass is None else f'mass {mass} kg = immovable'})")
-    do(f"reopen_{label}", GRIP_OPEN, args.open_steps, verbose_every=15)
-    if mass is not None:
-        cube.root_link.mass = float(mass)
-    cube.disable_gravity()                     # an open hand cannot hold it up; see the docstring
+    do(f"{pfx}reopen_{label}", GRIP_OPEN, args.open_steps, verbose_every=15)
+    cube.root_link.mass = CUBE_MASS0 if mass is None else float(mass)
+    cube.disable_gravity()                     # an open hand cannot hold it up; see park_cube()
     M_pads = place_cube()
     cube.keep_still()
     print(f"  cube placed at the pad midpoint {M_pads}, mass = {cube.root_link.mass:.4f} kg, "
           f"gravity DISABLED")
-    do(f"settle_{label}", GRIP_OPEN, 12, verbose_every=6)
+    do(f"{pfx}settle_{label}", GRIP_OPEN, 12, verbose_every=6)
     r_pre = rows[-1]
     print(f"  pre-squeeze: jaw={jaw(r_pre) * 1000:.2f} mm, object {2000 * CUBE_HALF:.2f} mm wide, "
           f"so {(jaw(r_pre) - 2 * CUBE_HALF) * 500:.2f} mm of approach per pad; "
@@ -537,110 +895,131 @@ for label, mass, grav_after in (("A", None, True), ("B", args.pin_mass, False)):
           f"({r_pre['cube_off_a'] * 1000:+.2f} along the closing axis); "
           f"hull-vs-pose diagnostic {r_pre['hull_off'] * 1000:+.1f} mm")
 
-    hdr(f"PHASE 4{label}: SQUEEZE -- binary close onto the object")
-    do(f"squeeze_{label}", GRIP_CLOSE, args.load_steps, verbose_every=5)
+    print(f"  --- squeezing (binary close onto the object)")
+    do(f"{pfx}squeeze_{label}", GRIP_CLOSE, args.load_steps, verbose_every=8)
 
+    held = None
     if grav_after:
-        hdr(f"PHASE 5{label}: RESTORE GRAVITY while still commanding CLOSE -- is it HELD?")
+        print(f"  --- RESTORE GRAVITY while still commanding CLOSE -- is it HELD?")
         cube.enable_gravity()
         try:
             cube.wake()
         except Exception:
             pass
         p_before = _np(cube.get_position_orientation()[0])
-        do(f"gravity_{label}", GRIP_CLOSE, args.grav_steps, verbose_every=10)
+        do(f"{pfx}gravity_{label}", GRIP_CLOSE, args.grav_steps, verbose_every=20)
         p_after = _np(cube.get_position_orientation()[0])
         drop = float(p_before[2] - p_after[2])
+        held = bool(abs(drop) < 0.01)
         print(f"  cube fell {drop * 1000:+.2f} mm in {args.grav_steps} steps "
               f"({args.grav_steps / 15.0:.1f} s); total displacement "
               f"{np.linalg.norm(p_after - p_before) * 1000:.2f} mm")
-        print(f"  VERDICT: {'HELD' if abs(drop) < 0.01 else 'DROPPED / SLIPPED'}")
+        print(f"  VERDICT: {'HELD' if held else 'DROPPED / SLIPPED'}  (drop_mm={drop * 1000:+.3f})")
         cube.disable_gravity()
+        return dict(held=held, drop_mm=drop * 1e3)
+    return dict(held=None, drop_mm=None)
 
 # ---------------------------------------------------------------- analysis
-hdr("ANALYSIS")
 REF = int(CTRL_DOF[0])          # the driven joint the linkage is parameterised by
-print(f"  reference (driven) joint = [{REF}] {joint_names[REF]}")
-
-free = phase("free_close")
-# The unloaded reference curve: the dense slow sweep when there is one, else the 3-point free close.
-cal = CAL_ROWS if len(CAL_ROWS) > len(free) else free
-print(f"  unloaded reference curve = {'slow sweep' if cal is CAL_ROWS else 'free close'}, "
-      f"{len(cal)} samples")
-q_free = np.stack([r["q"] for r in cal])
-ref_free = q_free[:, REF]
-gap_free = np.array([jaw(r, "hull") for r in cal])
-sep_free = np.array([jaw(r) for r in cal])
-order = np.argsort(ref_free)
 
 
-def free_at(vals, x):
-    """The unloaded value of @vals at driven-joint angle @x, from the calibration sweep."""
-    return np.interp(x, ref_free[order], np.asarray(vals)[order])
+def build_cal(cal_rows, free_rows):
+    """The unloaded reference curve + fitted mimic gearing for ONE rung. Returns a dict.
 
-
-# Mimic gearing, fitted on the unloaded sweep: q_follower = G_j * q_leader + O_j. On this asset the
-# PhysX mimic joints make that relation exact to well under a milliradian when unloaded, so the
-# residual under load is a deflection measurement that needs no interpolation at all -- it is the
-# strongest of the compliance numbers here. Fitted rather than read from the USD so that it also
-# works on the stock asset, whose four gripper joints are independently driven and have no mimic API.
-GEAR = {}
-for i in grip_idx:
+    Per-rung rather than global: softening the mimic constraint could in principle change the
+    unloaded kinematics too, and comparing a soft rung's loaded pose against the STIFF rung's
+    unloaded curve would book that change as compliance.
+    """
+    # The dense slow sweep when there is one, else the sparse free close.
+    cal = cal_rows if len(cal_rows) > len(free_rows) else free_rows
+    q_free = np.stack([r["q"] for r in cal])
+    ref_free = q_free[:, REF]
+    order = np.argsort(ref_free)
+    # Mimic gearing, fitted on the unloaded sweep: q_follower = G_j * q_leader + O_j. When the mimic
+    # constraint is rigid this relation is exact to well under a milliradian unloaded, so the residual
+    # under load is a deflection measurement that needs no interpolation at all -- the strongest of
+    # the compliance numbers here. Fitted rather than read from the USD so it also works on the stock
+    # asset, whose four gripper joints are independently driven and have no mimic API.
+    gear = {}
     A = np.stack([ref_free, np.ones_like(ref_free)], axis=1)
-    sol, *_ = np.linalg.lstsq(A, q_free[:, i], rcond=None)
-    resid = q_free[:, i] - (A @ sol)
-    GEAR[int(i)] = (float(sol[0]), float(sol[1]), float(np.abs(resid).max()))
-print("  unloaded follower relation q_j = G*q_ref + O (residual = how rigid the coupling is "
-      "with NO load):")
-for i in grip_idx:
-    G, O, res = GEAR[int(i)]
-    print(f"    {joint_names[i]:<36} G={G:+.5f} O={O:+.6f}  max residual {res:.6f}")
+    for i in grip_idx:
+        sol, *_ = np.linalg.lstsq(A, q_free[:, i], rcond=None)
+        resid = q_free[:, i] - (A @ sol)
+        gear[int(i)] = (float(sol[0]), float(sol[1]), float(np.abs(resid).max()))
+    return dict(rows=cal, is_sweep=cal is cal_rows, q_free=q_free, ref_free=ref_free, order=order,
+                gap_free=np.array([jaw(r, "hull") for r in cal]),
+                sep_free=np.array([jaw(r) for r in cal]), gear=gear)
 
 
-print(f"\n  UNLOADED EXTREMES (phase 1 open -> phase 2 shut)")
-print(f"    open : jaw={jaw(r_open) * 1000:8.2f} mm (hull {jaw(r_open, 'hull') * 1000:.2f})  "
-      f"raw sep_origin={r_open['sep_origin'] * 1000:7.2f} mm  q_ref={r_open['q'][REF]:+.5f}")
-print(f"    shut : jaw={jaw(free[-1]) * 1000:8.2f} mm (hull {jaw(free[-1], 'hull') * 1000:.2f})  "
-      f"raw sep_origin={free[-1]['sep_origin'] * 1000:7.2f} mm  q_ref={free[-1]['q'][REF]:+.5f}")
-print(f"    gripper joints open -> shut:")
-for i in grip_idx:
-    print(f"      {joint_names[i]:<36} {r_open['q'][i]:+.6f} -> {free[-1]['q'][i]:+.6f}  "
-          f"(travel {free[-1]['q'][i] - r_open['q'][i]:+.6f})")
-if CLOSE_TARGET is not None:
-    print(f"    commanded close target = {CLOSE_TARGET}; unloaded residual "
-          f"{CLOSE_TARGET - free[-1]['q'][CTRL_DOF]}")
+def free_at(cal, vals, x):
+    """The unloaded value of @vals at driven-joint angle @x, from @cal's sweep."""
+    return np.interp(x, cal["ref_free"][cal["order"]], np.asarray(vals)[cal["order"]])
+
+
+def report_cal(cal, r_open, free_rows):
+    print(f"  reference (driven) joint = [{REF}] {joint_names[REF]}")
+    print(f"  unloaded reference curve = {'slow sweep' if cal['is_sweep'] else 'free close'}, "
+          f"{len(cal['rows'])} samples")
+    print("  unloaded follower relation q_j = G*q_ref + O (residual = how rigid the coupling is "
+          "with NO load):")
+    for i in grip_idx:
+        G, O, res = cal["gear"][int(i)]
+        print(f"    {joint_names[i]:<36} G={G:+.5f} O={O:+.6f}  max residual {res:.6f}")
+    print(f"\n  UNLOADED EXTREMES (open -> unloaded shut)")
+    print(f"    open : jaw={jaw(r_open) * 1000:8.2f} mm (hull {jaw(r_open, 'hull') * 1000:.2f})  "
+          f"raw sep_origin={r_open['sep_origin'] * 1000:7.2f} mm  q_ref={r_open['q'][REF]:+.5f}")
+    fl = free_rows[-1]
+    print(f"    shut : jaw={jaw(fl) * 1000:8.2f} mm (hull {jaw(fl, 'hull') * 1000:.2f})  "
+          f"raw sep_origin={fl['sep_origin'] * 1000:7.2f} mm  q_ref={fl['q'][REF]:+.5f}")
+    print(f"    gripper joints open -> shut:")
+    for i in grip_idx:
+        print(f"      {joint_names[i]:<36} {r_open['q'][i]:+.6f} -> {fl['q'][i]:+.6f}  "
+              f"(travel {fl['q'][i] - r_open['q'][i]:+.6f})")
+    if CLOSE_TARGET is not None:
+        print(f"    commanded close target = {CLOSE_TARGET}; unloaded residual "
+              f"{CLOSE_TARGET - fl['q'][CTRL_DOF]}")
+
+
+def grip_params():
+    return {joint_names[i]: dict(
+        stiffness=jget(robot.joints[joint_names[i]], "stiffness"),
+        damping=jget(robot.joints[joint_names[i]], "damping"),
+        max_effort=jget(robot.joints[joint_names[i]], "max_effort"),
+        is_mimic=jget(robot.joints[joint_names[i]], "is_mimic_joint"),
+        driven=jget(robot.joints[joint_names[i]], "driven")) for i in grip_idx}
+
 
 summary = dict(robot=ROBOT, task=args.task_cfg, joint_names=joint_names,
-               ref_joint=joint_names[REF],
+               ref_joint=joint_names[REF], tag=args.tag,
                isaac_kp=None if CLOSE_TARGET is None else (
                    None if gc.isaac_kp is None else _np(gc.isaac_kp).tolist()),
                isaac_kd=None if CLOSE_TARGET is None else (
                    None if gc.isaac_kd is None else _np(gc.isaac_kd).tolist()),
-               grip_joint_params={joint_names[i]: dict(
-                   stiffness=jget(robot.joints[joint_names[i]], "stiffness"),
-                   damping=jget(robot.joints[joint_names[i]], "damping"),
-                   max_effort=jget(robot.joints[joint_names[i]], "max_effort"),
-                   is_mimic=jget(robot.joints[joint_names[i]], "is_mimic_joint"),
-                   driven=jget(robot.joints[joint_names[i]], "driven")) for i in grip_idx},
-               gearing={joint_names[i]: GEAR[int(i)] for i in grip_idx},
-               open=dict(jaw_mm=jaw(r_open) * 1e3, jaw_hull_mm=jaw(r_open, "hull") * 1e3,
-                         sep_mm=r_open["sep_origin"] * 1e3, q=r_open["q"].tolist()),
-               free_shut=dict(jaw_mm=jaw(free[-1]) * 1e3, sep_mm=free[-1]["sep_origin"] * 1e3,
-                              q=free[-1]["q"].tolist()),
+               mimic_authored={k: (None if v is None else float(v)) for k, v in MIMIC0.items()},
+               mimic_nf_in_schema=NF_IN_SCHEMA, mimic_schema_props=SCHEMA_PROPS,
+               compliant_contact_in_schema=CC_IN_SCHEMA,
+               pad_materials=[str(v.GetPath()) for v in PAD_MATS.values()],
+               mimic_joints=MIMIC_JOINTS, inner_mimic=INNER_MIMIC, driven_joint=DRIVEN_J,
+               max_effort_authored=EFFORT0,
+               override_single=None if OVERRIDE_SINGLE is None else dict(
+                   mimic_nf=args.mimic_nf, mimic_dr=args.mimic_dr, outer_nf=args.outer_nf,
+                   outer_dr=args.outer_dr, max_effort=args.max_effort,
+                   solver_pos_iter=args.solver_pos_iter, drive_kp=args.drive_kp,
+                   drive_kd=args.drive_kd, pad_cc_stiffness=args.pad_cc_stiffness,
+                   pad_cc_damping=args.pad_cc_damping),
                close_target=None if CLOSE_TARGET is None else CLOSE_TARGET.tolist(),
-               ctrl_dof=[int(i) for i in CTRL_DOF], squeezes={})
+               ctrl_dof=[int(i) for i in CTRL_DOF], squeezes={}, rungs={})
 
-for label in ("A", "B"):
-    sq = phase(f"squeeze_{label}")
-    if not sq:
-        continue
-    pre = phase(f"settle_{label}")[-1]
-    hdr(f"SQUEEZE {label}: {'free object' if label == 'A' else 'immovable object'}")
+
+def analyse(label, cal, sq, pre, r_open, free_rows):
+    """The full per-squeeze compliance report. Returns the summary dict (None if never in contact)."""
+    hdr(f"ANALYSIS {label}")
+    report_cal(cal, r_open, free_rows)
     touch = [i for i, r in enumerate(sq) if r["n_contact"] > 0]
     both = [i for i, r in enumerate(sq) if r["n_contact"] == 2]
     if not touch:
         print("  NO CONTACT AT ALL -- the jaws never reached the object. Nothing to report.")
-        continue
+        return None
     c0 = sq[touch[0]]
     cb = sq[both[0]] if both else None
     last = sq[-1]
@@ -670,7 +1049,7 @@ for label in ("A", "B"):
           f"the whole time)")
     if CLOSE_TARGET is not None:
         for k, i in enumerate(CTRL_DOF):
-            span = free[-1]["q"][i] - r_open["q"][i]
+            span = free_rows[-1]["q"][i] - r_open["q"][i]
             res = CLOSE_TARGET[k] - last["q"][i]
             print(f"    {joint_names[i]:<36} stalled at {last['q'][i]:+.6f}, target "
                   f"{CLOSE_TARGET[k]:+.6f}  -> unresolved {res:+.6f} "
@@ -680,8 +1059,8 @@ for label in ("A", "B"):
 
     print(f"\n  COMPLIANCE = deviation from the UNLOADED linkage at the SAME driven angle "
           f"(q_ref={ref_l:+.6f})")
-    gap_pred = free_at(gap_free, ref_l)
-    sep_pred = free_at(sep_free, ref_l)
+    gap_pred = free_at(cal, cal["gap_free"], ref_l)
+    sep_pred = free_at(cal, cal["sep_free"], ref_l)
     print(f"    jaw gap (hull) : loaded {jaw(last, 'hull') * 1000:8.3f} mm vs unloaded-at-same-q "
           f"{gap_pred * 1000:8.3f} mm  -> FLEX {(jaw(last, 'hull') - gap_pred) * 1000:+8.3f} mm")
     print(f"    jaw gap (orig) : loaded {jaw(last) * 1000:8.3f} mm vs "
@@ -690,9 +1069,9 @@ for label in ("A", "B"):
     print(f"    per gripper joint (rad or m), two independent estimators:")
     print(f"      {'joint':<36} {'loaded':>10} {'interp':>10} {'FLEX':>10} {'G*q+O':>10} {'FLEX':>10}")
     for i in grip_idx:
-        pred = free_at(q_free[:, i], ref_l)
+        pred = free_at(cal, cal["q_free"][:, i], ref_l)
         d = last["q"][i] - pred
-        G, O, _ = GEAR[int(i)]
+        G, O, _ = cal["gear"][int(i)]
         pg = G * ref_l + O
         dg = last["q"][i] - pg
         devs[joint_names[i]] = float(d)
@@ -700,12 +1079,12 @@ for label in ("A", "B"):
         print(f"      {joint_names[i]:<36} {last['q'][i]:+10.6f} {pred:+10.6f} {d:+10.6f} "
               f"{pg:+10.6f} {dg:+10.6f}")
     # Worst flex over the whole squeeze, not only at the last step.
-    flex_traj = np.array([jaw(r, "hull") - free_at(gap_free, r["q"][REF]) for r in sq])
+    flex_traj = np.array([jaw(r, "hull") - free_at(cal, cal["gap_free"], r["q"][REF]) for r in sq])
     joint_flex_traj = {joint_names[i]: float(np.abs(
-        np.array([r["q"][i] - free_at(q_free[:, i], r["q"][REF]) for r in sq])).max())
+        np.array([r["q"][i] - free_at(cal, cal["q_free"][:, i], r["q"][REF]) for r in sq])).max())
         for i in grip_idx}
     joint_flex_gear = {joint_names[i]: float(np.abs(
-        np.array([r["q"][i] - (GEAR[int(i)][0] * r["q"][REF] + GEAR[int(i)][1]) for r in sq])).max())
+        np.array([r["q"][i] - (cal["gear"][int(i)][0] * r["q"][REF] + cal["gear"][int(i)][1]) for r in sq])).max())
         for i in grip_idx}
     worst_j = max(joint_flex_traj, key=joint_flex_traj.get)
     worst_g = max(joint_flex_gear, key=joint_flex_gear.get)
@@ -721,7 +1100,7 @@ for label in ("A", "B"):
     print(f"    max arm joint deviation from hold    = "
           f"{max(r['arm_dev'] for r in sq):.2e} rad (the arm is NOT what moved)")
     print(f"    jaw travel from pre-squeeze to end   = {(jaw(pre) - jaw(last)) * 1000:.3f} mm")
-    summary["squeezes"][label] = dict(
+    out = dict(
         first_contact_step=int(touch[0]), both_pads_step=None if not both else int(both[0]),
         touching_final=last["touching"],
         obj_width_mm=OBJ_W * 1e3,
@@ -742,6 +1121,164 @@ for label in ("A", "B"):
         blocked_jaw_mm=float(jaw(last) * 1e3),
         max_arm_dev=float(max(r["arm_dev"] for r in sq)),
     )
+    # Per-newton jaw softness, the number the two assets were compared on: how far the pads went past
+    # the object's own surface, divided by the peak pad force. Higher = softer.
+    out["um_per_N"] = (float("nan") if not out["max_force_N"]
+                       else out["past_object_width_mm"] * 1e3 / out["max_force_N"])
+    out["n_contact_final"] = int(last["n_contact"])
+    out["frac_both_pads"] = float(np.mean([r["n_contact"] == 2 for r in sq]))
+    out["mimic_live"] = {k: (None if v is None else float(v)) for k, v in mimic_state().items()}
+    out["pad_cc_live"] = {k: (None if v is None else float(v)) for k, v in pad_cc_state().items()}
+    out["max_effort_live"] = jget(robot.joints[DRIVEN_J], "max_effort")
+    out["stiffness_live"] = jget(robot.joints[DRIVEN_J], "stiffness")
+    out["damping_live"] = jget(robot.joints[DRIVEN_J], "damping")
+    print(f"    jaw softness per newton               = {out['um_per_N']:.1f} um/N")
+    print(f"    pad contacts at the end / fraction of the squeeze with BOTH pads touching = "
+          f"{out['n_contact_final']} / {out['frac_both_pads']:.2f}   "
+          f"(is_grasping needs both -- a rung that bends but loses a pad breaks grasp detection)")
+    return out
+
+
+# ================================================================= RUN
+if not RUNGS_SPEC:
+    # ---- the original single-configuration run: OPEN -> sweep -> free close -> squeeze A -> squeeze B
+    hdr("PHASE 1: OPEN -- the reference state")
+    r_open = do("open", GRIP_OPEN, args.open_steps, verbose_every=10)
+    park_cube()
+    hdr("PHASE 1b: SLOW UNLOADED SWEEP -- the linkage's KINEMATICS, densely sampled")
+    CAL_ROWS = cal_sweep()
+    hdr("PHASE 2: FREE CLOSE -- nothing between the jaws, at the real drive gains")
+    free = free_close_phase(r_open=r_open)
+    CAL = build_cal(CAL_ROWS, free)
+    holds = {}
+    for label, mass, grav_after in (("A", None, True), ("B", args.pin_mass, False)):
+        holds[label] = squeeze_phase(label, mass, grav_after)
+    for label in ("A", "B"):
+        sq = phase(f"squeeze_{label}")
+        if not sq:
+            continue
+        res = analyse(f"{label}: {'free object' if label == 'A' else 'immovable object'}",
+                      CAL, sq, phase(f"settle_{label}")[-1], r_open, free)
+        if res is not None:
+            res.update(holds[label])
+            summary["squeezes"][label] = res
+    summary["grip_joint_params"] = grip_params()
+    summary["gearing"] = {joint_names[i]: CAL["gear"][int(i)] for i in grip_idx}
+    summary["open"] = dict(jaw_mm=jaw(r_open) * 1e3, jaw_hull_mm=jaw(r_open, "hull") * 1e3,
+                           sep_mm=r_open["sep_origin"] * 1e3, q=r_open["q"].tolist())
+    summary["free_shut"] = dict(jaw_mm=jaw(free[-1]) * 1e3, sep_mm=free[-1]["sep_origin"] * 1e3,
+                                q=free[-1]["q"].tolist())
+    RUNG_SPANS = []
+else:
+    # ---- SWEEP: one full open/calibrate/free-close/squeeze cycle per mimic-or-effort configuration
+    def parse_rungs(spec):
+        out = []
+        for part in spec.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            name, _, vals = part.partition("=")
+            fields = (vals.split("/") + ["-"] * 10)[:10]
+            conv = lambda s: None if s.strip() in ("-", "") else float(s)  # noqa: E731
+            out.append(dict(name=name.strip(), nf=conv(fields[0]), dr=conv(fields[1]),
+                            onf=conv(fields[2]), odr=conv(fields[3]), me=conv(fields[4]),
+                            spi=None if conv(fields[5]) is None else int(conv(fields[5])),
+                            kp=conv(fields[6]), kd=conv(fields[7]),
+                            ccs=conv(fields[8]), ccd=conv(fields[9])))
+        return out
+
+    RUNGS = parse_rungs(RUNGS_SPEC)
+    hdr(f"SWEEP MODE -- {len(RUNGS)} rungs in ONE process")
+    for k, rg in enumerate(RUNGS):
+        print(f"  [{k}] {rg['name']:<14} inner nf={rg['nf']} dr={rg['dr']}   "
+              f"{OUTER_J} nf={rg['onf']} dr={rg['odr']}   max_effort={rg['me']}  "
+              f"solver_pos_iter={rg['spi']}  kp={rg['kp']} kd={rg['kd']}  "
+              f"cc={rg['ccs']}/{rg['ccd']}")
+    print("  Every rung takes its OWN unloaded calibration sweep and free close, so its jaw-gap zero "
+          "and reference kinematics belong to its own configuration.")
+    print("  A repeated rung is the ERROR BAR: if 'default' and its repeat differ by X, no other "
+          "rung's difference below X means anything.")
+    RUNG_SPANS = []
+    for k, rg in enumerate(RUNGS):
+        RUNG = rg["name"] if rg["name"] not in ZEROS else f"{rg['name']}#{k}"
+        ZEROS[RUNG] = dict(sep=None, hull=None)
+        f0 = len(rows)
+        hdr(f"RUNG {k + 1}/{len(RUNGS)}: {RUNG}   inner nf={rg['nf']} dr={rg['dr']}  "
+            f"outer nf={rg['onf']} dr={rg['odr']}  max_effort={rg['me']}  spi={rg['spi']}  "
+            f"kp={rg['kp']} kd={rg['kd']}  cc={rg['ccs']}/{rg['ccd']}")
+        live = apply_override(rg["nf"], rg["dr"], rg["onf"], rg["odr"], rg["me"], rg["spi"],
+                              rg["kp"], rg["kd"], rg["ccs"], rg["ccd"], label=RUNG)
+        park_cube()
+        p = f"{RUNG}_"
+        r_open = do(f"{p}open", GRIP_OPEN, args.open_steps, verbose_every=15)
+        CAL_ROWS = cal_sweep(p)
+        free = free_close_phase(p, r_open=r_open)
+        CAL = build_cal(CAL_ROWS, free)
+        rec = dict(name=RUNG, spec=rg, live=live, squeezes={})
+        for label, mass, grav_after in ((("A", None, True),) if args.rung_free else ()) + \
+                                       (("B", args.pin_mass, False),):
+            hold = squeeze_phase(label, mass, grav_after, pfx=p)
+            sq = phase(f"{p}squeeze_{label}")
+            res = analyse(f"{RUNG} / {label}", CAL, sq, phase(f"{p}settle_{label}")[-1], r_open, free)
+            if res is not None:
+                res.update(hold)
+                rec["squeezes"][label] = res
+        rec["open_jaw_mm"] = jaw(r_open) * 1e3
+        rec["free_shut_q_ref"] = float(free[-1]["q"][REF])
+        rec["gear_resid"] = {joint_names[i]: CAL["gear"][int(i)][2] for i in grip_idx}
+        summary["rungs"][RUNG] = rec
+        RUNG_SPANS.append((RUNG, f0, len(rows)))
+        park_cube()
+    RUNG = ""
+
+    # ---- the cross-rung table, and the check that the knob did anything at all
+    hdr("SWEEP TABLE -- squeeze B (immovable object), the clean compliance number")
+    print(f"  {'rung':<16} {'inner nf':>9} {'dr':>6} {'outer nf':>10} {'odr':>5} {'maxeff':>7} {'spi':>4} {'kp':>9} "
+          f"{'jaw@stall':>10} {'past obj':>9} {'jawflex':>8} {'unres q':>8} {'F_l':>7} {'F_r':>7} "
+          f"{'Fmax':>7} {'jflex':>8} {'um/N':>7} {'pads':>5} {'held':>5} {'gresid':>8} {'cc':>10}")
+    tbl = []
+    for name, rec in summary["rungs"].items():
+        b = rec["squeezes"].get("B")
+        a = rec["squeezes"].get("A")
+        sp = rec["spec"]
+        if b is None:
+            print(f"  {name:<16} (no contact)")
+            continue
+        jf = max(b["max_joint_flex_gear"].values()) if b["max_joint_flex_gear"] else float("nan")
+        unres = (None if CLOSE_TARGET is None
+                 else float(CLOSE_TARGET[0] - b["q_ref_final"]))
+        print(f"  {name:<16} {str(sp['nf']):>9} {str(sp['dr']):>6} {str(sp['onf']):>10} "
+              f"{str(sp['odr']):>5} {str(sp['me']):>7} {str(sp['spi']):>4} {str(sp['kp']):>9} "
+              f"{b['jaw_final_mm']:>10.3f} {b['past_object_width_mm']:>+9.3f} "
+              f"{b['gap_flex_mm']:>+8.3f} {(float('nan') if unres is None else unres):>8.4f} "
+              f"{b['force_l_N']:>7.2f} {b['force_r_N']:>7.2f} {b['max_force_N']:>7.2f} "
+              f"{jf:>8.5f} {b['um_per_N']:>7.1f} {b['n_contact_final']:>5} "
+              f"{'-' if a is None else ('YES' if a.get('held') else 'NO'):>5} "
+              f"{max(rec['gear_resid'].values()):>8.5f} {str(sp['ccs']):>10}")
+        tbl.append((name, b))
+    if len(tbl) > 1:
+        jaws = np.array([b["jaw_final_mm"] for _, b in tbl])
+        forces = np.array([b["max_force_N"] for _, b in tbl])
+        spread = float(jaws.max() - jaws.min())
+        print(f"\n  jaw-at-stall spread across all rungs = {spread:.4f} mm "
+              f"({jaws.min():.3f} .. {jaws.max():.3f}); peak force {forces.min():.1f} .. "
+              f"{forces.max():.1f} N")
+        # Repeated rung names (default / default#N) bound the noise. Anything under that is nothing.
+        base = {}
+        for name, b in tbl:
+            base.setdefault(name.split("#")[0], []).append(b["jaw_final_mm"])
+        reps = {k: v for k, v in base.items() if len(v) > 1}
+        if reps:
+            noise = max(max(v) - min(v) for v in reps.values())
+            print(f"  REPEATABILITY from repeated rungs {list(reps)}: "
+                  + "; ".join(f"{k}: {['%.4f' % x for x in v]}" for k, v in reps.items())
+                  + f"  -> noise floor {noise:.4f} mm")
+            print(f"  VERDICT_SPREAD_VS_NOISE spread={spread:.4f} mm noise={noise:.4f} mm -> "
+                  f"{'REAL EFFECT' if spread > 3 * noise else 'INDISTINGUISHABLE FROM NOISE'}")
+        if spread < 1e-6:
+            print("  IDENTICAL_RUNGS: every rung produced the same jaw gap to the micron. Either the "
+                  "knob is inert in this build or the write never reached PhysX -- see the schema "
+                  "check in the identity block; do NOT read these rows as a compliance measurement.")
 
 # ---------------------------------------------------------------- outputs
 hdr("WRITING VIDEO AND RAW DATA")
@@ -750,8 +1287,9 @@ tags = [r["tag"] for r in rows]
 gaps = np.array([jaw(r) for r in rows])       # calibrated jaw gap, used for the video overlay too
 
 np.savez_compressed(
-    os.path.join(OUT, f"{ROBOT}_squeeze.npz"),
+    os.path.join(OUT, f"{PFX}_squeeze.npz"),
     q=np.stack([r["q"] for r in rows]), tag=np.array(tags),
+    rung=np.array([r.get("rung", "") for r in rows]),
     # Raw measures AND their calibrated forms, named so they cannot be confused: `jaw_*` are
     # zeroed at full unloaded closure, `*_raw` are not. (Runs before 2026-08-14 16:00 wrote the
     # calibrated origin measure under the key `gap_hull`, which read as if it were the raw hull.)
@@ -770,9 +1308,9 @@ np.savez_compressed(
     arm_dev=np.array([r["arm_dev"] for r in rows]),
     joint_names=np.array(joint_names),
 )
-with open(os.path.join(OUT, f"{ROBOT}_squeeze.json"), "w") as f:
+with open(os.path.join(OUT, f"{PFX}_squeeze.json"), "w") as f:
     json.dump(summary, f, indent=2, default=float)
-print(f"  wrote {OUT}/{ROBOT}_squeeze.npz and .json ({len(rows)} steps)")
+print(f"  wrote {OUT}/{PFX}_squeeze.npz and .json ({len(rows)} steps)")
 
 
 def annotate(im, i):
@@ -787,7 +1325,7 @@ def annotate(im, i):
         font = ImageFont.load_default(size=max(18, im.shape[0] // 26))
     except TypeError:
         font = ImageFont.load_default()
-    txt = (f"{ROBOT}   {tags[i]}   step {i}\n"
+    txt = (f"{PFX}   {tags[i]}   step {i}\n"
            f"jaw gap {gaps[i] * 1000:7.2f} mm   contacts {rows[i]['n_contact']}   "
            f"F {rows[i]['f_l']:.1f}/{rows[i]['f_r']:.1f} N")
     d.rectangle([0, 0, im.shape[1], int(im.shape[0] * 0.13)], fill=(0, 0, 0))
@@ -797,12 +1335,8 @@ def annotate(im, i):
 
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip  # noqa: E402
 
-written = []
-for name, seq, crop in (("closeup", frames, False), ("closeup_ZOOM", frames, True),
-                        ("wide", frames_wide, False)):
-    if not seq:
-        continue
-    out = os.path.join(OUT, f"{ROBOT}_squeeze_{name}.mp4")
+
+def write_mp4(path, seq, offset, crop):
     ims = []
     for i, fr in enumerate(seq):
         if crop:
@@ -811,12 +1345,80 @@ for name, seq, crop in (("closeup", frames, False), ("closeup_ZOOM", frames, Tru
             # centre crop is exactly the zoom.
             ch, cw = h // 4, w // 4
             fr = fr[h // 2 - ch: h // 2 + ch, w // 2 - cw: w // 2 + cw]
-        ims.append(annotate(np.ascontiguousarray(fr), min(i, len(rows) - 1)))
-    ImageSequenceClip(ims, fps=args.fps).write_videofile(out, codec="libx264", audio=False,
-                                                          logger=None)
-    print(f"  wrote {out}  ({len(ims)} frames @ {args.fps} fps = {len(ims) / args.fps:.1f} s)")
-    written.append(out)
+        ims.append(annotate(np.ascontiguousarray(fr), min(offset + i, len(rows) - 1)))
+    ImageSequenceClip(ims, fps=args.fps).write_videofile(path, codec="libx264", audio=False,
+                                                        logger=None)
+    print(f"  wrote {path}  ({len(ims)} frames @ {args.fps} fps = {len(ims) / args.fps:.1f} s)")
+
+
+written = []
+if args.video:
+    if not RUNGS_SPEC:
+        for name, seq, crop in (("closeup", frames, False), ("closeup_ZOOM", frames, True),
+                                ("wide", frames_wide, False)):
+            if not seq:
+                continue
+            out = os.path.join(OUT, f"{PFX}_squeeze_{name}.mp4")
+            write_mp4(out, seq, 0, crop)
+            written.append(out)
+    # One clip per rung as well, so "the best rung next to the default" is a pair of short mp4s
+    # rather than a timestamp inside a two-minute one.
+    for rname, f0, f1 in RUNG_SPANS:
+        if f1 <= f0 or f1 > len(frames):
+            continue
+        # Trim to the squeeze phases: the calibration sweep is 60% of a rung and shows nothing.
+        idx = [i for i in range(f0, f1) if "squeeze_" in rows[i]["tag"] or "settle_" in rows[i]["tag"]
+               or "gravity_" in rows[i]["tag"]]
+        for suffix, sel, crop in (("closeup_ZOOM", idx, True), ("closeup", idx, False)):
+            if not sel:
+                continue
+            out = os.path.join(OUT, f"{PFX}_{rname}_{suffix}.mp4")
+            ims = [frames[i] for i in sel]
+            # write_mp4 annotates by a contiguous offset, so annotate here against the real indices.
+            clip = []
+            for j, i in enumerate(sel):
+                fr = ims[j]
+                if crop:
+                    h, w = fr.shape[:2]
+                    ch, cw = h // 4, w // 4
+                    fr = fr[h // 2 - ch: h // 2 + ch, w // 2 - cw: w // 2 + cw]
+                clip.append(annotate(np.ascontiguousarray(fr), i))
+            ImageSequenceClip(clip, fps=args.fps).write_videofile(out, codec="libx264", audio=False,
+                                                                 logger=None)
+            print(f"  wrote {out}  ({len(clip)} frames @ {args.fps} fps)")
+            written.append(out)
+else:
+    print("  --video 0: no mp4s (and no frames were retained)")
 
 print("\nMP4S: " + " ".join(written))
+
+# ---------------------------------------------------------------- does the override survive play()?
+# simulator.py:1374-1382 re-calls robot.update_controller_mode() on every play() after a stop(), which
+# re-applies the CONFIG gains and would wipe a gain poked straight onto a joint. The mimic attributes
+# are USD-level and max_effort goes through the articulation view, so both are EXPECTED to survive --
+# but "expected" is not "measured", and this runs last so it cannot disturb anything above.
+if args.play_cycle_check:
+    hdr("PLAY-CYCLE CHECK: stop() / play(), then read every override back")
+    before = dict(mimic=mimic_state(), max_effort=jget(robot.joints[DRIVEN_J], "max_effort"),
+                  stiffness=jget(robot.joints[DRIVEN_J], "stiffness"),
+                  damping=jget(robot.joints[DRIVEN_J], "damping"))
+    try:
+        og.sim.stop()
+        og.sim.play()
+        after = dict(mimic=mimic_state(), max_effort=jget(robot.joints[DRIVEN_J], "max_effort"),
+                     stiffness=jget(robot.joints[DRIVEN_J], "stiffness"),
+                     damping=jget(robot.joints[DRIVEN_J], "damping"))
+        for k in ("max_effort", "stiffness", "damping"):
+            same = before[k] == after[k]
+            print(f"  {DRIVEN_J}.{k:<11} {before[k]} -> {after[k]}   "
+                  f"{'SURVIVED' if same else '*** WIPED BY play() ***'}")
+        diffs = [k for k in before["mimic"] if before["mimic"][k] != after["mimic"][k]]
+        print(f"  mimic attributes: {len(before['mimic'])} read, "
+              f"{'ALL SURVIVED' if not diffs else f'CHANGED: {diffs}'}")
+        print(f"  PLAY_CYCLE_CHECK_OK survived_max_effort="
+              f"{before['max_effort'] == after['max_effort']} survived_mimic={not diffs}")
+    except Exception as e:
+        print(f"  [warn] play-cycle check failed to run: {e!r}")
+
 print("SQUEEZE_PROBE_OK")
 og.shutdown()
