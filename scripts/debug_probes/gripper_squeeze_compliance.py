@@ -103,6 +103,13 @@ ap.add_argument("--outer-dr", type=float, default=None, help="... dampingRatio o
 ap.add_argument("--max-effort", type=float, default=None,
                 help="max_effort (N m) on the driven finger_joint. Authored 16.5, and the position "
                      "drive saturates there in every gain rung, so it plausibly matters more than kp.")
+ap.add_argument("--variant-usd", default=None,
+                help="load a VARIANT robolab USD instead of the shipped one (see "
+                     "scripts/debug_probes/make_mimic_variant.py). Use this when a runtime mimic write "
+                     "turns out to be parse-time only. Implemented as a probe-local monkeypatch of "
+                     "Robot.usd_path, NOT as a new robot `model`: the model lookup goes through "
+                     "data/datasets/omnigibson-robot-assets/models/*, which is a symlink tree shared "
+                     "between worktrees.")
 ap.add_argument("--drive-kp", type=float, default=None,
                 help="finger_joint drive stiffness, in the LIVE ARTICULATION VIEW's per-radian "
                      "convention (OmniGibson forces 1e7 there; the USD authors 100 per DEGREE, which "
@@ -166,6 +173,22 @@ def hdr(s):
 
 # ---------------------------------------------------------------- build
 print(f"[squeeze] robot={ROBOT} task={args.task_cfg}", flush=True)
+if args.variant_usd:
+    # Swap the asset BEFORE anything is loaded. Only the robolab v2 path is redirected, so a stock
+    # A/B in the same session is unaffected, and the shipped file is never written to.
+    assert os.path.exists(args.variant_usd), f"no variant USD at {args.variant_usd}"
+    from omnigibson.robots.robot import Robot  # noqa: E402
+    _orig_usd_path = Robot.usd_path.fget
+
+    def _patched_usd_path(self):
+        p = _orig_usd_path(self)
+        if "droid_robolab_v2" in str(p):
+            print(f"[variant] usd_path {p} -> {args.variant_usd}", flush=True)
+            return args.variant_usd
+        return p
+
+    Robot.usd_path = property(_patched_usd_path)
+    print(f"[variant] Robot.usd_path patched -> {args.variant_usd}", flush=True)
 set_sim_config(robot=ROBOT)
 env = RealmEnvironmentDynamic(
     config_path="/app/realm/config", task_cfg_path=args.task_cfg, perturbations=["Default"],
