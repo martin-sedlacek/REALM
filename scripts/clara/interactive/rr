@@ -6,10 +6,10 @@
 #
 #   MODE=stock    image's own OmniGibson 3.9.1 at /behavior-src/OmniGibson  (default)
 #   MODE=oglite   host OG-lite_og391/omnigibson bound over the image's package
-#   MODE=stockfix image's own OmniGibson plus ONLY the z-offset patch, one file bound over the
-#                 stock package. This is what the SIF should eventually ship: measured 2026-08-14,
-#                 that single patch is the entire OG-lite delta the vectorized eval path needs.
-#                 Run scripts/clara/interactive/make_stock_patch.sh once to produce the file.
+#   MODE=stockfix image's own OmniGibson plus the three patched files under $STOCK_PATCH, bound
+#                 individually. This is what the rebuilt SIF ships -- both build recipes apply the
+#                 same three patches, so stockfix and a rebuilt image behave identically.
+#                 Run scripts/clara/interactive/make_stock_patch.sh once to produce them.
 #
 # Usage:
 #   ./scripts/clara/interactive/rr python -u examples/03_vector_first_frames.py --num_envs 1 --task_id 0
@@ -44,7 +44,7 @@ REALM_LOGS=/mnt/home_lustre/sedlam56/projects/REALM/logs
 REALM_SIF=$REALM_ROOT/realm_og391.sif
 APPDATA=$REALM_ROOT/data/cache                  # OMNIGIBSON_APPDATA_PATH=/cache/appdata
 
-STOCK_PATCH=${STOCK_PATCH:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch/scene_base.py}
+STOCK_PATCH=${STOCK_PATCH:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch}
 MODE=${MODE:-stock}
 JOB=${SLURM_JOB_ID:-interactive}
 TMPROOT=$REALM_ROOT/tmp/$JOB
@@ -60,8 +60,17 @@ case "$MODE" in
     # Bind ONE patched file over the stock package rather than the whole fork. Without it, scenes
     # other than 0 load their objects ~100 m high and the task object falls to z=0.015 -- measured
     # on this image for both Default and V-SC, and it was the ONLY thing that failed.
-    [ -f "$STOCK_PATCH" ] || { echo "rr: no patched scene_base.py at $STOCK_PATCH -- run scripts/clara/interactive/make_stock_patch.sh" >&2; exit 1; }
-    OGLITE_BIND=(--bind "$STOCK_PATCH":/behavior-src/OmniGibson/omnigibson/scenes/scene_base.py)
+    [ -d "$STOCK_PATCH/omnigibson" ] || { echo "rr: no patched files under $STOCK_PATCH -- run scripts/clara/interactive/make_stock_patch.sh" >&2; exit 1; }
+    # Bind each patched file individually over the stock package rather than the whole fork, so the
+    # image stays stock apart from exactly these. Three files: the z-offset fix (without which every
+    # scene but 0 loads its objects ~100 m high), the init-queue identity match (without which a
+    # sibling scene evicts freshly-added objects and REALM has to repair it at runtime), and
+    # OmniSurfaceMaterialPrim's missing preset_name default (without which such assets never load).
+    OGLITE_BIND=()
+    while IFS= read -r f; do
+      rel=${f#"$STOCK_PATCH"/}
+      OGLITE_BIND+=(--bind "$f":/behavior-src/OmniGibson/"$rel")
+    done < <(find "$STOCK_PATCH/omnigibson" -name '*.py')
     ;;
   oglite)
     [ -d "$OGLITE_ROOT/omnigibson" ] || { echo "rr: no OG-lite at $OGLITE_ROOT" >&2; exit 1; }

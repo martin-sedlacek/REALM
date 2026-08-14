@@ -14,6 +14,8 @@ From: stanfordvl/behavior:3.9.1
     realm/misc/entity_prim_og391.patch /opt/entity_prim_og391.patch
     realm/misc/usd_object_og391.patch /opt/usd_object_og391.patch
     realm/misc/scene_base_zoffset_og391.patch /opt/scene_base_zoffset_og391.patch
+    realm/misc/simulator_initqueue_og391.patch /opt/simulator_initqueue_og391.patch
+    realm/misc/material_prim_preset_og391.patch /opt/material_prim_preset_og391.patch
     .docker/og391-constraints.txt /opt/og391-constraints.txt
     packages/openpi-client /opt/openpi-client
 
@@ -35,7 +37,24 @@ From: stanfordvl/behavior:3.9.1
     # works against stock OmniGibson without binding that fork over the image.
     patch -p1 -d /behavior-src/OmniGibson < /opt/scene_base_zoffset_og391.patch
 
-    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch
+    # Simulator._pre_remove_object pruned the GLOBAL object-init queue by object NAME. Names are
+    # unique per SCENE, not per simulator, and every vector-env member is typically built from the
+    # same config, so removing one member's "corkscrew" popped a SIBLING member's freshly added one
+    # off the queue; it stayed on the stage and in the registry but was never initialised, and the
+    # scene later died in dump_state() or inside play() itself. Matching on identity is strictly
+    # narrower and always the correct entry. REALM carries a runtime repair for this
+    # (RealmVectorEnvironment._repair_init_queue) precisely because the image lacked the fix --
+    # with this patch that repair reports zero, which is how you can tell the image has it.
+    patch -p1 -d /behavior-src/OmniGibson < /opt/simulator_initqueue_og391.patch
+
+    # OmniSurfaceMaterialPrim.__init__ required preset_name positionally although its own docstring
+    # and both of its accessors are written for preset_name=None, and MaterialPrim.get_material has
+    # no preset to pass when it infers the subclass from an existing prim. Any asset whose material
+    # resolves to OmniSurface therefore failed to load at all.
+    patch -p1 -d /behavior-src/OmniGibson < /opt/material_prim_preset_og391.patch
+
+    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch \
+       /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch
 
     CONDA_PIP=/opt/conda/envs/behavior/bin/pip
 
@@ -106,4 +125,6 @@ PY
     # And the z-offset fix, without which every scene except 0 loads its objects 100 m high.
     grep -q "Re-apply the object poses now that the scene prim is at its final position" \
         /behavior-src/OmniGibson/omnigibson/scenes/scene_base.py
+    grep -q "initialize_obj is obj" /behavior-src/OmniGibson/omnigibson/simulator.py
+    grep -q "preset_name=None" /behavior-src/OmniGibson/omnigibson/prims/material_prim.py
     echo "REALM patches present"

@@ -15,6 +15,8 @@ ENV CONDA_PIP="/opt/conda/envs/behavior/bin/pip"
 COPY realm/misc/entity_prim_og391.patch /opt/entity_prim_og391.patch
 COPY realm/misc/usd_object_og391.patch /opt/usd_object_og391.patch
 COPY realm/misc/scene_base_zoffset_og391.patch /opt/scene_base_zoffset_og391.patch
+COPY realm/misc/simulator_initqueue_og391.patch /opt/simulator_initqueue_og391.patch
+COPY realm/misc/material_prim_preset_og391.patch /opt/material_prim_preset_og391.patch
 COPY packages/openpi-client /opt/openpi-client
 
 # Relax the OmniGibson kinematic-tree assertions that reject our custom robot USDs, and fix
@@ -30,11 +32,16 @@ COPY packages/openpi-client /opt/openpi-client
 RUN patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch && \
     patch -p1 -d /behavior-src/OmniGibson < /opt/usd_object_og391.patch && \
     patch -p1 -d /behavior-src/OmniGibson < /opt/scene_base_zoffset_og391.patch && \
-    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch && \
+    patch -p1 -d /behavior-src/OmniGibson < /opt/simulator_initqueue_og391.patch && \
+    patch -p1 -d /behavior-src/OmniGibson < /opt/material_prim_preset_og391.patch && \
+    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch \
+       /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch && \
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py && \
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/objects/usd_object.py && \
     grep -q "Re-apply the object poses now that the scene prim is at its final position" \
-        /behavior-src/OmniGibson/omnigibson/scenes/scene_base.py
+        /behavior-src/OmniGibson/omnigibson/scenes/scene_base.py && \
+    grep -q "initialize_obj is obj" /behavior-src/OmniGibson/omnigibson/simulator.py && \
+    grep -q "preset_name=None" /behavior-src/OmniGibson/omnigibson/prims/material_prim.py
 
 # Keep OmniGibson's own pins (numpy<2, torch 2.7, pydantic) intact.
 COPY .docker/og391-constraints.txt /opt/og391-constraints.txt

@@ -38,10 +38,22 @@ REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 # with REALM_SIF_OG391= if you really need a different image.
 REALM_SIF=${REALM_SIF_OG391:-/mnt/home_lustre/sedlam56/projects/REALM/realm_og391.sif}
 OUT_DIR=${OUT_DIR:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch}
-PATCH=$REALM_ROOT/realm/misc/scene_base_zoffset_og391.patch
+# Every OmniGibson patch the vectorized eval path needs, as "<patch stem>:<file it patches>".
+# scene_base is the only one required for CORRECTNESS of scene loading, but the other two matter:
+# without simulator_initqueue, a sibling scene evicts freshly-added objects from the global init
+# queue and REALM has to repair it at runtime; without material_prim_preset, any asset whose
+# material resolves to OmniSurface will not load at all.
+PATCHES=(
+  "scene_base_zoffset:omnigibson/scenes/scene_base.py"
+  "simulator_initqueue:omnigibson/simulator.py"
+  "material_prim_preset:omnigibson/prims/material_prim.py"
+)
 ALLOC=${ALLOC:-${SLURM_JOB_ID:-}}
 
-[ -f "$PATCH" ]     || { echo "no patch at $PATCH" >&2; exit 1; }
+for spec in "${PATCHES[@]}"; do
+  f=$REALM_ROOT/realm/misc/${spec%%:*}_og391.patch
+  [ -f "$f" ] || { echo "no patch at $f" >&2; exit 1; }
+done
 [ -f "$REALM_SIF" ] || { echo "no SIF at $REALM_SIF" >&2; exit 1; }
 [ -n "$ALLOC" ]     || { echo "set ALLOC to a running interactive job id (apptainer needs a node)" >&2; exit 1; }
 mkdir -p "$OUT_DIR"
@@ -55,10 +67,14 @@ mkdir -p "$OUT_DIR"
 #
 # ONE LINE on purpose: a multi-line `bash -c '...'` through srun gets its newlines collapsed.
 # Documented in rr's header.
-srun --jobid="$ALLOC" --overlap -n1 apptainer exec --userns --pwd /app --bind "$REALM_ROOT":/app --bind "$OUT_DIR":/out "$REALM_SIF" bash -c 'set -e; mkdir -p /tmp/w/omnigibson/scenes && cp /behavior-src/OmniGibson/omnigibson/scenes/scene_base.py /tmp/w/omnigibson/scenes/ && cd /tmp/w && patch -p1 < /app/realm/misc/scene_base_zoffset_og391.patch && cp /tmp/w/omnigibson/scenes/scene_base.py /out/scene_base.py' || { echo "patching failed -- wrong image, or the patch no longer applies. SIF=$REALM_SIF" >&2; exit 1; }
+srun --jobid="$ALLOC" --overlap -n1 apptainer exec --userns --pwd /app --bind "$REALM_ROOT":/app --bind "$OUT_DIR":/out "$REALM_SIF" bash -c 'set -e; rm -rf /tmp/w; for spec in '"${PATCHES[*]}"'; do stem=${spec%%:*}; rel=${spec##*:}; mkdir -p /tmp/w/$(dirname "$rel"); cp /behavior-src/OmniGibson/"$rel" /tmp/w/"$rel"; (cd /tmp/w && patch -p1 < /app/realm/misc/${stem}_og391.patch); mkdir -p /out/$(dirname "$rel"); cp /tmp/w/"$rel" /out/"$rel"; done' || { echo "patching failed -- wrong image, or a patch no longer applies. SIF=$REALM_SIF" >&2; exit 1; }
 
 grep -q "Re-apply the object poses now that the scene prim is at its final position" \
-  "$OUT_DIR/scene_base.py" || { echo "marker missing from $OUT_DIR/scene_base.py" >&2; exit 1; }
+  "$OUT_DIR/omnigibson/scenes/scene_base.py" || { echo "z-offset marker missing" >&2; exit 1; }
+grep -q "initialize_obj is obj" "$OUT_DIR/omnigibson/simulator.py" \
+  || { echo "init-queue marker missing" >&2; exit 1; }
+grep -q "preset_name=None" "$OUT_DIR/omnigibson/prims/material_prim.py" \
+  || { echo "preset_name marker missing" >&2; exit 1; }
 
-echo "wrote $OUT_DIR/scene_base.py"
+echo "wrote ${#PATCHES[@]} patched file(s) under $OUT_DIR/omnigibson/"
 echo "use with:  MODE=stockfix ./scripts/clara/interactive/rr <cmd>"
