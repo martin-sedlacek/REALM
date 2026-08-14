@@ -29,7 +29,7 @@ print("".join(f"{c:>{w}}" for c, w in zip(COLS, W)))
 
 
 def row(vals):
-    print("".join(f"{v:>{w}}" for v, w in zip(vals, W)))
+    print("".join(f"{'-' if v is None else v:>{w}}" for v, w in zip(vals, W)))
 
 
 for tag in tags:
