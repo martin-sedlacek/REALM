@@ -1002,7 +1002,6 @@ def finish_cycle(rung, state, which, f0):
         ee_world_z=np.array([r["ee_world_z"] for r in rows]),
         joint_names=np.array(joint_names), table_top=TABLE_TOP,
     )
-    return rec
 
 
 # ---------------------------------------------------------------- RUN

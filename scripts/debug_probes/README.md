@@ -88,8 +88,24 @@ an A/B without an edit.
   on it furthest from every object standing on it), verifies the commanded orientation round-trips
   before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
   `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`). **Superseded as the
-  compliance test by `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads the four-bar
-  along its stiff axis, which is why it measured ~0.13 mm on both assets.
+  compliance-MAGNITUDE test by `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads
+  the four-bar along its stiff axis, which is why it measured ~0.13 mm on both assets. That marking
+  does NOT extend to the *direction* question -- "do the tips curl inward when pressed onto a
+  surface" is a press question and a squeeze cannot answer it -- but the successor for that is
+  `curl_press_direction.py --load tip`, not this file: with the jaws shut the two pads touch each
+  other, so an inward curl is blocked geometrically whatever the physics says, and an EE descent has
+  to be *checked* to have descended (2026-08-14, job 191032: 117 mm of commanded descent moved
+  `panda_link8` by 0.2 mm).
+- `curl_press_direction.py` -- the SIGNED press probe: WHICH WAY the fingertips rotate under a press,
+  not how far. Default `--load tip` keeps the arm at `reset_qpos` under joint control and ramps a
+  200 kg pinned object UP into ONE fingertip, 0.5 mm per step, until the contact view reports contact
+  and then `--tip-past` steps further -- no IK, no arm motion, contact force measured rather than
+  inferred. Each fingertip in turn, per mimic `nf`/`dr` rung, with an unloaded reference per rung (the
+  object parked 1.3 m away) and a release phase to tell an elastic violation from a snap-through. Two
+  hull-free observables, both signed `+ = INWARD`: pad-origin separation (link poses) and pad rotation
+  about the closing-plane normal (link orientations); the sign convention is derived in the module
+  docstring from the frame rather than read off a joint value. `--load ee` is the table-press load
+  case and is documented broken on this build. Grep `CURL_VERDICT` / `CURL_PROBE_OK`.
 - `gripper_squeeze_compliance.py` -- the squeeze counterpart, and the probe that actually answers the
   compliance question. Closes the jaws on the task cube under **joint control** -- no IK anywhere: the
   arm holds `reset_qpos[:7]` for the whole run and the OBJECT is teleported to the midpoint between
@@ -107,6 +123,16 @@ an A/B without an edit.
 
 ### Gripper traps (2026-08-14)
 
+- **`collision_boundary_points_world` is ~120 mm off the pad LINK ORIGINS on robolab v2.** The two
+  pad origins are exactly symmetric about the flange axis (the closing axis and the finger long axis
+  both come out exactly axis-aligned in the `panda_link8` frame); the hull points are not -- their
+  centroid sits ~123 mm off along the closing axis. Same ~120 mm the squeeze probe records as
+  `hull_off` between the task cube's hull centre and its own pose, so it is not specific to the cube.
+  Measured consequence: within ONE rung the hull-based tip-to-tip separation and the origin-based pad
+  separation moved in OPPOSITE directions (+5.2 mm vs -2.8 mm). Hull extents along an axis are still
+  fine as SIZES (a translation offset cancels), and `gap_hull` is still fine as a self-calibrated
+  relative measure, but do not build a signed displacement observable on hull points here. Link poses
+  and link orientations are unaffected.
 - **A link-origin separation is not a jaw gap, and it is not comparable across assets.** At full
   closure robolab v2's inner-finger origins sit 33.0 mm apart and stock droid_mounted's 7.1 mm, so
   only the *change* means anything. Calibrate: subtract each asset's own value at full unloaded
