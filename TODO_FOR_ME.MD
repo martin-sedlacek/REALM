@@ -87,19 +87,33 @@ plate and a 0.33 x 0.48 m tray.
 `set_attributes: failed to change uid and gids on /image/rootfs/var/mail`, a Lustre limitation, not
 a recipe problem.
 
-**Everything needed is committed** — `realm/misc/scene_base_zoffset_og391.patch`, applied by both
+**Everything needed is committed** — **five** patches under `realm/misc/`, applied by both
 `.docker/realm_og391.def` and `.docker/realm_og391.Dockerfile`, each with a `grep -q` guard that
-fails the build if the patch stops applying.
+fails the build if a patch stops applying:
 
-Why it matters: with that one 25-line patch the vectorized eval path works against the image's own
-OmniGibson, with **no OG-lite bind at all** — measured, both Default and V-SC pass every check.
-Without it they fail with the task object at z=0.015 in every scene but 0. The rest of the OG-lite
-delta (7 files, ~570 lines) is performance at these scene counts, visible as 268 contact rows versus
-49-51.
+| patch | fixes |
+|---|---|
+| `entity_prim_og391` | pre-existing: relaxes kinematic-tree assertions for REALM's custom robot USDs |
+| `usd_object_og391` | pre-existing, same reason |
+| `scene_base_zoffset_og391` | scene-file objects load ~100 m high in every scene but 0 |
+| `simulator_initqueue_og391` | the global object-init queue was pruned by object NAME, so a sibling scene evicted freshly-added objects |
+| `material_prim_preset_og391` | `OmniSurfaceMaterialPrim` required `preset_name` although it is written for `None` |
+| `xform_prim_rootlink_og391` + `entity_prim_rootlink_og391` | an articulation's pose was READ from the root link and WRITTEN to the entity prim |
+
+(Seven patch files, five of them added during this work; `entity_prim.py` is patched twice by
+independent hunks.)
+
+Why it matters: with these the vectorized eval path works against the image's own OmniGibson with
+**no OG-lite bind at all** — measured, Default and V-SC pass every check. Without the z-offset one
+they fail with the task object at z=0.015 in every scene but 0; without the others the drawer tasks
+do not load and a runtime repair in `RealmVectorEnvironment` is load-bearing rather than a safety
+net. The remaining OG-lite delta is performance at these scene counts, visible as 268 contact rows
+versus 49-51.
 
 Until a rebuilt image exists, `scripts/clara/interactive/make_stock_patch.sh` plus
-`MODE=stockfix ./scripts/clara/interactive/rr` gives the same behaviour by binding the single
-patched file, with no image build.
+`MODE=stockfix ./scripts/clara/interactive/rr` gives the same behaviour by binding the patched files
+individually, with no image build. **A rebuilt image has never been verified** — only the bind path
+has.
 
 ---
 
