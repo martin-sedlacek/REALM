@@ -95,11 +95,14 @@ ap.add_argument("--task-cfg", default="REALM_DROID10/put_green_block_into_bowl/d
 ap.add_argument("--out", default="/logs/gripper_squeeze")
 ap.add_argument("--tag", default="curl_A", help="output filename prefix")
 ap.add_argument("--rungs", default="nf1000a=1000/0.05,nf100=100/0.05",
-                help="'name=nf/dr[/max_effort[/isaac_kp]],...'. The first two are "
+                help="'name=nf/dr[/max_effort[/isaac_kp[/isaac_kd]]],...'. The first two are "
                      "physxMimicJoint:<inst>:naturalFrequency / dampingRatio on the four INNER mimic "
                      "joints (authored 1000 / 0.05). The last two are the LEADER finger_joint's own "
-                     "drive (authored max_effort 16.5 N.m, isaac_kp 1e7 -- OmniGibson's default, "
-                     "which overwrites whatever the USD authors). Lowering max_effort is the direct "
+                     "drive (authored max_effort 16.5 N.m, isaac_kp 1e7 / isaac_kd 1e5 -- "
+                     "OmniGibson's defaults, which overwrite whatever the USD authors; RoboLab's own "
+                     "drive is kp 5729.578 / kd 0.011459, and BOTH have to be set to reproduce it -- "
+                     "back-driving is a VELOCITY, so kd 1e5 pins the joint however far kp and "
+                     "max_effort come down). Lowering max_effort is the direct "
                      "test of whether the press can BACK-DRIVE the leader and fold the four-bar; at "
                      "16.5 N.m it cannot, so the tips can only deviate as followers. RESTATE EVERY "
                      "FIELD IN EVERY RUNG: a '-' leaves whatever the previous rung left, it does not "
@@ -318,7 +321,7 @@ def leader_state():
                 damping=jget(j, "damping"))
 
 
-def leader_set(me=None, kp=None, label=""):
+def leader_set(me=None, kp=None, kd=None, label=""):
     """Re-author the LEADER's holding torque / drive stiffness at runtime.
 
     Why this exists: under an OPEN-TIP PRESS the load tries to rotate the leader BACKWARDS, and
@@ -346,6 +349,9 @@ def leader_set(me=None, kp=None, label=""):
     if kp is not None:
         j.stiffness = float(kp)
         want["stiffness"] = float(kp)
+    if kd is not None:
+        j.damping = float(kd)
+        want["damping"] = float(kd)
     if not want:
         return leader_state()
     live = leader_state()
@@ -357,9 +363,9 @@ def leader_set(me=None, kp=None, label=""):
     return live
 
 
-def apply_override(nf, dr, label="", me=None, kp=None):
+def apply_override(nf, dr, label="", me=None, kp=None, kd=None):
     wrote = mimic_set(INNER_MIMIC, nf=nf, dr=dr) if (nf is not None or dr is not None) else {}
-    lead = leader_set(me=me, kp=kp, label=label)
+    lead = leader_set(me=me, kp=kp, kd=kd, label=label)
     live = mimic_state()
     bad = [k for k, v in wrote.items()
            if live.get(k) is None or abs(live[k] - v) > 1e-6 * max(1.0, abs(v))]
@@ -940,15 +946,15 @@ def write_clip(path, sel, crop):
 WRITTEN = []
 
 
-def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None):
+def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None):
     """UNLOADED reference (object parked 1.3 m away) -> ramp the object up into finger @ln's tip until
     contact, then --tip-past steps further -> park it again and check the deflection comes back."""
     grip = GRIP[state]
     f0 = len(rows)
     lab = f"{rung}_{which}"
     hdr(f"RUNG {rung}  JAWS {state}  PRESSING {ln} ({which})   inner-mimic nf={nf} dr={dr}  "
-        f"leader me={me} kp={kp}")
-    apply_override(nf, dr, label=rung, me=me, kp=kp)
+        f"leader me={me} kp={kp} kd={kd}")
+    apply_override(nf, dr, label=rung, me=me, kp=kp, kd=kd)
     park_pusher()
     for _ in range(args.rest_steps):
         do_step(cmd, grip, f"{lab}_{state}_rest", rung, state)
@@ -1005,12 +1011,12 @@ def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None):
     return rec
 
 
-def press_cycle(rung, state, nf, dr, me=None, kp=None):
+def press_cycle(rung, state, nf, dr, me=None, kp=None, kd=None):
     """hover (unloaded reference) -> descend -> press -> retract, for one rung and gripper state."""
     grip = GRIP[state]
     f0 = len(rows)
-    hdr(f"RUNG {rung}  JAWS {state}   inner-mimic nf={nf} dr={dr}  leader me={me} kp={kp}")
-    apply_override(nf, dr, label=rung, me=me, kp=kp)
+    hdr(f"RUNG {rung}  JAWS {state}   inner-mimic nf={nf} dr={dr}  leader me={me} kp={kp} kd={kd}")
+    apply_override(nf, dr, label=rung, me=me, kp=kp, kd=kd)
     # rise to the hover height first, with the gripper command for this state already applied
     cmd[2] = Z_CONTACT + args.hover
     for _ in range(args.rest_steps):
@@ -1116,9 +1122,9 @@ def parse_rungs(spec):
         if not part:
             continue
         name, _, vals = part.partition("=")
-        f = (vals.split("/") + ["-"] * 4)[:4]
+        f = (vals.split("/") + ["-"] * 5)[:5]
         conv = lambda s: None if s.strip() in ("-", "") else float(s)  # noqa: E731
-        out.append((name.strip(), conv(f[0]), conv(f[1]), conv(f[2]), conv(f[3])))
+        out.append((name.strip(), conv(f[0]), conv(f[1]), conv(f[2]), conv(f[3]), conv(f[4])))
     return out
 
 
@@ -1127,21 +1133,21 @@ assert all(s in GRIP for s in STATES), f"--states must be from {list(GRIP)}"
 RUNGS = parse_rungs(args.rungs)
 hdr(f"{len(RUNGS)} RUNGS x {len(STATES)} GRIPPER STATES, one process")
 print(f"  leader {LEADER} AS AUTHORED: {leader_state()}")
-for name, nf, dr, me, kp in RUNGS:
-    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp}")
+for name, nf, dr, me, kp, kd in RUNGS:
+    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp} isaac_kd={kd}")
 print(f"  states: {STATES};  '-' means LEAVE WHAT THE PREVIOUS RUNG LEFT, not 'restore authored'")
 
 TIP_FINGERS = (FL if args.tip_fingers == "both" else [args.tip_fingers])
 assert all(f in FL for f in TIP_FINGERS), f"--tip-fingers must name one of {FL} or 'both'"
-for name, nf, dr, me, kp in RUNGS:
+for name, nf, dr, me, kp, kd in RUNGS:
     for state in STATES:
         if LOAD == "tip":
             # Each fingertip in turn: two independent replicates of the same claim per rung, and the
             # per-finger sign is what the target behaviour is actually about.
             for ln in TIP_FINGERS:
-                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R", me=me, kp=kp)
+                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R", me=me, kp=kp, kd=kd)
         else:
-            press_cycle(name, state, nf, dr, me=me, kp=kp)
+            press_cycle(name, state, nf, dr, me=me, kp=kp, kd=kd)
 
 # ---------------------------------------------------------------- the table
 hdr("CURL TABLE -- every press, signed. + = INWARD, - = OUTWARD SPLAY")
