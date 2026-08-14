@@ -227,13 +227,21 @@ def pad_forces():
     try:
         M = _CONTACT["M"](_CONTACT["idx"])
         if M is None:
+            if not _CONTACT.get("warned"):
+                _CONTACT["warned"] = True
+                print("  [warn] the live impulse matrix is None, so per-pad forces read nan for the "
+                      "whole run (the support surface is a scene object; it need not be a body in "
+                      "the contact view even when it has a row index)")
             return float("nan"), float("nan")
         out = []
         for ln in finger_links:
             sub = _np(M)[_CONTACT["rows"]][:, _CONTACT["cols"][ln]]
             out.append(float(np.linalg.norm(sub.reshape(-1, 3).sum(axis=0))))
         return out[0], out[1]
-    except Exception:
+    except Exception as e:
+        if not _CONTACT.get("warned"):
+            _CONTACT["warned"] = True
+            print(f"  [warn] per-pad contact force read failed, reporting nan: {e!r}")
         return float("nan"), float("nan")
 
 
@@ -511,6 +519,52 @@ SHORT_TH = float(os.environ.get("REALM_SHORT_TH", "0.018"))    # m of lag that m
 OVERTRAVEL = float(os.environ.get("REALM_OVERTRAVEL", "0.200"))  # m past the achieved contact height
 hdr(f"PHASE 1: DESCEND at {DZ} m/step until the tips land (tracking lag > {SHORT_TH * 1000:.0f} mm), "
     f"then {OVERTRAVEL * 1000:.0f} mm of OVERTRAVEL, then PHASE 2: PRESS {PRESS_STEPS} steps")
+hdr("PHASE 0c: LEVEL THE TIPS -- both fingertips must land together")
+# The first deep ladder read `pivL = +0.00 deg` at EVERY depth out to 200 mm of overtravel while
+# `pivR` went to -5.4: only the right tip ever touched. The arm stalls on the first tip it lands, so
+# the second never reaches the surface and one pad takes the entire press. That is a setup artifact,
+# not a property of the gripper, and it has to be removed before any per-pad number means anything.
+#
+# The fix is a closed loop rather than a formula, because it has to survive the robot-frame yaw: roll
+# the hand about the horizontal axis perpendicular to the closing axis until the two pad origins sit
+# at the same world z, re-measuring each time. The correction is applied to the COMMANDED orientation,
+# so the arm keeps the pads facing down and only the roll changes.
+LEVEL_TOL = float(os.environ.get("REALM_LEVEL_TOL", "0.0003"))   # m of residual tip height difference
+_pl, _pr = world_pose(finger_links[0])[0], world_pose(finger_links[1])[0]
+print(f"  before: pad world z left={_pl[2]:.5f} right={_pr[2]:.5f}  difference "
+      f"{(_pr[2] - _pl[2]) * 1000:+.2f} mm")
+for _it in range(16):
+    _pl, _pr = world_pose(finger_links[0])[0], world_pose(finger_links[1])[0]
+    dz = float(_pr[2] - _pl[2])
+    d = float(np.linalg.norm(_pr - _pl))
+    if abs(dz) < LEVEL_TOL:
+        print(f"  levelled after {_it} iterations: residual {dz * 1000:+.3f} mm")
+        break
+    a_w = (_pr - _pl) / d
+    ax_w = np.cross(a_w, np.array([0.0, 0.0, 1.0]))    # horizontal, perpendicular to the closing axis
+    nax = np.linalg.norm(ax_w)
+    if nax < 1e-6:
+        print("  [warn] the closing axis is vertical; nothing to level")
+        break
+    ax_w /= nax
+    phi = -0.6 * dz / d                                # under-relaxed, so the loop cannot ring
+    # world -> robot rotation, recovered from the same eef pose expressed both ways, so no assumption
+    # is made about the robot frame's yaw
+    _, q_w = env.get_ee_pose()
+    R_wr = Rot.from_euler("xyz", ee_pose_robot_frame()[3:]) * Rot.from_quat(_np(q_w)).inv()
+    cmd[3:] = (Rot.from_rotvec(R_wr.apply(ax_w) * phi)
+               * Rot.from_euler("xyz", cmd[3:])).as_euler("xyz")
+    for _ in range(6):
+        do_step(cmd, "level")
+    print(f"    iter {_it}: dz {dz * 1000:+.3f} mm -> roll {np.degrees(phi):+.3f} deg", flush=True)
+else:
+    print(f"  *** DID NOT LEVEL in 16 iterations; one tip will still land first ***")
+_pl, _pr = world_pose(finger_links[0])[0], world_pose(finger_links[1])[0]
+print(f"  after:  pad world z left={_pl[2]:.5f} right={_pr[2]:.5f}  difference "
+      f"{(_pr[2] - _pl[2]) * 1000:+.2f} mm")
+for _ in range(10):
+    do_step(cmd, "hold")          # a fresh unloaded reference AT the levelled orientation
+
 _ref0 = [r for r in rows if r["tag"] == "hold"][-1]     # unloaded reference for the pivot angles
 _stall = dict(max_lag=-1e9, at=-1, stuck=0)
 z0 = cmd[2]
