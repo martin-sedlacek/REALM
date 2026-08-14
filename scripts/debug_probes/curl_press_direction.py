@@ -407,8 +407,12 @@ REF_ATTR = dict(stiffness="stiffness", damping="damping", max_force="max_effort"
 # the reported number cannot be used to verify it. Flagged rather than silently compared.
 INF_EFFORT = 3.4028234663852886e38
 DEFAULT_MAX_EFFORT_SENTINEL = 100.0
-# Limits are radians in the reference dump; joint_prim reports DEGREES for a revolute joint.
-ANGULAR = True
+# UNITS, measured 2026-08-15 and initially got WRONG: joint_prim reports revolute limits in
+# RADIANS, the same as the reference dump. finger_joint reads upper = 0.7854 on both, and the four
+# followers read +/-3.14159 on both -- so the LIMITS ALREADY MATCH and no conversion belongs here.
+# The first version applied np.radians() on read and np.degrees() on write, which made every limit
+# row look like a mismatch (3.14159 rad displayed as 0.0548) and then "closed" it by writing 180
+# where 3.14159 was wanted. Self-consistent, and wrong. No conversion now.
 
 REF = None
 if args.ref_gains and os.path.exists(args.ref_gains):
@@ -425,10 +429,7 @@ def dump_gains():
         j = robot.joints[n]
         d = {}
         for f in REF_FIELDS:
-            v = jget(j, REF_ATTR[f])
-            if f in ("lower", "upper") and v is not None:
-                v = float(np.radians(v))       # joint_prim reports degrees for revolute joints
-            d[f] = v
+            d[f] = jget(j, REF_ATTR[f])
         out[n] = d
     return out
 
@@ -492,7 +493,7 @@ def match_robolab(label=""):
             if r is None:
                 continue
             attr = REF_ATTR[f]
-            val = float(np.degrees(r)) if f in ("lower", "upper") else float(r)
+            val = float(r)
             if f == "max_force" and r >= INF_EFFORT * 0.5:
                 val = INF_EFFORT           # FLT_MAX; reads back as the 100.0 sentinel
             try:
