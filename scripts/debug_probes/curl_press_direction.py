@@ -95,10 +95,15 @@ ap.add_argument("--task-cfg", default="REALM_DROID10/put_green_block_into_bowl/d
 ap.add_argument("--out", default="/logs/gripper_squeeze")
 ap.add_argument("--tag", default="curl_A", help="output filename prefix")
 ap.add_argument("--rungs", default="nf1000a=1000/0.05,nf100=100/0.05",
-                help="'name=nf/dr,...' -- physxMimicJoint:<inst>:naturalFrequency / dampingRatio on "
-                     "the four INNER mimic joints. Authored: 1000 / 0.05. RESTATE BOTH FIELDS IN "
-                     "EVERY RUNG: a '-' leaves whatever the previous rung left, it does not restore "
-                     "the authored value. Repeat a rung to get the error bar.")
+                help="'name=nf/dr[/max_effort[/isaac_kp]],...'. The first two are "
+                     "physxMimicJoint:<inst>:naturalFrequency / dampingRatio on the four INNER mimic "
+                     "joints (authored 1000 / 0.05). The last two are the LEADER finger_joint's own "
+                     "drive (authored max_effort 16.5 N.m, isaac_kp 1e7 -- OmniGibson's default, "
+                     "which overwrites whatever the USD authors). Lowering max_effort is the direct "
+                     "test of whether the press can BACK-DRIVE the leader and fold the four-bar; at "
+                     "16.5 N.m it cannot, so the tips can only deviate as followers. RESTATE EVERY "
+                     "FIELD IN EVERY RUNG: a '-' leaves whatever the previous rung left, it does not "
+                     "restore the authored value. Repeat a rung to get the error bar.")
 ap.add_argument("--mimic-joints", default=None, help="override which mimic joints nf/dr apply to")
 ap.add_argument("--states", default="open",
                 help="gripper states to press in: 'open', 'closed', or 'open,closed'. OPEN is the "
@@ -255,6 +260,8 @@ def mimic_insts(prim):
             if s.startswith("PhysxMimicJointAPI:")]
 
 
+LEADER = "finger_joint"          # the ONE driven gripper DOF; everything else is a follower
+LEAD_I = joint_names.index(LEADER)
 MIMIC_JOINTS = [n for n in grip_names if mimic_insts(robot.joints[n].prim)]
 INNER_MIMIC = [n for n in MIMIC_JOINTS if n != OUTER_J]
 if args.mimic_joints:
@@ -302,12 +309,61 @@ for k, v in MIMIC0.items():
     print(f"    {k:<62} = {v}")
 
 
-def apply_override(nf, dr, label=""):
+def leader_state():
+    """The LEADER drive, as the runtime actually holds it. `max_effort` reading exactly 100.0 is
+    joint_prim.py:370's DEFAULT_MAX_EFFORT sentinel for 'raw magnitude above INF_EFFORT_THRESHOLD',
+    i.e. effectively unlimited -- not a 100 N.m clamp."""
+    j = robot.joints[LEADER]
+    return dict(max_effort=jget(j, "max_effort"), stiffness=jget(j, "stiffness"),
+                damping=jget(j, "damping"))
+
+
+def leader_set(me=None, kp=None, label=""):
+    """Re-author the LEADER's holding torque / drive stiffness at runtime.
+
+    Why this exists: under an OPEN-TIP PRESS the load tries to rotate the leader BACKWARDS, and
+    `finger_joint` runs at isaac_kp 1e7 with max_effort 16.5 N.m, so the drive saturates instantly
+    and acts as a ~16.5 N.m source resisting back-drive. Against a ~0.1 m tip lever arm that is
+    ~165 N at the tip, while the deep press stalled the arm at ~80 N -- so the arm CANNOT fold the
+    four-bar and the tips cannot curl by the mechanism a real 2F-85 uses. Every curl number taken so
+    far is follower deviation around a perfectly rigid leader (`curl_A.log`: the leader moved 1e-6
+    rad under full press).
+
+    NOTE this is a DIFFERENT load regime from the squeeze, where drive gains and max_effort were
+    swept and written off: there the load pushes the pads together ALONG the drive direction and a
+    lower max_effort merely weakens the grip. Those negatives do not transfer to the press.
+
+    Set on the joint, not in the controller config, so it can be swept within one process. OG's
+    `robot.update_controller_mode()` re-pushes `isaac_kp`/`isaac_kd` on every `og.sim.play()`, so a
+    value poked here survives only until the next stop/play -- which this probe never does. Readback
+    is asserted rather than assumed.
+    """
+    j = robot.joints[LEADER]
+    want = {}
+    if me is not None:
+        j.max_effort = float(me)
+        want["max_effort"] = float(me)
+    if kp is not None:
+        j.stiffness = float(kp)
+        want["stiffness"] = float(kp)
+    if not want:
+        return leader_state()
+    live = leader_state()
+    bad = [k for k, v in want.items()
+           if live.get(k) is None or abs(live[k] - v) > 1e-3 * max(1.0, abs(v))]
+    print(f"  [leader {label}] wrote {want} -> READBACK {live}"
+          + (f"   *** MISMATCH {bad} ***" if bad else "   (all writes read back)"))
+    assert not bad, f"leader write did not stick: {bad} (wanted {want}, live {live})"
+    return live
+
+
+def apply_override(nf, dr, label="", me=None, kp=None):
     wrote = mimic_set(INNER_MIMIC, nf=nf, dr=dr) if (nf is not None or dr is not None) else {}
+    lead = leader_set(me=me, kp=kp, label=label)
     live = mimic_state()
     bad = [k for k, v in wrote.items()
            if live.get(k) is None or abs(live[k] - v) > 1e-6 * max(1.0, abs(v))]
-    print(f"  [override {label}] wrote {wrote or '(nothing)'}")
+    print(f"  [override {label}] wrote {wrote or '(nothing)'}; leader {LEADER} {lead}")
     if wrote:
         print(f"  [override {label}] READBACK "
               + ", ".join(f"{k.split('.')[0]}.{k.split('.')[-1]}={live[k]}" for k in sorted(wrote))
@@ -377,6 +433,24 @@ for ln in FL:
           f"  (a large dv means the hull-based tip/base separations are NOT trustworthy; the "
           f"origin-based and orientation-based observables are unaffected)")
 FINGER_HALF = float(np.mean(SPANS_U)) / 2.0
+
+# ---- HULL-FREE fingertip. `collision_boundary_points_world` is (-56.2, -116.1) mm off the pad link
+# origins on this asset, and the tracked hull "tip" therefore swings about the link origin on a lever
+# arm of (-48.9, -98.3) mm -- pointing the WRONG WAY along the finger and ~6x too long. That does not
+# cancel in a delta, because the points move as material points of the link AT the offset position:
+# a pad rotation then drives the hull tip OUTBOARD while the pad is rotating INBOARD, which is the
+# whole of curl_A's `direction=DISAGREE`. Verified offline in ship_sign_audit.py, which fits the
+# recorded tip displacement to 0.0002 mm with that lever arm and misses by 3.13 mm without it.
+#
+# So define the tip from the LINK POSE instead: one body-fixed offset per pad, frozen here, distal
+# along LONG by the finger's own half-length, and afterwards carried by the link's own rotation.
+# Nothing below touches the hull.
+TLOC = {}
+for ln in FL:
+    p_, R_ = link_pose(ln)
+    TLOC[ln] = R_.inv().apply(R8_0.apply(LONG) * FINGER_HALF)
+    print(f"  {ln}: HULL-FREE tip = link origin + {FINGER_HALF * 1000:.1f} mm along LONG, "
+          f"frozen as the body-fixed local offset {np.round(TLOC[ln] * 1000, 2)} mm")
 print(f"  finger long extent {FINGER_HALF * 2000:.1f} mm -> tip taken as the pad link origin plus "
       f"{FINGER_HALF * 1000:.1f} mm along LONG")
 
@@ -456,6 +530,8 @@ def pad_geom():
         out[f"rot{k}"] = (R8.inv() * R).as_quat()
         out[f"tip{k}"] = Hl[TIP_IDX[ln]]
         out[f"base{k}"] = Hl[BASE_IDX[ln]]
+        # the hull-free tip: link pose + the frozen body-fixed offset, no hull anywhere
+        out[f"tipg{k}"] = R8.inv().apply(p + R.apply(TLOC[ln]) - p8)
         out[f"low{k}"] = float(Hw[:, 2].min())            # lowest world z of this finger's hull
         out[f"oz{k}"] = float(p[2])                       # pad link ORIGIN world z (hull-free)
         # parent link, for the pivot's own contribution
@@ -466,6 +542,7 @@ def pad_geom():
     out["tip_sep"] = float((out["tip1"] - out["tip0"]) @ AXIS)
     out["base_sep"] = float((out["base1"] - out["base0"]) @ AXIS)
     out["pad_sep"] = float((out["pos1"] - out["pos0"]) @ AXIS)
+    out["tipg_sep"] = float((out["tipg1"] - out["tipg0"]) @ AXIS)
     return out
 
 
@@ -521,15 +598,21 @@ def signed(r, ref):
         # (d) how far that finger's tip moved inboard, in metres
         out[f"tip_in{k}"] = s_in * float((r[f"tip{k}"] - ref[f"tip{k}"]) @ AXIS)
         out[f"base_in{k}"] = s_in * float((r[f"base{k}"] - ref[f"base{k}"]) @ AXIS)
+        # (d') the same thing on the HULL-FREE tip. This is the one to quote.
+        out[f"tipg_in{k}"] = s_in * float((r[f"tipg{k}"] - ref[f"tipg{k}"]) @ AXIS)
         # (e) the raw joint delta on this pad's own pivot joint
         jn = PAD_JOINT[ln]
         if jn:
             out[f"dq{k}"] = float(r["q"][joint_names.index(jn)] - ref["q"][joint_names.index(jn)])
-    out["d_tip_sep"] = r["tip_sep"] - ref["tip_sep"]      # NEGATIVE = tips came together = inward
-    out["d_base_sep"] = r["base_sep"] - ref["base_sep"]
+    out["d_tip_sep"] = r["tip_sep"] - ref["tip_sep"]      # HULL -- INVALID on this asset, see TLOC
+    out["d_base_sep"] = r["base_sep"] - ref["base_sep"]   # HULL -- likewise
     out["d_pad_sep"] = r["pad_sep"] - ref["pad_sep"]
+    out["d_tipg_sep"] = r["tipg_sep"] - ref["tipg_sep"]   # NEGATIVE = tips came together = inward
     out["curl_in_deg"] = float(np.degrees(0.5 * (out["rot_in0"] + out["rot_in1"])))
     out["dz_track"] = r["cmd_z"] - r["ach_z"]
+    # THE LEADER. If this stays at zero the four-bar never folded and every number above is follower
+    # deviation around a rigid leader -- which is the state every result before 2026-08-14 was in.
+    out["dq_lead"] = float(r["q"][LEAD_I] - ref["q"][LEAD_I])
     return out
 
 
@@ -747,21 +830,31 @@ def summarise(rung, state, ref, span, ln=None, which=""):
           f"{last['d_pad_sep'] * 1000:+.3f} mm   (NEGATIVE = pads came together = INWARD)")
     print(f"  OBSERVABLE 2 (ROTATION, hull-free): mean pad rotation about H   = "
           f"{last['curl_in_deg']:+.3f} deg   (POSITIVE = INWARD)")
-    print(f"  hull-based, treat as advisory: tip-to-tip {last['d_tip_sep'] * 1000:+.3f} mm, "
-          f"base-to-base {last['d_base_sep'] * 1000:+.3f} mm  -- see the hull-origin offset in the "
-          f"identity block before quoting either")
+    print(f"  OBSERVABLE 3 (TIP, hull-free):      tip-to-tip separation change = "
+          f"{last['d_tipg_sep'] * 1000:+.3f} mm   (NEGATIVE = tips came together = INWARD)")
+    print(f"  INVALID on this asset, printed only so the retraction is visible: HULL tip-to-tip "
+          f"{last['d_tip_sep'] * 1000:+.3f} mm, HULL base-to-base {last['d_base_sep'] * 1000:+.3f} mm."
+          f"  collision_boundary_points_world is (-56.2,-116.1) mm off the pad origins here, so these"
+          f" swing on a lever arm of the wrong sign and read BACKWARDS -- never quote them.")
+    print(f"  THE LEADER: {LEADER} moved {np.degrees(last['dq_lead']):+.4f} deg "
+          f"({last['dq_lead']:+.3e} rad) under load, at {leader_state()}.  Near zero = the four-bar "
+          f"never folded and everything above is follower deviation around a rigid leader.")
     print(f"  over the whole press: curl min {curl.min():+.3f} max {curl.max():+.3f} deg; "
           f"d_pad_sep min {dps.min() * 1000:+.3f} max {dps.max() * 1000:+.3f} mm")
     # Magnitude gate FIRST: with no deflection at all both signs are noise, and calling that
     # "INWARD" because a micron landed on the right side would be the same mistake as reading |flex|.
     tiny = abs(last["curl_in_deg"]) < 0.05 and abs(last["d_pad_sep"]) < 50e-6
-    agree = (last["d_pad_sep"] < 0) == (last["curl_in_deg"] > 0)
+    # THREE hull-free observables now, and all three have to agree. The hull pair is excluded on
+    # purpose: it is not a second opinion, it is a known-broken measurement (see TLOC).
+    votes = [last["curl_in_deg"] > 0, last["d_pad_sep"] < 0, last["d_tipg_sep"] < 0]
+    agree = all(votes) or not any(votes)
     verdict = ("NO_DEFLECTION" if tiny else
-               "INWARD" if last["curl_in_deg"] > 0 and last["d_pad_sep"] < 0 else
-               "OUTWARD" if last["curl_in_deg"] < 0 and last["d_pad_sep"] > 0 else "DISAGREE")
+               "INWARD" if all(votes) else "OUTWARD" if not any(votes) else "DISAGREE")
     print(f"\n  CURL_VERDICT rung={rung} state={state} finger={which or 'both'} direction={verdict} "
           f"curl_deg={last['curl_in_deg']:+.4f} d_pad_sep_mm={last['d_pad_sep'] * 1000:+.4f} "
-          f"d_tip_sep_mm={last['d_tip_sep'] * 1000:+.4f} "
+          f"d_tipg_sep_mm={last['d_tipg_sep'] * 1000:+.4f} "
+          f"lead_deg={np.degrees(last['dq_lead']):+.4f} "
+          f"d_tip_sep_HULL_INVALID_mm={last['d_tip_sep'] * 1000:+.4f} "
           f"force_N={(max(np.nanmax([r.get('f0', np.nan) for r in press]), np.nanmax([r.get('f1', np.nan) for r in press])) if LOAD == 'tip' else float('nan')):.2f} "
           f"pen_mm={pen * 1000:+.3f} shortfall_mm={last['dz_track'] * 1000:+.3f} "
           f"observables_agree={agree}")
@@ -777,7 +870,9 @@ def summarise(rung, state, ref, span, ln=None, which=""):
                arm_dev_max=float(max(r["arm_dev"] for r in press)),
                curl_in_deg=last["curl_in_deg"],
                d_tip_sep_mm=last["d_tip_sep"] * 1e3, d_base_sep_mm=last["d_base_sep"] * 1e3,
-               d_pad_sep_mm=last["d_pad_sep"] * 1e3,
+               d_pad_sep_mm=last["d_pad_sep"] * 1e3, d_tipg_sep_mm=last["d_tipg_sep"] * 1e3,
+               lead_deg=float(np.degrees(last["dq_lead"])), leader=leader_state(),
+               finger_tipg_in_mm={ln: last[f"tipg_in{k}"] * 1e3 for k, ln in enumerate(FL)},
                curl_min_deg=float(curl.min()), curl_max_deg=float(curl.max()),
                d_tip_sep_min_mm=float(dts.min() * 1e3), d_tip_sep_max_mm=float(dts.max() * 1e3),
                penetration_mm=pen * 1e3, shortfall_mm=last["dz_track"] * 1e3,
@@ -845,14 +940,15 @@ def write_clip(path, sel, crop):
 WRITTEN = []
 
 
-def tip_cycle(rung, state, nf, dr, ln, which):
+def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None):
     """UNLOADED reference (object parked 1.3 m away) -> ramp the object up into finger @ln's tip until
     contact, then --tip-past steps further -> park it again and check the deflection comes back."""
     grip = GRIP[state]
     f0 = len(rows)
     lab = f"{rung}_{which}"
-    hdr(f"RUNG {rung}  JAWS {state}  PRESSING {ln} ({which})   inner-mimic nf={nf} dr={dr}")
-    apply_override(nf, dr, label=rung)
+    hdr(f"RUNG {rung}  JAWS {state}  PRESSING {ln} ({which})   inner-mimic nf={nf} dr={dr}  "
+        f"leader me={me} kp={kp}")
+    apply_override(nf, dr, label=rung, me=me, kp=kp)
     park_pusher()
     for _ in range(args.rest_steps):
         do_step(cmd, grip, f"{lab}_{state}_rest", rung, state)
@@ -885,6 +981,7 @@ def tip_cycle(rung, state, nf, dr, ln, which):
         if t % 10 == 0 or (first_contact is not None and t == first_contact + args.tip_past):
             print(f"    ramp t={t:>3} rise={(t + 1) * args.tip_dz * 1000:5.1f}mm ncon={r['n_contact']} "
                   f"F=({r['f0']:6.2f},{r['f1']:6.2f})N d_pad_sep={r['d_pad_sep'] * 1000:+7.3f}mm "
+                  f"d_tipg={r['d_tipg_sep'] * 1000:+7.3f}mm lead={np.degrees(r['dq_lead']):+7.3f}deg "
                   f"curl={r['curl_in_deg']:+7.3f}deg "
                   f"piv=({np.degrees(r.get('piv_in0', float('nan'))):+6.2f},"
                   f"{np.degrees(r.get('piv_in1', float('nan'))):+6.2f})deg "
@@ -908,12 +1005,12 @@ def tip_cycle(rung, state, nf, dr, ln, which):
     return rec
 
 
-def press_cycle(rung, state, nf, dr):
+def press_cycle(rung, state, nf, dr, me=None, kp=None):
     """hover (unloaded reference) -> descend -> press -> retract, for one rung and gripper state."""
     grip = GRIP[state]
     f0 = len(rows)
-    hdr(f"RUNG {rung}  JAWS {state}   inner-mimic nf={nf} dr={dr}")
-    apply_override(nf, dr, label=rung)
+    hdr(f"RUNG {rung}  JAWS {state}   inner-mimic nf={nf} dr={dr}  leader me={me} kp={kp}")
+    apply_override(nf, dr, label=rung, me=me, kp=kp)
     # rise to the hover height first, with the gripper command for this state already applied
     cmd[2] = Z_CONTACT + args.hover
     for _ in range(args.rest_steps):
@@ -994,6 +1091,9 @@ def finish_cycle(rung, state, which, f0):
         pad_sep=np.array([r["pad_sep"] for r in rows]),
         d_tip_sep=np.array([r.get("d_tip_sep", np.nan) for r in rows]),
         d_base_sep=np.array([r.get("d_base_sep", np.nan) for r in rows]),
+        tipg_sep=np.array([r["tipg_sep"] for r in rows]),
+        d_tipg_sep=np.array([r.get("d_tipg_sep", np.nan) for r in rows]),
+        dq_lead=np.array([r.get("dq_lead", np.nan) for r in rows]),
         curl_in_deg=np.array([r.get("curl_in_deg", np.nan) for r in rows]),
         rot_in0=np.array([r.get("rot_in0", np.nan) for r in rows]),
         rot_in1=np.array([r.get("rot_in1", np.nan) for r in rows]),
@@ -1016,9 +1116,9 @@ def parse_rungs(spec):
         if not part:
             continue
         name, _, vals = part.partition("=")
-        f = (vals.split("/") + ["-"] * 2)[:2]
+        f = (vals.split("/") + ["-"] * 4)[:4]
         conv = lambda s: None if s.strip() in ("-", "") else float(s)  # noqa: E731
-        out.append((name.strip(), conv(f[0]), conv(f[1])))
+        out.append((name.strip(), conv(f[0]), conv(f[1]), conv(f[2]), conv(f[3])))
     return out
 
 
@@ -1026,31 +1126,37 @@ STATES = [s.strip() for s in args.states.split(",") if s.strip()]
 assert all(s in GRIP for s in STATES), f"--states must be from {list(GRIP)}"
 RUNGS = parse_rungs(args.rungs)
 hdr(f"{len(RUNGS)} RUNGS x {len(STATES)} GRIPPER STATES, one process")
-for name, nf, dr in RUNGS:
-    print(f"  {name:<12} inner nf={nf} dr={dr}")
+print(f"  leader {LEADER} AS AUTHORED: {leader_state()}")
+for name, nf, dr, me, kp in RUNGS:
+    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp}")
 print(f"  states: {STATES};  '-' means LEAVE WHAT THE PREVIOUS RUNG LEFT, not 'restore authored'")
 
 TIP_FINGERS = (FL if args.tip_fingers == "both" else [args.tip_fingers])
 assert all(f in FL for f in TIP_FINGERS), f"--tip-fingers must name one of {FL} or 'both'"
-for name, nf, dr in RUNGS:
+for name, nf, dr, me, kp in RUNGS:
     for state in STATES:
         if LOAD == "tip":
             # Each fingertip in turn: two independent replicates of the same claim per rung, and the
             # per-finger sign is what the target behaviour is actually about.
             for ln in TIP_FINGERS:
-                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R")
+                tip_cycle(name, state, nf, dr, ln, "L" if ln == FL[0] else "R", me=me, kp=kp)
         else:
-            press_cycle(name, state, nf, dr)
+            press_cycle(name, state, nf, dr, me=me, kp=kp)
 
 # ---------------------------------------------------------------- the table
 hdr("CURL TABLE -- every press, signed. + = INWARD, - = OUTWARD SPLAY")
-print(f"  {'rung':<12} {'jaws':<7} {'curl deg':>9} {'d tip-tip':>10} {'d base':>9} {'pen':>7} "
-      f"{'short':>7} {'dir':>8} {'agree':>6} {'recov curl':>11}")
+print(f"  {'rung':<12} {'jaws':<5} {'fing':<5} {'curl deg':>9} {'d pad-pad':>10} {'d tip-tip':>10} "
+      f"{'lead deg':>9} {'force N':>8} {'dir':>9} {'agree':>6} {'recov curl':>11}")
 for rec in summary["presses"]:
-    print(f"  {rec['rung']:<12} {rec['state']:<7} {rec['curl_in_deg']:>+9.3f} "
-          f"{rec['d_tip_sep_mm']:>+10.3f} {rec['d_base_sep_mm']:>+9.3f} "
-          f"{rec['penetration_mm']:>+7.2f} {rec['shortfall_mm']:>+7.2f} {rec['direction']:>8} "
+    print(f"  {rec['rung']:<12} {rec['state']:<5} {str(rec.get('finger', '')):<5} "
+          f"{rec['curl_in_deg']:>+9.3f} {rec['d_pad_sep_mm']:>+10.3f} "
+          f"{rec.get('d_tipg_sep_mm', float('nan')):>+10.3f} "
+          f"{rec.get('lead_deg', float('nan')):>+9.4f} "
+          f"{(rec.get('force_N') if rec.get('force_N') is not None else float('nan')):>8.2f} "
+          f"{rec['direction']:>9} "
           f"{str(rec['observables_agree']):>6} {rec.get('recovered_curl_deg', float('nan')):>+11.3f}")
+print("  (d tip-tip is the HULL-FREE tip pair. The hull columns are dropped from this table on "
+      "purpose -- see the TLOC note; they read backwards on this asset.)")
 base = {}
 for rec in summary["presses"]:
     base.setdefault((rec["rung"].rstrip("ab"), rec["state"]), []).append(rec["curl_in_deg"])
