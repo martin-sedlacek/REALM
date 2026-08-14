@@ -137,3 +137,46 @@ an A/B without an edit.
   revisiting it silently moves the target by 0.87 m -- and
   `tests/test_vector_integrity.py` reports PASS through it.
 
+
+### The mimic-constraint / max_effort sweep (2026-08-14)
+
+`gripper_squeeze_compliance.py` gained a **sweep mode** and two knobs that no REALM config touches.
+Full results in `~/runbook/streams/realm_og391_port.md`; the short version and the traps:
+
+- `--rungs "name=nf/dr/onf/odr/me/spi/kp/kd/ccs/ccd,..."` runs the whole OPEN -> unloaded calibration
+  sweep -> free close -> squeeze A -> squeeze B cycle **once per configuration in a single process**.
+  Every rung takes its own jaw-gap zero and its own reference kinematics. **Repeat a rung** (`def0`
+  and `def1` with identical settings) -- that pair is the error bar, and it came out at 0.047 mm.
+- **Rungs are CUMULATIVE.** `-` means "leave what the previous rung left", not "the authored value".
+  An effort rung placed after an nf rung measures both unless every field is restated.
+- **`--mimic-joints`** selects which mimic joints `nf`/`dr` apply to (default: the four inner ones).
+- Companions: `mimic_table.py` (cross-run table in degrees, with the unloaded slop beside the loaded
+  flex) and `mimic_contact_sheet.py` (`--diff` / `--sbs`, for the visibility question).
+
+Traps worth not re-hitting:
+
+- **`physxMimicJoint:<inst>:naturalFrequency` and `:dampingRatio` are not in this build's
+  `PhysxMimicJointAPI` schema** (isaacsim 5.1.0 / omni.physx 107.3.26: `Usd.SchemaRegistry` lists only
+  `gearing`, `offset`, `referenceJoint`, `referenceJointAxis`, and `_physxSchema.so` lacks the string).
+  They are read anyway, as **custom attributes by literal token** -- `omni/physx/bindings/_physx*.so`
+  exports `MIMIC_JOINT_ATTRIBUTE_NAME_NATURAL_FREQUENCY_ROT{X,Y,Z}`. Do not conclude from the schema
+  that they are inert; a runtime write changes the physics and is reversible.
+- **The mimic instance token is not the joint's `physics:axis`.** All six gripper joints author axis Z,
+  yet the four inner ones use `PhysxMimicJointAPI:rotX` and `right_outer_knuckle_joint` uses `rotZ`.
+- **Every USD write must be inside `with og.sim.editing_usd():`** or OmniGibson aborts the run
+  (`simulator.py:1651`). That context is also what syncs the edit into Fabric.
+- **`naturalFrequency` is what holds the four-bar together, not a spring behind a rigid pad.** The
+  followers have no drive at all, so lowering it lets the kinematic relation fail. Below nf~=10 the
+  fingers splay, the object tumbles out and the jaws close through it.
+- **The jaw-gap estimator stops being valid once the fingers rotate.** Its own validation against the
+  30.000 mm cube drifts from -0.19 mm at the default to +2.3 mm at nf=100 and +17 mm at nf=10, and
+  `past object width` then goes negative -- the jaw reading WIDER than the object it holds. Use the
+  follower-deflection columns, which need no hull geometry.
+- **Judge visibility on squeeze A, never squeeze B.** On a 200 kg pinned cube two runs with IDENTICAL
+  settings already differ by more than any rung differs from the default (7.19/255), so squeeze B
+  cannot discriminate. Squeeze A (free 27 g cube) is also the realistic grasp.
+- **Read the `pads` column on squeeze B only.** On squeeze A even the default ends with one pad in
+  contact, because a free 27 g cube gets pushed onto one pad and rides there.
+- `physxMaterial:compliantContactStiffness` IS in this build's schema, but
+  `geom_prim.get_applied_physics_material()` returns nothing for either pad link, so the probe cannot
+  reach the pad material that way. Unfinished lead, not a closed door.
