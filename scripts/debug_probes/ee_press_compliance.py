@@ -96,6 +96,73 @@ def finger_geom():
     return np.array(out), sep
 
 
+# --------------------------------------------------------------------------------------------
+# TIP vs HEEL: is the pad CURLING INWARD, splaying outward, or just translating?
+#
+# The pad-origin separation above cannot tell those apart -- it is one number per pad. The 2F-85
+# capability being chased is specifically the fingertip rotating INWARD when the tip meets
+# resistance, and "the deflection was large" is not evidence of that: an outward splay of the same
+# magnitude is a failure. So each pad's own convex collision hull is split along the finger's long
+# axis and the INNERMOST point (the one facing the other pad) is taken in the distal half and in the
+# proximal half:
+#
+#   tip_sep  = distance between the two distal  innermost points
+#   heel_sep = distance between the two proximal innermost points
+#
+# both reported signed against their free-hanging values. Then, unambiguously:
+#   tip_sep DOWN and heel_sep UP    -> the pads ROTATE about their pivots, tips INWARD  <- wanted
+#   tip_sep UP   and heel_sep DOWN  -> the pads rotate the other way, tips splay OUTWARD
+#   both DOWN (or both UP) together -> the pads TRANSLATE; the pivots are not what yielded
+#
+# The hull points are captured once in each pad's own link frame and carried by the live link pose,
+# so this measures link motion only and is immune to the hull-centre-vs-pose offset that bit the
+# squeeze probe. Everything is in the panda_link8 frame, like the rest of this file.
+_HULL_LOCAL = {}
+AXIS8 = None      # closing axis (left pad -> right pad), unit, in the panda_link8 frame
+LONG8 = None      # finger long axis (flange -> pads), unit, same frame
+
+
+def capture_reference_geometry():
+    """Fix the hulls and the two reference axes once, from the free-hanging closed pose."""
+    global AXIS8, LONG8
+    for ln in finger_links:
+        pts = robot.links[ln].collision_boundary_points_world
+        if pts is None or len(pts) == 0:
+            print(f"  [warn] {ln} has no collision hull points -- tip/heel geometry unavailable")
+            _HULL_LOCAL.clear()
+            return False
+        p, q = world_pose(ln)
+        _HULL_LOCAL[ln] = Rot.from_quat(q).inv().apply(_np(pts) - p)
+    fg, _ = finger_geom()
+    a = fg[1] - fg[0]
+    a = a / np.linalg.norm(a)
+    lg = (fg[0] + fg[1]) / 2.0
+    lg = lg - a * float(lg @ a)                     # orthogonalise against the closing axis
+    AXIS8, LONG8 = a, lg / np.linalg.norm(lg)
+    print(f"  hull points: " + ", ".join(f"{ln}={len(_HULL_LOCAL[ln])}" for ln in finger_links))
+    print(f"  closing axis (link8) = {AXIS8}\n  finger long axis     = {LONG8}")
+    return True
+
+
+def tip_heel():
+    """(tip_sep, heel_sep) in metres from the pads' hulls; (nan, nan) if unavailable."""
+    if not _HULL_LOCAL or AXIS8 is None:
+        return float("nan"), float("nan")
+    ep, eq = world_pose(eef_link)
+    R8i = Rot.from_quat(eq).inv()
+    inner = {}
+    for side, ln in enumerate(finger_links):
+        p, q = world_pose(ln)
+        P = R8i.apply(Rot.from_quat(q).apply(_HULL_LOCAL[ln]) + p - ep)   # (n,3) in the link8 frame
+        along = P @ LONG8
+        mid = 0.5 * (along.min() + along.max())     # distal half = further from the flange
+        sgn = +1.0 if side == 0 else -1.0           # "inner" is +AXIS8 for left, -AXIS8 for right
+        for half, mask in (("tip", along >= mid), ("heel", along < mid)):
+            inner[(half, side)] = float(((P[mask] @ AXIS8) * sgn).max()) * sgn
+    return (abs(inner[("tip", 1)] - inner[("tip", 0)]),
+            abs(inner[("heel", 1)] - inner[("heel", 0)]))
+
+
 hdr("PICKING A CLEAR COLUMN OVER THE TABLE")
 # The first attempt descended straight down from the reset pose and stopped dead 10 cm above the
 # table, at a perfectly constant pose -- it had landed on a task object (a glass), not on the table.
@@ -196,10 +263,19 @@ def do_step(cmd6, tag):
     # near pi; correct tracking stays in the milliradians.
     rpy_err = float(np.linalg.norm(
         (Rot.from_euler("xyz", ach[3:]) * Rot.from_euler("xyz", cmd6[3:]).inv()).as_rotvec()))
+    tip, heel = tip_heel()
     rows.append(dict(tag=tag, cmd_z=cmd6[2], ach_z=ach[2], ee_world_z=float(ee_w[2]),
-                     rpy_err=rpy_err, sep=sep, gq=q[7:].copy(), fg=fg.copy()))
+                     rpy_err=rpy_err, sep=sep, gq=q[7:].copy(), fg=fg.copy(),
+                     tip_sep=tip, heel_sep=heel))
     return ach
 
+
+# env.warmup() ends on an OPEN command, so close first: the reference axes are defined between the
+# pads and must be taken at the closed pose the whole press then happens at.
+for t in range(8):
+    do_step(cmd, "shut")
+hdr("REFERENCE GEOMETRY (free-hanging, jaws closed)")
+capture_reference_geometry()
 
 for t in range(HOLD_STEPS):
     ach = do_step(cmd, "hold")
@@ -253,7 +329,7 @@ for t in range(PRESS_STEPS):
               f"sep={r['sep'] * 1000:6.1f}mm gq={r['gq']}", flush=True)
 
 hdr("COMPLIANCE SUMMARY (pad links in the panda_link8 frame -- arm motion removed)")
-rest = rows[HOLD_STEPS - 1]
+rest = [r for r in rows if r["tag"] == "hold"][-1]
 press_rows = [r for r in rows if r["tag"] == "press"]
 last = press_rows[-1]
 seps = np.array([r["sep"] for r in rows])
@@ -266,6 +342,39 @@ print(f"  pad L in eef frame: rest={rest['fg'][0]}  press={last['fg'][0]}  "
 print(f"  pad R in eef frame: rest={rest['fg'][1]}  press={last['fg'][1]}  "
       f"|d|={np.linalg.norm(last['fg'][1] - rest['fg'][1]) * 1000:.3f} mm")
 print(f"  gripper qpos delta         = {last['gq'] - rest['gq']}")
+
+hdr("DIRECTION: DO THE FINGERTIPS CURL INWARD? (tip vs heel, signed)")
+d_tip = (last["tip_sep"] - rest["tip_sep"]) * 1000.0
+d_heel = (last["heel_sep"] - rest["heel_sep"]) * 1000.0
+print(f"  tip  separation  rest {rest['tip_sep'] * 1000:8.3f} -> press {last['tip_sep'] * 1000:8.3f} mm"
+      f"   delta {d_tip:+8.3f} mm")
+print(f"  heel separation  rest {rest['heel_sep'] * 1000:8.3f} -> press {last['heel_sep'] * 1000:8.3f} mm"
+      f"   delta {d_heel:+8.3f} mm")
+tips = np.array([r["tip_sep"] for r in rows])
+heels = np.array([r["heel_sep"] for r in rows])
+if np.isfinite(tips).all():
+    i_ex = int(np.nanargmax(np.abs(tips - rest["tip_sep"])))
+    print(f"  worst tip excursion over the run = {(tips[i_ex] - rest['tip_sep']) * 1000:+.3f} mm "
+          f"at step {i_ex} ({rows[i_ex]['tag']})")
+if not np.isfinite(d_tip) or not np.isfinite(d_heel):
+    verdict = "UNAVAILABLE (no collision hull points)"
+elif abs(d_tip) < 0.02 and abs(d_heel) < 0.02:
+    verdict = "NO MEASURABLE PAD MOTION (both under 20 um)"
+elif d_tip < 0 and d_heel > 0:
+    verdict = "PADS CURL INWARD  <-- the 2F-85 behaviour being chased"
+elif d_tip > 0 and d_heel < 0:
+    verdict = "PADS SPLAY OUTWARD  <-- wrong direction; a failure however large"
+elif d_tip < 0 and d_heel < 0:
+    verdict = ("PADS TRANSLATE INWARD (tip and heel both converge) -- the yield is not at the "
+               "pad pivots" if abs(d_tip) - abs(d_heel) < 0 else
+               "PADS CURL INWARD ON TOP OF AN INWARD TRANSLATION (tip converges more than heel)")
+else:
+    verdict = "PADS TRANSLATE OUTWARD (tip and heel both diverge)"
+print(f"\n  PRESS_DIRECTION: {verdict}")
+print(f"  per-pad pivot deviation (rad): the two pad joints are gripper DOFs [2] and [3] in gq; "
+      f"full gq delta printed above")
+np.save(os.path.join(OUT_DIR if os.path.isdir(OUT_DIR) else "/tmp", f"{ROBOT}_tipheel.npy"),
+        np.stack([tips, heels]))
 _low = min(r['ee_world_z'] for r in rows)
 print(f"  lowest eef world z reached = {_low:.4f} m -> lowest PAD world z = {_low - PAD_OFF:.4f} m")
 print(f"  table top world z          = {TABLE_TOP:.4f} m  -> pads went "

@@ -1,0 +1,107 @@
+# "Pad spring" variant of droid_robolab_v2: the two inner-finger pivots are sprung followers
+# instead of PhysX mimic joints, so the pads can actually rotate when they are loaded.
+#
+# Differences from droid_robolab_v2, and nothing else:
+#   1. usd_path -> droid_robolab_padspring.usd (built by scripts/make_padspring_gripper_usd.py:
+#      PhysxMimicJointAPI removed from left/right_inner_finger_joint, DriveAPI:angular added with a
+#      capped maxForce; the other four mimic joints are untouched).
+#   2. gripper_0 default controller -> PadSpringGripperController.
+#   3. finger_joint_names lists the two pad pivots alongside finger_joint. It has to: they now carry
+#      a DriveAPI, and OmniGibson asserts that every driven DOF is claimed by a controller
+#      (robot.py:658) -- and only a controller-claimed DOF gets its isaac_kp/isaac_kd re-applied on
+#      each og.sim.play(), which is where the spring stiffness lives.
+#      They are NOT independently commanded: PadSpringGripperController feeds each the angle the
+#      removed mimic relation would have produced (gearing * q_leader + offset). See
+#      realm/robots/padspring_gripper_controller.py.
+#
+# Spring VALUES (isaac_kp / isaac_kd for the pads, and maxForce in the USD) are physics
+# hyperparameters and live in realm/config/robots/DROID_robolab_padspring.yaml + the USD build
+# command, not here.
+#
+raw_controller_order: ["arm_0", "gripper_0"]
+default_controllers:
+  arm_0: CustomJointController
+  gripper_0: PadSpringGripperController
+
+usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_padspring.usd"
+
+# Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
+# Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the
+# resulting contact forces drive finger_joint hard to its upper limit -- measured: setting the
+# joint to 0.0 and stepping lands it at 0.7854 within ~60 steps, with the pads stuck at the
+# maximum ~8 cm opening regardless of command. OmniGibson's own franka.yaml disables the same
+# 28 pairs for its `robotiq` end-effector variant, which uses these exact link names.
+self_collisions: true
+disabled_collision_pairs:
+  - ["left_outer_knuckle", "left_outer_finger"]
+  - ["left_outer_knuckle", "left_inner_finger"]
+  - ["left_outer_knuckle", "left_inner_knuckle"]
+  - ["left_outer_knuckle", "right_outer_knuckle"]
+  - ["left_outer_knuckle", "right_outer_finger"]
+  - ["left_outer_knuckle", "right_inner_finger"]
+  - ["left_outer_knuckle", "right_inner_knuckle"]
+  - ["left_outer_finger", "left_inner_finger"]
+  - ["left_outer_finger", "left_inner_knuckle"]
+  - ["left_outer_finger", "right_outer_knuckle"]
+  - ["left_outer_finger", "right_outer_finger"]
+  - ["left_outer_finger", "right_inner_finger"]
+  - ["left_outer_finger", "right_inner_knuckle"]
+  - ["left_inner_finger", "left_inner_knuckle"]
+  - ["left_inner_finger", "right_outer_knuckle"]
+  - ["left_inner_finger", "right_outer_finger"]
+  - ["left_inner_finger", "right_inner_finger"]
+  - ["left_inner_finger", "right_inner_knuckle"]
+  - ["left_inner_knuckle", "right_outer_knuckle"]
+  - ["left_inner_knuckle", "right_outer_finger"]
+  - ["left_inner_knuckle", "right_inner_finger"]
+  - ["left_inner_knuckle", "right_inner_knuckle"]
+  - ["right_outer_knuckle", "right_outer_finger"]
+  - ["right_outer_knuckle", "right_inner_finger"]
+  - ["right_outer_knuckle", "right_inner_knuckle"]
+  - ["right_outer_finger", "right_inner_finger"]
+  - ["right_outer_finger", "right_inner_knuckle"]
+  - ["right_inner_finger", "right_inner_knuckle"]
+  - ["base_link", "left_outer_knuckle"]
+  - ["base_link", "left_outer_finger"]
+  - ["base_link", "left_inner_finger"]
+  - ["base_link", "left_inner_knuckle"]
+  - ["base_link", "right_outer_knuckle"]
+  - ["base_link", "right_outer_finger"]
+  - ["base_link", "right_inner_finger"]
+  - ["base_link", "right_inner_knuckle"]
+
+# 7 arm DOFs + 6 gripper DOFs (the actuated finger_joint plus its five mimic followers, all of which
+# are real articulation DOFs here because the linkage is a tree). Arm values are the measured DROID
+# rest pose carried over from droid.yaml; env_dynamic overwrites the first 7 per task.
+default_joint_pos: [
+  0.143628523,
+  -0.597331285,
+  0.00201173499,
+  -2.38619041,
+  0.267941624,
+  1.97807848,
+  -0.0898026153,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+]
+
+manipulation:
+  arm_link_names:
+    "0": ["panda_link0", "panda_link1", "panda_link2", "panda_link3", "panda_link4", "panda_link5", "panda_link6", "panda_link7"]
+  arm_joint_names:
+    "0": ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+  eef_link_names:
+    "0": "panda_link8"
+  # The compliant pads that actually contact the object; grasp detection intersects contacts with
+  # these (RealmEnvironmentBase.is_grasping expects exactly two).
+  finger_link_names:
+    "0": ["left_inner_finger", "right_inner_finger"]
+  # The driven joint plus the two sprung pad pivots. Unlike the four remaining mimic followers,
+  # these two are real drives now, and OmniGibson requires every driven DOF to be controller-claimed.
+  # PadSpringGripperController commands only the leader binary-style and slaves the pads to it, so
+  # this does NOT put the controller in a fight with its own linkage.
+  # NOTE: finger_joint is inverted relative to OmniGibson's convention (0 rad = open, upper limit =
+  # closed); the controller's binary branch already accounts for that.
+  finger_joint_names:
+    "0": ["finger_joint", "left_inner_finger_joint", "right_inner_finger_joint"]
+  teleop_rotation_offset:
+    "0": [-1, 0, 0, 0]
