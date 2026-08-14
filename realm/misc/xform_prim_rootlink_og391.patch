@@ -1,0 +1,73 @@
+commit 7c59ed5b2b0a11c163e81fdc0a5e7f85e93d962c
+Author: Martin Sedlacek <martin.martin.sedlacek@gmail.com>
+Date:   Fri Aug 14 03:13:26 2026 +0200
+
+    Place an articulation by its ROOT LINK, not by whichever prim was read
+    
+    REALM's impact_drawer cabinet.usd could not load. Two independent defects, both the same mistake:
+    code that reads an entity's pose through the virtual accessor (root link) and writes it through a
+    path pinned to XFormPrim (the entity prim). cabinet.usd is the first asset here whose base_link is
+    NOT at the entity origin -- it sits at Ry(180) + 4 cm -- so it is the first asset that can tell the
+    two apart. Every BEHAVIOR dataset asset has base_link at the origin, which is why this survived.
+    
+    1. XFormPrim._set_xform_properties read `self.get_position_orientation()` (EntityPrim -> root link)
+       and wrote `XFormPrim.set_position_orientation(self, ...)` (entity prim). The write therefore
+       moved the object by base_link's local transform, and the method's own round-trip assert caught
+       it:
+    
+         AssertionError: /World/scene_0/drawer:
+           old_pos tensor([0.0243, 0.8223, -0.0317])
+           new_pos tensor([2.3468e-04, 8.1015e-01, -6.3757e-02])
+    
+       Confirmed by reconstructing both poses from the authored matrices: base_link_local @ entity_local
+       reproduces old_pos/old_orn, and base_link_local @ old reproduces new_pos/new_orn, to every
+       printed digit. The asymmetry came in with the v3.9.1 port (25c73e1), which pinned the write and
+       left both reads virtual. Fixed by pinning the reads to match.
+    
+    2. EntityPrim.set_position_orientation's stopped-sim branch moves the entity prim and asserted that
+       the root link has no relative pose to it. That is an OmniGibson convention, not a property of
+       USD, and asserting it makes any DCC-exported articulation unloadable. The playing branch already
+       does the right thing (set_world_poses addresses the root link), so this now aims the entity prim
+       at target * root_local^-1, which puts the root link exactly where the caller asked. Skipped
+       entirely when root_local is identity, so every asset that satisfied the old assert is written
+       bit-for-bit as before.
+    
+    Verified on l40s-01 (alloc 190842): REALM tests/test_vector_integrity.py --cells 8:Default at
+    --num_envs 2 now reports PASS (2 rollouts, all artifacts). Both tasks failed at load before.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+diff --git a/omnigibson/prims/xform_prim.py b/omnigibson/prims/xform_prim.py
+index a7281a0..b64b96f 100644
+--- a/omnigibson/prims/xform_prim.py
++++ b/omnigibson/prims/xform_prim.py
+@@ -99,7 +99,18 @@ class XFormPrim(BasePrim):
+         super().remove()
+ 
+     def _set_xform_properties(self):
+-        current_position, current_orientation = self.get_position_orientation()
++        # Read THIS prim's own pose, not self.get_position_orientation()'s. That accessor is
++        # virtual and EntityPrim overrides it to return the ROOT LINK's pose, while the write below
++        # is deliberately pinned to XFormPrim.set_position_orientation, which authors xformOps on
++        # THIS prim. Reading through one and writing through the other means that for an entity
++        # whose root link sits at a non-identity transform relative to the entity Xform, this
++        # method moves the object by exactly that transform and then fails its own round-trip
++        # assert. Every BEHAVIOR dataset asset has base_link at the entity origin, so the two poses
++        # coincide and the asymmetry is invisible; a DCC-exported asset whose base_link carries its
++        # own rotation/offset (REALM's impact_drawer cabinet.usd: base_link at Ry(180) + 4 cm) trips
++        # it on load. Rewriting this prim's op order must be pose-preserving FOR THIS PRIM, so read
++        # and write have to address the same prim.
++        current_position, current_orientation = XFormPrim.get_position_orientation(self)
+         properties_to_remove = [
+             "xformOp:rotateX",
+             "xformOp:rotateXZY",
+@@ -146,7 +157,8 @@ class XFormPrim(BasePrim):
+ 
+         # This creates its own editing_usd context.
+         XFormPrim.set_position_orientation(self, position=current_position, orientation=current_orientation)
+-        new_position, new_orientation = self.get_position_orientation()
++        # Same prim as the read above -- see the comment there.
++        new_position, new_orientation = XFormPrim.get_position_orientation(self)
+         r1 = T.quat2mat(current_orientation)
+         r2 = T.quat2mat(new_orientation)
+         # Make sure setting is done correctly
