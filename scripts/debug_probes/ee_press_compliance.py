@@ -263,8 +263,14 @@ WRIST_KEY = getattr(env, "wrist_camera_key", None) or wrist_camera_obs_key(robot
 _have_wrist = robot.name in obs and WRIST_KEY in obs[robot.name]
 print(f"[press] wrist camera key = {WRIST_KEY}  present in obs = {_have_wrist}")
 if not _have_wrist:
-    print(f"  [warn] not in obs; robot camera keys = "
-          f"{[k for k in obs.get(robot.name, {}) if ':Camera:' in k]}")
+    # Degrade the way extract_from_obs does -- to SOME camera on the robot, loudly -- rather than
+    # losing the whole video to a renamed link after a ten-minute boot.
+    _cams = [k for k in obs.get(robot.name, {}) if ":Camera:" in k]
+    print(f"  [warn] '{WRIST_KEY}' not in obs; robot camera keys = {_cams}")
+    if _cams:
+        WRIST_KEY, _have_wrist = _cams[0], True
+        print(f"  [warn] FALLING BACK to '{WRIST_KEY}' -- this may not be the wrist view; check the "
+              f"first frame before showing the clip to anyone.")
 
 
 def do_step(cmd6, tag):
