@@ -41,6 +41,7 @@ import omnigibson as og
 from realm.sim_config import set_sim_config
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.environments.constants import DROID_BASE_HEIGHT
+from realm.inference.utils import wrist_camera_obs_key
 
 
 def _np(x):
@@ -247,7 +248,23 @@ hdr("PHASE 0: HOLD -- does a commanded pose come back unchanged? (rotation sanit
 cmd = ee_pose_robot_frame()
 print(f"  commanded (robot frame) xyz={cmd[:3]}  rpy={cmd[3:]}")
 GRIP_CLOSE = 1.0   # droid_gripper_controller: target >= 0 -> joint UPPER limit = jaws SHUT
-frames, rows = [], []
+frames, frames_wrist, rows = [], [], []
+
+# THE WRIST VIEW IS THE RIGHT CAMERA FOR *THIS* MOTION, and the standing advice is about a different
+# one. "The wrist camera looks along the fingers and hides bending" was written for the SQUEEZE case,
+# where the pads move within the plane the wrist camera looks along -- edge-on, invisible. An inward
+# TIP CURL is the opposite: the wrist camera looks down the approach axis, so the tips converging is
+# a lateral motion in that frame and reads directly as the jaw gap closing, while `external_sensor0`
+# sees the same motion nearly edge-on. Both are recorded here; neither replaces the tip/heel numbers,
+# and note the camera is `wrist_camera_flipped` -- check the image orientation before reading any
+# direction off it. The key is RESOLVED (env.wrist_camera_key, set by assert_wrist_camera) rather
+# than guessed, because a miss degrades to some other camera with only a warning.
+WRIST_KEY = getattr(env, "wrist_camera_key", None) or wrist_camera_obs_key(robot.name)
+_have_wrist = robot.name in obs and WRIST_KEY in obs[robot.name]
+print(f"[press] wrist camera key = {WRIST_KEY}  present in obs = {_have_wrist}")
+if not _have_wrist:
+    print(f"  [warn] not in obs; robot camera keys = "
+          f"{[k for k in obs.get(robot.name, {}) if ':Camera:' in k]}")
 
 
 def do_step(cmd6, tag):
@@ -255,6 +272,8 @@ def do_step(cmd6, tag):
     action = np.concatenate([cmd6, [GRIP_CLOSE]])
     obs, _, _, _, _ = env.step(action, n_render_iterations=1)
     frames.append(obs["external"]["external_sensor0"]["rgb"].cpu().numpy()[..., :3].copy())
+    if _have_wrist:
+        frames_wrist.append(obs[robot.name][WRIST_KEY]["rgb"].cpu().numpy()[..., :3].copy())
     ach = ee_pose_robot_frame()
     q = _np(obs[robot.name]["proprio"])
     fg, sep = finger_geom()
@@ -385,10 +404,56 @@ print(f"  commanded z at end of press = {z_press:+.4f} (robot frame); "
 
 hdr("WRITING VIDEO")
 os.makedirs(OUT_DIR, exist_ok=True)
-out = os.path.join(OUT_DIR, f"{ROBOT}_press.mp4")
+TAG = os.environ.get("REALM_VIDTAG", ROBOT)     # so two configs can be told apart in one out dir
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
-ImageSequenceClip([f for f in frames], fps=FPS).write_videofile(out, codec="libx264", audio=False)
-print(f"  wrote {out}  ({len(frames)} frames @ {FPS} fps = {len(frames) / FPS:.1f} s)")
-np.save(os.path.join(OUT_DIR, f"{ROBOT}_sep.npy"), seps)
+
+
+def burn(im, i, label):
+    """Phase, step and the live tip/heel numbers, burned in -- a clip of a sub-millimetre motion is
+    unreadable without them, and it is what stops a viewer reading direction off pixels."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except Exception:
+        return im
+    r = rows[min(i, len(rows) - 1)]
+    img = Image.fromarray(np.ascontiguousarray(im))
+    d = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.load_default(size=max(15, im.shape[0] // 30))
+    except TypeError:
+        font = ImageFont.load_default()
+    dt = (r["tip_sep"] - rest["tip_sep"]) * 1000.0
+    dh = (r["heel_sep"] - rest["heel_sep"]) * 1000.0
+    d.rectangle([0, 0, img.size[0], int(im.shape[0] * 0.15)], fill=(0, 0, 0))
+    d.multiline_text((8, 4), f"{TAG}  {label}\n{r['tag']}  step {i}\n"
+                             f"tip {dt:+.3f} mm   heel {dh:+.3f} mm  (tip DOWN + heel UP = curl in)",
+                     fill=(255, 235, 120), font=font)
+    return np.asarray(img)
+
+
+def write(path, seq, label, crop=1.0):
+    ims = []
+    for i, fr in enumerate(seq):
+        if crop > 1.0:
+            h, w = fr.shape[:2]
+            ch, cw = int(h / (2 * crop)), int(w / (2 * crop))
+            fr = fr[h // 2 - ch: h // 2 + ch, w // 2 - cw: w // 2 + cw]
+        ims.append(burn(fr, i, label))
+    ImageSequenceClip(ims, fps=FPS).write_videofile(path, codec="libx264", audio=False, logger=None)
+    print(f"  wrote {path}  ({len(ims)} frames @ {FPS} fps = {len(ims) / FPS:.1f} s)")
+
+
+write(os.path.join(OUT_DIR, f"{TAG}_press.mp4"), frames, "external_sensor0")
+if frames_wrist:
+    # The wrist view, plus a 3x centre crop: the motion is a few tenths of a millimetre and needs
+    # magnification before it is legible at all.
+    write(os.path.join(OUT_DIR, f"{TAG}_press_wrist.mp4"), frames_wrist, "wrist_camera_flipped")
+    write(os.path.join(OUT_DIR, f"{TAG}_press_wrist_ZOOM3.mp4"), frames_wrist,
+          "wrist_camera_flipped 3x", crop=3.0)
+    np.save(os.path.join(OUT_DIR, f"{TAG}_wrist_lastframe.npy"), frames_wrist[-1])
+else:
+    print("  [warn] no wrist frames captured")
+np.save(os.path.join(OUT_DIR, f"{TAG}_sep.npy"), seps)
+print(f"PRESS_FRAMES external={len(frames)} wrist={len(frames_wrist)}")
 print("PRESS_VIDEO_OK")
 og.shutdown()
