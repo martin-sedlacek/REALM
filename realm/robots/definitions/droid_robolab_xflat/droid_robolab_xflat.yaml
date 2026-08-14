@@ -1,0 +1,141 @@
+# "Xform-flattened" variant of droid_robolab_v2: geometrically identical, structurally different.
+#
+# Differences from droid_robolab_v2, and nothing else:
+#   1. usd_path -> droid_robolab_xflat.usd (built by scripts/make_xflat_gripper_usd.py).
+#
+# There is no item 2. No joint, no drive, no mimic parameter, no mass and no collision surface
+# changes -- the generator transforms every collision mesh's POINTS to world space in both files and
+# requires a max displacement of 0 (it measures exactly 0.000e+00 m over all 42,997 points), and it
+# compares every authored attribute on panda_joint1..7 and on every panda_link* subtree against the
+# source (grep XFLAT_ARM_IDENTICAL).
+#
+# What it does change is the LEVEL at which the gripper's collision transform is authored, and the
+# reason is an OmniGibson loader defect. `RigidPrim.update_meshes()` derives each link's centre of
+# mass by composing the geom pose with `get_position_orientation(frame="parent")` -- the IMMEDIATE
+# parent -- while its own comment claims the link frame. Every collision API in this asset sits on an
+# intermediate `Defeatured_*_01` Xform with the Mesh beneath it, and GEOM_TYPES excludes Xform, so
+# the Xform -> link step is silently dropped. That Xform carries the left/right MIRROR, so both pads
+# received an identical computed CoM *including the sign of y* -- impossible for a mirrored pair --
+# landing 128.347 mm off and inflating each pad's inertia about its own pivot 77x (m*d^2 is ~95% of
+# it). A PhysX mimic joint realises k ~ omega^2*I, so at the authored naturalFrequency 1000 the
+# fingertips were ~77x too stiff and would not curl.
+#
+# This variant moves each `_01` Xform's translate/orient VERBATIM down onto its Mesh and leaves the
+# Xform at identity. The dropped step is then the identity, so the loader's parent-frame composition
+# returns the link frame BY CONSTRUCTION. It needs no OmniGibson patch and is correct against a
+# completely stock loader -- that is the point of this route, as opposed to the loader fix in
+# OG-lite_og391 83b21d5 and the explicitly-authored mass properties on branch mass-authored.
+#
+# v2 of the robolab asset. Identical to droid_robolab except for the USD it points at, so the
+# two can be A/B compared without disturbing the v1 definition.
+# RobotDefinition for the DROID platform using the robolab Franka + Robotiq 2F-85 asset.
+#
+# Same arm as `droid`, different gripper physics. The stock droid.usd models the 2F-85 with extra
+# prismatic joints and relies on the loop-closing joints contributing no articulation DOFs, which
+# makes the fingers effectively rigid. The robolab asset instead models the four-bar linkage as a
+# *tree* (each inner_knuckle is a leaf rather than being joined back to base_link) and reproduces
+# the linkage kinematics with PhysX **mimic joints** -- an Isaac Sim 5.1 feature that OmniGibson
+# 1.1.1 could not use. The result is a single actuated DOF whose followers can flex, so the pads
+# comply on contact instead of behaving as a rigid jaw.
+#
+# The asset is produced from the vendor file by scripts/convert_robolab_gripper_usd.py, which
+# flattens the gripper bodies up to /panda (OmniGibson only treats *direct* Xform children of the
+# robot prim as links). Do not point usd_path at the raw robolab file.
+#
+# Gripper joint topology (base_link is the gripper base, fixed to panda_link8):
+#   finger_joint                     base_link          -> left_outer_knuckle   [ACTUATED, drive]
+#   right_outer_knuckle_joint        base_link          -> right_outer_knuckle  [mimic]
+#   left_inner_finger_joint          left_outer_finger  -> left_inner_finger    [mimic]
+#   right_inner_finger_joint         right_outer_finger -> right_inner_finger   [mimic]
+#   left_inner_finger_knuckle_joint  left_inner_finger  -> left_inner_knuckle   [mimic]
+#   right_inner_finger_knuckle_joint right_inner_finger -> right_inner_knuckle  [mimic]
+#   FixedJoint x2                    *_outer_knuckle    -> *_outer_finger
+#
+# Loaded via `model: droid_robolab`.
+
+raw_controller_order: ["arm_0", "gripper_0"]
+default_controllers:
+  arm_0: CustomJointController
+  gripper_0: CustomGripperController
+
+usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_xflat.usd"
+
+# Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
+# Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the
+# resulting contact forces drive finger_joint hard to its upper limit -- measured: setting the
+# joint to 0.0 and stepping lands it at 0.7854 within ~60 steps, with the pads stuck at the
+# maximum ~8 cm opening regardless of command. OmniGibson's own franka.yaml disables the same
+# 28 pairs for its `robotiq` end-effector variant, which uses these exact link names.
+self_collisions: true
+disabled_collision_pairs:
+  - ["left_outer_knuckle", "left_outer_finger"]
+  - ["left_outer_knuckle", "left_inner_finger"]
+  - ["left_outer_knuckle", "left_inner_knuckle"]
+  - ["left_outer_knuckle", "right_outer_knuckle"]
+  - ["left_outer_knuckle", "right_outer_finger"]
+  - ["left_outer_knuckle", "right_inner_finger"]
+  - ["left_outer_knuckle", "right_inner_knuckle"]
+  - ["left_outer_finger", "left_inner_finger"]
+  - ["left_outer_finger", "left_inner_knuckle"]
+  - ["left_outer_finger", "right_outer_knuckle"]
+  - ["left_outer_finger", "right_outer_finger"]
+  - ["left_outer_finger", "right_inner_finger"]
+  - ["left_outer_finger", "right_inner_knuckle"]
+  - ["left_inner_finger", "left_inner_knuckle"]
+  - ["left_inner_finger", "right_outer_knuckle"]
+  - ["left_inner_finger", "right_outer_finger"]
+  - ["left_inner_finger", "right_inner_finger"]
+  - ["left_inner_finger", "right_inner_knuckle"]
+  - ["left_inner_knuckle", "right_outer_knuckle"]
+  - ["left_inner_knuckle", "right_outer_finger"]
+  - ["left_inner_knuckle", "right_inner_finger"]
+  - ["left_inner_knuckle", "right_inner_knuckle"]
+  - ["right_outer_knuckle", "right_outer_finger"]
+  - ["right_outer_knuckle", "right_inner_finger"]
+  - ["right_outer_knuckle", "right_inner_knuckle"]
+  - ["right_outer_finger", "right_inner_finger"]
+  - ["right_outer_finger", "right_inner_knuckle"]
+  - ["right_inner_finger", "right_inner_knuckle"]
+  - ["base_link", "left_outer_knuckle"]
+  - ["base_link", "left_outer_finger"]
+  - ["base_link", "left_inner_finger"]
+  - ["base_link", "left_inner_knuckle"]
+  - ["base_link", "right_outer_knuckle"]
+  - ["base_link", "right_outer_finger"]
+  - ["base_link", "right_inner_finger"]
+  - ["base_link", "right_inner_knuckle"]
+
+# 7 arm DOFs + 6 gripper DOFs (the actuated finger_joint plus its five mimic followers, all of which
+# are real articulation DOFs here because the linkage is a tree). Arm values are the measured DROID
+# rest pose carried over from droid.yaml; env_dynamic overwrites the first 7 per task.
+default_joint_pos: [
+  0.143628523,
+  -0.597331285,
+  0.00201173499,
+  -2.38619041,
+  0.267941624,
+  1.97807848,
+  -0.0898026153,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+]
+
+manipulation:
+  arm_link_names:
+    "0": ["panda_link0", "panda_link1", "panda_link2", "panda_link3", "panda_link4", "panda_link5", "panda_link6", "panda_link7"]
+  arm_joint_names:
+    "0": ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+  eef_link_names:
+    "0": "panda_link8"
+  # The compliant pads that actually contact the object; grasp detection intersects contacts with
+  # these (RealmEnvironmentBase.is_grasping expects exactly two).
+  finger_link_names:
+    "0": ["left_inner_finger", "right_inner_finger"]
+  # Only the driven joint. Everything else follows through the mimic constraints, so commanding it
+  # is enough -- and listing followers here would have the controller fight its own linkage.
+  # NOTE: this joint is inverted relative to OmniGibson's convention (0 rad = open, upper limit =
+  # closed), so the gripper controller needs explicit open_qpos/closed_qpos; see
+  # realm/config/robots/DROID_robolab.yaml.
+  finger_joint_names:
+    "0": ["finger_joint"]
+  teleop_rotation_offset:
+    "0": [-1, 0, 0, 0]
