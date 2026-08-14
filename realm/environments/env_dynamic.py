@@ -32,6 +32,7 @@ from realm.sim_config import set_rendering_mode
 
 import omnigibson as og
 import omnigibson.lazy as lazy
+from omnigibson.controllers.controller_view import ControllerView
 from omnigibson.utils.asset_utils import get_all_object_models
 from omnigibson.utils.usd_utils import create_joint
 from scipy.spatial.transform import Rotation as R
@@ -338,8 +339,15 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         """Hold-still EE command for warmup: the current pose in robot frame. None if joint-control."""
         if not self.ee_control:
             return None
-        arm_controller = self.robot._controllers.get("arm_0")
-        if arm_controller is not None and arm_controller.mode != "absolute_pose":
+        # OG 3.9.1: robot._controllers[name] is a (group_key, controller_idx) TUPLE, not the
+        # controller object -- instances live in the ControllerView registry, shared by every robot
+        # whose kinematic-tree pattern and controller config hash match. Reading `.mode` straight off
+        # the tuple raised `AttributeError: 'tuple' object has no attribute 'mode'`. This line is only
+        # reachable when ee_control is set, which is why it survived the port unnoticed: it took down
+        # BOTH warmup paths (RealmEnvironmentDynamic.warmup and RealmVectorEnvironment.warmup) for
+        # every EE-control config, before a single rollout step ran.
+        entry = self.robot._controllers.get("arm_0")
+        if entry is not None and ControllerView.get_mode(entry[0]) != "absolute_pose":
             return np.zeros(6)
         ee_pos, ee_quat = self.get_ee_pose()
         ee_pos = ee_pos.cpu().numpy() if hasattr(ee_pos, 'cpu') else np.array(ee_pos)
