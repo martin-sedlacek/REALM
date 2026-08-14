@@ -65,13 +65,24 @@ def run_joint_resets(envs):
     halves matter -- the count alone would also be satisfied by a loop that stepped once and wrote
     nothing.
 
-    SEPARATE, PRE-EXISTING, NOT THIS FUNCTION'S DOING: in SCENE 0 the drawers do not reach the
-    commanded position at all (target joint settles ~0.17-0.19 m of a 0.30 m range, and joints 02/03
-    stop at 0.2289/0.2288 m in every run, which is a geometric stop rather than a control failure).
-    That reproduces identically at num_envs=1 with this function bypassed, so it is a property of
-    the task in scene 0 and not of the batching. Scene 0's cabinet also sits 44 mm higher than
-    scene 1's (root-link z 0.544 vs 0.500) and scene 1's drawers close perfectly, which is where to
-    start looking.
+    FIXED 2026-08-14, and it was never this function's doing: in SCENE 0 the drawers used not to
+    reach the commanded position at all (target joint settling ~0.17-0.19 m of a 0.30 m range,
+    joints 02/03 stopping dead at 0.2289/0.2288 m in every run). The cause was that scene 0's
+    cabinet was placed LYING ON ITS BACK -- root-link orientation ~identity instead of the task
+    config's [0.7044, 0.0616, 0.0616, 0.7044) -- so its drawers slid vertically and jammed against
+    floors_jkaqil_0 and breakfast_table_support. Kit's metrics assembler was appending an
+    xformOp:rotateX:unitsResolve = 90 to the cabinet prim's xformOpOrder (cabinet.usd is authored
+    upAxis=Y, the stage is Z) for the first reference to the asset only, and no OmniGibson pose
+    setter can see that op. Fixed in OG-lite by making the exported asset layer's up axis agree
+    with the stage's; see USDObject._preapply_articulation_root.
+
+    RETRACTED with it: the note that said scene 0's cabinet "sits 44 mm higher than scene 1's
+    (root-link z 0.544 vs 0.500), which is where to start looking". The 44 mm was real but it was a
+    CONSEQUENCE of the wrong rotation -- cabinet.usd authors base_link 4 cm off the entity origin,
+    so a 90-degree error in the entity prim's orientation moves the root link by that offset -- and
+    it had nothing to do with scene_base.py re-applying object poses only for idx != 0. That path
+    touches the scene FILE's objects; the cabinet is a task object added later by
+    og.Environment._load_objects.
     """
     pending = [env for env in envs if env.pending_joint_reset is not None]
     if not pending:
