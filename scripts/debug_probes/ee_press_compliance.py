@@ -150,8 +150,35 @@ def capture_reference_geometry():
     return True
 
 
+# The two pad pivots' positions within the gripper block of the proprio vector, resolved by NAME.
+# gq is q[7:], so a joint's gq index is its dof index minus the 7 arm DOFs. Assuming [2] and [3]
+# happens to be right on both robolab assets, but a re-export or a variant that adds a DOF would
+# silently start reporting a different joint's angle as "the pad pivot".
+def _gq_index(jname):
+    try:
+        return int(list(robot.joints[jname].dof_indices)[0]) - 7
+    except Exception:
+        return None
+
+
+PIV = {ln: _gq_index(f"{'left' if k == 0 else 'right'}_inner_finger_joint")
+       for k, ln in enumerate(finger_links)}
+PIV_IDX = [PIV[finger_links[0]], PIV[finger_links[1]]]
+print(f"[press] pad pivots in gq: left={PIV_IDX[0]} right={PIV_IDX[1]} "
+      f"(from dof_indices, not assumed)")
+
+_INNER = {}      # last per-pad inner tip/heel coordinates, filled by tip_heel()
+
+
 def tip_heel():
-    """(tip_sep, heel_sep) in metres from the pads' hulls; (nan, nan) if unavailable."""
+    """(tip_sep, heel_sep) in metres from the pads' hulls; (nan, nan) if unavailable.
+
+    Also stashes the PER-PAD inner coordinates in _INNER. The pair separations are sums of two pads'
+    motions, so they cannot show that one pad is doing all the work -- and on this asset one is: the
+    first deep press moved `right_inner_finger_joint` by 0.037 rad while the left moved 0.0000.
+    Whether that is real asymmetry or the tips not landing squarely is a setup question, and it can
+    only be asked with the two pads reported separately.
+    """
     if not _HULL_LOCAL or AXIS8 is None:
         return float("nan"), float("nan")
     ep, eq = world_pose(eef_link)
@@ -165,8 +192,49 @@ def tip_heel():
         sgn = +1.0 if side == 0 else -1.0           # "inner" is +AXIS8 for left, -AXIS8 for right
         for half, mask in (("tip", along >= mid), ("heel", along < mid)):
             inner[(half, side)] = float(((P[mask] @ AXIS8) * sgn).max()) * sgn
+    _INNER.clear()
+    _INNER.update(inner)
     return (abs(inner[("tip", 1)] - inner[("tip", 0)]),
             abs(inner[("heel", 1)] - inner[("heel", 0)]))
+
+
+# ---------------------------------------------------------------------------- per-pad contact force
+# Which pad is actually carrying the press, in newtons. Wrapped because the support surface is a
+# scene object and need not be a row in the contact view at all; a missing force reads nan rather
+# than silently reading zero, which would look like "that pad is not touching".
+_CONTACT = dict(ok=False)
+
+
+def setup_contact(table_obj):
+    try:
+        from omnigibson.utils.usd_utils import RigidContactAPI
+        from realm.environments.contact_utils import _live_impulse_matrix
+        idx = robot.scene.idx
+        rows_ = RigidContactAPI.get_contact_row_indices(idx, {table_obj})
+        cols = {ln: RigidContactAPI.get_contact_col_indices(idx, {robot.links[ln]})
+                for ln in finger_links}
+        _CONTACT.update(ok=len(rows_) > 0 and all(len(c) for c in cols.values()),
+                        rows=rows_, cols=cols, idx=idx, M=_live_impulse_matrix)
+        print(f"  per-pad contact force: table rows={len(rows_)}, finger cols="
+              f"{ {k: len(v) for k, v in cols.items()} } -> {'available' if _CONTACT['ok'] else 'NOT available'}")
+    except Exception as e:
+        print(f"  [warn] per-pad contact force unavailable: {e!r}")
+
+
+def pad_forces():
+    if not _CONTACT.get("ok"):
+        return float("nan"), float("nan")
+    try:
+        M = _CONTACT["M"](_CONTACT["idx"])
+        if M is None:
+            return float("nan"), float("nan")
+        out = []
+        for ln in finger_links:
+            sub = _np(M)[_CONTACT["rows"]][:, _CONTACT["cols"][ln]]
+            out.append(float(np.linalg.norm(sub.reshape(-1, 3).sum(axis=0))))
+        return out[0], out[1]
+    except Exception:
+        return float("nan"), float("nan")
 
 
 hdr("PICKING A CLEAR COLUMN OVER THE TABLE")
@@ -249,6 +317,8 @@ print(f"  nearest objects: " + ", ".join(
                             max(lo[1] - WXY[1], 0, WXY[1] - hi[1])))) for n, lo, hi in others),
         key=lambda kv: kv[1])[:4]))
 
+setup_contact(next(o for o in env.omnigibson_env.scene.objects if o.name == table_name))
+
 hdr("PHASE 0: HOLD -- does a commanded pose come back unchanged? (rotation sanity check)")
 cmd = ee_pose_robot_frame()
 print(f"  commanded (robot frame) xyz={cmd[:3]}  rpy={cmd[3:]}")
@@ -308,9 +378,13 @@ def do_step(cmd6, tag):
     rpy_err = float(np.linalg.norm(
         (Rot.from_euler("xyz", ach[3:]) * Rot.from_euler("xyz", cmd6[3:]).inv()).as_rotvec()))
     tip, heel = tip_heel()
+    fl, fr_ = pad_forces()
     rows.append(dict(tag=tag, cmd_z=cmd6[2], ach_z=ach[2], ee_world_z=float(ee_w[2]),
                      rpy_err=rpy_err, sep=sep, gq=q[7:].copy(), fg=fg.copy(),
-                     tip_sep=tip, heel_sep=heel))
+                     tip_sep=tip, heel_sep=heel, f_l=fl, f_r=fr_,
+                     # per-pad inner tip/heel coordinates, so one pad doing all the work is visible
+                     tip0=_INNER.get(("tip", 0), float("nan")), tip1=_INNER.get(("tip", 1), float("nan")),
+                     heel0=_INNER.get(("heel", 0), float("nan")), heel1=_INNER.get(("heel", 1), float("nan"))))
     return ach
 
 
@@ -429,11 +503,18 @@ print(f"  arrived: cmd xy=({cmd[0]:.3f},{cmd[1]:.3f})  ach z={r['ach_z']:.4f} "
 # 64 mm in the closed press). So the signal is `ach_z - cmd_z`, and the threshold has to clear the
 # free-air lag, not just zero. Getting this backwards is a detector that can never fire.
 SHORT_TH = float(os.environ.get("REALM_SHORT_TH", "0.018"))    # m of lag that means "landed"
-OVERTRAVEL = float(os.environ.get("REALM_OVERTRAVEL", "0.030"))  # m past the achieved contact height
+# 200 mm by default, not 30. Martin, on the 30 mm result: "its tiny press, the finger can normally
+# go like 45 degrees even more." 30 mm of overtravel moved a pad pivot 0.037 rad = 2.1 deg, i.e. it
+# sampled the linear toe of a response whose interesting range is twenty times further along. The
+# descent stops early anyway if the arm stalls (the tracking lag stops growing) -- that stall value
+# IS the answer to "how hard can this arm press", and it is reported.
+OVERTRAVEL = float(os.environ.get("REALM_OVERTRAVEL", "0.200"))  # m past the achieved contact height
 hdr(f"PHASE 1: DESCEND at {DZ} m/step until the tips land (tracking lag > {SHORT_TH * 1000:.0f} mm), "
     f"then {OVERTRAVEL * 1000:.0f} mm of OVERTRAVEL, then PHASE 2: PRESS {PRESS_STEPS} steps")
+_ref0 = [r for r in rows if r["tag"] == "hold"][-1]     # unloaded reference for the pivot angles
+_stall = dict(max_lag=-1e9, at=-1, stuck=0)
 z0 = cmd[2]
-Z_FLOOR = Z_CONTACT - 0.12                       # hard stop, in case contact is never detected
+Z_FLOOR = Z_CONTACT - (OVERTRAVEL + 0.10)         # hard stop, in case contact is never detected
 ach_contact = None
 z_land = None
 for t in range(DESC_STEPS):
@@ -446,10 +527,24 @@ for t in range(DESC_STEPS):
         print(f"  *** TIPS LANDED at descend step {t}: commanded z {z_land:+.4f}, achieved "
               f"{ach_contact:+.4f}, lag {short * 1000:.1f} mm, "
               f"tip {r['tip_sep'] * 1000:.3f} mm heel {r['heel_sep'] * 1000:.3f} mm", flush=True)
-    if t % 20 == 0 or ach_contact is not None:
+    if t % 20 == 0 or (ach_contact is not None and t % 5 == 0):
         print(f"  desc t={t:>3} cmd_z={cmd[2]:+.4f} ach_z={r['ach_z']:+.4f} lag={short * 1000:6.1f}mm "
-              f"ee_world_z={r['ee_world_z']:.4f} tip={r['tip_sep'] * 1000:7.3f} "
-              f"heel={r['heel_sep'] * 1000:7.3f} sep={r['sep'] * 1000:6.1f}mm", flush=True)
+              f"pivots=({np.degrees(r['gq'][PIV_IDX[0]] - _ref0['gq'][PIV_IDX[0]]):+6.2f},"
+              f"{np.degrees(r['gq'][PIV_IDX[1]] - _ref0['gq'][PIV_IDX[1]]):+6.2f})deg "
+              f"F=({r['f_l']:6.2f},{r['f_r']:6.2f})N tip={r['tip_sep'] * 1000:7.3f} "
+              f"heel={r['heel_sep'] * 1000:7.3f}", flush=True)
+    # STALL: the arm can only push so hard. Once the lag stops growing, more commanded depth buys
+    # nothing and the press is limited by the ARM, not by the gripper -- which is a finding, not a
+    # failure. max_effort is [87,87,87,87,12,12,12] N m and is arm physics: it does not get changed.
+    if short > _stall["max_lag"] + 1e-4:
+        _stall.update(max_lag=short, at=t, stuck=0)
+    else:
+        _stall["stuck"] += 1
+    if _stall["stuck"] >= 25 and ach_contact is not None:
+        print(f"  *** ARM STALLED: the tracking lag stopped growing at {_stall['max_lag'] * 1000:.1f} mm "
+              f"(descend step {_stall['at']}), so the commanded depth is no longer buying force. "
+              f"Stopping the descent {(_stall['max_lag']) * 1000:.0f} mm in.")
+        break
     if ach_contact is not None and cmd[2] <= ach_contact - OVERTRAVEL:
         print(f"  reached {OVERTRAVEL * 1000:.0f} mm of overtravel past the landing height "
               f"(commanded {cmd[2]:+.4f} vs contact {ach_contact:+.4f})")
@@ -473,8 +568,11 @@ hdr("OVERTRAVEL LADDER -- the curl has to GROW with how hard the tips are presse
     "response to the press")
 _ref = [r for r in rows if r["tag"] == "hold"][-1]
 if ach_contact is not None:
-    print(f"  landing height (achieved z) = {ach_contact:+.4f}; each row is one commanded depth past it")
-    print(f"  {'overtravel':>10} {'lag':>10} {'tip delta':>10} {'heel delta':>11}   verdict")
+    print(f"  landing height (achieved z) = {ach_contact:+.4f}; each row is one commanded depth past it.")
+    print(f"  pivL/pivR are left/right_inner_finger_joint in DEGREES from the unloaded pose; dtipL/dtipR "
+          f"are each pad's OWN inner tip coordinate, inboard-positive, so one pad doing all the work shows.")
+    print(f"  {'overtrav':>8} {'lag':>7} {'pivL':>7} {'pivR':>7} {'F_l':>6} {'F_r':>6} "
+          f"{'d tip':>8} {'d heel':>8} {'dtipL':>7} {'dtipR':>7}   verdict")
     _seen = set()
     for r in rows:
         if r["tag"] not in ("descend", "press"):
@@ -488,8 +586,12 @@ if ach_contact is not None:
         _seen.add(ot)
         dt = (r["tip_sep"] - _ref["tip_sep"]) * 1000.0
         dh = (r["heel_sep"] - _ref["heel_sep"]) * 1000.0
-        print(f"  {ot:>8.0f}mm {(r['ach_z'] - r['cmd_z']) * 1000:>9.1f}mm {dt:>+9.3f}mm "
-              f"{dh:>+10.3f}mm   {'tips IN' if dt < 0 and dh > 0 else ('tips OUT' if dt > 0 and dh < 0 else 'translating' if dt * dh > 0 else '-')}")
+        print(f"  {ot:>6.0f}mm {(r['ach_z'] - r['cmd_z']) * 1000:>6.1f}mm "
+              f"{np.degrees(r['gq'][PIV_IDX[0]] - _ref0['gq'][PIV_IDX[0]]):>+7.2f} "
+              f"{np.degrees(r['gq'][PIV_IDX[1]] - _ref0['gq'][PIV_IDX[1]]):>+7.2f} "
+              f"{r['f_l']:>6.1f} {r['f_r']:>6.1f} {dt:>+8.3f} {dh:>+8.3f} "
+              f"{(r['tip0'] - _ref['tip0']) * 1000:>+7.3f} {(r['tip1'] - _ref['tip1']) * 1000:>+7.3f}   "
+              f"{'tips IN' if dt < 0 and dh > 0 else ('tips OUT' if dt > 0 and dh < 0 else 'translating' if dt * dh > 0 else '-')}")
 else:
     print("  contact was never detected, so there is no ladder to print")
 
@@ -536,6 +638,15 @@ elif d_tip < 0 and d_heel < 0:
 else:
     verdict = "PADS TRANSLATE OUTWARD (tip and heel both diverge)"
 print(f"\n  PRESS_DIRECTION: {verdict}")
+_r0 = [r for r in rows if r["tag"] == "hold"][-1]
+print(f"  PER PAD at the deepest press:")
+for k, ln in enumerate(finger_links):
+    print(f"    {ln:<22} pivot {np.degrees(last['gq'][PIV_IDX[k]] - _r0['gq'][PIV_IDX[k]]):+7.2f} deg   "
+          f"own inner tip moved {(last['tip' + str(k)] - _r0['tip' + str(k)]) * 1000:+7.3f} mm inboard, "
+          f"heel {(last['heel' + str(k)] - _r0['heel' + str(k)]) * 1000:+7.3f} mm   "
+          f"contact force {(last['f_l'] if k == 0 else last['f_r']):6.2f} N")
+print(f"  arm stall: the tracking lag topped out at {_stall['max_lag'] * 1000:.1f} mm "
+      f"(descend step {_stall['at']}); commanding deeper than that buys no more force from this arm")
 print(f"  per-pad pivot deviation (rad): the two pad joints are gripper DOFs [2] and [3] in gq; "
       f"full gq delta printed above")
 np.save(os.path.join(OUT_DIR if os.path.isdir(OUT_DIR) else "/tmp", f"{ROBOT}_tipheel.npy"),
