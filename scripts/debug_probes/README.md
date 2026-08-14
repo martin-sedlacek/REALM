@@ -83,7 +83,46 @@ an A/B without an edit.
   Picks its own descent column (nearest table-height surface in front of the robot, then the point
   on it furthest from every object standing on it), verifies the commanded orientation round-trips
   before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
-  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`).
+  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`). **Superseded as the
+  compliance test by `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads the four-bar
+  along its stiff axis, which is why it measured ~0.13 mm on both assets.
+- `gripper_squeeze_compliance.py` -- the squeeze counterpart, and the probe that actually answers the
+  compliance question. Closes the jaws on the task cube under **joint control** -- no IK anywhere: the
+  arm holds `reset_qpos[:7]` for the whole run and the OBJECT is teleported to the midpoint between
+  the pads (gravity disabled, one face normal put exactly on the closing axis) instead of the hand
+  being driven to the object. Squeezes twice, once with the object free and once with it pinned heavy
+  so it cannot recoil, then restores gravity to see whether it is held. Records a gripper close-up
+  from a repositioned `external_sensor0`; the wrist camera looks along the fingers and hides bending.
+  `--robot <config> --out <dir>`. Pair with `gripper_squeeze_analyse.py`, which rebuilds one uniform
+  table across several runs from their npz files. Results in
+  `~/runbook/streams/realm_og391_port.md`.
+- `gripper_squeeze_analyse.py` -- the cross-run table. **Read its module docstring before quoting any
+  millimetre from either script**: it carries the two measurement traps (the jaw gap must be
+  self-calibrated per asset, and the flex-vs-unloaded-linkage estimator has a ~0.5 mm error bar
+  because the drive slews the whole jaw in one 15 Hz step and leaves the reference curve sparse).
+
+### Gripper traps (2026-08-14)
+
+- **A link-origin separation is not a jaw gap, and it is not comparable across assets.** At full
+  closure robolab v2's inner-finger origins sit 33.0 mm apart and stock droid_mounted's 7.1 mm, so
+  only the *change* means anything. Calibrate: subtract each asset's own value at full unloaded
+  closure, where the pads touch and the gap is zero by definition. Cross-check against the finger's
+  convex-hull extremes along the closing axis (also constant-offset, -24.0 mm on robolab) and against
+  a known object width. On robolab both then read 83.18 mm open, against an 85 mm nominal 2F-85
+  stroke. On stock they disagree (73.0 vs 87.2 mm) and only the hull measure is validated.
+- **The stock asset has a mimic joint too.** `left_inner_finger_prismatic_joint` is
+  `PhysxMimicJointAPI`-coupled to the right one, with kp/kd forced to 0 like any mimic DOF. "Stock has
+  no mimic joints" is wrong; what it does not have is a kinematic four-bar -- its two revolute finger
+  joints are driven independently, from the *measured* prismatic positions, by REALM's
+  `droid_gripper_controller` override. So "deviation from the linkage's unloaded relation" has no
+  meaning on stock: fitting one gives a 0.217 rad unloaded residual, and the 0.09-0.13 rad of "flex"
+  that falls out of it is pure model error. Use the prismatic joints (1 nm of movement under load).
+- **OmniGibson overwrites the asset's authored drive gains.** `controller_base` defaults
+  `isaac_kp/isaac_kd` to 1e7/1e5 for any POSITION controller whose config does not name them, and
+  `robot.update_controller_mode()` pushes that into the joint on **every** `og.sim.play()`. robolab's
+  `finger_joint` authors stiffness 100 / damping 0.0002 in the USD, so the sim runs it 10^5 times
+  stiffer than the asset asks; only `maxForce` (16.5) survives. A gain poked straight onto the joint
+  is therefore wiped by the next stop/play -- set it in the `gripper_0` controller config instead.
 
 ### EE-control traps (2026-08-14)
 
