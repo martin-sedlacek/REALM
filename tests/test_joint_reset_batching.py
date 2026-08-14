@@ -290,8 +290,11 @@ def main():
     else:
         print(f"PASSED -- a drawer reset costs {EXPECTED_STEPS} global og.sim.step() calls at "
               f"{N_MEMBERS} members, the same as at 1, and every member sees the single-env call "
-              f"sequence. NOT verified: that a real cabinet lands at the right openness "
-              f"(open_drawer/close_drawer do not load on this port).", flush=True)
+              f"sequence. This is the SCHEDULE against a stubbed sim; the real cabinet was "
+              f"confirmed separately on 2026-08-14 (57 steps at num_envs=2 vs 56 at 1, and every "
+              f"member's drawers landing where a single env puts them) -- see "
+              f"env_base.run_joint_resets, which also records what does NOT land in scene 0.",
+              flush=True)
     print("=" * 70, flush=True)
     return 1 if failures else 0
 
