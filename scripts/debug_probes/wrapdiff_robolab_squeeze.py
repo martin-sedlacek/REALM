@@ -79,6 +79,27 @@ sim = SimulationContext(sim_cfg)
 robot = Articulation(DroidCfg().robot.replace(prim_path="/World/robot"))
 sim.reset()
 
+# ---- which dynamics pipeline is this actually running? -----------------------------------------
+# `--device cpu` is the whole point of the GPU-vs-CPU comparison: OmniGibson runs CPU dynamics + MBP
+# broadphase and RoboLab runs enableGPUDynamics=True + GPU broadphase, and that is the last large
+# surviving difference between the two stacks. Turning GPU dynamics ON in OmniGibson is a ~30-site
+# device port; turning it OFF here is one flag -- so the hypothesis is cheaper to test from this
+# side, and it is the SAME hypothesis. Read it back rather than trusting the flag: a run that
+# silently stayed on the GPU would look like a clean negative.
+pc = sim.get_physics_context()
+PIPE = {}
+for _name in ("is_gpu_dynamics_enabled", "get_broadphase_type", "get_solver_type",
+              "get_physics_dt", "is_fabric_enabled"):
+    _fn = getattr(pc, _name, None)
+    if _fn is not None:
+        try:
+            PIPE[_name] = str(_fn())
+        except Exception as _e:                      # noqa: BLE001
+            PIPE[_name] = f"<{type(_e).__name__}>"
+PIPE["sim_cfg_device"] = str(sim_cfg.device)
+OUT["pipeline"] = PIPE
+print(f"\n  PIPELINE {json.dumps(PIPE)}", flush=True)
+
 names = list(robot.data.joint_names)
 bodies = list(robot.data.body_names)
 LEAD = "finger_joint"
