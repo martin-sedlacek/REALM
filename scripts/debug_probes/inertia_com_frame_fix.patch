@@ -1,6 +1,6 @@
 --- /tmp/claude-51436/-mnt-home-lustre-sedlam56-projects-REALM-og391/9c6947ff-3816-4b8f-91da-31650375e7e7/scratchpad/rigid_prim_stock.py	2026-08-15 00:54:49.602351933 +0200
-+++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 01:40:50.000000000 +0200
-@@ -25,6 +25,47 @@
++++ /mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_stock_patch/omnigibson/prims/rigid_prim.py	2026-08-15 01:47:39.000000000 +0200
+@@ -25,6 +25,55 @@
  # Create module logger
  log = create_module_logger(module_name=__name__)
  
@@ -9,7 +9,15 @@
 +# have been measured, so only these are changed.
 +_COM_LINK_FRAME_LINKS = frozenset(
 +    {
-+        "base_link",
++        # "base_link" is deliberately NOT here, for two independent reasons. It is the only
++        # non-gripper-specific name in this set -- one of the commonest link names in the BEHAVIOR
++        # dataset -- so leaving it out means no generic name appears here at all, and a scene object
++        # cannot be reached even if the structural gate below were somehow satisfied. And the 2F-85's
++        # own base_link is welded to panda_link8 by a PhysicsFixedJoint, so it sits in the grounded
++        # chain: its inertia cannot enter the *_inner_finger_joint mimic constraint, and correcting
++        # it would change what the WRIST carries. Measured, same probe and flags: including it or
++        # omitting it gives curl_deg = +0.3280 (L) / +0.3887 (R) at the authored nf=1000, identical
++        # to four decimal places. It costs nothing to leave out, so it is left out.
 +        "left_outer_knuckle",
 +        "right_outer_knuckle",
 +        "left_outer_finger",
@@ -48,7 +56,7 @@
  # Create settings for this module
  m = create_module_macros(module_path=__file__)
  
-@@ -217,8 +258,42 @@
+@@ -217,8 +266,42 @@
                  self._collision_meshes[mesh_name] = mesh
  
                  volume, com = get_mesh_volume_and_com(mesh.prim)
