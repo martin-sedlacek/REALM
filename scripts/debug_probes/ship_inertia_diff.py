@@ -83,10 +83,15 @@ def val(a):
     v = a.Get()
     if v is None:
         return None
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v)
+    if isinstance(v, (str, bool)):
+        return str(v)
     try:
-        return [float(x) for x in v]
-    except TypeError:
-        return float(v) if isinstance(v, (int, float)) else str(v)
+        return [float(x) for x in v]          # Gf.Vec3f, Gf.Quatf, ...
+    except (TypeError, ValueError):
+        return str(v)                          # tokens like physics:axis = 'Z'
+
 
 
 def by_name(stage, names, want_joint=False):
