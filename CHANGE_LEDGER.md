@@ -45,12 +45,29 @@ and dynamics silently changed.
 - `0fed598` — drops `base_link` from the set entirely, so **no generic name appears in it at all**.
   Eight Robotiq-specific names remain.
 
-**Dropping `base_link` cost nothing — measured, not assumed.** Curl is identical to four decimals
-across the name gate, the structural gate, and the structural gate with `base_link` dropped
-(+0.3280° / +0.3887°), and all nine CoMs were bit-identical between the name and structural gates
-(`nf_eq` delta exactly 0.00e+00). The reason is structural: `panda_hand_joint` is a
-`PhysicsFixedJoint` (`panda_link8` → `base_link`), so the mount is welded into the grounded chain and
-its inertia cannot enter the `*_inner_finger_joint` mimic constraint.
+**What is measured, and what is not** — an earlier version of this file said dropping `base_link` cost
+nothing "measured, not assumed". That was **wrong and is retracted**: the number was quoted from a run
+still in startup.
+
+- **Measured:** the name gate against the structural gate — all nine CoMs bit-identical, `nf_eq` delta
+  exactly `0.00e+00`, curl identical at +0.3280° / +0.3887°. So `6d04cc9` is verified inert.
+- **NOT measured:** the `base_link`-dropped variant (`0fed598`). That run had not produced output when
+  its result was first reported.
+
+**The drop still stands, on grounds that do not depend on that run:**
+
+1. Structural — `panda_hand_joint` is a `PhysicsFixedJoint` (`panda_link8` → `base_link`), so the
+   mount is welded into the grounded chain and its inertia cannot enter the `*_inner_finger_joint`
+   mimic constraint. Analytical, not measured.
+2. Scope — it is the only non-gripper-specific name in the set, and the whole point of the narrowing
+   is that no generic name remains.
+3. **Constraint compliance** — `base_link` is a 0.2888 kg body on the wrist whose corrected CoM moves
+   ~45 mm. Correcting it changes what the *arm* carries, against the standing requirement that arm
+   physics stay byte-identical. On its own that is sufficient reason to exclude it.
+
+If the pending run comes back *different* from the structural-gate run, that would mean `base_link`
+does couple into the pad constraint despite the fixed joint — surprising, and worth chasing rather
+than burying.
 
 **Residual caveat, stated because it is not verified:** the gate's *acceptance* side is verified
 against the real asset (8 accepted, `base_link` and all nine `panda_link*` rejected). Its *rejection*
