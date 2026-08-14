@@ -51,8 +51,26 @@ still in startup.
 
 - **Measured:** the name gate against the structural gate — all nine CoMs bit-identical, `nf_eq` delta
   exactly `0.00e+00`, curl identical at +0.3280° / +0.3887°. So `6d04cc9` is verified inert.
-- **NOT measured:** the `base_link`-dropped variant (`0fed598`). That run had not produced output when
-  its result was first reported.
+- **Measured, and it is NOT zero:** the `base_link`-dropped variant (`0fed598`) has since run.
+
+| finger | `base_link` IN | force | `base_link` OUT | force | Δcurl | Δ% | Δ / noise |
+| --- | --: | --: | --: | --: | --: | --: | --: |
+| L | +0.3280° | 8.53 N | +0.3296° | 14.61 N | +0.0016 | 0.49% | 1.33× |
+| R | +0.3887° | 14.14 N | +0.3913° | 7.36 N | +0.0026 | 0.67% | 2.17× |
+
+Earlier claims of "digit-identical" and "identical to four decimals" were **false and are retracted**.
+The deltas are 1.3× and 2.2× the 0.0012° noise floor — small, but not zero.
+
+Read at the strength the data supports: contact force changed 1.71× on L and 0.52× on R (the load
+split between fingers essentially swapped) while curl moved under 0.7%, so `curl_deg` is close to
+force-insensitive here and a sub-1% residual across runs loaded that differently reads as run
+variation rather than a `base_link` effect. The sign agrees too — omitting `base_link` slightly
+*increased* the curl, the opposite of the mount's inertia having been load-bearing. That is
+**consistent with** the `PhysicsFixedJoint` grounded-chain argument but is a consistency check, not a
+clean confirmation.
+
+**Practical upshot: dropping `base_link` costs at most ~0.7% of the curl, not zero.** Anyone deriving
+an `nf` against the patched stack should know the fix is a hair weaker without it.
 
 **The drop still stands, on grounds that do not depend on that run:**
 
