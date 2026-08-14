@@ -1,5 +1,10 @@
-"""Drive the CLOSED end effector straight down into the table and record it, to answer:
-are the robolab 2F-85 fingers actually compliant, or effectively rigid?
+"""Drive the OPEN end effector straight down onto the table and record it, to answer:
+do the robolab 2F-85 fingertips CURL INWARD when they catch on a surface?
+
+The jaw state is REALM_GRIP (default `open`, was hardcoded CLOSED until 2026-08-14). Pressing a shut
+jaw braces the two pads against each other along the linkage's stiff axis and geometrically forbids
+the inward curl this exists to look for; every press number taken before that flip is about a
+different experiment. See the GRIP_CLOSE block for the full account.
 
 No policy and no server -- the action is synthesised here. Runs under EE control
 (DroidEndEffectorController, absolute_pose), so it also exercises the dm_robotics IK path.
@@ -247,7 +252,19 @@ print(f"  nearest objects: " + ", ".join(
 hdr("PHASE 0: HOLD -- does a commanded pose come back unchanged? (rotation sanity check)")
 cmd = ee_pose_robot_frame()
 print(f"  commanded (robot frame) xyz={cmd[:3]}  rpy={cmd[3:]}")
-GRIP_CLOSE = 1.0   # droid_gripper_controller: target >= 0 -> joint UPPER limit = jaws SHUT
+# THE JAW STATE THE PRESS HAPPENS AT. droid_gripper_controller: target >= 0 -> the joint's UPPER
+# limit = jaws SHUT; -1 = OPEN. This probe used to hardcode +1 and press with the jaws shut, and that
+# silently made it the wrong experiment for this question: a shut jaw has the two pads flat against
+# each other, so the four-bar is braced pad-to-pad along its STIFF axis and an inward tip curl is
+# blocked by the opposing pad -- geometrically, whatever the physics says. The 2F-85 behaviour being
+# chased is the OPEN gripper's splayed fingertips catching on a surface and the underactuated linkage
+# curling them inward. Default flipped to OPEN on 2026-08-14; `curl_WRIST_kp15_sep.npy` from the
+# closed version runs 70.2 -> 32.6 mm (it shut the jaw, then pressed it), so every number taken that
+# way -- including "the default already curls inward, -0.117 mm tip" -- is about a different test.
+GRIP_NAME = os.environ.get("REALM_GRIP", "open").strip().lower()
+assert GRIP_NAME in ("open", "closed"), f"REALM_GRIP must be open|closed, got {GRIP_NAME!r}"
+GRIP_CLOSE = -1.0 if GRIP_NAME == "open" else 1.0
+print(f"[press] jaw state for the WHOLE run: {GRIP_NAME.upper()} (gripper command {GRIP_CLOSE:+.0f})")
 frames, frames_wrist, rows = [], [], []
 
 # THE WRIST VIEW IS THE RIGHT CAMERA FOR *THIS* MOTION, and the standing advice is about a different
@@ -276,6 +293,8 @@ if not _have_wrist:
 def do_step(cmd6, tag):
     global obs
     action = np.concatenate([cmd6, [GRIP_CLOSE]])
+    if AXIS8 is not None:
+        aim_camera()             # ride with the hand: it descends ~45 cm during the run
     obs, _, _, _, _ = env.step(action, n_render_iterations=1)
     frames.append(obs["external"]["external_sensor0"]["rgb"].cpu().numpy()[..., :3].copy())
     if _have_wrist:
@@ -295,12 +314,60 @@ def do_step(cmd6, tag):
     return ach
 
 
-# env.warmup() ends on an OPEN command, so close first: the reference axes are defined between the
-# pads and must be taken at the closed pose the whole press then happens at.
-for t in range(8):
-    do_step(cmd, "shut")
-hdr("REFERENCE GEOMETRY (free-hanging, jaws closed)")
+# Settle at the commanded jaw state BEFORE the reference geometry is taken. The old comment here was
+# "close first: the reference axes are defined between the pads and must be taken at the closed pose
+# the whole press then happens at". The requirement is real -- the hulls and the two reference axes
+# must belong to the pose being pressed -- but it was never a reason to CLOSE the jaw, only a reason
+# to capture the reference at whatever pose the press happens at. Keeping a closed-pose reference
+# while pressing open would be the same bug wearing the opposite hat.
+for t in range(10):
+    do_step(cmd, f"settle_{GRIP_NAME}")
+hdr(f"REFERENCE GEOMETRY (free-hanging, jaws {GRIP_NAME.upper()} -- the pose the press happens at)")
 capture_reference_geometry()
+
+# ---------------------------------------------------------------------------- close-up camera
+# external_sensor0, placed PERPENDICULAR TO THE CLOSING PLANE and re-aimed every step so it rides
+# with the hand. Looking along H = AXIS x LONG puts both the closing axis and the finger long axis in
+# the image plane, so an inward tip motion is fully in-plane (not foreshortened) and the table edge
+# shows up as the contact line. The wrist camera is NOT the view for this: rendered out, the gripper
+# sits in a corner seen obliquely with the tips barely in frame.
+#
+# The aim point comes from the pad link ORIGINS, never from collision_boundary_points_world: those
+# sit ~116 mm off the origins along the closing axis on this asset, and aiming at them put the first
+# attempt's frame on the knuckles instead of the fingertips.
+CAM = None
+try:
+    CAM = env.omnigibson_env.external_sensors["external_sensor0"]
+except Exception as e:
+    print(f"  [warn] no external_sensor0 to re-aim: {e!r}")
+CAM_DIST = float(os.environ.get("REALM_CAM_DIST", "0.22"))
+CAM_AHEAD = float(os.environ.get("REALM_CAM_AHEAD", "0.030"))   # m past the pad origins, toward the tips
+
+
+def aim_camera():
+    if CAM is None or AXIS8 is None:
+        return
+    ep, eq = world_pose(eef_link)
+    R8 = Rot.from_quat(eq)
+    a_w, l_w = R8.apply(AXIS8), R8.apply(LONG8)
+    fg, _ = finger_geom()
+    mid = ep + R8.apply((fg[0] + fg[1]) / 2.0) + l_w * CAM_AHEAD
+    z_c = np.cross(a_w, l_w)                      # perpendicular to the closing plane
+    z_c /= np.linalg.norm(z_c)                    # a USD camera looks along -z, so sit at +z_c
+    up = -l_w                                     # fingers pointing down the frame
+    x_c = np.cross(up, z_c)
+    x_c /= np.linalg.norm(x_c)
+    y_c = np.cross(z_c, x_c)
+    quat = Rot.from_matrix(np.stack([x_c, y_c, z_c], axis=1)).as_quat()
+    CAM.set_position_orientation(th.tensor(mid + z_c * CAM_DIST, dtype=th.float32),
+                                 th.tensor(quat, dtype=th.float32), "world")
+
+
+aim_camera()
+for _ in range(3):
+    og.sim.render()
+print(f"  external_sensor0 re-aimed perpendicular to the closing plane, {CAM_DIST:.2f} m from the "
+      f"pad midpoint + {CAM_AHEAD * 1000:.0f} mm toward the tips (re-aimed every step)")
 
 for t in range(HOLD_STEPS):
     ach = do_step(cmd, "hold")
@@ -309,8 +376,12 @@ print(f"  achieved  (robot frame) xyz={ach[:3]}  rpy={ach[3:]}")
 print(f"  position residual = {np.linalg.norm(ach[:3] - cmd[:3]):.5f} m")
 print(f"  ORIENTATION residual = {r['rpy_err']:.5f} rad "
       f"({np.degrees(r['rpy_err']):.2f} deg)  <-- a flip would show as ~pi here")
-print(f"  finger pad separation at rest (closed) = {r['sep'] * 1000:.1f} mm")
+print(f"  finger pad separation at rest ({GRIP_NAME}) = {r['sep'] * 1000:.1f} mm")
+print(f"  tip separation at rest = {r['tip_sep'] * 1000:.2f} mm, heel separation = "
+      f"{r['heel_sep'] * 1000:.2f} mm")
 print(f"  gripper DOFs = {r['gq']}")
+
+
 
 # Pad offset along the eef z-axis, measured on this robot: how far below panda_link8 the pads sit.
 PAD_OFF = float(rows[-1]["fg"][:, 2].mean())
@@ -332,17 +403,45 @@ r = rows[-1]
 print(f"  arrived: cmd xy=({cmd[0]:.3f},{cmd[1]:.3f})  ach z={r['ach_z']:.4f} "
       f"ee_world_z={r['ee_world_z']:.4f} sep={r['sep'] * 1000:.1f}mm")
 
-hdr(f"PHASE 1: DESCEND to {Z_TARGET:+.4f} at {DZ} m/step, then PHASE 2: PRESS {PRESS_STEPS} steps")
+# PHASE 1, adaptive. The geometric contact estimate above is only a guess -- PAD_OFF is the pad
+# ORIGIN offset, the tips hang further down, and with the jaws OPEN they hang further down again.
+# Guessing it wrong is what produced a "hover" that was already 30 mm into the table on 2026-08-14
+# (job 191032), so the reference was taken in contact. So: descend until CONTACT IS DETECTED from the
+# arm's own tracking error -- in free air the controller holds the commanded z to a few mm, and the
+# moment the fingertips land the shortfall grows monotonically -- then overtravel a controlled
+# distance PAST the achieved contact height and hold. The overtravel is what is reported, and the
+# curl should grow with it, which the descent rows record on the way down.
+SHORT_TH = float(os.environ.get("REALM_SHORT_TH", "0.008"))     # m of shortfall that means "landed"
+OVERTRAVEL = float(os.environ.get("REALM_OVERTRAVEL", "0.030"))  # m past the achieved contact height
+hdr(f"PHASE 1: DESCEND at {DZ} m/step until the tips land (shortfall > {SHORT_TH * 1000:.0f} mm), "
+    f"then {OVERTRAVEL * 1000:.0f} mm of OVERTRAVEL, then PHASE 2: PRESS {PRESS_STEPS} steps")
 z0 = cmd[2]
-n_desc = max(1, int(np.ceil((z0 - Z_TARGET) / DZ)))
-for t in range(n_desc):
-    cmd[2] = max(Z_TARGET, z0 - DZ * (t + 1))
-    do_step(cmd, "descend")
-    if t % 20 == 0:
-        r = rows[-1]
-        print(f"  desc t={t:>3} cmd_z={cmd[2]:+.4f} ach_z={r['ach_z']:+.4f} "
-              f"ee_world_z={r['ee_world_z']:.4f} pad_world_z={r['ee_world_z'] - PAD_OFF:.4f} "
-              f"sep={r['sep'] * 1000:6.1f}mm gq={r['gq']}", flush=True)
+Z_FLOOR = Z_CONTACT - 0.12                       # hard stop, in case contact is never detected
+ach_contact = None
+z_land = None
+for t in range(DESC_STEPS):
+    cmd[2] = max(Z_FLOOR, z0 - DZ * (t + 1))
+    r = do_step(cmd, "descend")
+    r = rows[-1]
+    short = r["cmd_z"] - r["ach_z"]
+    if ach_contact is None and short > SHORT_TH:
+        ach_contact, z_land = r["ach_z"], r["cmd_z"]
+        print(f"  *** TIPS LANDED at descend step {t}: commanded z {z_land:+.4f}, achieved "
+              f"{ach_contact:+.4f}, shortfall {short * 1000:.1f} mm, "
+              f"tip {r['tip_sep'] * 1000:.3f} mm heel {r['heel_sep'] * 1000:.3f} mm", flush=True)
+    if t % 20 == 0 or ach_contact is not None:
+        print(f"  desc t={t:>3} cmd_z={cmd[2]:+.4f} ach_z={r['ach_z']:+.4f} short={short * 1000:6.1f}mm "
+              f"ee_world_z={r['ee_world_z']:.4f} tip={r['tip_sep'] * 1000:7.3f} "
+              f"heel={r['heel_sep'] * 1000:7.3f} sep={r['sep'] * 1000:6.1f}mm", flush=True)
+    if ach_contact is not None and cmd[2] <= ach_contact - OVERTRAVEL:
+        print(f"  reached {OVERTRAVEL * 1000:.0f} mm of overtravel past the landing height "
+              f"(commanded {cmd[2]:+.4f} vs contact {ach_contact:+.4f})")
+        break
+    if cmd[2] <= Z_FLOOR:
+        print(f"  *** hit the descent floor {Z_FLOOR:+.4f} without detecting contact "
+              f"(shortfall never exceeded {SHORT_TH * 1000:.0f} mm) -- the press may not have "
+              f"loaded the tips at all; read the tip/heel numbers with that in mind")
+        break
 
 z_press = cmd[2]
 for t in range(PRESS_STEPS):
@@ -352,6 +451,27 @@ for t in range(PRESS_STEPS):
         print(f"  press t={t:>3} cmd_z={cmd[2]:+.4f} ach_z={r['ach_z']:+.4f} "
               f"ee_world_z={r['ee_world_z']:.4f} pad_world_z={r['ee_world_z'] - PAD_OFF:.4f} "
               f"sep={r['sep'] * 1000:6.1f}mm gq={r['gq']}", flush=True)
+
+hdr("OVERTRAVEL LADDER -- the curl has to GROW with how hard the tips are pressed, or it is not a "
+    "response to the press")
+_ref = [r for r in rows if r["tag"] == "hold"][-1]
+if ach_contact is not None:
+    print(f"  landing height (achieved z) = {ach_contact:+.4f}; each row is one commanded depth past it")
+    print(f"  {'overtravel':>10} {'shortfall':>10} {'tip delta':>10} {'heel delta':>11}   verdict")
+    _seen = set()
+    for r in rows:
+        if r["tag"] not in ("descend", "press"):
+            continue
+        ot = round((ach_contact - r["cmd_z"]) * 1000.0)
+        if ot < 0 or ot in _seen or ot % 5:
+            continue
+        _seen.add(ot)
+        dt = (r["tip_sep"] - _ref["tip_sep"]) * 1000.0
+        dh = (r["heel_sep"] - _ref["heel_sep"]) * 1000.0
+        print(f"  {ot:>8.0f}mm {(r['cmd_z'] - r['ach_z']) * 1000:>9.1f}mm {dt:>+9.3f}mm "
+              f"{dh:>+10.3f}mm   {'tips IN' if dt < 0 and dh > 0 else ('tips OUT' if dt > 0 and dh < 0 else 'translating' if dt * dh > 0 else '-')}")
+else:
+    print("  contact was never detected, so there is no ladder to print")
 
 hdr("COMPLIANCE SUMMARY (pad links in the panda_link8 frame -- arm motion removed)")
 rest = [r for r in rows if r["tag"] == "hold"][-1]
