@@ -30,31 +30,53 @@ image as a patch.
 | `0eba7e7` | empty contact index tensors, report unqueryable bodies, larger descriptor pool | contact queries generally | `git revert 0eba7e7` |
 | `ef7442b` | scene-file objects loading 100 m too high in scenes `idx != 0` | multi-scene runs only | `git revert ef7442b` |
 
-### ⚠ `83b21d5` reaches further than "the gripper"
+### `83b21d5` over-reached, and has been narrowed — `6d04cc9`, `0fed598`
 
-It is scoped by a **frozenset of link NAMES**, not by asset or robot:
+**Original risk (now closed).** It was scoped by a frozenset of link **names**, one of which was
+`base_link` — among the commonest link names in the BEHAVIOR dataset. Any object with a `base_link`
+whose collision geometry sat under an intermediate Xform would have had its centre of mass, inertia
+and dynamics silently changed.
 
-```
-base_link, left_outer_knuckle, right_outer_knuckle, left_outer_finger, right_outer_finger,
-left_inner_finger, right_inner_finger, left_inner_knuckle, right_inner_knuckle
-```
+**Narrowed in two steps:**
 
-Eight of those are Robotiq-specific and effectively unique. **`base_link` is not** — it is one of the
-commonest link names in the BEHAVIOR dataset. So any object with a link called `base_link` **whose
-collision geometry sits under an intermediate Xform** now gets a different (corrected) centre of mass,
-and therefore different inertia and different dynamics.
+- `6d04cc9` — gates on gripper **structure**, not the name: a link qualifies only if its parent also
+  carries `left_inner_finger` **and** `right_inner_finger`. No BEHAVIOR object has that, and it cannot
+  be defeated by a scene reusing a link name.
+- `0fed598` — drops `base_link` from the set entirely, so **no generic name appears in it at all**.
+  Eight Robotiq-specific names remain.
 
-The correction is a genuine bug fix, so the new value is the *right* one — but it is still a silent
-behaviour change for objects nobody measured, and it invalidates comparison against any result
-collected before it.
+**Dropping `base_link` cost nothing — measured, not assumed.** Curl is identical to four decimals
+across the name gate, the structural gate, and the structural gate with `base_link` dropped
+(+0.3280° / +0.3887°), and all nine CoMs were bit-identical between the name and structural gates
+(`nf_eq` delta exactly 0.00e+00). The reason is structural: `panda_hand_joint` is a
+`PhysicsFixedJoint` (`panda_link8` → `base_link`), so the mount is welded into the grounded chain and
+its inertia cannot enter the `*_inner_finger_joint` mimic constraint.
 
-**If odd dynamics show up on non-gripper objects, this is the first thing to revert.** Narrowing it —
-e.g. keying on the robot/prim path rather than the bare link name, or dropping `base_link` from the
-set — is cheaper than reverting and is the recommended fix if that happens.
+**Residual caveat, stated because it is not verified:** the gate's *acceptance* side is verified
+against the real asset (8 accepted, `base_link` and all nine `panda_link*` rejected). Its *rejection*
+of BEHAVIOR objects rests on the structural argument alone — the dataset USDs are `*.encrypted.usd`
+and stock `pxr` cannot open them without the key, so **no BEHAVIOR object was ever actually run
+through the gate.**
 
-**Not yet carried into the stock image.** There are seven `realm/misc/` patches applied by both
-`.docker/realm_og391.def` and `.docker/realm_og391.Dockerfile`; `83b21d5` is **not** among them, so a
-rebuilt image will not contain it.
+### Detector — how to tell if an object was affected
+
+**A mirrored left/right pair receiving an identical centre of mass, including the sign of y.** Two
+mirror-image bodies cannot share a CoM y-component. Read `link.center_of_mass` for both members of any
+left/right pair: if they match exactly rather than differing in y's sign, that object's CoM was
+composed in the geom's parent frame and its inertia tensor is wrong.
+
+Only objects whose collision geometry sits under an **intermediate Xform** can be affected — where
+geoms are direct children of the link, the old and new expressions are algebraically identical.
+
+### Which run modes actually carry the fix
+
+**Not the default.** `rr` defaults to `MODE=stock`, which does **not** have it. It reaches a run only
+via `MODE=oglite` (the whole OG-lite bind) or `MODE=stockfix` with `STOCK_PATCH` set. Every measured
+result reported for this fix used `MODE=stockfix`.
+
+`realm/misc/` holds exactly **seven** patches, all wired into `.docker/realm_og391.def` and
+`.docker/realm_og391.Dockerfile`; `rigid_prim` appears **zero** times in either. A rebuilt image will
+not contain this fix. Left that way deliberately — carrying it into the image was scoped out.
 
 ---
 
