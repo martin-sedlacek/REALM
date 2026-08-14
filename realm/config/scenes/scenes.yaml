@@ -180,7 +180,7 @@ Benevolence_1_int:
     y_min: -0.8
     y_max: -0.4
     z: 1.0
-    pos: [ -0.1, 0.05, 0.0 ]
+    pos: [ 2.0, 7.25, 0.0 ] # +2.0 +6.75
     rot: [ 0, 0, 270 ]
   Dining_Table:
     x_min: -0.4
@@ -188,7 +188,7 @@ Benevolence_1_int:
     y_min: -2.55
     y_max: -2.15
     z: 0.9
-    pos: [ -0.1, -1.75, 0.0 ]
+    pos: [ 2.0, 5.5, 0.0 ] #[ -0.1, -1.75, 0.0 ]
     rot: [ 0, 0, 270 ]
 
 IMPACT:

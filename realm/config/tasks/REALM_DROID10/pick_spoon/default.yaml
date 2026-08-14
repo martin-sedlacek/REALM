@@ -25,7 +25,7 @@ main_objects:
       name: "teaspoon"
       category: "teaspoon"
       model: "eilfij"
-      bounding_box: [ 0.04, 0.19, 0.01 ]
+      bounding_box: [ 0.19, 0.04, 0.01 ]
       relative_bbox_position: [0.15, 0.47, 0.1]
       orientation: [ 0, 0, 0.7071068, 0.7071068 ] #[ 0, 0, 0.6087614, 0.7933533 ]
 
@@ -42,7 +42,7 @@ distractors:
       name: "half_apple"
       category: "half_apple"
       model: "sguztn"
-      bounding_box: [ 0.04, 0.09, 0.10  ] #[ 0.10, 0.09, 0.04  ]
+      bounding_box: [ 0.10, 0.09, 0.04   ]
       relative_bbox_position: [0.15, 0.25, 0.05 ]
     - type: "DatasetObject"
       name: "beaker"

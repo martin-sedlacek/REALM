@@ -24,7 +24,7 @@ main_objects:
       name: "banana"
       category: "banana"
       model: "vvyyyv"
-      bounding_box: [0.15, 0.03, 0.09] #[ 0.05, 0.15, 0.09 ]
+      bounding_box: [ 0.15, 0.09, 0.03  ] #[0.15, 0.03, 0.09]
       orientation: [ -0.7071068, 0, 0, 0.7071068 ]
       relative_bbox_position: [0.2, 0.35, 0.15]
 
@@ -48,7 +48,7 @@ distractors:
       name: "lemon"
       category: "lemon"
       model: "asdada"
-      bounding_box: [ 0.05, 0.07, 0.05 ]
+      bounding_box: [ 0.07, 0.05, 0.05 ]
       relative_bbox_position: [0.3, 0.45, 0.03 ]
     - type: "DatasetObject"
       name: "toy_dice1"
