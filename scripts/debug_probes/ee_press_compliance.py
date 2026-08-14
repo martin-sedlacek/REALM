@@ -411,9 +411,14 @@ print(f"  arrived: cmd xy=({cmd[0]:.3f},{cmd[1]:.3f})  ach z={r['ach_z']:.4f} "
 # moment the fingertips land the shortfall grows monotonically -- then overtravel a controlled
 # distance PAST the achieved contact height and hold. The overtravel is what is reported, and the
 # curl should grow with it, which the descent rows record on the way down.
-SHORT_TH = float(os.environ.get("REALM_SHORT_TH", "0.008"))     # m of shortfall that means "landed"
+# SIGN, measured rather than assumed: during a free-air descent the controller LAGS, so the achieved
+# z sits ABOVE the commanded one -- 5 to 8 mm of it at DZ=4 mm/step in the 2026-08-14 runs. Landing
+# makes the arm stop while the command keeps going down, so the same quantity keeps GROWING (it hit
+# 64 mm in the closed press). So the signal is `ach_z - cmd_z`, and the threshold has to clear the
+# free-air lag, not just zero. Getting this backwards is a detector that can never fire.
+SHORT_TH = float(os.environ.get("REALM_SHORT_TH", "0.018"))    # m of lag that means "landed"
 OVERTRAVEL = float(os.environ.get("REALM_OVERTRAVEL", "0.030"))  # m past the achieved contact height
-hdr(f"PHASE 1: DESCEND at {DZ} m/step until the tips land (shortfall > {SHORT_TH * 1000:.0f} mm), "
+hdr(f"PHASE 1: DESCEND at {DZ} m/step until the tips land (tracking lag > {SHORT_TH * 1000:.0f} mm), "
     f"then {OVERTRAVEL * 1000:.0f} mm of OVERTRAVEL, then PHASE 2: PRESS {PRESS_STEPS} steps")
 z0 = cmd[2]
 Z_FLOOR = Z_CONTACT - 0.12                       # hard stop, in case contact is never detected
@@ -423,14 +428,14 @@ for t in range(DESC_STEPS):
     cmd[2] = max(Z_FLOOR, z0 - DZ * (t + 1))
     r = do_step(cmd, "descend")
     r = rows[-1]
-    short = r["cmd_z"] - r["ach_z"]
+    short = r["ach_z"] - r["cmd_z"]      # POSITIVE = the arm is holding above the command
     if ach_contact is None and short > SHORT_TH:
         ach_contact, z_land = r["ach_z"], r["cmd_z"]
         print(f"  *** TIPS LANDED at descend step {t}: commanded z {z_land:+.4f}, achieved "
-              f"{ach_contact:+.4f}, shortfall {short * 1000:.1f} mm, "
+              f"{ach_contact:+.4f}, lag {short * 1000:.1f} mm, "
               f"tip {r['tip_sep'] * 1000:.3f} mm heel {r['heel_sep'] * 1000:.3f} mm", flush=True)
     if t % 20 == 0 or ach_contact is not None:
-        print(f"  desc t={t:>3} cmd_z={cmd[2]:+.4f} ach_z={r['ach_z']:+.4f} short={short * 1000:6.1f}mm "
+        print(f"  desc t={t:>3} cmd_z={cmd[2]:+.4f} ach_z={r['ach_z']:+.4f} lag={short * 1000:6.1f}mm "
               f"ee_world_z={r['ee_world_z']:.4f} tip={r['tip_sep'] * 1000:7.3f} "
               f"heel={r['heel_sep'] * 1000:7.3f} sep={r['sep'] * 1000:6.1f}mm", flush=True)
     if ach_contact is not None and cmd[2] <= ach_contact - OVERTRAVEL:
@@ -439,7 +444,7 @@ for t in range(DESC_STEPS):
         break
     if cmd[2] <= Z_FLOOR:
         print(f"  *** hit the descent floor {Z_FLOOR:+.4f} without detecting contact "
-              f"(shortfall never exceeded {SHORT_TH * 1000:.0f} mm) -- the press may not have "
+              f"(the tracking lag never exceeded {SHORT_TH * 1000:.0f} mm) -- the press may not have "
               f"loaded the tips at all; read the tip/heel numbers with that in mind")
         break
 
@@ -457,7 +462,7 @@ hdr("OVERTRAVEL LADDER -- the curl has to GROW with how hard the tips are presse
 _ref = [r for r in rows if r["tag"] == "hold"][-1]
 if ach_contact is not None:
     print(f"  landing height (achieved z) = {ach_contact:+.4f}; each row is one commanded depth past it")
-    print(f"  {'overtravel':>10} {'shortfall':>10} {'tip delta':>10} {'heel delta':>11}   verdict")
+    print(f"  {'overtravel':>10} {'lag':>10} {'tip delta':>10} {'heel delta':>11}   verdict")
     _seen = set()
     for r in rows:
         if r["tag"] not in ("descend", "press"):
@@ -468,7 +473,7 @@ if ach_contact is not None:
         _seen.add(ot)
         dt = (r["tip_sep"] - _ref["tip_sep"]) * 1000.0
         dh = (r["heel_sep"] - _ref["heel_sep"]) * 1000.0
-        print(f"  {ot:>8.0f}mm {(r['cmd_z'] - r['ach_z']) * 1000:>9.1f}mm {dt:>+9.3f}mm "
+        print(f"  {ot:>8.0f}mm {(r['ach_z'] - r['cmd_z']) * 1000:>9.1f}mm {dt:>+9.3f}mm "
               f"{dh:>+10.3f}mm   {'tips IN' if dt < 0 and dh > 0 else ('tips OUT' if dt > 0 and dh < 0 else 'translating' if dt * dh > 0 else '-')}")
 else:
     print("  contact was never detected, so there is no ladder to print")
