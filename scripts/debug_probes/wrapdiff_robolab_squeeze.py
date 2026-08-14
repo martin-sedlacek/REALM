@@ -131,12 +131,21 @@ def q_of(name):
 
 
 def residuals():
-    """q_follower - (gearing * q_reference + offset), per follower. 0 == constraint fully enforced."""
+    """Violation of the mimic constraint, per follower. 0 == constraint fully enforced.
+
+    PhysxMimicJointAPI's documented relation is
+
+        jointPosition + (gearing * referenceJointPosition) + offset = 0
+
+    so the residual is q_f + g*q_ref + o. It is NOT q_f - (g*q_ref + o): that form injects a constant
+    2*q_ref into every follower whose gearing is -1 (two of the five here), which on the first run of
+    this probe showed up as a fake "90 deg residual" that was really just 2 * the pi/4 close command.
+    """
     out = {}
     for n, m in MIMIC.items():
         if m["referenceJoint"] is None or m["referenceJoint"] not in names:
             continue
-        out[n] = q_of(n) - (m["gearing"] * q_of(m["referenceJoint"]) + m["offset"])
+        out[n] = q_of(n) + m["gearing"] * q_of(m["referenceJoint"]) + m["offset"]
     return out
 
 
@@ -203,15 +212,16 @@ for F in (0.0, 5.0, 20.0, 50.0, 100.0):
 
 last = traj[-1]
 hdr("RESULT -- compare against REALM's <= 0.000743 rad at the SAME authored nf=1000")
-print(f"  {'follower':<34} {'q':>12} {'g*q_ref+o':>12} {'RESIDUAL':>12}   {'deg':>9}   "
+print(f"  {'follower':<34} {'q':>12} {'-(g*q_ref+o)':>14} {'RESIDUAL':>12}   {'deg':>9}   "
       f"(at {last['force_N']:.0f} N per pad)")
 for n, m in MIMIC.items():
     if n not in last["res"]:
         continue
     ref_q = last["q_lead"] if m["referenceJoint"] == LEAD else last["q"].get(m["referenceJoint"])
-    pred = None if ref_q is None else m["gearing"] * ref_q + m["offset"]
+    # what q_follower WOULD be if the constraint were exactly satisfied
+    want = None if ref_q is None else -(m["gearing"] * ref_q + m["offset"])
     print(f"  {n:<34} {last['q'][n]:+12.6f} "
-          f"{'   n/a' if pred is None else f'{pred:+12.6f}'} {last['res'][n]:+12.6f} "
+          f"{'      n/a' if want is None else f'{want:+14.6f}'} {last['res'][n]:+12.6f} "
           f"{np.degrees(last['res'][n]):+9.3f}")
 print(f"\n  {'F per pad (N)':>14} {'max|residual| rad':>20} {'deg':>10} {'pad_sep mm':>12}")
 for s in traj:
