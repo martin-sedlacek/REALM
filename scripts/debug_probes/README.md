@@ -20,16 +20,20 @@ srun --jobid=<ID> --overlap bash -c '
     --policy.config=pi05_full_droid_finetune \
     --policy.dir=~/.cache/openpi/openpi-assets/checkpoints/pi05_droid_jointpos' &
 
-# pump, in the container
-ROOT=~/projects/REALM_og391
+# pump, in the container. Run from the repo root. Paths come from the harness's own resolver rather
+# than being spelled out here -- and do NOT substitute $REALM_ROOT / $REALM_SIF straight from your
+# shell: the profile exports both, naming the pre-port 1.1.1 tree and image. See
+# scripts/clara/lib/paths.sh, which overwrites them with the og391 values.
+source scripts/clara/lib/paths.sh
+ROOT=$REALM_ROOT
 mkdir -p $ROOT/tmp/dbg/{inbox,outbox} $ROOT/tmp/dbg_tmp
 cp scripts/debug_probes/pump.py $ROOT/tmp/dbg/
 srun --jobid=<ID> --overlap apptainer run --userns --nv --writable-tmpfs \
-  --bind $ROOT:/app --bind $ROOT/data/datasets:/data --bind $ROOT/data/cache:/cache \
+  --bind $ROOT:/app --bind $REALM_DATA:/data --bind $REALM_APPDATA:/cache \
   --bind $ROOT/tmp/dbg:/dbg --bind $ROOT/tmp/dbg_tmp:/tmp \
   --env TMPDIR=/tmp --env OMNIGIBSON_HEADLESS=1 --env NVIDIA_DRIVER_CAPABILITIES=all \
   --env CUDA_VISIBLE_DEVICES=0 --env REALM_ROBOT=DROID_robolab --env REALM_PORT=8500 \
-  $ROOT/realm_og391.sif python /dbg/pump.py &
+  $REALM_SIF python /dbg/pump.py &
 ```
 
 Then drop probes into `tmp/dbg/inbox/` and read `tmp/dbg/outbox/`. The namespace exposes

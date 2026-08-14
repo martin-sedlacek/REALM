@@ -2,8 +2,12 @@
 
 Deliberately portable across **both** stacks so the two REALM checkouts can be compared directly:
 
-  * OmniGibson 1.1.1  (~/projects/REALM, branch dev, realm-dm.sif, OG-lite bound at /omnigibson-src)
-  * OmniGibson 3.9.1  (~/projects/REALM_og391, realm_og391.sif)
+  * OmniGibson 1.1.1  the pre-port checkout, branch dev, realm-dm.sif, OG-lite at /omnigibson-src
+  * OmniGibson 3.9.1  the ported checkout -- this one -- realm_og391.sif, OmniGibson at /behavior-src
+
+Named by stack rather than by directory on purpose: the ported checkout is being renamed to
+~/projects/REALM, which is where the pre-port one sits today, so a path here would go stale and read
+as the opposite of what it means. The launchers get their paths from scripts/clara/lib/paths.sh.
 
 Everything it patches exists in both: `omnigibson.Environment.__init__/reset/step`,
 `realm.environments.env_dynamic.RealmEnvironmentDynamic.__init__/reset/step`, and the `og.sim`
@@ -12,7 +16,7 @@ difference degrades the report instead of killing the run.
 
 Usage -- everything after `--` goes verbatim to examples/02_evaluate.py:
 
-    python -u tmp/profile_phases.py --out /logs/prof/og111.json --label og111 -- \
+    python -u scripts/clara/interactive/profile_phases.py --out /logs/prof/og111.json --label og111 -- \
         --task_id 0 --perturbation_id 0 --repeats 3 --max_steps 100 \
         --model_name debug --model_type debug --port 8000 ...
 
