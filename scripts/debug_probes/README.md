@@ -138,6 +138,15 @@ an A/B without an edit.
   millimetre from either script**: it carries the two measurement traps (the jaw gap must be
   self-calibrated per asset, and the flex-vs-unloaded-linkage estimator has a ~0.5 mm error bar
   because the drive slews the whole jaw in one 15 Hz step and leaves the reference curve sparse).
+- `xflat_run_chain.sh <jobid>` -- the whole `droid_robolab_xflat` measurement chain in one
+  allocation: runtime mass properties, then the curl at the AUTHORED `nf=1000`, each paired with a
+  `DROID_robolab_v2` control taken in the same session with identical flags. **`MODE=stock`
+  throughout** -- the image's own OmniGibson with no loader patch bound over it, because the point of
+  the flattened asset is that it needs none. The control is what proves the loader is still broken
+  and the asset alone is doing the work; without it a passing run cannot be told from a quietly
+  patched image. Reuses `inertia_runtime_realm.py` (branch `inertia-diff`) verbatim, so the two
+  routes' numbers are the same quantity in the same convention. Build the asset first with
+  `scripts/make_xflat_gripper_usd.py`.
 
 ### Gripper traps (2026-08-14)
 
