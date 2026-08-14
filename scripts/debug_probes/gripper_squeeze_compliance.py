@@ -134,7 +134,24 @@ ap.add_argument("--solver-pos-iter", type=int, default=None,
                 help="physxArticulation:solverPositionIterationCount on the ROBOT. The mimic "
                      "constraint is solved by the articulation solver, so fewer iterations leave a "
                      "bigger constraint residual = apparent compliance. Blunt: it softens the arm's "
-                     "joints too.")
+                     "joints too. NOTE (measured 2026-08-14): this is NOT a RoboLab-vs-REALM "
+                     "difference. RoboLab's articulation asks for 64, but its own scene sets "
+                     "physxScene:maxPositionIterationCount=32, which the PhysxSchema documents as "
+                     "overriding actors that request more -- so RoboLab solves at 32 too.")
+ap.add_argument("--solver-vel-iter", type=int, default=None,
+                help="physxArticulation:solverVelocityIterationCount on the ROBOT. This IS a real "
+                     "difference: OmniGibson sets 1, RoboLab runs 0 (articulation asks 0, scene caps "
+                     "at 1). Pass 0 for 'the value RoboLab runs'.")
+ap.add_argument("--follower-max-effort", type=float, default=None,
+                help="max_effort (N m) on the FOUR INNER MIMIC joints -- distinct from --max-effort, "
+                     "which is the DRIVEN finger_joint. This is the ONLY joint-level difference "
+                     "between the RoboLab asset and droid_robolab_v2 (measured by a full USD attr "
+                     "diff, 2026-08-14): RoboLab's four inner mimic joints each carry a DriveAPI "
+                     "with stiffness=0, damping=0, maxForce=INF, so Isaac Lab reads their effort "
+                     "limit as FLT_MAX=3.4028235e38; REALM's converter strips that DriveAPI "
+                     "(convert_robolab_gripper_usd.py:70, forced by OmniGibson's robot.py:658 "
+                     "assertion that a DOF no controller claims must have no DriveAPI) and "
+                     "OmniGibson then reports max_effort=0. Pass 3.4028235e38 for 'RoboLab's value'.")
 ap.add_argument("--rungs", default="",
                 help="SWEEP MODE: 'name=nf/dr/onf/odr/me/spi/kp/kd/ccs/ccd,name2=...'. Each rung gets its OWN unloaded "
                      "calibration sweep, free close (jaw-gap zero) and squeeze, all in one process. "
@@ -536,8 +553,12 @@ EFFORT0 = jget(robot.joints[DRIVEN_J], "max_effort")
 
 
 def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=None, kd=None,
-                   ccs=None, ccd=None, label=""):
-    """Apply one rung's mimic / effort values and READ THEM BACK. Returns what is live afterwards."""
+                   ccs=None, ccd=None, label="", fme=None, svi=None):
+    """Apply one rung's mimic / effort values and READ THEM BACK. Returns what is live afterwards.
+
+    @fme and @svi are the two wrapper-diff knobs and are single-shot only (not rung fields), so the
+    cumulative-rung caller keeps its existing positional contract.
+    """
     wrote = {}
     if nf is not None or dr is not None:
         wrote.update(mimic_set(INNER_MIMIC, nf=nf, dr=dr))
@@ -565,6 +586,23 @@ def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=N
         robot.solver_position_iteration_count = int(spi)
         print(f"  [override {label or 'single'}] solverPositionIterationCount {was} -> "
               f"{robot.solver_position_iteration_count}")
+    if svi is not None:
+        was = robot.solver_velocity_iteration_count
+        robot.solver_velocity_iteration_count = int(svi)
+        print(f"  [override {label or 'single'}] solverVelocityIterationCount {was} -> "
+              f"{robot.solver_velocity_iteration_count}  (RoboLab runs 0, OmniGibson sets 1)")
+    if fme is not None:
+        # The followers' effort limit, NOT the driven joint's. Read back per joint: these DOFs have
+        # no DriveAPI at all on droid_robolab_v2, so it is not a given that the articulation view
+        # will accept a max-effort write on them -- if it silently does not stick, that is itself
+        # the finding, so print before/after rather than assuming.
+        fw = {n: effort_set(n, fme) for n in INNER_MIMIC}
+        print(f"  [override {label or 'single'}] follower max_effort -> "
+              + ", ".join(f"{n}: {b} -> {a}" for n, (b, a) in fw.items()))
+        stuck = [n for n, (b, a) in fw.items() if a is None or abs(a - float(fme)) > 1e-3 * abs(float(fme))]
+        if stuck:
+            print(f"  [override {label or 'single'}] *** follower max_effort did NOT stick on "
+                  f"{stuck} -- treat any null result below as untested, not as refuted ***")
     print(f"  [override {label or 'single'}] wrote {wrote or '(no mimic change)'}"
           + (f"; max_effort {eff[0]} -> {eff[1]}" if eff else "; max_effort unchanged"))
     live = mimic_state()
@@ -583,12 +621,14 @@ def apply_override(nf=None, dr=None, onf=None, odr=None, me=None, spi=None, kp=N
 OVERRIDE_SINGLE = None
 if any(v is not None for v in (args.mimic_nf, args.mimic_dr, args.outer_nf, args.outer_dr,
                               args.max_effort, args.solver_pos_iter, args.drive_kp,
-                              args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping)):
+                              args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping,
+                              args.follower_max_effort, args.solver_vel_iter)):
     hdr("APPLYING THE SINGLE-SHOT OVERRIDE (before the calibration sweep, so the reference curve "
         "belongs to THIS configuration)")
     OVERRIDE_SINGLE = apply_override(args.mimic_nf, args.mimic_dr, args.outer_nf, args.outer_dr,
                                      args.max_effort, args.solver_pos_iter, args.drive_kp,
-                                     args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping)
+                                     args.drive_kd, args.pad_cc_stiffness, args.pad_cc_damping,
+                                     fme=args.follower_max_effort, svi=args.solver_vel_iter)
 
 print("\n  finger link geometry:")
 p8_0, q8_0 = robot.links[L8].get_position_orientation()
