@@ -82,14 +82,48 @@ an A/B without an edit.
   (`JOINT_MAPPING_MATCH`), the frame the controller's eef pose is in vs `env._world2robot`
   (`HEIGHT_OFFSET_CONSISTENT` -- see below), `og.sim.device`, the resolved wrist-camera key, and 8
   real steps of the debug action with the pose error per step. `REALM_ROBOT=<config>`.
-- `ee_press_compliance.py` -- drives the CLOSED gripper straight down into the table under EE
-  control and records the external view, to test whether the robolab 2F-85 fingers are compliant.
+- `ee_press_compliance.py` -- drives the **OPEN** gripper straight down onto the table under EE
+  control and records it, to test whether the 2F-85 fingertips curl inward when they catch on a
+  surface. `REALM_GRIP` selects the jaw state and defaults to `open`; it was hardcoded CLOSED until
+  2026-08-14, and a closed jaw braces the two pads against each other along the linkage's stiff axis,
+  which geometrically forbids the inward curl -- every press number taken before that flip is about a
+  different experiment. The descent is adaptive (it lands when the arm's tracking lag exceeds
+  `REALM_SHORT_TH`, then overtravels `REALM_OVERTRAVEL` past the ACHIEVED landing height) and
+  external_sensor0 is re-aimed every step, perpendicular to the closing plane and clamped to stay
+  `REALM_CAM_MIN_ABOVE` above the table top. Before descending it **levels the tips**: it rolls the
+  hand about the horizontal axis perpendicular to the closing axis until the two pad origins sit at
+  the same world z. Without that, the arm stalls against the first tip it lands and the second never
+  reaches the surface -- measured 2026-08-14, `pivL` read `+0.00 deg` at every depth out to 200 mm of
+  overtravel on both assets while `pivR` did all the moving. Everything is reported PER PAD, pivot
+  angles in DEGREES, and the descent stops early if the arm's tracking lag stops growing, which is
+  the test for "the arm is the limiter, not the gripper".
   Picks its own descent column (nearest table-height surface in front of the robot, then the point
   on it furthest from every object standing on it), verifies the commanded orientation round-trips
   before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
-  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`). **Superseded as the
-  compliance test by `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads the four-bar
-  along its stiff axis, which is why it measured ~0.13 mm on both assets.
+  `REALM_ROBOT=<config>`, writes to `$REALM_OUT` (default `/logs/ee_press`), and carries the signed
+  **tip-vs-heel** direction test. **Superseded as the compliance-MAGNITUDE test by
+  `gripper_squeeze_compliance.py`**: pressing with the jaws SHUT loads the four-bar along its stiff
+  axis, which is why it measured ~0.13 mm on both assets. That marking does NOT extend to the
+  *direction* question -- "do the tips curl inward when pressed onto a surface" is a press question
+  and a squeeze cannot answer it, which is what the tip/heel block is for. One thing to check before
+  reading any of its numbers as "a press N mm past contact": **where the arm actually stopped.** It
+  descends and it presses -- both this probe's own control run and `curl_A` (job 191032) reach the
+  table -- but it STALLS there, and every further commanded millimetre then moves `panda_link8` by
+  microns (117 mm of command -> 0.2 mm of motion in `curl_A`). Two consequences: the commanded depth
+  is not the achieved one, and a "hover" pose computed from geometry can already be in contact, which
+  silently makes the rest reference a LOADED pose. Log the achieved eef z and the pad world z against
+  the table top, which this probe prints, and treat `pads went -N mm BELOW the surface` (a negative
+  number) as the signal that the contact is not where the arithmetic thinks it is.
+- `curl_press_direction.py` -- the SIGNED press probe: WHICH WAY the fingertips rotate under a press,
+  not how far. Default `--load tip` keeps the arm at `reset_qpos` under joint control and ramps a
+  200 kg pinned object UP into ONE fingertip, 0.5 mm per step, until the contact view reports contact
+  and then `--tip-past` steps further -- no IK, no arm motion, contact force measured rather than
+  inferred. Each fingertip in turn, per mimic `nf`/`dr` rung, with an unloaded reference per rung (the
+  object parked 1.3 m away) and a release phase to tell an elastic violation from a snap-through. Two
+  hull-free observables, both signed `+ = INWARD`: pad-origin separation (link poses) and pad rotation
+  about the closing-plane normal (link orientations); the sign convention is derived in the module
+  docstring from the frame rather than read off a joint value. `--load ee` is the table-press load
+  case and is documented broken on this build. Grep `CURL_VERDICT` / `CURL_PROBE_OK`.
 - `gripper_squeeze_compliance.py` -- the squeeze counterpart, and the probe that actually answers the
   compliance question. Closes the jaws on the task cube under **joint control** -- no IK anywhere: the
   arm holds `reset_qpos[:7]` for the whole run and the OBJECT is teleported to the midpoint between
@@ -107,6 +141,16 @@ an A/B without an edit.
 
 ### Gripper traps (2026-08-14)
 
+- **`collision_boundary_points_world` is ~120 mm off the pad LINK ORIGINS on robolab v2.** The two
+  pad origins are exactly symmetric about the flange axis (the closing axis and the finger long axis
+  both come out exactly axis-aligned in the `panda_link8` frame); the hull points are not -- their
+  centroid sits ~123 mm off along the closing axis. Same ~120 mm the squeeze probe records as
+  `hull_off` between the task cube's hull centre and its own pose, so it is not specific to the cube.
+  Measured consequence: within ONE rung the hull-based tip-to-tip separation and the origin-based pad
+  separation moved in OPPOSITE directions (+5.2 mm vs -2.8 mm). Hull extents along an axis are still
+  fine as SIZES (a translation offset cancels), and `gap_hull` is still fine as a self-calibrated
+  relative measure, but do not build a signed displacement observable on hull points here. Link poses
+  and link orientations are unaffected.
 - **A link-origin separation is not a jaw gap, and it is not comparable across assets.** At full
   closure robolab v2's inner-finger origins sit 33.0 mm apart and stock droid_mounted's 7.1 mm, so
   only the *change* means anything. Calibrate: subtract each asset's own value at full unloaded
