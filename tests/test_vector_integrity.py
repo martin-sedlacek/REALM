@@ -70,29 +70,28 @@ SUPPORTED_TASKS = _const_list("SUPPORTED_TASKS")
 SUPPORTED_PERTURBATIONS = _const_list("SUPPORTED_PERTURBATIONS")
 
 # Tasks that cannot currently build at all, so a failure here is expected and is NOT evidence about
-# the vector path. Both are blocked by the same `drawer` main object
-# (custom_assets/impact_drawer/usd/cabinet.usd) and fail single-env too. Reported as KNOWN rather
-# than skipped, because silently omitting them would hide the day they start working -- or the day
-# something else joins them.
+# the vector path. Reported as KNOWN rather than skipped, because silently omitting them would hide
+# the day they start working -- or the day something else joins them.
 #
-# The blocker MOVED on 2026-08-14 and this string moved with it. It used to be
-# "TypeError: missing a required argument: 'preset_name'" out of MaterialPrim.get_material; that is
-# fixed upstream in OG-lite (OmniSurfaceMaterialPrim now defaults preset_name=None). Loading now gets
-# past the material entirely and imports scene 0, then dies on the object's own authored transform in
-# XFormPrim._set_xform_properties, which rewrites the xformOp order to [translate, orient, scale],
-# writes back the pose it just read, re-reads it and asserts the two agree. For cabinet.usd they
-# do not:
+# EMPTY since 2026-08-14. Tasks 8 and 9 (open_drawer / close_drawer, the only two whose main object
+# is custom_assets/impact_drawer/usd/cabinet.usd) were the last entries and both now PASS. Three
+# defects in series kept them out, and none of them was in the asset -- cabinet.usd is legitimate
+# USD that happens not to satisfy an unwritten OmniGibson convention:
 #
-#   AssertionError: /World/scene_0/drawer:
-#     old_pos tensor([0.0243, 0.8223, -0.0317])  new_pos tensor([2.3468e-04, 8.1015e-01, -6.3757e-02])
-#     old_orn tensor([0.0007, 0.7068, 0.7073, 0.0102])  new_orn tensor([0.7071, -0.0109, -0.0109, 0.7070])
+#   1. OmniSurfaceMaterialPrim.__init__ requiring preset_name          -- OG-lite 1dcc5bb
+#   2. XFormPrim._set_xform_properties reading the pose through the VIRTUAL
+#      self.get_position_orientation() -- which EntityPrim overrides to return the ROOT LINK's pose
+#      -- while writing it back through the pinned XFormPrim.set_position_orientation, which
+#      authors the ENTITY prim's xformOps. cabinet.usd's base_link sits at Ry(180) + 4 cm from the
+#      entity prim, so the write moved the object by exactly that and the method's own round-trip
+#      assert caught it. Every BEHAVIOR asset has base_link at the entity origin, which is why no
+#      other object ever tripped it.
+#   3. EntityPrim.set_position_orientation's stopped-sim branch asserting outright that the root
+#      link has no relative pose to the entity prim -- the same 4 cm offset.
 #
-# The two quaternions carry the same component magnitudes in a different order, which points at the
-# asset's authored orientation rather than at the `orientation:` in the task YAML (applied later).
-# Not investigated further.
-_DRAWER_XFORM = ("cabinet.usd: XFormPrim._set_xform_properties assert on the authored transform "
-                 "(old_orn 0.0007,0.7068,0.7073,0.0102 vs new_orn 0.7071,-0.0109,-0.0109,0.7070)")
-KNOWN_BROKEN_TASKS = {8: _DRAWER_XFORM, 9: _DRAWER_XFORM}
+# 2 and 3 are fixed in OG-lite; both fixes are no-ops for a root link at the entity origin, so no
+# other asset's placement changes. If a drawer task regresses, suspect the OG-lite bind first.
+KNOWN_BROKEN_TASKS = {}
 
 # Signatures that mean the run died even though it exited 0.
 CRASH_MARKERS = re.compile(
