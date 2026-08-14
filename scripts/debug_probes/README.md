@@ -90,7 +90,13 @@ an A/B without an edit.
   different experiment. The descent is adaptive (it lands when the arm's tracking lag exceeds
   `REALM_SHORT_TH`, then overtravels `REALM_OVERTRAVEL` past the ACHIEVED landing height) and
   external_sensor0 is re-aimed every step, perpendicular to the closing plane and clamped to stay
-  `REALM_CAM_MIN_ABOVE` above the table top.
+  `REALM_CAM_MIN_ABOVE` above the table top. Before descending it **levels the tips**: it rolls the
+  hand about the horizontal axis perpendicular to the closing axis until the two pad origins sit at
+  the same world z. Without that, the arm stalls against the first tip it lands and the second never
+  reaches the surface -- measured 2026-08-14, `pivL` read `+0.00 deg` at every depth out to 200 mm of
+  overtravel on both assets while `pivR` did all the moving. Everything is reported PER PAD, pivot
+  angles in DEGREES, and the descent stops early if the arm's tracking lag stops growing, which is
+  the test for "the arm is the limiter, not the gripper".
   Picks its own descent column (nearest table-height surface in front of the robot, then the point
   on it furthest from every object standing on it), verifies the commanded orientation round-trips
   before descending, and logs the pad links in the `panda_link8` frame so arm motion is removed.
