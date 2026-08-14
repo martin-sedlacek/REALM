@@ -95,18 +95,23 @@ ap.add_argument("--task-cfg", default="REALM_DROID10/put_green_block_into_bowl/d
 ap.add_argument("--out", default="/logs/gripper_squeeze")
 ap.add_argument("--tag", default="curl_A", help="output filename prefix")
 ap.add_argument("--rungs", default="nf1000a=1000/0.05,nf100=100/0.05",
-                help="'name=nf/dr[/max_effort[/isaac_kp[/isaac_kd]]],...'. The first two are "
-                     "physxMimicJoint:<inst>:naturalFrequency / dampingRatio on the four INNER mimic "
-                     "joints (authored 1000 / 0.05). The last two are the LEADER finger_joint's own "
-                     "drive (authored max_effort 16.5 N.m, isaac_kp 1e7 / isaac_kd 1e5 -- "
-                     "OmniGibson's defaults, which overwrite whatever the USD authors; RoboLab's own "
-                     "drive is kp 5729.578 / kd 0.011459, and BOTH have to be set to reproduce it -- "
-                     "back-driving is a VELOCITY, so kd 1e5 pins the joint however far kp and "
-                     "max_effort come down). Lowering max_effort is the direct "
-                     "test of whether the press can BACK-DRIVE the leader and fold the four-bar; at "
-                     "16.5 N.m it cannot, so the tips can only deviate as followers. RESTATE EVERY "
-                     "FIELD IN EVERY RUNG: a '-' leaves whatever the previous rung left, it does not "
-                     "restore the authored value. Repeat a rung to get the error bar.")
+                help="'name=nf/dr[/max_effort[/isaac_kp[/isaac_kd[/rl[/knobs]]]]]',...'. The first "
+                     "two are physxMimicJoint:<inst>:naturalFrequency / dampingRatio on the four "
+                     "INNER mimic joints (authored 1000 / 0.05). Fields 3-5 are the LEADER "
+                     "finger_joint's own drive (authored max_effort 16.5 N.m, isaac_kp 1e7 / "
+                     "isaac_kd 1e5 -- OmniGibson's defaults, which overwrite whatever the USD "
+                     "authors; RoboLab's own drive is kp 5729.578 / kd 0.011459, and BOTH have to "
+                     "be set to reproduce it -- back-driving is a VELOCITY, so kd 1e5 pins the "
+                     "joint however far kp and max_effort come down). Lowering max_effort is the "
+                     "direct test of whether the press can BACK-DRIVE the leader and fold the "
+                     "four-bar; at 16.5 N.m it cannot, so the tips can only deviate as followers. "
+                     "Field 6 is the match_robolab flag (see --ref-gains). Field 7 is a "
+                     "'+'-joined SCENE-KNOB spec applied before this rung's rest reference is "
+                     "taken -- 'grav=off', 'velit=0', 'mdv=5.0' -- so one process can cover "
+                     "several scene conditions instead of one process per condition. RESTATE "
+                     "EVERY FIELD IN EVERY RUNG: a '-' leaves whatever the previous rung left, it "
+                     "does not restore the authored value; the same stickiness applies to the "
+                     "knobs. Repeat a rung to get the error bar.")
 ap.add_argument("--mimic-joints", default=None, help="override which mimic joints nf/dr apply to")
 ap.add_argument("--ref-gains", default="/logs/gripper_squeeze/robolab_ref_gains.json",
                 help="RoboLab's own runtime parameter dump. At startup this probe dumps REALM's "
@@ -141,6 +146,24 @@ ap.add_argument("--traverse-steps", type=int, default=60)
 ap.add_argument("--cam-dist", type=float, default=0.13)
 ap.add_argument("--fps", type=int, default=15)
 ap.add_argument("--video", type=int, default=1)
+# ---- scene / articulation knobs: the OmniGibson-vs-IsaacLab differences that are NOT the mimic
+# constraint. Applied ONCE at startup, before the measurement frame is built, and read back.
+ap.add_argument("--gripper-gravity", default="keep", choices=("keep", "on", "off"),
+                help="gravity on the GRIPPER links (base_link + the eight 2F-85 linkage links). "
+                     "RoboLab spawns the whole robot with disable_gravity=True; REALM runs it under "
+                     "gravity. Scoped to the gripper because the arm's physics must stay identical.")
+ap.add_argument("--solver-vel-iter", type=int, default=None,
+                help="physxArticulation:solverVelocityIterationCount. RoboLab 0, OmniGibson 1.")
+ap.add_argument("--max-depen-vel", type=float, default=None,
+                help="physxRigidBody:maxDepenetrationVelocity on the gripper links. RoboLab spawns "
+                     "the robot with 5.0; OmniGibson never authors it and has no API for it, so "
+                     "this is written straight onto the USD attribute.")
+ap.add_argument("--self-contact-audit", type=int, default=1,
+                help="every step, list contacts where BOTH bodies are robot links. This is the "
+                     "DIRECT test of whether residual self-contact inside the 2F-85 linkage loads "
+                     "the followers: it needs no flag flip, so it cannot be faked by a write that "
+                     "never reaches PhysX. Zero self-contacts under load settles the question "
+                     "negative on its own.")
 args = ap.parse_args()
 
 OUT = args.out
@@ -520,6 +543,129 @@ if REF is not None:
     print(f"  ROBOLAB_STARTUP_DIFF {_n0} field(s) differ")
 
 
+# ---------------------------------------------------------------- scene / articulation knobs
+# The gripper links: every link that is not part of the arm. Derived, never listed, so a renamed or
+# added link cannot silently drop out of the set a knob is applied to.
+ARM_LINKS = set(robot.arm_link_names[robot.default_arm]) | {L8}
+GRIP_LINKS = [ln for ln in robot.links if ln not in ARM_LINKS]
+ROBOT_LINK_PATHS = {robot.links[ln].prim_path: ln for ln in robot.links}
+
+
+def link_attr(ln, attr):
+    at = robot.links[ln].prim.GetAttribute(attr)
+    return at.Get() if at.IsValid() else None
+
+
+def scene_knob_state():
+    """Everything the knobs below can touch, read back off the live stage / articulation."""
+    return dict(
+        self_collisions=bool(robot.self_collisions),
+        solver_pos_iter=int(robot.solver_position_iteration_count),
+        solver_vel_iter=int(robot.solver_velocity_iteration_count),
+        disable_gravity={ln: link_attr(ln, "physxRigidBody:disableGravity") for ln in GRIP_LINKS},
+        max_depen_vel={ln: link_attr(ln, "physxRigidBody:maxDepenetrationVelocity")
+                       for ln in GRIP_LINKS},
+    )
+
+
+hdr("SCENE / ARTICULATION KNOBS")
+print(f"  arm links     ({len(ARM_LINKS)}): {sorted(ARM_LINKS)}")
+print(f"  gripper links ({len(GRIP_LINKS)}): {GRIP_LINKS}")
+KNOB0 = scene_knob_state()
+print(f"  AS LOADED: self_collisions={KNOB0['self_collisions']}  "
+      f"solver iters pos={KNOB0['solver_pos_iter']} vel={KNOB0['solver_vel_iter']}")
+print(f"    disableGravity           {KNOB0['disable_gravity']}")
+print(f"    maxDepenetrationVelocity {KNOB0['max_depen_vel']}")
+print("  RoboLab, for reference: self_collisions=False, vel iters 0, disable_gravity=True on every "
+      "rigid body, maxDepenetrationVelocity=5.0")
+
+def set_gripper_gravity(on):
+    # disable_gravity() goes through the RigidPrimView (a physics-tensor call), which is what
+    # actually takes effect while playing. The USD attribute is written too, so the state is
+    # READABLE afterwards -- the view has no getter, and an unverifiable knob is not a knob.
+    for ln in GRIP_LINKS:
+        lk = robot.links[ln]
+        (lk.enable_gravity if on else lk.disable_gravity)()
+    with og.sim.editing_usd():
+        for ln in GRIP_LINKS:
+            robot.links[ln].prim.GetAttribute("physxRigidBody:disableGravity").Set(bool(not on))
+
+
+def set_max_depen_vel(v):
+    with og.sim.editing_usd():
+        for ln in GRIP_LINKS:
+            at = robot.links[ln].prim.GetAttribute("physxRigidBody:maxDepenetrationVelocity")
+            assert at.IsValid(), f"{ln} has no physxRigidBody:maxDepenetrationVelocity"
+            at.Set(float(v))
+
+
+def apply_knobs(spec, label=""):
+    """Apply a knob dict and print a before/after readback. Called once at startup from the CLI
+    flags, and again per rung from --rungs' optional third field, so one process can cover several
+    scene conditions instead of one process per condition."""
+    if not spec:
+        return scene_knob_state()
+    before = scene_knob_state()
+    if "grav" in spec:
+        set_gripper_gravity(spec["grav"] == "on")
+        print(f"  [knob {label}] gripper gravity -> {spec['grav']} "
+              f"({len(GRIP_LINKS)} links, view call + USD attr)")
+    if "velit" in spec:
+        was = robot.solver_velocity_iteration_count
+        robot.solver_velocity_iteration_count = int(spec["velit"])
+        print(f"  [knob {label}] solverVelocityIterationCount {was} -> "
+              f"{robot.solver_velocity_iteration_count}")
+    if "mdv" in spec:
+        set_max_depen_vel(float(spec["mdv"]))
+        print(f"  [knob {label}] maxDepenetrationVelocity -> {spec['mdv']} on "
+              f"{len(GRIP_LINKS)} links")
+    after = scene_knob_state()
+    diff = {k: (before[k], after[k]) for k in before if before[k] != after[k]}
+    for k, (a, b) in diff.items():
+        print(f"    [knob {label}] READBACK {k}: {a} -> {b}")
+    if not diff:
+        # Distinguish "the write never reached the stage" (a bug that would make a null result look
+        # like a refutation) from "it was already at the requested value" (a legitimate no-op).
+        want = dict(
+            disable_gravity={ln: (spec["grav"] == "off") for ln in GRIP_LINKS} if "grav" in spec
+                            else after["disable_gravity"],
+            solver_vel_iter=int(spec["velit"]) if "velit" in spec else after["solver_vel_iter"],
+            max_depen_vel={ln: float(spec["mdv"]) for ln in GRIP_LINKS} if "mdv" in spec
+                          else after["max_depen_vel"],
+        )
+        already = all(after[k] == v for k, v in want.items())
+        assert already, f"knob spec {spec} changed nothing and is not already satisfied: {after}"
+        print(f"    [knob {label}] READBACK: no-op, already at the requested value")
+    return after
+
+
+def parse_knobs(s):
+    """'grav=off+velit=0+mdv=5.0' -> dict. Unknown keys are a hard error, never a silent no-op."""
+    out = {}
+    for kv in (s or "").split("+"):
+        kv = kv.strip()
+        if not kv:
+            continue
+        k, _, v = kv.partition("=")
+        k = k.strip()
+        assert k in ("grav", "velit", "mdv"), f"unknown knob '{k}' (have grav, velit, mdv)"
+        if k == "grav":
+            assert v in ("on", "off"), f"grav must be on|off, got '{v}'"
+        out[k] = v.strip()
+    return out
+
+
+CLI_KNOBS = {}
+if args.gripper_gravity != "keep":
+    CLI_KNOBS["grav"] = args.gripper_gravity
+if args.solver_vel_iter is not None:
+    CLI_KNOBS["velit"] = args.solver_vel_iter
+if args.max_depen_vel is not None:
+    CLI_KNOBS["mdv"] = args.max_depen_vel
+KNOB1 = apply_knobs(CLI_KNOBS, "cli") if CLI_KNOBS else KNOB0
+print("SCENE_KNOBS " + json.dumps(KNOB1, default=str))
+
+
 # ---------------------------------------------------------------- geometry / frames
 def T8():
     p, q = robot.links[L8].get_position_orientation()
@@ -634,6 +780,33 @@ def contact_force(M, ln):
     return float(np.linalg.norm(_np(sub).reshape(-1, 3).sum(axis=0)))
 
 
+# ---- self-contact audit. `self_collisions: true` plus 28 filtered pairs is NOT the same thing as
+# RoboLab's whole-robot enabled_self_collisions=False, and the filter list exists because the
+# knuckles' convex hulls overlap at rest. If residual self-contact inside the linkage is loading the
+# followers it would stiffen exactly the joints that have to move -- so measure it directly rather
+# than flipping a flag whose write may never reach PhysX.
+SELF_ROWS = RigidContactAPI.get_contact_row_indices(scene_idx, set(robot.links.values()))
+SELF_COLS = RigidContactAPI.get_contact_col_indices(scene_idx, set(robot.links.values()))
+GRIP_LINK_SET = {robot.links[ln] for ln in GRIP_LINKS}
+
+
+def self_contacts():
+    """(pairs, max |impulse| N) over contacts where BOTH bodies are links of this robot."""
+    if not args.self_contact_audit:
+        return [], float("nan")
+    pairs = RigidContactAPI.get_contact_pairs(
+        scene_idx=scene_idx, query_set=GRIP_LINK_SET, with_set=set(robot.links.values()),
+        current_only=True)
+    named = sorted({tuple(sorted((ROBOT_LINK_PATHS.get(a, a).rsplit("/", 1)[-1],
+                                  ROBOT_LINK_PATHS.get(b, b).rsplit("/", 1)[-1])))
+                    for a, b in pairs})
+    M = _live_impulse_matrix(scene_idx)
+    if M is None or len(SELF_ROWS) == 0 or len(SELF_COLS) == 0:
+        return named, float("nan")
+    sub = _np(M[SELF_ROWS][:, SELF_COLS]).reshape(-1, 3)
+    return named, float(np.linalg.norm(sub, axis=1).max()) if len(sub) else float("nan")
+
+
 def park_pusher():
     """1.3 m below its home, gravity off, touching nothing. This is what makes the rest reference
     genuinely UNLOADED -- the flaw that voided the first run was a reference taken in contact."""
@@ -714,6 +887,10 @@ def measure(tag, cmd6, grip, rung, state):
             scene_idx=scene_idx, query_set={PUSHER},
             with_set=set(robot.links.values()), current_only=True)})
         r["push_z"] = float(_np(PUSHER.get_position_orientation()[0])[2])
+        sc_pairs, sc_fmax = self_contacts()
+        r["self_pairs"] = ["|".join(p) for p in sc_pairs]
+        r["n_self"] = len(sc_pairs)
+        r["self_fmax"] = sc_fmax
     r["rpy_err"] = float(np.linalg.norm(
         (Rot.from_euler("xyz", ach[3:]) * Rot.from_euler("xyz", cmd6[3:]).inv()).as_rotvec()))
     ref = REST.get((rung, state))
@@ -1035,7 +1212,17 @@ def summarise(rung, state, ref, span, ln=None, which=""):
                dq={PAD_JOINT[ln]: last.get(f"dq{k}") for k, ln in enumerate(FL)},
                dq_all={joint_names[i]: float(last["q"][i] - ref["q"][i]) for i in grip_idx},
                mimic_live={k: (None if v is None else float(v)) for k, v in mimic_state().items()},
+               scene_knobs=scene_knob_state(),
+               # Self-contact over the WHOLE press, not just its last frame: a transient overlap
+               # while the linkage deflects is exactly the thing that would stiffen the followers.
+               self_pairs_any=sorted({p for r in press for p in r.get("self_pairs", [])}),
+               n_self_max=int(max([r.get("n_self", 0) for r in press] or [0])),
+               self_fmax_N=float(np.nanmax([r.get("self_fmax", np.nan) for r in press]))
+                           if press else float("nan"),
                span=list(span))
+    print(f"  SELF_CONTACT rung={rung} state={state} finger={which or 'both'} "
+          f"n_self_max={rec['n_self_max']} fmax_N={rec['self_fmax_N']:.4f} "
+          f"pairs={rec['self_pairs_any'] or '(none)'}")
     summary["presses"].append(rec)
     with open(JSONL, "a") as f:                       # flushed per press, not at the end
         f.write(json.dumps(rec, default=float) + "\n")
@@ -1113,6 +1300,10 @@ def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None, rl=Fals
     print(f"  UNLOADED reference (object parked, {ref['n_contact']} contacts): pad_sep "
           f"{ref['pad_sep'] * 1000:.3f} mm  tip_sep {ref['tip_sep'] * 1000:.3f} mm  gripper q "
           f"{ref['q'][grip_idx]}")
+    # The 28-pair filter list exists because the knuckles' hulls overlap AT REST. This says whether
+    # any self-contact survives that filtering with nothing else touching the hand.
+    print(f"  SELF_CONTACT_AT_REST n_self={ref.get('n_self', '-')} "
+          f"fmax_N={ref.get('self_fmax', float('nan')):.4f} pairs={ref.get('self_pairs') or '(none)'}")
     c, quat, l_w = place_under_tip(ln)
     print(f"  object pinned at {args.pin_mass} kg, {args.tip_gap * 1000:.0f} mm below the tip of {ln}")
     first_contact = None
@@ -1133,7 +1324,7 @@ def tip_cycle(rung, state, nf, dr, ln, which, me=None, kp=None, kd=None, rl=Fals
                   f"curl={r['curl_in_deg']:+7.3f}deg "
                   f"piv=({np.degrees(r.get('piv_in0', float('nan'))):+6.2f},"
                   f"{np.degrees(r.get('piv_in1', float('nan'))):+6.2f})deg "
-                  f"armdev={r['arm_dev']:.1e}", flush=True)
+                  f"armdev={r['arm_dev']:.1e} nself={r.get('n_self', '-')}", flush=True)
         if first_contact is not None and t >= first_contact + args.tip_past:
             break
     if first_contact is None:
@@ -1264,10 +1455,13 @@ def parse_rungs(spec):
         if not part:
             continue
         name, _, vals = part.partition("=")
-        f = (vals.split("/") + ["-"] * 6)[:6]
+        # Seven fields: nf / dr / max_effort / isaac_kp / isaac_kd / match_robolab / scene-knobs.
+        # The knobs are LAST so every rung string written before they existed still parses the same.
+        f = (vals.split("/") + ["-"] * 7)[:7]
         conv = lambda s: None if s.strip() in ("-", "") else float(s)  # noqa: E731
+        knobs = parse_knobs("" if f[6].strip() in ("-", "") else f[6])
         out.append((name.strip(), conv(f[0]), conv(f[1]), conv(f[2]), conv(f[3]), conv(f[4]),
-                    bool(conv(f[5]))))
+                    bool(conv(f[5])), knobs))
     return out
 
 
@@ -1276,13 +1470,19 @@ assert all(s in GRIP for s in STATES), f"--states must be from {list(GRIP)}"
 RUNGS = parse_rungs(args.rungs)
 hdr(f"{len(RUNGS)} RUNGS x {len(STATES)} GRIPPER STATES, one process")
 print(f"  leader {LEADER} AS AUTHORED: {leader_state()}")
-for name, nf, dr, me, kp, kd, rl in RUNGS:
-    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp} isaac_kd={kd}   match_robolab={rl}")
+for name, nf, dr, me, kp, kd, rl, knobs in RUNGS:
+    print(f"  {name:<12} inner nf={nf} dr={dr}   leader max_effort={me} isaac_kp={kp} "
+          f"isaac_kd={kd}   match_robolab={rl}   knobs={knobs or '(none)'}")
 print(f"  states: {STATES};  '-' means LEAVE WHAT THE PREVIOUS RUNG LEFT, not 'restore authored'")
 
 TIP_FINGERS = (FL if args.tip_fingers == "both" else [args.tip_fingers])
 assert all(f in FL for f in TIP_FINGERS), f"--tip-fingers must name one of {FL} or 'both'"
-for name, nf, dr, me, kp, kd, rl in RUNGS:
+for name, nf, dr, me, kp, kd, rl, knobs in RUNGS:
+    # Knobs before the rung's own rest reference is taken, so a knob that moves the unloaded pose
+    # (gravity does) is referenced against its OWN rest, not the previous rung's.
+    if knobs:
+        hdr(f"RUNG {name}: scene knobs {knobs}")
+        apply_knobs(knobs, name)
     for state in STATES:
         if LOAD == "tip":
             # Each fingertip in turn: two independent replicates of the same claim per rung, and the
