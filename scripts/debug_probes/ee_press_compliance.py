@@ -342,6 +342,7 @@ except Exception as e:
     print(f"  [warn] no external_sensor0 to re-aim: {e!r}")
 CAM_DIST = float(os.environ.get("REALM_CAM_DIST", "0.22"))
 CAM_AHEAD = float(os.environ.get("REALM_CAM_AHEAD", "0.030"))   # m past the pad origins, toward the tips
+CAM_MIN_ABOVE = float(os.environ.get("REALM_CAM_MIN_ABOVE", "0.075"))   # m above the table top
 
 
 def aim_camera():
@@ -352,14 +353,25 @@ def aim_camera():
     a_w, l_w = R8.apply(AXIS8), R8.apply(LONG8)
     fg, _ = finger_geom()
     mid = ep + R8.apply((fg[0] + fg[1]) / 2.0) + l_w * CAM_AHEAD
-    z_c = np.cross(a_w, l_w)                      # perpendicular to the closing plane
-    z_c /= np.linalg.norm(z_c)                    # a USD camera looks along -z, so sit at +z_c
+    n = np.cross(a_w, l_w)                        # normal of the closing plane
+    n /= np.linalg.norm(n)
+    C = mid + n * CAM_DIST
+    # KEEP THE CAMERA ABOVE THE TABLE. Perpendicular-and-level puts it at fingertip height, which IS
+    # table height by the end of a press: measured 2026-08-14 on curl_OPEN_kp15, the clip's mean pixel
+    # value fell 78 -> 2 as the camera descended into the slab and the entire press phase came out
+    # black. Clamping its world z and re-aiming AT the tips costs about asin(rise/CAM_DIST) of tilt,
+    # which still leaves the closing axis essentially in the image plane, and keeps the tips lit.
+    C[2] = max(float(C[2]), TABLE_TOP + CAM_MIN_ABOVE)
+    z_c = C - mid                                 # a USD camera looks along -z, so it sits at +z_c
+    z_c /= np.linalg.norm(z_c)
     up = -l_w                                     # fingers pointing down the frame
     x_c = np.cross(up, z_c)
+    if np.linalg.norm(x_c) < 1e-6:                # degenerate only looking straight down the finger
+        x_c = np.cross(a_w, z_c)                  # axis, which the clamp cannot produce
     x_c /= np.linalg.norm(x_c)
     y_c = np.cross(z_c, x_c)
     quat = Rot.from_matrix(np.stack([x_c, y_c, z_c], axis=1)).as_quat()
-    CAM.set_position_orientation(th.tensor(mid + z_c * CAM_DIST, dtype=th.float32),
+    CAM.set_position_orientation(th.tensor(C, dtype=th.float32),
                                  th.tensor(quat, dtype=th.float32), "world")
 
 

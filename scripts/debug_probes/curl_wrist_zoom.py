@@ -98,16 +98,23 @@ def numbers(r, i):
     if th is None or i >= th.shape[1]:
         return ["(no tip/heel trace)"]
     tip, heel = th[0], th[1]
-    # The probe's own reference is the last HOLD frame; frame 0 is inside the hold, and the hold is
-    # quasi-static, so tip[0] is that value to within the noise. Stated rather than assumed.
-    dt = (tip[i] - tip[0]) * 1000.0
-    dh = (heel[i] - heel[0]) * 1000.0
+    # The reference is the FIRST FINITE sample, not tip[0]: the probe records nan for every step
+    # before capture_reference_geometry() has run (the jaw-settle phase), so tip[0] is nan and
+    # subtracting it makes every frame read nan -- which is exactly what the first still did.
+    fin = np.flatnonzero(np.isfinite(tip))
+    if fin.size == 0:
+        return ["(tip/heel trace is all nan)"]
+    r0 = fin[0]
+    dt = (tip[i] - tip[r0]) * 1000.0
+    dh = (heel[i] - heel[r0]) * 1000.0
+    if not np.isfinite(dt):
+        return ["(before the reference pose)"]
     return [f"tip {dt:+.3f} mm    heel {dh:+.3f} mm",
             "tip DOWN + heel UP = tips curl INWARD"]
 
 
 for r in runs:
-    ims = [band(crop_scale(f), [f"{r['label']}   wrist_camera_flipped   frame {i}"] + numbers(r, i))
+    ims = [band(crop_scale(f), [f"{r['label']}   frame {i}"] + numbers(r, i))
            for i, f in enumerate(r["fr"])]
     out = os.path.join(args.root, f"{args.out_prefix}_{r['label'].replace(' ', '_')}_TIPZOOM.mp4")
     ImageSequenceClip(ims, fps=args.fps).write_videofile(out, codec="libx264", audio=False,
