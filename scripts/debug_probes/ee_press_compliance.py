@@ -468,7 +468,10 @@ if ach_contact is not None:
         if r["tag"] not in ("descend", "press"):
             continue
         ot = round((ach_contact - r["cmd_z"]) * 1000.0)
-        if ot < 0 or ot in _seen or ot % 5:
+        # Every distinct commanded depth past the landing height. NOT "multiples of 5 mm": the
+        # command steps by DZ (4 mm), so a 5 mm grid samples the ladder about once per 20 mm and can
+        # miss a 30 mm overtravel almost entirely.
+        if ot < 0 or ot in _seen:
             continue
         _seen.add(ot)
         dt = (r["tip_sep"] - _ref["tip_sep"]) * 1000.0
