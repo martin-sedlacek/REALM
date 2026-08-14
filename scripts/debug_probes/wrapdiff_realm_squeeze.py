@@ -272,9 +272,22 @@ from omnigibson.utils.physx_utils import apply_force_at_pos  # noqa: E402
 
 DEV = getattr(og.sim, "device", None) or "cpu"
 _views = {ln: getattr(robot.links[ln], "_rigid_prim_view", None) for ln in PADS}
-FORCE_PATH = ("view" if all(v is not None and hasattr(v, "apply_forces_and_torques_at_pos")
-                            for v in _views.values()) else "psi")
-print(f"\n  force path = {FORCE_PATH}   (og.sim.device={DEV})")
+# The tensor-API method has been spelled differently across Isaac versions, so find it by name
+# instead of assuming one -- and SAY which was found, because falling back to psi silently is how a
+# GPU run returns a fake zero residual.
+_CANDIDATES = ("apply_forces_and_torques_at_pos", "apply_forces_and_torques_at_position",
+               "apply_forces")
+_METHOD = None
+for ln, v in _views.items():
+    print(f"  {ln}: _rigid_prim_view = {type(v).__name__ if v is not None else None}")
+    if v is None:
+        continue
+    have = [c for c in _CANDIDATES if hasattr(v, c)]
+    print(f"    force methods present: {have}")
+    if have and _METHOD is None:
+        _METHOD = have[0]
+FORCE_PATH = "view" if (_METHOD and all(v is not None for v in _views.values())) else "psi"
+print(f"\n  force path = {FORCE_PATH}  method={_METHOD}  (og.sim.device={DEV})", flush=True)
 if FORCE_PATH == "psi" and str(og.gm.USE_GPU_DYNAMICS) == "True":
     print("  *** WARNING: falling back to psi.apply_force_at_pos WITH GPU DYNAMICS ON. That call is\n"
           "  a no-op on the GPU pipeline; expect FORCE_NOT_LANDING below and do not report a ratio.")
@@ -284,8 +297,12 @@ def _push_view(ln, vec):
     v = _views[ln]
     f = th.as_tensor(np.asarray(vec, dtype=np.float32).reshape(1, 3), device=DEV)
     t = th.zeros((1, 3), dtype=f.dtype, device=DEV)
+    fn = getattr(v, _METHOD)
+    if _METHOD == "apply_forces":
+        fn(f)
+        return
     p = th.as_tensor(np.asarray(com_world(ln), dtype=np.float32).reshape(1, 3), device=DEV)
-    v.apply_forces_and_torques_at_pos(forces=f, torques=t, positions=p, is_global=True)
+    fn(forces=f, torques=t, positions=p, is_global=True)
 
 
 def push_pads(F, axis):
@@ -295,8 +312,11 @@ def push_pads(F, axis):
         _push_view(PADS[0], -axis * F)
         _push_view(PADS[1], +axis * F)
     else:
-        apply_force_at_pos(robot.links[PADS[0]].prim, -axis * F, com_world(PADS[0]))
-        apply_force_at_pos(robot.links[PADS[1]].prim, +axis * F, com_world(PADS[1]))
+        # physx_utils.apply_force_at_pos reads prim.prim_path, so it wants OmniGibson's RigidPrim
+        # WRAPPER, not the raw pxr Usd.Prim that robot.links[ln].prim hands back -- passing .prim
+        # gets "AttributeError: 'Prim' object has no attribute 'prim_path'" one rung into the sweep.
+        apply_force_at_pos(robot.links[PADS[0]], -axis * F, com_world(PADS[0]))
+        apply_force_at_pos(robot.links[PADS[1]], +axis * F, com_world(PADS[1]))
 
 
 def hold(n_steps, target, F=0.0, axis=None):

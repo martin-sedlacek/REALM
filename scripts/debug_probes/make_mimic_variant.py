@@ -85,11 +85,19 @@ def drive_over(jname):
     the interesting fact is that PhysX treats "drive present with zero gains" differently from
     "no drive", e.g. by giving the DOF a driven-joint solver path or a maxForce-bounded reaction.
     """
-    return (f'        over "{jname}"\n        {{\n'
+    # apiSchemas is prim METADATA, so it goes in parentheses after the prim name, not inside the
+    # braces with the attributes. Putting it in the body is a "syntax error at '='" from
+    # textFileFormat.yy that names the prim but not the reason.
+    #
+    # maxForce is written as FLT_MAX rather than the token `inf`, which the USDA parser rejects.
+    # That is not a compromise: the attribute is a float, so RoboLab's authored `inf` is read back
+    # as FLT_MAX anyway -- this writes the same bits, just spelled portably.
+    return (f'        over "{jname}" (\n'
             f'            prepend apiSchemas = ["PhysicsDriveAPI:angular"]\n'
+            f'        )\n        {{\n'
             f'            float drive:angular:physics:stiffness = 0\n'
             f'            float drive:angular:physics:damping = 0\n'
-            f'            float drive:angular:physics:maxForce = inf\n'
+            f'            float drive:angular:physics:maxForce = 3.4028235e38\n'
             f'            uniform token drive:angular:physics:type = "force"\n'
             f'            float drive:angular:physics:targetPosition = 0\n'
             f'        }}\n')
