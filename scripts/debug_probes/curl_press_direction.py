@@ -572,7 +572,10 @@ def aim_camera():
         return
     p8, R8 = T8()
     g = pad_geom()
-    mid = p8 + R8.apply(0.5 * (g["tip0"] + g["tip1"]))
+    # Aimed from the pad link ORIGINS, pushed half a finger further down LONG to the tips. NOT from
+    # the hull tips: those sit ~128 mm off on this asset, which aimed the first run's camera above
+    # the fingertips and framed the shot on the knuckles.
+    mid = p8 + R8.apply(0.5 * (g["pos0"] + g["pos1"]) + LONG * FINGER_HALF)
     z_c = R8.apply(H)                      # a USD camera looks along -z, so sit along +H
     z_c /= np.linalg.norm(z_c)
     up = -R8.apply(LONG)                   # fingers pointing down the frame
