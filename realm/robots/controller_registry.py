@@ -41,17 +41,13 @@ from realm.robots.custom_joint_controller import IndividualJointPDController
 from realm.robots.droid_ee_controller import DroidEndEffectorController
 from realm.robots.droid_gripper_controller import MultiFingerGripperController as DROIDGripperController
 from realm.robots.droid_joint_controller import IndividualJointPDController as DROIDJointPDController
-from realm.robots.padspring_gripper_controller import PadSpringGripperController
 
-# REALM-facing controller name -> implementing class. Mirrors pre-3.9.1 env_base.py exactly, plus
-# PadSpringGripperController -- the compliant-pad 2F-85 variant, which needs its own entry because it
-# claims three gripper DOFs instead of one. See its module docstring.
+# REALM-facing controller name -> implementing class. Mirrors pre-3.9.1 env_base.py exactly.
 REALM_CONTROLLERS = {
     "IndividualJointPDController": IndividualJointPDController,
     "DroidEndEffectorController": DroidEndEffectorController,
     "CustomJointController": DROIDJointPDController,
     "CustomGripperController": DROIDGripperController,
-    "PadSpringGripperController": PadSpringGripperController,
 }
 
 # Arm-group controllers, split by which OmniGibson default they clone and whether they need the eef
@@ -60,7 +56,7 @@ _ARM_JOINT_CONTROLLERS = ("CustomJointController", "IndividualJointPDController"
 _ARM_IK_CONTROLLERS = ("DroidEndEffectorController",)
 _NEEDS_EEF_LINK_NAME = ("CustomJointController", "DroidEndEffectorController")
 
-_GRIPPER_CONTROLLERS = ("CustomGripperController", "PadSpringGripperController")
+_GRIPPER_CONTROLLERS = ("CustomGripperController",)
 
 _PATCHED_FLAG = "_realm_default_controller_config_patched"
 
