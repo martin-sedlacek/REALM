@@ -4,8 +4,9 @@
 
 Same coverage limits as tests/test_integrity.py -- read that module's docstring. In short:
 `--model_type debug` commands a hold-still action with the gripper open, `--max_steps 1` skips
-every metric formula, and `--no_render` makes the recorded video 128x128 black frames from
-extract_from_obs's missing-sensor fallback. This checks that the plumbing runs, nothing else.
+every metric formula, and `--no_render` drops the EXTERNAL sensors only, so the recorded frame is
+extract_from_obs's synthetic black fallback for base_im beside a real wrist view. This checks that
+the plumbing runs, nothing else.
 """
 import argparse
 import os

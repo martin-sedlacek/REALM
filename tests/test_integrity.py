@@ -15,11 +15,15 @@ WHAT THIS DOES NOT COVER -- read before treating a green run as evidence
     `len(qpos_joints) > 4` false branch, so joint_vel_var / joint_acc_var / joint_jerk /
     joint_path_length / cart_* are all written as literal 0.0 without their formulas ever running.
   * `--repeats 1` means the per-repeat reset path is never entered.
-  * `--no_render` means extract_from_obs takes its "external sensors are missing" fallback and
-    hands the recorder a 128x128 BLACK image. videos/<task>.parquet is therefore written, and
-    non-empty, and contains nothing but black frames. The video check below proves that
-    append_video ran; it proves NOTHING about rendering. Use tests/test_vector_integrity.py
-    (rendering on, --extract-videos) for that.
+  * `--no_render` drops the EXTERNAL sensors only -- env_config.py adds them under
+    `if not env.no_rendering`, while the robot's own wrist camera is part of the robot and keeps
+    rendering. So `extract_from_obs` takes its "external sensors are missing" fallback and hands
+    the recorder a synthetic black 128x128 for base_im, next to a REAL wrist view. Measured on
+    this gate's own artifact (task 0, 2026-08-16): the recorded 128x256 frame is max=2 mean=0.002
+    on the left (base) half and max=214 mean=100 on the right (wrist) half. So the video check
+    below proves append_video ran and the wrist camera rendered; it proves NOTHING about the
+    external camera -- which is the view the policies are actually conditioned on. Use
+    tests/test_vector_integrity.py (rendering on, --extract-videos) for that.
 
 So: this is a smoke test for the eval plumbing and the task configs loading. It is not evidence
 that a task works.
