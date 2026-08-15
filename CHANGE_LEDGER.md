@@ -112,6 +112,19 @@ direction confusion. Measured: on the unpatched asset the hull and hull-free obs
 *opposite signs* on the right finger; after the asset-side fix they agree to 0.003 mm and the offset
 collapses from 129.0 mm to 4.8 mm.
 
+**The "no" in that table is measured on the patched engine, not only inferred from `grep`.** Ratio of
+the hull observable to the hull-free one, over every press of four runs (a sign flip means the hull
+reads backwards):
+
+| run | `rigid_prim` CoM site | hull/hull-free ratio | hull usable? |
+| --- | --- | --- | --- |
+| `mass_authored` (`--mass` only, stock loader) | broken | −0.57 … −0.87 | no, backwards |
+| `inertia_comfix` (**OG-lite `83b21d5`**, `MODE=stockfix`) | **fixed** | **−0.49 … −1.06** | **no, still backwards** |
+| `mass_authored_anchor` (`--mass --anchor`, stock loader) | fixed | **+0.969 … +0.995** | **yes** |
+
+So patching `rigid_prim.py` demonstrably does not repair the hull: the loader-patched run is as
+backwards as the unpatched one. Only removing the dropped transform from the asset fixes both.
+
 **The bbox site reaches live REALM code, not just diagnostics.** `get_base_aligned_bbox()` is called
 at `realm/environments/perturbations/_helpers.py:200` and `realm/environments/perturbations/sb_vrb.py:74`,
 both in perturbation object replacement. Any object whose collision geometry sits under an
