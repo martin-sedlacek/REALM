@@ -164,6 +164,13 @@ ap.add_argument("--self-contact-audit", type=int, default=1,
                      "the followers: it needs no flag flip, so it cannot be faked by a write that "
                      "never reaches PhysX. Zero self-contacts under load settles the question "
                      "negative on its own.")
+# ---- asset swap. LAST on purpose, like the --rungs 7th field: appended rather than reclaiming an
+# earlier position, so nothing already written moves.
+ap.add_argument("--variant-usd", default=None,
+                help="load this USD instead of droid_robolab_v2.usd by monkeypatching "
+                     "Robot.usd_path for that one asset (see scripts/debug_probes/"
+                     "make_mass_variant.py and make_mimic_variant.py). The shipped file is never "
+                     "written to and nothing under data/ is touched.")
 args = ap.parse_args()
 
 OUT = args.out
@@ -205,6 +212,22 @@ def hdr(s):
 
 # ---------------------------------------------------------------- build
 print(f"[curl] robot={args.robot} task={args.task_cfg} tag={PFX}", flush=True)
+if args.variant_usd:
+    # Swap the asset BEFORE anything is loaded. Only the robolab v2 path is redirected, so the
+    # shipped file is never written to and a stock A/B in the same session is unaffected.
+    assert os.path.exists(args.variant_usd), f"no variant USD at {args.variant_usd}"
+    from omnigibson.robots.robot import Robot  # noqa: E402
+    _orig_usd_path = Robot.usd_path.fget
+
+    def _patched_usd_path(self):
+        p = _orig_usd_path(self)
+        if "droid_robolab_v2" in str(p):
+            print(f"[variant] usd_path {p} -> {args.variant_usd}", flush=True)
+            return args.variant_usd
+        return p
+
+    Robot.usd_path = property(_patched_usd_path)
+    print(f"[variant] Robot.usd_path patched -> {args.variant_usd}", flush=True)
 set_sim_config(robot=args.robot)
 env = RealmEnvironmentDynamic(
     config_path="/app/realm/config", task_cfg_path=args.task_cfg, perturbations=["Default"],
@@ -237,6 +260,107 @@ print(f"  n_dof={len(q_all)} arm={len(arm_joint_names)} gripper={len(grip_names)
 print(f"  eef link     = {robot.eef_link_names[robot.default_arm]}")
 print(f"  finger links = {FL}   (FL[0] is at NEGATIVE AXIS by construction, see docstring)")
 print(f"  gripper joints = {grip_names}")
+
+# ---------------------------------------------------------------- mass properties, as USED
+# The point of an authored-mass variant is that PhysX derives nothing, so it is not enough to know
+# what the USD says: this reads the numbers back off the LIVE body and prints the authored value
+# next to it. `physics:centerOfMass` is the one field OmniGibson does not respect -- update_meshes()
+# assigns self.center_of_mass, whose setter calls RigidPrimView.set_coms(), whose stopped-simulation
+# fallback writes the USD attribute directly -- so a mismatch THERE is the expected result and a
+# mismatch anywhere else is a bug. Grep MASSPROP.
+GRIPPER_LINKS = ("base_link", "left_outer_knuckle", "right_outer_knuckle", "left_outer_finger",
+                 "right_outer_finger", "left_inner_finger", "right_inner_finger",
+                 "left_inner_knuckle", "right_inner_knuckle")
+MASS_ATTRS = ("physics:mass", "physics:centerOfMass", "physics:diagonalInertia",
+              "physics:principalAxes")
+
+
+def _mass_view():
+    for getter in (lambda: robot.joints["finger_joint"]._articulation_view,
+                   lambda: robot._articulation_view):
+        try:
+            v = getter()
+            if v is not None:
+                return getattr(v, "_physics_view", None) or v
+        except Exception:
+            pass
+    return None
+
+
+def read_mass_properties():
+    """{link: {authored USD values, runtime mass/com/inertia}} for the nine gripper links."""
+    view = _mass_view()
+    inertias = coms = None
+    names = []
+    try:
+        inertias = _np(view.get_inertias()) if hasattr(view, "get_inertias") else None
+        coms = _np(view.get_coms()) if hasattr(view, "get_coms") else None
+        md = getattr(view, "_metadata", None) or getattr(view, "shared_metatype", None)
+        names = [str(x).split("/")[-1] for x in getattr(md, "link_names", [])] if md else []
+    except Exception as e:
+        print(f"  [massprop] tensor readback failed: {type(e).__name__}: {e}", flush=True)
+    if not names:
+        names = list(robot.links.keys())
+
+    def row(arr, i):
+        if arr is None or i is None:
+            return None
+        a = arr[0] if getattr(arr, "ndim", 0) == 3 else arr
+        return None if i >= len(a) else np.asarray(a[i], dtype=np.float64).reshape(-1)
+
+    out = {}
+    for ln in GRIPPER_LINKS:
+        e = {}
+        prim = robot.links[ln].prim
+        e["has_massapi"] = bool(prim.HasAPI(lazy.pxr.UsdPhysics.MassAPI))
+        for a in MASS_ATTRS:
+            at = prim.GetAttribute(a)
+            v = at.Get() if at and at.IsValid() else None
+            e["usd_" + a.split(":")[-1]] = (
+                None if v is None else
+                (float(v) if isinstance(v, float) else [float(x) for x in
+                                                        (list(v) if hasattr(v, "__len__")
+                                                         else [v.GetReal(), *v.GetImaginary()])]))
+        try:
+            e["mass"] = float(_np(robot.links[ln].mass))
+            e["com"] = [float(x) for x in _np(robot.links[ln].center_of_mass).reshape(-1)[:3]]
+        except Exception as ex:
+            e["error"] = f"{type(ex).__name__}: {ex}"
+        i = names.index(ln) if ln in names else None
+        inr = row(inertias, i)
+        if inr is not None:
+            e["inertia"] = [float(x) for x in inr]
+        cm = row(coms, i)
+        if cm is not None:
+            e["com_view"] = [float(x) for x in cm[:3]]
+        out[ln] = e
+    return out
+
+
+MASSPROPS = read_mass_properties()
+hdr("MASS PROPERTIES: AUTHORED (USD) vs USED (LIVE BODY)")
+print("  centerOfMass in mm, link frame. A left/right pair MUST differ in the sign of y; an")
+print("  identical pair is the loader's dropped Xform->link transform, not a real body.")
+for ln in GRIPPER_LINKS:
+    e = MASSPROPS[ln]
+    a = e.get("usd_centerOfMass")
+    c = e.get("com")
+    d = None if (a is None or c is None) else float(np.linalg.norm(np.array(a) - np.array(c)))
+    print(f"  {ln:<22} MassAPI={str(e['has_massapi']):<5} mass_live={e.get('mass')!r}"
+          f"  mass_usd={e.get('usd_mass')!r}")
+    print(f"  {'':<22} com  authored={None if a is None else [round(x*1000,4) for x in a]}"
+          f"   live={None if c is None else [round(x*1000,4) for x in c]}"
+          f"   |delta|={'None' if d is None else f'{d*1000:.4f} mm'}")
+    if e.get("inertia"):
+        I = np.asarray(e["inertia"]).reshape(3, 3)
+        print(f"  {'':<22} I_live diag={np.diag(I)}  usd_diagonalInertia={e.get('usd_diagonalInertia')}")
+n_auth = sum(1 for ln in GRIPPER_LINKS for a in MASS_ATTRS
+             if MASSPROPS[ln].get("usd_" + a.split(":")[-1]) is not None)
+n_kept = sum(1 for ln in GRIPPER_LINKS
+             if MASSPROPS[ln].get("usd_centerOfMass") is not None
+             and MASSPROPS[ln].get("com") is not None
+             and np.allclose(MASSPROPS[ln]["usd_centerOfMass"], MASSPROPS[ln]["com"], atol=1e-6))
+print(f"\n  MASSPROP authored_fields={n_auth}/36  com_authored_and_kept={n_kept}/9")
 
 
 def jget(j, attr):
@@ -1112,7 +1236,8 @@ summary = dict(robot=args.robot, tag=PFX, task=args.task_cfg, joint_names=joint_
                inboard={k: v for k, v in INBOARD.items()}, pad_joint=PAD_JOINT, parents=PARENT,
                mimic_authored={k: (None if v is None else float(v)) for k, v in MIMIC0.items()},
                mimic_nf_in_schema=NF_IN_SCHEMA, table=table_name, table_top=TABLE_TOP,
-               tip_below_flange_mm=TIP_BELOW * 1e3, z_contact=Z_CONTACT, presses=[])
+               tip_below_flange_mm=TIP_BELOW * 1e3, z_contact=Z_CONTACT,
+               variant_usd=args.variant_usd, mass_properties=MASSPROPS, presses=[])
 SPANS = []
 
 

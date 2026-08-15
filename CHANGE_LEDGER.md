@@ -130,6 +130,19 @@ direction confusion. Measured: on the unpatched asset the hull and hull-free obs
 *opposite signs* on the right finger; after the asset-side fix they agree to 0.003 mm and the offset
 collapses from 129.0 mm to 4.8 mm.
 
+**The "no" in that table is measured on the patched engine, not only inferred from `grep`.** Ratio of
+the hull observable to the hull-free one, over every press of four runs (a sign flip means the hull
+reads backwards):
+
+| run | `rigid_prim` CoM site | hull/hull-free ratio | hull usable? |
+| --- | --- | --- | --- |
+| `mass_authored` (`--mass` only, stock loader) | broken | −0.57 … −0.87 | no, backwards |
+| `inertia_comfix` (**OG-lite `83b21d5`**, `MODE=stockfix`) | **fixed** | **−0.49 … −1.06** | **no, still backwards** |
+| `mass_authored_anchor` (`--mass --anchor`, stock loader) | fixed | **+0.969 … +0.995** | **yes** |
+
+So patching `rigid_prim.py` demonstrably does not repair the hull: the loader-patched run is as
+backwards as the unpatched one. Only removing the dropped transform from the asset fixes both.
+
 **The bbox site reaches live REALM code, not just diagnostics.** `get_base_aligned_bbox()` is called
 at `realm/environments/perturbations/_helpers.py:200` and `realm/environments/perturbations/sb_vrb.py:74`,
 both in perturbation object replacement. Any object whose collision geometry sits under an
@@ -178,6 +191,60 @@ attributes and 25 link prims (`CURLGRIP_ARM_IDENTICAL`, `SHIP_ARM_IDENTITY_OK`,
 
 Everything under `scripts/debug_probes/` and `scripts/clara/`. The paths refactor
 (`scripts/clara/lib/paths.sh` + 18 scripts) changes only how harness scripts resolve their own root.
+
+`make_mass_variant.py` (branch `mass-authored`) is in this class too: it writes a `.usda` into
+`tmp/variants/` on demand and nothing loads it unless a run passes `--variant-usd`. It never writes
+to `droid_robolab_v2.usd` and touches nothing under `data/`. Verified per-variant by
+`verify_mass_variant.py`: 543 non-gripper prims / 2788 authored attributes identical to the shipped
+asset (523 of them arm prims), and all 22 collision + visual geoms unmoved to 0.0 nm.
+
+---
+
+## 2b. Engine facts established by measurement, not changed
+
+Not changes — **properties of stock OmniGibson / the Omniverse physics parser** that were measured
+during this work and that any audit of OmniGibson deviations should carry. Both are the *same*
+defect as `83b21d5`, expressed in two more places, and both are still present in stock.
+
+### OmniGibson does not derive-then-respect mass properties; it computes-then-overwrites
+
+`RigidPrim.update_meshes()` ends with `self.center_of_mass = com`. That setter is
+`RigidPrimView.set_coms()` (`omnigibson/utils/deprecated_utils.py`), whose **stopped-simulation**
+branch — which is where `_post_load` runs — does
+`prim.GetAttribute("physics:centerOfMass").Set(...)`: a direct write into the *scene stage's* edit
+target, on the prim the robot USD was referenced into. No composition arc can outrank that.
+
+Consequences, all measured on `MODE=stock`:
+
+- **`physics:centerOfMass` authored in an asset is discarded on every load.** An asset cannot defend
+  that field. Anyone shipping a USD with a hand-authored CoM should know it will not be used.
+- **`physics:mass`, `physics:diagonalInertia` and `physics:principalAxes` ARE honoured, verbatim.**
+  Authored tensors reproduced RoboLab's runtime values to 0.00062% on all nine gripper links, masses
+  bit-identical — and PhysX does **not** re-apply a parallel-axis shift to an authored tensor even
+  when it then accepts a CoM 128 mm away.
+- **Diagnostic:** a wrong CoM shared by a mirrored pair gives the two sides *different* effective
+  inertias where symmetry demands they match (measured `nf_eq` 253 vs 217 on the two pads). An L/R
+  asymmetry in a symmetric mechanism's effective inertia is the signature of a shared, wrong CoM.
+
+### `UsdPhysics.MassAPI` on a Mesh under a collider Xform is silently ignored — by BOTH stacks
+
+Every `Defeatured_*` **Mesh** prim in the robolab gripper authors `physics:mass`,
+`physics:centerOfMass` and `physics:diagonalInertia` — the real CAD numbers, identical in
+`droid_robolab_v2.usd` and RoboLab's `robolab_franka_robotiq_2f_85_flattened.usd`. **Nothing reads
+them.** Aggregated into the link frame they give the fingertip pad **0.0392547 kg**; the body PhysX
+actually builds is **0.00951321 kg** — in REALM *and* in RoboLab-through-Isaac-Lab. base_link is
+2.11x apart, the inner knuckle 1.08x.
+
+The cause is the same one behind `83b21d5`: `UsdPhysics.CollisionAPI` sits on the
+`Defeatured_*_01` **Xform**, so the Mesh beneath it is not the collider prim and its `MassAPI` is not
+the collider's `MassAPI`. The Omniverse **physics parser** and OmniGibson's **loader** make the same
+mistake about the same prim, in two different places.
+
+This is not gripper-specific and is the part worth carrying into a general audit: **any asset whose
+`CollisionAPI` is on an Xform above its Gprims silently loses that Gprim's authored mass
+properties**, and gets density-derived values instead. It is also a trap for anyone fixing such an
+asset — those CAD numbers look exactly like the data you want, and mass-normalised they are 1.45x
+the tensor PhysX actually realises for the pad. Do not trust them.
 
 ---
 

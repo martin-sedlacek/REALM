@@ -147,6 +147,57 @@ an A/B without an edit.
   patched image. Reuses `inertia_runtime_realm.py` (branch `inertia-diff`) verbatim, so the two
   routes' numbers are the same quantity in the same convention. Build the asset first with
   `scripts/make_xflat_gripper_usd.py`.
+- `make_mass_variant.py` -- writes a ~5 KB `.usda` that sublayers the shipped 14 MB robolab asset and
+  AUTHORS the nine gripper links' mass properties, so PhysX derives none of them. `--mass` authors
+  `physics:mass` / `centerOfMass` / `diagonalInertia` / `principalAxes` (mass and the inertia tensors
+  are RoboLab's runtime values, transcribed with provenance; the CoM is computed from the asset's own
+  collision triangle meshes composed all the way to the link frame). `--anchor` additionally moves
+  each `Defeatured_*_01` Xform's translate/orient down onto the Mesh and leaves the Xform at identity
+  -- the composed matrix, and therefore every collision shape's world pose, is unchanged. **Runs on
+  the HOST on CPU** (`pip install usd-core numpy`): no Kit, no GPU, no container, no allocation.
+  Feed the result to a probe with `--variant-usd`; the shipped file is never written to.
+- `verify_mass_variant.py` -- the static gate for the above, also host/CPU. Asserts (1) every prim
+  outside the nine gripper links is attribute-for-attribute identical (543 prims / 2788 attributes,
+  523 of them arm prims), (2) every collision and visual mesh POINT composed to the link frame is
+  unmoved (22 geoms, worst displacement 0.0 nm -- exactly zero, because the re-anchor re-splits the
+  same matrix rather than recomputing one), and (3) the mass fields resolve. Grep
+  `VERIFY_MASS_VARIANT_OK`.
+
+### What an authored mass property can and cannot defend (2026-08-15)
+
+Measured with the two variants above on `MODE=stock`, i.e. no OmniGibson patch of any kind.
+Artifacts `/logs/gripper_squeeze/mass_authored{,_anchor}.{log,json,jsonl,npz}`.
+
+- **`physics:mass`, `physics:diagonalInertia` and `physics:principalAxes` are consumed verbatim.**
+  The live articulation's mass-space inertia reproduces RoboLab's runtime tensor to **0.00062%**
+  worst-case over all nine links, and every mass matches to the last bit. PhysX does **not** re-apply
+  a parallel-axis shift to an authored tensor even when it then accepts a centre of mass 128 mm away
+  -- so authoring the inertia is a real override, not a hint.
+- **`physics:centerOfMass` is discarded on every load and cannot be defended from the asset.**
+  `RigidPrim.update_meshes()` ends with `self.center_of_mass = com`; that setter is
+  `RigidPrimView.set_coms()`, whose stopped-simulation branch (`deprecated_utils.py`) does
+  `prim.GetAttribute("physics:centerOfMass").Set(...)` -- a direct write into the scene stage's edit
+  target, which outranks anything a referenced layer can say. With `--mass` alone both pads still
+  come back at `(-54.201, +116.341, 0.000)` mm, identical **including the sign of y**, which no
+  mirrored pair can have.
+- Consequence: authoring alone moves the curl at the authored `nf=1000` from **+0.034 to
+  +0.058/+0.075 deg** -- real, ~50x the noise floor, and nowhere near a fix, because the displaced
+  CoM's `m d^2` term is ~95% of the error. With `--anchor` as well it is **+0.359/+0.403 deg** and
+  the pad's effective inertia about its pivot is 7.378e-06 against RoboLab's 7.653e-06
+  (`nf_eq` 1018 out of 1000).
+- **A readback of `physics:centerOfMass` off the live stage does not tell you what the asset
+  authored** -- the loader's own write lives at the same attribute. Compare against the variant FILE.
+  `curl_press_direction.py`'s `MASSPROP com_authored_and_kept=N/9` counter is vacuous for the same
+  reason and should be ignored.
+- **The asset's per-mesh `PhysicsMassAPI` is a decoy.** Every `Defeatured_*` Mesh authors
+  `physics:mass`/`centerOfMass`/`diagonalInertia` (the real CAD numbers, identical in both stacks) and
+  **nothing reads them**: aggregated they give the pad 0.0392547 kg where the body PhysX builds is
+  0.00951321 kg in BOTH REALM and RoboLab (base_link 2.11x apart, inner knuckle 1.08x). Same root
+  cause as the loader bug -- `CollisionAPI` is on the parent Xform, so the Mesh is not the collider
+  prim and its `MassAPI` is not the collider's.
+- **Two `over "<name>"` blocks for the same prim in one layer is a parse error**
+  (`Duplicate prim 'base_link'`), not a merge. A generator emitting mass overrides and transform
+  overrides in separate passes must merge them into one `over` per prim.
 
 ### Gripper traps (2026-08-14)
 
