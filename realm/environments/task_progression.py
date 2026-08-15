@@ -6,6 +6,10 @@ walks them in order, stops at the first unmet one, and returns the fraction reac
 once reached, so progression is monotone within a rollout and an already-True stage is never
 re-checked.
 
+Seven task types can actually be declared by a task config: put, pick, rotate, push, stack,
+open_drawer and close_drawer. The rubric file carries two more, ``pour`` and ``turn_faucet``, which
+no task uses yet -- they are the TODO markers on POURED and MOVE_JOINT_SMALL below.
+
 Every environment must own a DEEP COPY of its rubric. ``TASK_PROGRESS_RUBRICS`` is built once at
 module import and the scan MUTATES the dict it walks. Handing environments the module-level object
 gave every one of them in the process the SAME progression state -- harmless with one env per
