@@ -1,0 +1,217 @@
+# Tasks and perturbations
+
+REALM evaluates a policy on **10 manipulation tasks** crossed with **16 perturbation settings** — a
+dense 160-cell matrix. This page is the reference for both axes: the exact identifiers, what each
+one does, and how you select them.
+
+Both lists are defined once, in `realm/eval.py`, as `SUPPORTED_TASKS` and `SUPPORTED_PERTURBATIONS`.
+**Position in those lists is the ID you pass on the command line.** Everything else in the repo
+imports from there — the vectorized path, the integrity tests, and the cluster sweep drivers (which
+parse `eval.py` at runtime rather than keeping a second copy), so the numbering cannot drift.
+
+## Selecting them
+
+```sh
+--task_id <0-9>            # index into SUPPORTED_TASKS,        default 0
+--perturbation_id <0-15>   # index into SUPPORTED_PERTURBATIONS, default 0
+```
+
+Both flags exist on `examples/02_evaluate.py` (single environment) and `examples/04_vector_evaluate.py`
+(vectorized). There is **no name-based CLI flag** — the IDs are the interface.
+
+`--task_cfg_path <suite>/<task>/<variant>.yaml` bypasses the index and names a config directly, e.g.
+`REALM_DROID10/pick_spoon/default.yaml`. When set, `--task_id` is ignored.
+
+The Python API does take names: `RealmEnvironmentDynamic(perturbations=[...])` accepts the exact
+strings below. Both eval paths pass **exactly one** perturbation. Composing two is untested, and at
+least one pair is known to break — see [Composition](#composition).
+
+## The 10 tasks
+
+Each identifier is also the directory name under `realm/config/tasks/REALM_DROID10/<task>/default.yaml`.
+
+| ID | Identifier | Type | Instruction | Scene / surface |
+|---:|---|---|---|---|
+| 0 | `put_green_block_into_bowl` | `put` | "put the green block in the bowl" | `Pomaria_1_int` / `Table` |
+| 1 | `put_banana_into_box` | `put` | "put the banana in the box" | `office_cubicles_left` / `Circular_Table` |
+| 2 | `rotate_marker` | `rotate` | "rotate the marker" | `Benevolence_1_int` / `Kitchen_Counter` |
+| 3 | `rotate_mug` | `rotate` | "rotate the mug" | `office_cubicles_left` / `Office_Desk` |
+| 4 | `pick_spoon` | `pick` | "pick up the spoon" | `Merom_1_int` / `Table` |
+| 5 | `pick_water_bottle` | `pick` | "pick up the water bottle" | `Wainscott_0_int` / `Dining_Table` |
+| 6 | `stack_cubes` | `stack` | "stack the green block on the yellow block" | `Benevolence_1_int` / `Dining_Table` |
+| 7 | `push_switch` | `push` | "push the light switch" | `Pomaria_1_int` / `Light_Switch` |
+| 8 | `open_drawer` | `open_drawer` | "open the top drawer" | `Pomaria_1_int` / `Drawers_Near_Table` |
+| 9 | `close_drawer` | `close_drawer` | "close the top drawer" | `Pomaria_1_int` / `Drawers_Near_Table` |
+
+Ten tasks, **seven distinct skills** — the `Type` column is the skill, and `put`, `pick` and `rotate`
+each appear twice.
+
+> **Watch the spelling of task 0.** It is `put_green_block_into_bowl`, with *into*. A
+> `put_green_block_in_bowl` directory also exists, but under the legacy `IMPACT/` suite — passing
+> that spelling to `--task_cfg_path` under `REALM_DROID10/` will not resolve. The repo README
+> currently prints the wrong one.
+
+> ### ⚠ Two tasks currently have unusable camera views
+>
+> **Task 6 (`stack_cubes`) renders essentially nothing but sky**, and **task 2 (`rotate_marker`)'s
+> external camera is unusable.** This is a scene-configuration problem: the camera rig ends up
+> outside the room.
+>
+> What makes it dangerous is that **every artifact and metric check still passes** — the run
+> completes, videos are written, reports are produced, and nothing warns you. A vision-based policy
+> evaluated on task 6 in this state is being scored on images of the sky.
+>
+> This is a **known and currently accepted limitation**, not an undiscovered bug. Do not report
+> numbers from these two tasks without looking at the frames first. See
+> [Known issues](Known-Issues-and-Gotchas).
+
+### Scoring: partial credit, not pass/fail
+
+A rollout is scored against a **progression ladder** for its task type, defined in
+`realm/config/tasks/task_progressions.yaml`, with the per-stage predicates in
+`RealmEnvironmentBase.success_conditions` (`realm/environments/env_base.py`). The last stage is full
+success; reaching an earlier stage is partial credit.
+
+| Type | Ladder |
+|---|---|
+| `pick` | REACH → GRASP → LIFT_LARGE |
+| `rotate` | REACH → GRASP → ROTATED |
+| `push` | REACH → TOUCH → TOGGLED_ON |
+| `put` | REACH → GRASP → LIFT_SLIGHT → MOVE_CLOSE → PLACE_INTO |
+| `stack` | REACH → GRASP → LIFT_SLIGHT → MOVE_CLOSE → PLACE_ONTO |
+| `open_drawer` | REACH → TOUCH_AND_MOVE_JOINT → OPEN_JOINT_SMALL → OPEN_JOINT_LARGE → OPEN_JOINT_FULL |
+| `close_drawer` | mirrors `open_drawer`, ending at CLOSE_JOINT_FULL |
+
+`task_progressions.yaml` also defines ladders for `pour` and `turn_faucet`. **Those are scaffolding,
+not tasks** — no task config uses them and the pour predicate returns `False` unconditionally.
+
+### Other task suites
+
+`realm/config/tasks/` also holds `IMPACT/` and `other/` suites, reachable only via `--task_cfg_path`.
+They are ablation and real2sim configs, not part of the benchmark 10. Note that
+`RealmEnvironmentDynamic` selects the base-mounted DROID variant by checking whether the task config
+path starts with `REALM_DROID10`, so the other suites deliberately get a different robot mount.
+
+## The 16 perturbations
+
+ID 0 is the unperturbed control. So: **16 selectable settings, 15 of which actually perturb
+something.** Both numbers are correct; say which you mean.
+
+Implementations live in `realm/environments/perturbations/`. The name→implementation registry is
+`RealmEnvironmentDynamic.supported_pertrubations` (the misspelling is in the source), and the
+constructor asserts every requested name is a key of it.
+
+### Control
+
+| ID | Name | What it does |
+|---:|---|---|
+| 0 | `Default` | Nothing. The unperturbed baseline every other cell is compared against. |
+
+### Visual
+
+| ID | Name | What it perturbs |
+|---:|---|---|
+| 1 | `V-AUG` | Image quality: Gaussian blur and contrast scaling applied to every rendered view, including the wrist view. |
+| 2 | `V-VIEW` | External camera pose: re-draws a calibrated viewpoint, then jitters position and pitch/yaw. |
+| 3 | `V-SC` | Scene clutter: re-places and re-models the scene's distractor objects — five of them — into a single spawn region. See the caveat under [Known issues](Known-Issues-and-Gotchas): that region is over-subscribed, and roughly two objects per reset fail placement and are dropped in. |
+| 4 | `V-LIGHT` | Illumination: randomises every light's intensity across a wide range and shifts its colour. |
+
+`V-AUG` is the odd one out: it changes no scene state, so its registry entry is the no-op. The
+augmentation is applied in the **observation path** instead — the environment draws the blur and
+contrast parameters once per reset and applies them to each observation.
+
+### Semantic — instruction only, scene untouched
+
+| ID | Name | How the instruction is rewritten |
+|---:|---|---|
+| 5 | `S-PROP` | By physical properties — colour, size, texture — instead of the object's name. |
+| 6 | `S-LANG` | By wording and synonymy: different phrasing for the same request. |
+| 7 | `S-MO` | By spatial relation to other objects ("the mug between the two chocolate items"). |
+| 8 | `S-AFF` | By affordance or human purpose ("...for safekeeping", "as if clearing a table"). |
+| 9 | `S-INT` | By world knowledge — material, shape class, typical use. |
+
+These five change the language and nothing else. **Four of them are data-defined, not code-defined:**
+`S-PROP`, `S-MO`, `S-AFF` and `S-INT` are one-line wrappers around a shared helper that picks a
+string from the `cached_semantic_perturbations` block of the task's own YAML. What distinguishes them
+is entirely the content of those lists — every one of the 10 task configs carries all five keys with
+ten paraphrases each. If you want to know what `S-INT` means for a given task, read that task's YAML;
+the code will not tell you.
+
+`S-LANG` is the only one with real logic. `open_drawer` and `close_drawer` define a `synonyms` block,
+so on those two it can generate a fresh substitution; on the other eight it falls back to the cache.
+
+### Behavioural
+
+| ID | Name | What it perturbs |
+|---:|---|---|
+| 10 | `B-HOBJ` | The target object's physics: per-link mass is rescaled and clipped, and joint effort/stiffness/damping are scaled log-uniformly. Factors are computed from a pristine baseline snapshot, so they cannot compound across resets. |
+
+### Composite
+
+| ID | Name | Axes | What it perturbs |
+|---:|---|---|---|
+| 11 | `SB-NOUN` | S+B | Re-targets the instruction at a **different object already in the scene**. On drawer tasks it swaps which drawer is named and re-homes the arm instead. |
+| 12 | `SB-VRB` | S+B | Changes the required **skill**: draws a different verb, swaps in that verb's progression ladder, and spawns a receiver object if the new verb needs one. |
+| 13 | `VB-POSE` | V+B | Object placement: re-samples collision-free positions for all objects and adds yaw noise to the target. |
+| 14 | `VB-MOBJ` | V+B | Target object size and shape: anisotropic rescale, capped and clipped to a task-dependent range. |
+| 15 | `VSB-NOBJ` | V+S+B | Object identity: replaces the target with a different, unseen category and model, and rewrites the noun in the instruction to match. |
+
+### Two groupings worth knowing
+
+- **`NEEDS_STOPPED_SIM`** (`realm/environments/perturbations/_helpers.py`) — `V-SC`, `VB-MOBJ`,
+  `VSB-NOBJ`, `SB-VRB`. These add or remove objects and so require a stopped simulator. The rest only
+  write poses. This is why those four are the expensive ones to reset.
+- **`MISSING_PERTURBATIONS`** (`realm/environments/env_dynamic.py`) — `V-OBJ`, `VB-ISC`, `VS-PROP`,
+  `SB-ADV`, `SB-SMO` are **declared but not implemented**. They are not selectable and the
+  constructor's assertion rejects them. Do not treat them as available.
+
+### Known incompatibilities
+
+- `SB-NOUN` on task 7 (`push_switch`, type `push`) raises `NotImplementedError` by design.
+- `SB-VRB` on `push` has an empty compatible-verb list, so it has nothing to draw from. *Read from
+  the compatibility matrix and the unguarded selection call — no explicit guard or test was found, so
+  treat the exact failure mode as unverified.*
+
+### Composition
+
+Both eval entry points pass exactly one perturbation per process. The environment's reference-capture
+logic depends on this: composing `SB-NOUN` with `VB-MOBJ`, for instance, would break the size anchor
+that `VB-MOBJ` measures against. **Composition is untested and the code says so.** If you need it,
+verify it yourself first.
+
+## Running the matrix
+
+Per-cell output is keyed `<task>_<perturbation>`, e.g. a report named `pick_spoon_VSB-NOBJ.csv`. That
+naming is what the integrity tests and the log viewer rely on.
+
+A single cell:
+
+```sh
+python examples/02_evaluate.py --task_id 4 --perturbation_id 15 \
+    --model_type <type> --model_name <name> --port <port> \
+    --experiment_name <exp>
+```
+
+A sweep — `scripts/cluster_evals/run_evals_for_ckpt.sh` takes `--task_ids` and `--perturbation_ids`,
+each accepting comma-separated values and `a-b` ranges:
+
+```sh
+--task_ids 0,4,8 --perturbation_ids 3-7
+```
+
+**Omitting either flag means "all of it"** — they default to `0-9` and `0-15` respectively. The script
+launches one process per cell and skips cells whose outputs already exist, so it is re-runnable.
+`scripts/karolina/run_eval_for_ckpt.sh` is the same pattern for a different cluster, and
+`scripts/eval.sh` is the single-cell wrapper, which validates that the IDs are in range.
+
+## Rollout budget
+
+Defaults in `examples/02_evaluate.py` are `--repeats 5 --max_steps 500`, which is a smoke-test
+budget. The published benchmark configuration is `--repeats 25 --max_steps 800`. The vectorized entry
+point defaults to `--repeats 25` and runs them in waves of `--num_envs`.
+
+## See also
+
+- [Running evaluations](Running-Evaluations) — the full flag surface
+- [Robots and configs](Robots-and-Configs) — what `--robot` selects
+- [Cluster and parallel runs](Cluster-and-Parallel-Runs) — sweeping the matrix

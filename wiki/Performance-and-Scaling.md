@@ -1,0 +1,107 @@
+# Performance and scaling
+
+What is actually expensive, and which levers have been measured.
+
+> **Read the dates on numbers.** These figures come from profiling runs during the 3.9.1 port and
+> the vectorization work. Several were superseded by later measurements *within the same project*,
+> and where that happened the later one is what appears here. Nothing on this page is a promise
+> about your hardware.
+
+## Startup dominates short runs
+
+On a small evaluation, roughly **64% of wall-clock time is startup** — importing Isaac, building the
+scene, initialising physics — not rollout stepping.
+
+Two consequences, and they are the most useful things on this page:
+
+- **Do not compare configurations by wall-clock time.** You will mostly be comparing startup.
+  Compare stepping time.
+- **Amortise.** More repeats per process beats more processes. Sweeping the matrix with one process
+  per cell pays the startup cost 160 times.
+
+Reset is also not free, and it got worse — see below.
+
+## The port changed the shape of the cost
+
+Moving from OmniGibson 1.1.1 to 3.9.1:
+
+| | Change |
+|---|---|
+| rollout stepping | **~1.9× faster**, and ~3.4× with the OG-lite fork |
+| reset | **2.2–3.2× slower** |
+
+So the port is a clear win for long rollouts and can be a loss for workloads dominated by resets.
+If you run many short rollouts, measure before assuming the newer stack is faster for you.
+
+## Rendering is the lever you already have
+
+`--render_on_demand` is **on by default**. It renders only on steps whose observation feeds
+inference and runs physics on the rest, which roughly **halves median step time**.
+
+The cost is video: roughly **one recorded frame per action chunk**, so a 300-step rollout yields
+tens of frames rather than hundreds. Turn it off with `--no-render_on_demand` when the video matters.
+
+`--rendering_mode r` is cheaper than the default `rt`, and `pt` is more expensive. **The speed
+multipliers quoted in older documentation for these were never measured — do not repeat them.** More
+importantly, `r` changes what the policy sees, so it is a change to the experiment. Switching to it
+for throughput needs a success-rate A/B, not just a timing comparison.
+
+## Vectorization
+
+`--num_envs N` shares one simulator across N environments.
+
+**Around 4 environments is the safe operating point on a single L40S.** Above that the project's own
+measurements disagree: one batch found 8 members meaningfully worse in aggregate, a later batch under
+a more aggressive configuration found 8 better, and 16 was never shown to be economic. Treat 4 as the
+default, measure if you want more, and **say which measurement you are relying on** if you publish a
+number.
+
+Two hard constraints:
+
+- **Four perturbations are not safe vectorized** — `VB-POSE`, `VB-MOBJ`, `VSB-NOBJ`, `SB-VRB` — because
+  they stop and restart the simulator globally. Run those single-env.
+- **Scene import cost grows worse than linearly.** Each import triggers a global play/stop, so
+  building many scenes in one process is quadratic-ish. Importing a large number of scenes has taken
+  over an hour.
+
+There is also a **renderer descriptor-pool ceiling** that causes a segfault once enough scenes are
+resident. It is worked around by raising the descriptor-set limits before launch. If you push
+`--num_envs` high and hit an unexplained segfault during scene build, that is the first thing to
+check.
+
+## The contact cache: a lever that was spent
+
+Early profiling found the non-physics step was almost entirely contact-cache work — about half of
+all stepping time — which made it the single biggest lever. An incremental contact cache was
+implemented and measured at roughly **−23% of total simulator step time** under a real policy.
+
+**By the later vectorized measurements that lever is spent**: the non-physics step had dropped to a
+fraction of a millisecond, well under 1% of a step. If you find older notes ranking the contact cache
+as the top optimisation target, they predate this.
+
+Turning every available flag on at once measured about **−9%** under the `debug` model, not the
+larger figure a naive sum of individual levers would predict.
+
+## GPU physics is not available
+
+Running rigid-body dynamics on the GPU is blocked by device-consistency gaps upstream — the
+simulation crashes rather than running slowly. It has been attempted and abandoned twice. Separately,
+GPU dynamics was measured to be **near-irrelevant** to the physical behaviour being chased at the
+time: the reference stack forced onto CPU retained 94% of its measured compliance.
+
+So this is not a performance lever waiting to be pulled.
+
+## Instrumentation notes
+
+- **Wrist cameras render at 1280×720.** An earlier profiling note claiming 128×128 was retracted;
+  128×128 is the shape of a zero-filled placeholder in one code path, not the render resolution.
+- **Exit codes tell you nothing** about whether a profiling run succeeded — see
+  [Known issues](Known-Issues-and-Gotchas).
+- Run-to-run variance of around **17%** has been observed on the same configuration. Do not read a
+  single pair of runs as a result.
+
+## See also
+
+- [Cluster and parallel runs](Cluster-and-Parallel-Runs)
+- [Running evaluations](Running-Evaluations)
+- [Known issues and gotchas](Known-Issues-and-Gotchas)
