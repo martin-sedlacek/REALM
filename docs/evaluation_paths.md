@@ -48,9 +48,27 @@ and `dreamzero`, and all three are `(1, 0)` on both paths. The `molmoact` `(0, 1
 convention, and `InferenceClient.infer` still has a molmoact branch that a future client
 constructor could reach.
 
-One edge case *was* unified in the 2026-08-16 refactor: an action chunk with `ndim > 2` now trips
-the single-env path's assert on both paths, instead of being silently queued on the vector path as
-a 2-D array whose last row the gripper mapping would then overwrite. No in-tree client returns one.
+### What the 2026-08-16 refactor did unify
+
+Four things, all where the two paths did the same work in a different order or with different
+strictness. Each is inert in every configuration anything actually runs, and each was measured
+rather than assumed:
+
+1. **An action chunk with `ndim > 2`** now trips the single-env path's assert on both paths, instead
+   of being silently queued on the vector path as a 2-D array whose last row the gripper mapping
+   would then overwrite. No in-tree client returns one.
+2. **The video frame is recorded before inference, not after,** on the single-env path -- the vector
+   path always did it first. `VideoRecorder.add_frame` and `InferenceClient.infer` both build new
+   arrays and neither mutates the other's inputs.
+3. **`recorder.cleanup()` runs before `append_trajectory`, not after,** on the single-env path --
+   again the vector path's order. `VideoRecorder.cleanup` is a no-op unless `disk_mode=True`, which
+   nothing sets, and in that mode it removes a frame directory that `append_trajectory` does not
+   touch.
+4. **`results.append(entry)` happens after the artifact writes** rather than between two of them, on
+   the single-env path. `results` is in memory and is only serialised afterwards.
+
+Everything else -- which files are written, in which order, with which arguments, and every number
+in them -- is unchanged.
 
 ## Controller notes that have no other home
 
