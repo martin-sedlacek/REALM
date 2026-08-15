@@ -199,6 +199,25 @@ def run_one(name, spec, args, outdir):
     }
 
 
+def print_table(results, out, blob):
+    """The pass/fail table. Exit codes are shown because they are recorded, not because they gate."""
+    if blob:
+        print(f"generated {blob.get('generated')}  jobid={blob.get('jobid')}  "
+              f"mode={blob.get('mode')}")
+    print("=" * 104)
+    print(f"{'test':<40}{'status':<22}{'seconds':>9}  {'exit':>5}  {'cells':>6}  timed_out")
+    print("-" * 104)
+    for r in results:
+        print(f"{r['name']:<40}{r['status']:<22}{r['seconds']:>9}  {r['exit_code']:>5}  "
+              f"{len(r.get('cells', [])):>6}  {r['timed_out']}")
+    print("=" * 104)
+    counts = {}
+    for r in results:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    print("  ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+    print(f"results: {out}")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -210,6 +229,9 @@ def main():
     p.add_argument("--only", default=None,
                    help="comma-separated test names, or a tier: fast/medium/slow/server")
     p.add_argument("--list", action="store_true")
+    p.add_argument("--report", action="store_true",
+                   help="print the table from an existing --out JSON and exit, running nothing. "
+                        "The JSON is the record; this only formats it.")
     p.add_argument("--timeout", type=int, default=None,
                    help="override every test's per-run timeout, in seconds. A killed test is "
                         "recorded as TIMEOUT (or <verdict>_AFTER_TIMEOUT if it had already "
@@ -220,6 +242,15 @@ def main():
         for name, spec in SUITE.items():
             print(f"{name:<38}{spec['tier']:<8}gpu={int(spec['needs_gpu'])} "
                   f"server={int(spec['needs_server'])}  {spec['note']}")
+        return 0
+
+    if args.report:
+        out = Path(args.out).absolute()
+        if not out.exists():
+            print(f"no results at {out}", file=sys.stderr)
+            return 2
+        blob = json.loads(out.read_text())
+        print_table(blob.get("results", []), out, blob)
         return 0
 
     names = list(SUITE)
@@ -260,13 +291,7 @@ def main():
         print(f"  -> {rec['status']}  {rec['seconds']}s  exit={rec['exit_code']}"
               f"{' TIMED OUT' if rec['timed_out'] else ''}", flush=True)
 
-    print("\n" + "=" * 92)
-    print(f"{'test':<40}{'status':<22}{'seconds':>9}  {'exit':>5}")
-    print("-" * 92)
-    for r in results:
-        print(f"{r['name']:<40}{r['status']:<22}{r['seconds']:>9}  {r['exit_code']:>5}")
-    print("=" * 92)
-    print(f"results: {out}")
+    print_table(results, out, None)
     return 0
 
 
