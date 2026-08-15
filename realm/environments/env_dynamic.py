@@ -1,27 +1,33 @@
+"""One REALM environment: a scene built from the task config, and the rollout loop over it.
+
+RealmEnvironmentDynamic owns construction and stepping. What it delegates:
+
+    env_config.py               assembling the OmniGibson config from REALM's YAML layers
+    scene_setup.py              the fixes applied to the loaded scene and robot
+    perturbations/registry.py   which callable a perturbation name resolves to
+    env_base.py                 scoring reference, contact sensing, progression, joint reset
+
+Construction is two-phase because og.sim.play() is global. A single env plays for itself and runs
+post_play_setup() straight through; a member of a vector env stops after the scene loads and lets
+RealmVectorEnvironment play once for everyone and then drive the four pieces of post_play_setup()
+itself. The per-member ordering is identical either way.
+"""
+import copy
+from functools import partial
+
 import numpy as np
 import yaml
-import copy
-import os
 
+import omnigibson as og
+from omnigibson.controllers.controller_view import ControllerView
+from scipy.spatial.transform import Rotation as R
+
+from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIGHT
 from realm.environments.env_base import RealmEnvironmentBase
 from realm.environments.env_config import build_environment_config
-from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIGHT
-from realm.environments.perturbations.default import default as _pert_default
-from realm.environments.perturbations.v_light import v_light as _pert_v_light
-from realm.environments.perturbations.v_view import v_view as _pert_v_view
-from realm.environments.perturbations.v_sc import v_sc as _pert_v_sc
-from realm.environments.perturbations.semantic import s_prop as _pert_s_prop, s_lang as _pert_s_lang, s_mo as _pert_s_mo, s_aff as _pert_s_aff, s_int as _pert_s_int
-from realm.environments.perturbations.b_hobj import b_hobj as _pert_b_hobj
-from realm.environments.perturbations.sb_noun import sb_noun as _pert_sb_noun
-from realm.environments.perturbations.sb_vrb import sb_vrb as _pert_sb_vrb
-from realm.environments.perturbations.vb_pose import vb_pose as _pert_vb_pose
-from realm.environments.perturbations.vb_mobj import vb_mobj as _pert_vb_mobj
-from realm.environments.perturbations.vsb_nobj import vsb_nobj as _pert_vsb_nobj
-# OG 3.9.1: robots are no longer Python classes. DROID/UR are declared as RobotDefinition YAMLs
-# under realm/robots/definitions/ and instantiated by OmniGibson's single Robot class via
-# `model: <name>`; WidowX uses OmniGibson's stock `vx300s` definition. Nothing to import here.
-from realm.categories import get_non_droid_categories
+from realm.environments.perturbations.registry import PERTURBATION_FNS
 from realm.environments.perturbations.v_aug import apply_blur_and_contrast
+from realm.environments.scene_setup import SceneSetupMixin
 from realm.geometry import (
     calculate_new_camera_pose_mixed_rotations,
     robot_to_world,
@@ -30,29 +36,10 @@ from realm.geometry import (
 from realm.inference.utils import assert_wrist_camera
 from realm.sim_config import set_rendering_mode
 
-import omnigibson as og
-import omnigibson.lazy as lazy
-from omnigibson.controllers.controller_view import ControllerView
-from omnigibson.utils.asset_utils import get_all_object_models
-from omnigibson.utils.usd_utils import create_joint
-from scipy.spatial.transform import Rotation as R
-
-
-
-MISSING_PERTURBATIONS = ["V-OBJ", "VB-ISC", "VS-PROP", "SB-ADV", "SB-SMO"]
-SUPPORTED_TASK_TYPES = ["put", "pick", "rotate", "push", "stack", "open_drawer", "close_drawer"]
 WARMUP_STEPS = 30
-SKILL_COMPATIBILITY_MATRIX = {
-    "put": ["pick", "rotate", "stack"],
-    "push": [],  # ["put", "pick", "rotate", "stack"],
-    "pick": ["put", "rotate", "stack"],
-    "rotate": ["put", "pick", "stack"],
-    "stack": ["put", "pick", "rotate"],
-    "open": ["close"],
-    "close": ["open"]
-}
 
-class RealmEnvironmentDynamic(RealmEnvironmentBase):
+
+class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
     def __init__(
         self,
         config_path="/app/realm/config",
@@ -81,22 +68,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         self.reset_qpos = reset_qpos if reset_qpos is not None else DEFAULT_RESET_JOINTPOS
         self.common_freq = common_freq
         self.supported_pertrubations = {
-            'Default':  lambda: _pert_default(self),
-            "V-AUG":    lambda: _pert_default(self),  # V-AUG is applied when distorting the images in obs
-            "V-VIEW":   lambda: _pert_v_view(self),
-            "V-SC":     lambda: _pert_v_sc(self),
-            "V-LIGHT":  lambda: _pert_v_light(self),
-            "S-PROP":   lambda: _pert_s_prop(self),
-            "S-LANG":   lambda: _pert_s_lang(self),
-            "S-MO":     lambda: _pert_s_mo(self),
-            "S-AFF":    lambda: _pert_s_aff(self),
-            "S-INT":    lambda: _pert_s_int(self),
-            "B-HOBJ":   lambda: _pert_b_hobj(self),
-            "SB-NOUN":  lambda: _pert_sb_noun(self),
-            "SB-VRB":   lambda: _pert_sb_vrb(self),
-            "VB-POSE":  lambda: _pert_vb_pose(self),
-            "VB-MOBJ":  lambda: _pert_vb_mobj(self),
-            "VSB-NOBJ": lambda: _pert_vsb_nobj(self),
+            name: partial(fn, self) for name, fn in PERTURBATION_FNS.items()
         }
 
         self.active_perturbations = perturbations
@@ -118,9 +90,10 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             cfg["env"]["action_frequency"] = common_freq
 
         # Duplicated from RealmEnvironmentBase.__init__, which finalize_setup() runs later and which
-        # overwrites all three with the same values. Read the write-up there (and in
-        # capture_mo_reference()) before touching these -- in particular why mo_bbox_orig is an
-        # anchor on the task config and must NOT track the live object.
+        # overwrites all three with the same values -- a vector env defers that far enough that a
+        # perturbation could read them first. Read capture_mo_reference() before touching these, in
+        # particular for why mo_bbox_orig is an anchor on the task config and must NOT track the
+        # live object.
         self.mo_pos_orig = np.array(mo_cfgs[0]["position"])
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
@@ -147,6 +120,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         if not in_vec_env:
             self.post_play_setup()
 
+    # ============================== [CONSTRUCTION] ==============================
     def post_play_setup(self):
         """Everything that requires a playing simulator. Single-env path; run straight through.
 
@@ -188,7 +162,6 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             self.v_aug_sigma = np.random.uniform(0.0, 3.0)
             self.v_aug_alpha = np.random.uniform(0.5, 2.0)
 
-        # ---------- apply fixes to the env ----------
         self.update_robot_physics()
 
     def finalize_setup(self):
@@ -204,25 +177,6 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             mo_cfgs=self._mo_cfgs
         )
 
-    # ============================== [VECTOR ENV HOOKS] ==============================
-    def pre_step(self, action):
-        """Apply @action to this member's robot without advancing physics.
-
-        og.sim.step() advances every scene at once, so a vector env must apply all members' actions
-        first and step once. Single-env stepping goes through step() instead.
-        """
-        self.omnigibson_env._pre_step(action)
-
-    def post_step(self, action):
-        """Read observations for this member after a shared og.sim.step(), mirroring step()."""
-        obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
-        task_progression = self.recompute_task_progression(obs)
-        if "V-AUG" in self.active_perturbations:
-            # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
-            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
-                                          robot_name=self.robot.name)
-        return obs, task_progression, terminated, truncated, info
-
     def construct_environment_config(self):
         return build_environment_config(self)
 
@@ -237,149 +191,7 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         base_cam_pos[-1] += DROID_BASE_HEIGHT if self.use_droid_with_base else 0  # height of the robot base
         return base_cam_pos, base_cam_rot
 
-    def update_robot_physics(self):
-        # Every DROID variant, not just the config literally named "DROID". The robolab asset was
-        # silently skipped here, so its arm ran with zero armature -- no rotor inertia against a
-        # stiff impedance law -- and the wrist would not hold a commanded pose.
-        if not self.robot_name.startswith("DROID"):
-            return
-
-        friction = np.array(self.cfg["robots"][0]["friction"])
-        armature = np.array(self.cfg["robots"][0]["armature"])
-
-        joint_names = self.robot.arm_joint_names
-        # OG 3.9.1 runs under the Fabric Scene Delegate, where raw USD edits are not automatically
-        # propagated to Fabric; every USD write must happen inside this context (which synchronizes
-        # on exit) or OmniGibson aborts. The context must not be nested, so all edits go in one block.
-        with og.sim.editing_usd():
-            for idx in range(7):
-                prim_path = f"{self.robot.prim_path}/panda_link{idx}/{joint_names['0'][idx]}"
-                joint_prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(prim_path)
-                assert joint_prim.IsValid(), f"no joint prim at {prim_path}"
-                # Create the attributes if the asset never authored them -- droid.usd ships them,
-                # the robolab asset does not, and GetAttribute(...).Set() on a missing attribute is
-                # a silent no-op, which would leave armature at zero without any error.
-                lazy.pxr.PhysxSchema.PhysxJointAPI.Apply(joint_prim)
-                for attr_name, value in (("physxJoint:jointFriction", friction[idx]),
-                                         ("physxJoint:armature", armature[idx])):
-                    attr = joint_prim.GetAttribute(attr_name)
-                    if not attr:
-                        attr = joint_prim.CreateAttribute(attr_name, lazy.pxr.Sdf.ValueTypeNames.Float)
-                    attr.Set(float(value))
-
-            # Fix triangle mesh collision approximation for dynamic bodies
-            for link_name, link in self.robot.links.items():
-                for collision_mesh in link.collision_meshes.values():
-                    prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(collision_mesh.prim_path)
-                    if prim.IsValid() and prim.HasAttribute("physxMeshCollision:approximation"):
-                        approx = prim.GetAttribute("physxMeshCollision:approximation").Get()
-                        if approx in ["none", "meshSimplification"]:
-                            prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
-
-    def apply_scene_fixes_from_cfg(self, manage_sim_state=True):
-        spawn_cfg = yaml.load(open(f"{self.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)
-
-        if self.scene_model in spawn_cfg and self.scene_part in spawn_cfg[self.scene_model]:
-            scene_data = spawn_cfg[self.scene_model][self.scene_part]
-            if manage_sim_state:
-                og.sim.stop()
-            for obj in self.omnigibson_env.scene.objects:
-                if obj.name in scene_data.get("to_fix", []):
-                    obj.fixed_base = True
-                    create_joint(
-                        prim_path=f"{obj.prim_path}/rootJoint",
-                        joint_type="FixedJoint",
-                        body1=f"{obj.prim_path}/{obj._root_link_name}",
-                    )
-                elif obj.name in scene_data.get("to_remove", []):
-                    obj_to_remove = self.omnigibson_env.scene.object_registry("name", obj.name)
-                    self.omnigibson_env.scene.remove_object(obj_to_remove)
-                # elif obj.name in special_prims[self.scene_model][self.scene_part].get("drawer", []):
-                #     drawer_to_modify = self.omnigibson_env.scene.object_registry("name", obj.name)
-
-            if manage_sim_state:
-                og.sim.play()
-
-    def rebase_initial_file(self):
-        """Make the scene AS FIXED the one reset() restores.
-
-        og.Environment.post_play_load() captures scene._initial_file (via scene.update_initial_file)
-        BEFORE apply_scene_fixes_from_cfg ever runs, so it still lists every object the scene config
-        asked to REMOVE. Scene.reset(hard=True) restores that file, and restore() re-adds anything
-        the file has and the registry does not -- so the first reset undoes the removal. REALM calls
-        reset() once per repeat, which means every repeat after the first ran with the object the
-        task config deletes (measured: `straight_chair_pmpwwi_0` back in all 3 members of a Vec=3
-        env, n_objects 127 -> 128, and the same on the single-env path via t3_single_env_chair.py).
-        Re-capturing here makes the fixed scene the baseline, so restore() has nothing to add.
-
-        Also removes a stop/play cycle PER MEMBER from the first reset of a vector env, which is
-        what made that reset's damage member-dependent: restore() cycles the sim when it has objects
-        to add, that cycle is GLOBAL, and og.sim.stop() reverts every scene to its state at the last
-        play(). A sibling's later cycle therefore threw away the pose load_state() had just given
-        the object this member re-added -- measured at Vec=3, where after the first reset the chair
-        sat at its member's scene ORIGIN (z = -0.051, under the floor) in members 0 and 1 and at its
-        real furniture pose only in the last member. That is where the "last member only" reading of
-        this bug came from; it is a transient of the extra cycles, and it disappears from the second
-        reset on, when there is nothing left to add.
-
-        Separate from apply_scene_fixes_from_cfg's body rather than at its tail because Scene.save()
-        asserts a non-stopped sim (it dumps joint state) -- the fixes themselves run stopped, and a
-        vector env runs them for every member inside ONE stopped window and plays once afterwards.
-        """
-        self.omnigibson_env.scene.update_initial_file()
-
-    def disable_visual_toggles(self):
-        for obj in self.omnigibson_env.scene.objects:
-            # TODO: (martin) for pre-baked OG switches on walls their rotation seems off so we cannot use those without the visual toggle...
-            if og.object_states.ToggledOn in obj.states:
-                obj.states[og.object_states.ToggledOn].visual_marker.visible = False
-
-    # ============================== [ROLLOUT UTILS] ==============================
-    def warmup_ee_cmd(self):
-        """Hold-still EE command for warmup: the current pose in robot frame. None if joint-control."""
-        if not self.ee_control:
-            return None
-        # OG 3.9.1: robot._controllers[name] is a (group_key, controller_idx) TUPLE, not the
-        # controller object -- instances live in the ControllerView registry, shared by every robot
-        # whose kinematic-tree pattern and controller config hash match. Reading `.mode` straight off
-        # the tuple raised `AttributeError: 'tuple' object has no attribute 'mode'`. This line is only
-        # reachable when ee_control is set, which is why it survived the port unnoticed: it took down
-        # BOTH warmup paths (RealmEnvironmentDynamic.warmup and RealmVectorEnvironment.warmup) for
-        # every EE-control config, before a single rollout step ran.
-        entry = self.robot._controllers.get("arm_0")
-        if entry is not None and ControllerView.get_mode(entry[0]) != "absolute_pose":
-            return np.zeros(6)
-        ee_pos, ee_quat = self.get_ee_pose()
-        ee_pos = ee_pos.cpu().numpy() if hasattr(ee_pos, 'cpu') else np.array(ee_pos)
-        ee_euler = R.from_quat(ee_quat.cpu().numpy()).as_euler('xyz')
-        return self._world2robot(np.concatenate([ee_pos, ee_euler]))
-
-    def warmup_action(self, t, ee_cmd):
-        """Warmup action for step @t: hold the arm still, open the gripper then close it."""
-        gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
-        base = ee_cmd if self.ee_control else self.reset_qpos[:7]
-        return np.concatenate((base, gripper_val))
-
-    def warmup(self, obs=None):
-        og.log.info("Starting warmup...")
-        for _ in range(30):
-            og.sim.render()
-
-        if obs is None:
-            obs, _ = self.reset()
-
-        ee_cmd = self.warmup_ee_cmd()
-
-        for t in range(WARMUP_STEPS):
-            obs, rew, terminated, truncated, info = self.step(self.warmup_action(t, ee_cmd))
-
-        # Re-take the reference now that the arm has settled, so the rollout is scored against where
-        # the object actually sits rather than where reset() left it mid-settle. reset() has already
-        # taken it once; this refines that value, it does not repair a different object's pose.
-        self.capture_mo_reference()
-        og.log.info("Warmup finished.")
-        return obs, rew, terminated, truncated, info
-
+    # ============================== [RESET] ==============================
     def reset(self):
         """Single-env reset. Vector envs must drive the two phases below directly instead.
 
@@ -419,16 +231,14 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
         if "V-AUG" in self.active_perturbations:
             self.v_aug_sigma = np.random.uniform(0.0, 2.5)
             self.v_aug_alpha = np.random.uniform(0.25, 1.5)
-            # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
-            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
-                                          robot_name=self.robot.name)
+        obs = self._distort_if_v_aug(obs)
 
-        # LAST, once every perturbation has run: SB-NOUN re-points main_objects[0] at a distractor
-        # and VSB-NOBJ/VB-MOBJ replace it, so the lift/distance/rotation reference has to be re-taken
-        # from whatever the target now is. Guarded exactly like _helpers.sim_play()/settle(): in a
-        # vector env this phase runs with the sim still STOPPED and a replaced object not yet
-        # initialized, so a pose read here would be invalid -- RealmVectorEnvironment.reset() makes
-        # the equivalent call for every member once its shared play and settle are done.
+        # LAST, once every perturbation has run: SB-NOUN, VSB-NOBJ and VB-MOBJ all re-point
+        # main_objects[0], so the lift/distance/rotation reference has to be re-taken from whatever
+        # the target now is. Guarded exactly like _helpers.sim_play()/settle(): in a vector env this
+        # phase runs with the sim still STOPPED and a replaced object not yet initialized, so a pose
+        # read here would be invalid -- RealmVectorEnvironment.reset() makes the equivalent call for
+        # every member once its shared play and settle are done.
         #
         # Here rather than at the end of reset() because reset() is only one of the two ways this
         # phase is driven (a vector env and the probe scripts call the phases directly), and the
@@ -437,6 +247,88 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
             self.capture_mo_reference()
         return obs
 
+    # ============================== [ROLLOUT] ==============================
+    def step(self, action, n_render_iterations=1):
+        """Advance this env one action.
+
+        @n_render_iterations is passed straight through to OmniGibson: it issues that many
+        og.sim.render() calls before observations are read, which is how a render step flushes the
+        rendering pipeline after a run of non-rendering (blind) steps. See realm/eval.py's
+        render_on_demand path.
+        """
+        obs, rew, terminated, truncated, info = self.omnigibson_env.step(
+            action, n_render_iterations=n_render_iterations
+        )
+        task_progression = self.recompute_task_progression(obs)
+        return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
+
+    def pre_step(self, action):
+        """Apply @action to this member's robot without advancing physics.
+
+        og.sim.step() advances every scene at once, so a vector env must apply all members' actions
+        first and step once. Single-env stepping goes through step() instead.
+        """
+        self.omnigibson_env._pre_step(action)
+
+    def post_step(self, action):
+        """Read observations for this member after a shared og.sim.step(), mirroring step()."""
+        obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
+        task_progression = self.recompute_task_progression(obs)
+        return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
+
+    def _distort_if_v_aug(self, obs):
+        """Apply V-AUG's blur/contrast to @obs, or return it untouched when V-AUG is not active."""
+        if "V-AUG" not in self.active_perturbations:
+            return obs
+        # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
+        return apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
+                                       robot_name=self.robot.name)
+
+    def warmup(self, obs=None):
+        og.log.info("Starting warmup...")
+        for _ in range(30):
+            og.sim.render()
+
+        if obs is None:
+            obs, _ = self.reset()
+
+        ee_cmd = self.warmup_ee_cmd()
+
+        for t in range(WARMUP_STEPS):
+            obs, rew, terminated, truncated, info = self.step(self.warmup_action(t, ee_cmd))
+
+        # Re-take the reference now that the arm has settled, so the rollout is scored against where
+        # the object actually sits rather than where reset() left it mid-settle. reset() has already
+        # taken it once; this refines that value, it does not repair a different object's pose.
+        self.capture_mo_reference()
+        og.log.info("Warmup finished.")
+        return obs, rew, terminated, truncated, info
+
+    def warmup_ee_cmd(self):
+        """Hold-still EE command for warmup: the current pose in robot frame. None if joint-control.
+
+        OG 3.9.1: robot._controllers[name] is a (group_key, controller_idx) TUPLE, not the controller
+        object -- instances live in the ControllerView registry, shared by every robot whose
+        kinematic-tree pattern and controller config hash match. So the mode is read off the registry
+        rather than off the entry.
+        """
+        if not self.ee_control:
+            return None
+        entry = self.robot._controllers.get("arm_0")
+        if entry is not None and ControllerView.get_mode(entry[0]) != "absolute_pose":
+            return np.zeros(6)
+        ee_pos, ee_quat = self.get_ee_pose()
+        ee_pos = ee_pos.cpu().numpy() if hasattr(ee_pos, 'cpu') else np.array(ee_pos)
+        ee_euler = R.from_quat(ee_quat.cpu().numpy()).as_euler('xyz')
+        return self._world2robot(np.concatenate([ee_pos, ee_euler]))
+
+    def warmup_action(self, t, ee_cmd):
+        """Warmup action for step @t: hold the arm still, open the gripper then close it."""
+        gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
+        base = ee_cmd if self.ee_control else self.reset_qpos[:7]
+        return np.concatenate((base, gripper_val))
+
+    # ============================== [FRAMES] ==============================
     def _robot2world(self, action):
         base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0
         return robot_to_world(action, self.robot_pos, self.robot_rot_rad[2], base_height)
@@ -444,76 +336,3 @@ class RealmEnvironmentDynamic(RealmEnvironmentBase):
     def _world2robot(self, action):
         base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0
         return world_to_robot(action, self.robot_pos, self.robot_rot_rad[2], base_height)
-
-    def step(self, action, n_render_iterations=1):
-        # if self.ee_control:
-        #     action = self._robot2world(action)
-
-        # n_render_iterations is passed straight through to OmniGibson: it issues that many
-        # og.sim.render() calls before observations are read, which is how a render step flushes
-        # the rendering pipeline after a run of non-rendering (blind) steps. See
-        # realm/eval.py's render_on_demand path.
-        obs, rew, terminated, truncated, info = self.omnigibson_env.step(
-            action, n_render_iterations=n_render_iterations
-        )
-
-        task_progression = self.recompute_task_progression(obs)
-
-        if "V-AUG" in self.active_perturbations:
-            # obs is keyed by robot.name, which is NOT always "DROID" -- see v_aug.py.
-            obs = apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
-                                          robot_name=self.robot.name)
-
-        return obs, task_progression, terminated, truncated, info
-
-    # ============================== [INIT HELPERS] ==============================
-    def sample_objects(self, num_objects=3, included_categories=None, excluded_categories=None, ):
-        assert not (included_categories is not None and excluded_categories is not None)
-
-        # TODO: this can be pre-computed once, no need to parse the whole thing every call
-        available_object_paths = []
-        whitelisted_categories = get_non_droid_categories()
-
-        if included_categories is not None:
-          whitelisted_categories = included_categories
-        elif excluded_categories is not None:
-            for cat in excluded_categories:
-                if cat in whitelisted_categories:
-                    whitelisted_categories.remove(cat)
-
-        for model_path in get_all_object_models():
-            if os.path.exists(model_path):
-                category = model_path.split("/")[-2]
-                if category in whitelisted_categories:
-                    available_object_paths.append(model_path)
-
-        if not available_object_paths:
-            return []
-
-        if len(available_object_paths) < num_objects:
-            og.log.info(
-                f"Warning: Only {len(available_object_paths)} suitable objects found, less than requested {num_objects}.")
-            num_objects = len(available_object_paths)
-
-        # Randomly sample unique objects
-        sampled_indices = np.random.choice(len(available_object_paths), size=num_objects, replace=False)
-        sampled_objects = []
-        for i in sampled_indices:
-            category = available_object_paths[i].split("/")[-2]
-            model_id = available_object_paths[i].split("/")[-1]
-            name = f"distractor_{i}"
-            obj_cfg = {
-                "type": "DatasetObject",
-                "name": name,
-                "category": category,
-                "model": model_id,
-            }
-            sampled_objects.append(obj_cfg)
-
-        return sampled_objects
-
-    # NOTE: RealmEnvironmentDynamic.replace_obj() used to live here. It was a pre-refactor duplicate
-    # of perturbations/_helpers.replace_obj() with ZERO call sites left (every perturbation imports
-    # the _helpers one), and it still carried the bbox-centre-as-extent bug that _helpers and
-    # sb_vrb.py have since fixed. Deleted rather than repaired so there is only one copy to keep
-    # correct -- the next person to wire up "replace an object" must find the live one.

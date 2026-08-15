@@ -27,6 +27,7 @@ from realm.environments.constants import (
     DROID_BASE_HEIGHT,
     DROID_DEFAULT_DOF,
 )
+from realm.environments.perturbations.object_sampling import sample_objects
 from realm.placement import get_non_colliding_positions_for_objects
 
 
@@ -184,7 +185,7 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
         for obj in task_cfg["main_objects"] + task_cfg["target_objects"]:
             if "category" in obj:
                 excluded_categories.append(obj["category"])
-        distractors = env.sample_objects(num_objects=num_distractors, excluded_categories=excluded_categories)
+        distractors = sample_objects(num_objects=num_distractors, excluded_categories=excluded_categories)
 
         cfg["objects"] = get_non_colliding_positions_for_objects(
             xmin=env.spawn_bbox[0],
