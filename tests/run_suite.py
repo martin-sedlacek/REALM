@@ -125,13 +125,14 @@ def run_one(name, spec, args, outdir):
     if args.mode:
         env["MODE"] = args.mode
 
+    timeout = args.timeout or spec["timeout"]
     started = time.time()
     timed_out = False
     with open(log_path, "w") as fh:
         proc = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, cwd=str(PROJECT_ROOT),
                                 env=env)
         try:
-            rc = proc.wait(timeout=spec["timeout"])
+            rc = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
             proc.kill()
@@ -175,6 +176,10 @@ def main():
     p.add_argument("--only", default=None,
                    help="comma-separated test names, or a tier: fast/medium/slow/server")
     p.add_argument("--list", action="store_true")
+    p.add_argument("--timeout", type=int, default=None,
+                   help="override every test's per-run timeout, in seconds. A killed test is "
+                        "recorded as TIMEOUT (or <verdict>_AFTER_TIMEOUT if it had already "
+                        "printed one), never silently dropped.")
     args = p.parse_args()
 
     if args.list:
