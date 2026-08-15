@@ -53,3 +53,57 @@ def crash_lines(output):
     """Lines in a child's combined output that indicate a real failure, teardown noise removed."""
     return [ln for ln in (output or "").splitlines()
             if CRASH_MARKERS.search(ln) and not TEARDOWN_NOISE.search(ln)]
+
+
+def check_artifacts(task_log_dir, task, perturbation, repeats):
+    """Status of the four artifacts one (task, perturbation) cell must produce.
+
+    ROW COUNTS, not just "the file exists and is non-empty". Two reasons, both of which make the
+    weaker check unable to fail:
+
+      1. The parquets are APPENDED to. realm_logging.append_trajectory/append_video write ONE file
+         per task -- qpos/<task>.parquet -- with a row per (perturbation, repeat). So in a sweep
+         over perturbations against a single task, "qpos/<task>.parquet is non-empty" is satisfied
+         for perturbation 15 by whatever perturbation 0 wrote. Once any one cell succeeds, that
+         check can never fail again, for any later cell, no matter what it does. A sweep can report
+         16/16 green with 15 cells having written nothing.
+      2. realm_logging.save_results rewrites the report after EVERY repeat, so a run that dies half
+         way leaves a complete-LOOKING prefix. Row count is what separates it from a finished run.
+
+    So: filter each parquet to THIS cell's perturbation, and require exactly @repeats rows in both
+    the parquets and the report.
+
+    Returns {artifact_name: status}, where status is "PASS" or a FAIL_* string naming the reason.
+    """
+    import pandas as pd
+
+    paths = {
+        "report_csv": (os.path.join(task_log_dir, "reports", f"{task}_{perturbation}.csv"), "csv"),
+        "qpos_parquet": (os.path.join(task_log_dir, "qpos", f"{task}.parquet"), "parquet"),
+        "actions_parquet": (os.path.join(task_log_dir, "actions", f"{task}.parquet"), "parquet"),
+        "video_parquet": (os.path.join(task_log_dir, "videos", f"{task}.parquet"), "parquet"),
+    }
+
+    out = {}
+    for key, (path, kind) in paths.items():
+        if not os.path.exists(path):
+            out[key] = "FAIL_MISSING"
+            continue
+        try:
+            df = pd.read_csv(path) if kind == "csv" else pd.read_parquet(path)
+        except Exception as exc:
+            out[key] = f"FAIL_UNREADABLE({type(exc).__name__})"
+            continue
+        if df.empty:
+            out[key] = "FAIL_EMPTY"
+            continue
+        # The report is already per-perturbation (its filename carries it); the parquets are not.
+        rows = len(df) if kind == "csv" else int((df["perturbation"] == perturbation).sum())
+        out[key] = "PASS" if rows == repeats else f"FAIL_ROWS({rows}!={repeats})"
+    return out
+
+
+def summarize(cell_results):
+    """(all_passed, one-line detail) for a dict of {artifact: status}."""
+    ok = all(v == "PASS" for v in cell_results.values())
+    return ok, ", ".join(f"{k}: {v}" for k, v in cell_results.items())

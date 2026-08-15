@@ -7,11 +7,20 @@ paid 55*N of them per reset and stepped every member's scene N times over while 
 member's joints. `run_joint_resets()` hoists the stepping out, exactly as
 `RealmVectorEnvironment._settle()` already does for the 30-step settle loop.
 
-That change CANNOT be verified end to end on this port: the only task types that reach it are
-open_drawer and close_drawer, and neither loads (`cabinet.usd` ->
-`TypeError: missing a required argument: 'preset_name'` in omnigibson/prims/material_prim.py). This
-test covers the half that does not need the asset -- the scheduling -- by stubbing `og.sim` and
-handing `run_joint_resets()` fake members:
+This test covers the half of that change that does not need the drawer asset -- the SCHEDULING --
+by stubbing `og.sim` and handing `run_joint_resets()` fake members. It needs no simulator, no
+scene and no GPU, only that `omnigibson` is importable, and finishes in seconds.
+
+STALE NOTE REMOVED 2026-08-16. This docstring used to say the change "CANNOT be verified end to
+end on this port", because the only task types that reach it -- open_drawer and close_drawer --
+did not load (`cabinet.usd` -> `TypeError: missing a required argument: 'preset_name'` in
+omnigibson/prims/material_prim.py). Both tasks have loaded since 2026-08-14 and the end-to-end
+check WAS taken; it is written up in `env_base.run_joint_resets`'s own docstring (57 og.sim.step()
+calls at num_envs=2 vs 56 at 1, every member's drawers landing where a single env puts them).
+That end-to-end check is not automated anywhere, including here -- nothing in tests/ would notice
+if it regressed.
+
+What is asserted below:
 
   1. N members cost the SAME number of og.sim.step() calls as 1. That is the whole point.
   2. Each member sees EXACTLY the call sequence a single env gives it. Asserted by projecting the
@@ -27,7 +36,7 @@ handing `run_joint_resets()` fake members:
 It does NOT check that a real cabinet ends up at the right openness, or that the drive gains are
 right. Those need the asset.
 
-    ./run python -u tests/test_joint_reset_batching.py
+    ./scripts/clara/interactive/rr python -u tests/test_joint_reset_batching.py
 """
 import contextlib
 import sys
