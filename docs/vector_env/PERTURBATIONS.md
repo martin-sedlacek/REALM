@@ -117,6 +117,35 @@ nothing is evicted.
 two build recipes alongside the `scene_base.py` patch. Until that happens, `MODE=stockfix` and the
 rebuilt SIF carry the bug, and the net above is what keeps them working.
 
+#### The same pop has a second half: the corpse keeps its slot
+
+One wrong pop causes two symmetric problems, and `repair_init_queue()` fixes both:
+
+  **(a)** a **live** object is knocked off the queue and is never initialised — the case above;
+  **(b)** the object that was actually **removed** stays *on* the queue, and the next `play()` runs
+  `initialize()` on a prim that has already been deleted from the stage.
+
+(b) only bites when the removed object was itself still pending, which needs a member to **add** an
+object and then **remove** it inside ONE stopped window. SB-VRB is the only perturbation that does
+that: on a task with no target (`pick_spoon`) it adds a `receiver` and then, if the new verb is
+put/stack, `replace_obj()`s it. Measured on task 4, Vec=2 — member 1 removed its own brand-new
+`receiver`, the pop took member 0's instead, and the batched `play()` then did:
+
+```
+File "omnigibson/simulator.py", line 1273, in _non_physics_step
+  obj.initialize()
+...
+Exception: prim view ['/World/scene_1/receiver/base_link'] is not a valid view
+```
+
+The repair therefore drops the corpses **first**, so the queue is clean before it looks for orphans.
+Telling a corpse from a live object cannot be done by asking whether a prim exists at its path —
+`replace_obj` re-creates the replacement at the **same** relative prim path, so the path is occupied
+again a moment later. (Tried; it silently disabled the whole repair and the crash came straight
+back.) Identity against the scene registry is what distinguishes them, with the empty-prim-path test
+kept only for the case where nothing holds the name at all — which also has to spare
+`scene.add_object(..., register=False)` particle-system templates.
+
 ### 3. The repair running too late
 
 `play()` initialises whatever is on the queue and **then** calls `update()` on every object's states
