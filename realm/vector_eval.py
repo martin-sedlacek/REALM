@@ -48,6 +48,15 @@ def evaluate_vectorized(
     is rewritten after every wave, so a run that dies part way still leaves a readable prefix.
 
     `model_name` is part of the CLI surface (it names the log directory) and is not used here.
+
+    Two things this path does differently from `realm.eval.evaluate`, both preserved deliberately
+    because changing either would change results or artifact names:
+
+    * a non-default task config does not add its stem to the artifact name, so two configs of one
+      task overwrite each other's parquets here;
+    * the gripper mapping ignores `model_type` and always reads (1, 0) as (open, closed).
+      Unreachable in practice -- `InferenceClient.__init__` only accepts debug / openpi /
+      dreamzero, and all three are (1, 0) on the single-env path too.
     """
     start = time.perf_counter()
     set_sim_config(robot=robot)
@@ -124,7 +133,10 @@ def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturb
         if not no_record:
             timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
             recorder = VideoRecorder(log_dir, timestamp, first_run_id + i, task, perturbation)
-        members.append(Rollout(vec_env.envs[i], first_run_id + i, recorder=recorder))
+        # gripper_inverted=False for every model_type, which is what this path has always
+        # done -- see evaluate_vectorized's docstring.
+        members.append(Rollout(vec_env.envs[i], first_run_id + i, recorder=recorder,
+                               gripper_inverted=False))
 
     for client in clients:
         client.reset()
@@ -146,8 +158,8 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
             if member is None or not member.active:
                 commands.append(_hold_command(vec_env.envs[i], member))
             else:
-                commands.append(member.next_command(
-                    step_results[i][0], clients[i], horizon, renders.obs_is_fresh))
+                observation = member.observe(step_results[i][0], renders.obs_is_fresh)
+                commands.append(member.act(observation, clients[i], horizon))
 
         if render_on_demand:
             # og.sim.render_on_step() is GLOBAL -- one flag for every scene -- so the decision has

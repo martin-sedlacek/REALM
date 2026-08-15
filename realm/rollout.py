@@ -11,6 +11,7 @@ rather than a second copy-adapted body -- see `resolve_task`'s `name_includes_co
 `Rollout`'s `gripper_inverted`.
 """
 from queue import Queue
+from typing import Any, NamedTuple
 
 import numpy as np
 import omnigibson as og
@@ -25,9 +26,9 @@ CONTROL_DT = 1.0 / CONTROL_HZ
 #: Control steps a rollout keeps running after `task_progression` first reaches 1.0.
 TERMINAL_STEPS = 15
 
-#: Fewer samples than this and the third finite difference below has nothing to average, so the
-#: trajectory metrics report zero instead.
-MIN_SAMPLES_FOR_DERIVATIVES = 4
+#: A trajectory of this many samples or fewer reports zero for every derived metric, rather than a
+#: velocity/acceleration/jerk taken over one or two points.
+SHORT_TRAJECTORY_SAMPLES = 4
 
 #: Task types that end with the object somewhere rather than in the gripper, so a release over the
 #: target is a placement rather than a drop.
@@ -231,6 +232,18 @@ class RolloutMetrics:
         return self.terminal_steps <= 0
 
 
+class PolicyObservation(NamedTuple):
+    """What one control step read out of an observation: the policy's inputs, plus the eef pose."""
+
+    base_im: Any
+    base_im_second: Any
+    wrist_im: Any
+    robot_state: Any
+    gripper_state: Any
+    ee_pos: Any
+    ee_quat: Any
+
+
 class Rollout:
     """One rollout in flight: its action buffer, its metrics and its video recorder.
 
@@ -252,30 +265,40 @@ class Rollout:
         self.last_command = None
         self.active = True
 
-    def next_command(self, obs, client, horizon, obs_is_fresh):
-        """Advance one control step: observe, run inference if the buffer ran dry, pop an action.
+    def observe(self, obs, obs_is_fresh):
+        """Take this control step's metrics and video frame out of `obs`.
 
-        Returns the command to send to the simulator, i.e. the policy's action with REALM's gripper
-        convention applied to its last element.
+        `obs_is_fresh` says whether `obs` carries a newly rendered camera frame. Under
+        render-on-demand it does not on every step, and recording the blind steps in between would
+        pad the mp4 with duplicates of the last rendered frame.
         """
-        env = self.env
         base_im, _, base_im_second, _, wrist_im, robot_state, gripper_state = extract_from_obs(
-            obs, robot_name=env.robot.name)
-        ee_pos, ee_quat = self.metrics.record_step(env, obs, robot_state, gripper_state)
+            obs, robot_name=self.env.robot.name)
+        ee_pos, ee_quat = self.metrics.record_step(self.env, obs, robot_state, gripper_state)
 
-        if self.action_buffer.empty():
-            chunk = client.infer(
-                env.instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-                use_base_im_second=(getattr(env, "task_type", None) == "open_close_drawer"),
-                ee_control=env.ee_control,
-                cartesian_position=robot_frame_ee_pose(env, ee_pos, ee_quat),
-            )
-            enqueue_action_chunk(self.action_buffer, chunk, horizon)
-
-        # Under render-on-demand `obs` only carries a new frame on render steps; recording the blind
-        # steps in between would pad the mp4 with duplicates of the last rendered frame.
         if self.recorder is not None and obs_is_fresh:
             self.recorder.add_frame(base_im, wrist_im, base_im_second)
+
+        return PolicyObservation(base_im, base_im_second, wrist_im, robot_state, gripper_state,
+                                 ee_pos, ee_quat)
+
+    def act(self, observation, client, horizon):
+        """Pop the next action, running inference first if the action buffer ran dry.
+
+        Returns the command to send to the simulator: the policy's action with REALM's gripper
+        convention applied to its last element.
+        """
+        if self.action_buffer.empty():
+            env = self.env
+            chunk = client.infer(
+                env.instruction, observation.base_im, observation.base_im_second,
+                observation.wrist_im, observation.robot_state, observation.gripper_state,
+                use_base_im_second=(getattr(env, "task_type", None) == "open_close_drawer"),
+                ee_control=env.ee_control,
+                cartesian_position=robot_frame_ee_pose(env, observation.ee_pos,
+                                                       observation.ee_quat),
+            )
+            enqueue_action_chunk(self.action_buffer, chunk, horizon)
 
         action = self.action_buffer.get()
         self.metrics.record_action(action)
@@ -315,7 +338,7 @@ def joint_space_metrics(qpos):
     enter these.
     """
     joints = qpos[:, :7]
-    if len(joints) <= MIN_SAMPLES_FOR_DERIVATIVES:
+    if len(joints) <= SHORT_TRAJECTORY_SAMPLES:
         return {"joint_vel_var": 0.0, "joint_acc_var": 0.0,
                 "joint_jerk": 0.0, "joint_path_length": 0.0}
 
@@ -333,7 +356,7 @@ def joint_space_metrics(qpos):
 def cartesian_metrics(ee_positions):
     """Smoothness and path metrics over the end-effector's world-frame path."""
     positions = np.stack(ee_positions)
-    if len(positions) <= MIN_SAMPLES_FOR_DERIVATIVES:
+    if len(positions) <= SHORT_TRAJECTORY_SAMPLES:
         return {"cart_jerk": 0.0, "cart_path_length": 0.0}
 
     velocity = np.diff(positions, axis=0) / CONTROL_DT

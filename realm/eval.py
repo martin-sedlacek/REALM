@@ -28,6 +28,7 @@ from realm.rollout import (
 )
 from realm.sim_config import set_sim_config
 
+#: Task and robot configs, at the path the repo is bound to inside the container.
 CONFIG_ROOT = "/app/realm/config"
 
 # Index into each list is the --task_id / --perturbation_id the entry points take.
@@ -165,7 +166,8 @@ def _run_rollout(rollout, client, max_steps, horizon,
     renders = RenderSchedule(max_render_interval, n_pre_obs_renders)
     step = 0
     while step < max_steps and rollout.active:
-        command = rollout.next_command(obs, client, horizon, renders.obs_is_fresh)
+        observation = rollout.observe(obs, renders.obs_is_fresh)
+        command = rollout.act(observation, client, horizon)
 
         if render_on_demand:
             render, n_render_iterations = renders.schedule(rollout.needs_fresh_obs())
