@@ -237,3 +237,57 @@ Traps worth not re-hitting:
 - `physxMaterial:compliantContactStiffness` IS in this build's schema, but
   `geom_prim.get_applied_physics_material()` returns nothing for either pad link, so the probe cannot
   reach the pad material that way. Unfinished lead, not a closed door.
+
+## `inertia_*` -- the mass/inertia asset diff, and the CoM-frame bug it found
+
+`inertia_dump.py`, `inertia_diff.py`, `inertia_anchor_world.py` and `inertia_predict_og_com.py` are
+**pure static USD analysis and need no GPU, no container and no Slurm allocation.** `pxr` is not
+importable outside a running Kit app in the REALM image, but stock OpenUSD from PyPI reads these
+crate files fine -- PhysX-authored attributes are plain properties in the file, and only the *typed
+accessors* need the schema plugins. Turn a queue wait into seconds:
+
+```sh
+V=/mnt/home_lustre/sedlam56/projects/REALM/logs/gripper_squeeze/inertia_venv
+python3 -m venv $V && $V/bin/pip install usd-core numpy
+$V/bin/python scripts/debug_probes/inertia_dump.py <stage.usd> <out.json>
+$V/bin/python scripts/debug_probes/inertia_diff.py <robolab.json> <realm.json> <out.json>
+$V/bin/python scripts/debug_probes/inertia_anchor_world.py <robolab.usd> <realm.usd> <out.json>
+$V/bin/python scripts/debug_probes/inertia_predict_og_com.py <robolab.usd> <realm.usd> <out.json>
+```
+
+`inertia_runtime_realm.py` is the runtime half (mass / CoM / full inertia tensor off the PhysX tensor
+view, plus the `nf_eq = 1000*sqrt(I_rl/I_rm)` convergence test against `wrapdiff_robolab_runtime.json`).
+
+What they established:
+
+- **The two assets are physically identical.** Neither authors ANY mass property (no `physics:mass`,
+  `density`, `centerOfMass`, `diagonalInertia`, `principalAxes`, no `MassAPI`) so PhysX derives
+  everything from the collision shapes -- and those agree to **5.4e-11 m** in world pose with
+  identical approximations. World joint anchors agree to **7.6e-09 m**, both `FixedJoint`s and all
+  five mimic blocks are byte-identical, and the arm is byte-identical across 24 fields x 7 joints.
+- **`ship_inertia_diff.py`'s convergence test cannot fire**, because it reads authored attributes
+  that are absent on both sides; it lands in its own "diagonalInertia missing" branch.
+- **The real defect is in OmniGibson's loader.** `RigidPrim.update_meshes()` composes each collision
+  geom's pose with `get_position_orientation(frame="parent")` -- the IMMEDIATE parent prim -- while
+  the comment above it claims the link frame. Here the collision APIs sit on `Defeatured_*_01`
+  **Xform**s with the `Mesh` beneath, and `GEOM_TYPES` excludes Xform, so the Xform -> link step is
+  dropped. Its rotation is 90 deg (left) / 180 deg (right): **the mirror**. Result, measured: every
+  left/right link pair gets an identical CoM including the sign of y, and the pads land **128.3 mm**
+  from their true centroid, inflating the pivot inertia 77x via `m*d^2 = 1.57e-4` against a true
+  `1.9e-6`. Since a PhysX mimic joint realises `k ~ omega^2 * I`, the fingertips are ~77x too stiff
+  at the authored `naturalFrequency` -- and `nf_eq` lands at **113.8 / 116.1**, matching the
+  empirically-effective nf=100..200.
+
+Traps worth not re-hitting:
+
+- **A foreground Bash call is capped at 2 minutes, far under Isaac's startup.** Background the `srun`
+  or it dies at exit 143 having produced nothing.
+- **`RigidDynamicPrim` has no `.inertia`.** It exposes `.mass`, `.density`, `.center_of_mass`; the
+  inertia is only on the raw PhysX tensor view (`joints[...]._articulation_view._physics_view`,
+  `get_inertias()` -> `(1, nlinks, 9)`). An earlier wrapdiff run lost the whole REALM side to this.
+- **The image's `rigid_prim.py` differs from `OG-lite_og391`'s** (contact-report gating), so a file
+  to bind over the stock package must be extracted from the SIF, not copied from OG-lite.
+- **`droid.usd` / `droid_mounted.usd` cannot be checked for this offline**: their `Defeatured_*`
+  collision meshes are remote `http://omniverse-content-production...` references that do not
+  resolve, so only the arm geoms load. Their prim paths show the *same* `link/<Xform>_01/<Mesh>`
+  nesting, so they are very likely affected too -- unmeasured, not cleared.
