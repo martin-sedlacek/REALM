@@ -146,6 +146,22 @@ ap.add_argument("--traverse-steps", type=int, default=60)
 ap.add_argument("--cam-dist", type=float, default=0.13)
 ap.add_argument("--fps", type=int, default=15)
 ap.add_argument("--video", type=int, default=1)
+ap.add_argument("--cam-freeze", type=int, default=0,
+                help="latch the close-up camera the first time it is aimed and hold it for the whole "
+                     "process. Under --load tip the arm never moves, so the default per-step re-aim "
+                     "only lets a curling pad drag the viewpoint after it -- which CANCELS part of "
+                     "the motion a pixel-difference visibility test is trying to see. The latched "
+                     "pose is printed as `CAM_LATCH x y z qx qy qz qw`.")
+ap.add_argument("--cam-pose", default=None,
+                help="force the close-up camera to this pose ('x,y,z,qx,qy,qz,qw'), overriding all "
+                     "aiming. Feed a sibling run's CAM_LATCH line here so two builds are rendered "
+                     "through a bit-identical viewpoint and the only thing that can differ in the "
+                     "image is the robot.")
+ap.add_argument("--raw-stills", type=int, default=0,
+                help="also save UNANNOTATED pngs of each cycle's unloaded-rest and peak-load frames "
+                     "(`*_restRAW.png` / `*_peakRAW.png`). The annotated stills burn the measured "
+                     "curl into the pixels, so they cannot be used as the input to a pixel-difference "
+                     "test -- the text alone would differ between any two runs.")
 # ---- scene / articulation knobs: the OmniGibson-vs-IsaacLab differences that are NOT the mimic
 # constraint. Applied ONCE at startup, before the measurement frame is built, and read back.
 ap.add_argument("--gripper-gravity", default="keep", choices=("keep", "on", "off"),
@@ -970,14 +986,31 @@ except Exception as e:
     print(f"  [warn] no external_sensor0: {e!r}")
 
 
+CAM_LATCH = None          # (pos3, quat4) once latched; None = re-aim every step
+
+
 def aim_camera():
     """Perpendicular to the closing plane, centred on the TIP midpoint, carried with the hand.
 
     The wrist camera looks ALONG the fingers and hides exactly the rotation being measured, so the
     view has to be external and normal to the closing plane. Re-aimed every step: the hand descends
     ~4 cm during a press and a fixed camera would lose the tips.
+
+    ---- `--cam-freeze` / `--cam-pose`, added for the VISIBILITY comparison ----
+    A camera that tracks the pads partially CANCELS the very motion being judged: the aim point is
+    derived from the pad link origins, so a curling pad drags the viewpoint after it. Under
+    `--load tip` the arm is commanded to a constant ARM_Q and never moves, so tracking buys nothing
+    and costs a confound. `--cam-freeze 1` therefore latches the pose the first time it is computed
+    and holds it for the whole process, and prints it as `CAM_LATCH ...` so a sibling run can be
+    given the identical viewpoint with `--cam-pose`. Two builds compared through one frozen camera
+    differ in the image only where the ROBOT differs.
     """
+    global CAM_LATCH
     if CAM is None:
+        return
+    if CAM_LATCH is not None:
+        CAM.set_position_orientation(th.tensor(CAM_LATCH[0], dtype=th.float32),
+                                     th.tensor(CAM_LATCH[1], dtype=th.float32), "world")
         return
     p8, R8 = T8()
     g = pad_geom()
@@ -992,8 +1025,20 @@ def aim_camera():
     x_c /= np.linalg.norm(x_c)
     y_c = np.cross(z_c, x_c)
     quat = Rot.from_matrix(np.stack([x_c, y_c, z_c], axis=1)).as_quat()
-    CAM.set_position_orientation(th.tensor(mid + z_c * args.cam_dist, dtype=th.float32),
+    pos = mid + z_c * args.cam_dist
+    if args.cam_freeze:
+        CAM_LATCH = (np.asarray(pos, dtype=np.float64), np.asarray(quat, dtype=np.float64))
+        print("  CAM_LATCH " + " ".join(f"{v:.9f}" for v in
+                                        list(CAM_LATCH[0]) + list(CAM_LATCH[1])), flush=True)
+    CAM.set_position_orientation(th.tensor(pos, dtype=th.float32),
                                  th.tensor(quat, dtype=th.float32), "world")
+
+
+if args.cam_pose:
+    _cp = np.array([float(v) for v in args.cam_pose.replace(",", " ").split()], dtype=np.float64)
+    assert _cp.size == 7, f"--cam-pose needs 7 floats (x y z qx qy qz qw), got {_cp.size}"
+    CAM_LATCH = (_cp[:3], _cp[3:])
+    print(f"  CAM_POSE_FORCED {args.cam_pose}", flush=True)
 
 
 def do_step(cmd6, grip, tag, rung="", state=""):
@@ -1419,6 +1464,22 @@ def finish_cycle(rung, state, which, f0):
             ip = f0 + len(sel) - args.retract_steps - 1
             Image.fromarray(annotate(np.ascontiguousarray(frames[ip]), ip)).save(
                 os.path.join(OUT, f"{PFX}_{name}_{state}_peak.png"))
+            if args.raw_stills:
+                # UNANNOTATED, for the pixel-difference visibility test. The rest frame is the last
+                # UNLOADED settle step of this cycle; the peak frame is the same index the annotated
+                # still uses. Index and per-row measurement are printed so the diff can be tied to
+                # the numbers rather than assumed to line up with them.
+                ir = min(f0 + max(args.rest_steps, 1) - 1, ip)
+                for lbl, idx in (("restRAW", ir), ("peakRAW", ip)):
+                    Image.fromarray(np.ascontiguousarray(frames[idx])).save(
+                        os.path.join(OUT, f"{PFX}_{name}_{state}_{lbl}.png"))
+                    rr_ = rows[idx]
+                    print(f"  RAWSTILL {PFX}_{name}_{state}_{lbl}.png  frame={idx} "
+                          f"tag={rr_['tag']} curl={rr_.get('curl_in_deg', float('nan')):+.4f}deg "
+                          f"d_pad_sep={rr_.get('d_pad_sep', float('nan')) * 1e3:+.4f}mm "
+                          f"d_tipg_sep={rr_.get('d_tipg_sep', float('nan')) * 1e3:+.4f}mm "
+                          f"F=({rr_.get('f0', float('nan')):.2f},{rr_.get('f1', float('nan')):.2f})N",
+                          flush=True)
         except Exception as e:
             print(f"  [warn] still failed: {e!r}")
     np.savez_compressed(
