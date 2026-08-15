@@ -97,7 +97,7 @@ def evaluate_vectorized(
             if member is None:
                 continue
             entry = build_result_entry(member, task, perturbation, model_type)
-            write_rollout_artifacts(log_dir, task, perturbation, member, entry)
+            write_rollout_artifacts(member, entry, log_dir, task, perturbation)
             results.append(entry)
             print(f"[vec_eval]   run {member.run_id}: SR={entry['binary_SR']} "
                   f"TP={entry['task_progression']} stage={entry['stage']} "

@@ -140,7 +140,7 @@ def evaluate(
         og.log.info(f"DEBUG: Run finished: {time.perf_counter() - start:.4f}s")
 
         entry = build_result_entry(rollout, task, perturbation, model_type)
-        write_rollout_artifacts(log_dir, task, perturbation, rollout, entry)
+        write_rollout_artifacts(rollout, entry, log_dir, task, perturbation)
         results.append(entry)
 
         client.reset()

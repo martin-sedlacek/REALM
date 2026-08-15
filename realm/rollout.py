@@ -122,6 +122,19 @@ def robot_frame_ee_pose(env, ee_pos, ee_quat):
     return env._world2robot(world_pose).astype(np.float32)
 
 
+def is_placed_on_target(env):
+    """Whether the task's main object is currently on or inside its target.
+
+    Releasing over the target is a placement; releasing anywhere else is a drop. Only placement
+    tasks have a target to check.
+    """
+    if getattr(env, "task_type", None) not in PLACEMENT_TASK_TYPES or len(env.target_objects) == 0:
+        return False
+    main_object, target = env.main_objects[0], env.target_objects[0]
+    return bool(main_object.states[og.object_states.Inside].get_value(target)
+                or main_object.states[og.object_states.OnTop].get_value(target))
+
+
 class RenderSchedule:
     """Which control steps render, in render-on-demand mode.
 
@@ -168,7 +181,7 @@ class RenderSchedule:
 class RolloutMetrics:
     """Everything one rollout accumulates, step by step.
 
-    Collisions are counted as EDGES: a contact that persists for forty steps counts once. A drop is
+    Collisions are counted as EDGES: a contact that persists for many steps counts once. A drop is
     a grasp that ended with the object neither on nor inside its target.
 
     Every quantity here reads physics (object poses, contacts) or proprioception, never camera data,
@@ -222,13 +235,17 @@ class RolloutMetrics:
         self.actions.append(action)
 
     def record_progression(self, task_progression, step):
-        """Fold in this step's task progression. Returns True once the rollout should stop."""
+        """Fold in this step's task progression, and count the step."""
         if task_progression > self.task_progression:
             self.task_progression = task_progression
             self.progression_timestamps.append(step)
         if self.task_progression >= 1.0:
             self.terminal_steps -= 1
         self.steps += 1
+
+    @property
+    def is_finished(self):
+        """Whether the task has now been complete for `TERMINAL_STEPS` control steps."""
         return self.terminal_steps <= 0
 
 
@@ -308,27 +325,15 @@ class Rollout:
         return command
 
     def record_progression(self, task_progression, step):
-        """Fold in this step's task progression; clears `active` once the rollout is over."""
-        if self.metrics.record_progression(task_progression, step):
+        """Fold in this step's task progression. Returns whether the rollout is still active."""
+        self.metrics.record_progression(task_progression, step)
+        if self.metrics.is_finished:
             self.active = False
         return self.active
 
     def needs_fresh_obs(self):
         """Whether this rollout's next step feeds inference, and so needs a rendered observation."""
         return self.action_buffer.empty()
-
-
-def is_placed_on_target(env):
-    """Whether the task's main object is currently on or inside its target.
-
-    Releasing over the target is a placement; releasing anywhere else is a drop. Only placement
-    tasks have a target to check.
-    """
-    if getattr(env, "task_type", None) not in PLACEMENT_TASK_TYPES or len(env.target_objects) == 0:
-        return False
-    main_object, target = env.main_objects[0], env.target_objects[0]
-    return bool(main_object.states[og.object_states.Inside].get_value(target)
-                or main_object.states[og.object_states.OnTop].get_value(target))
 
 
 def joint_space_metrics(qpos):
@@ -426,7 +431,7 @@ def build_result_entry(rollout, task, perturbation, model_type):
     }
 
 
-def write_rollout_artifacts(log_dir, task, perturbation, rollout, entry):
+def write_rollout_artifacts(rollout, entry, log_dir, task, perturbation):
     """Write one rollout's video and trajectory parquets, and attach the video bytes to `entry`.
 
     The layout is frozen -- downstream tooling and tests/test_vector_integrity.py look for
