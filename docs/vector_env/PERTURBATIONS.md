@@ -38,7 +38,7 @@ N times, each time disturbing the other N-1 members mid-reset.
 Perturbations never call the global operations directly. They route through
 `perturbations/_helpers.py` — `sim_stop`, `sim_play`, `sim_step`, `after_play`, `settle` — which
 no-op or defer when `env.in_vec_env`. `reset_joints()` follows the same shape via
-`env_base.run_joint_resets()`. **Single-env behaviour is unchanged**, which is what lets the
+`environments/joint_reset.py`. **Single-env behaviour is unchanged**, which is what lets the
 historical numbers stay comparable.
 
 Note the shape `settle()` uses, and which `reset_joints()` copies: in a vector env it **raises a
@@ -92,7 +92,7 @@ sampled `distractor_<i>` ones, whose names do not collide.
 strictly narrower than the name test and always the correct entry, since `scene.add_object` already
 forbids two live same-named objects in one scene. Against the fork the repair below finds nothing.
 
-`RealmVectorEnvironment._repair_init_queue()` is **kept**, as a net rather than a workaround, because
+`vec_init_queue.repair_init_queue()` is **kept**, as a net rather than a workaround, because
 the OG-lite bind is optional and the fix does not travel with the image. `rr` defaults to
 `MODE=stock`, and `MODE=stockfix` — the configuration `make_stock_patch.sh` exists to prepare and
 that both build recipes wire in — binds only `scenes/scene_base.py`, so it still runs the stock
@@ -236,7 +236,7 @@ must not do.
 ### There is exactly one `replace_obj`
 
 `RealmEnvironmentDynamic.replace_obj()` used to sit in `env_dynamic.py` alongside
-`perturbations/_helpers.replace_obj()`. It was a pre-refactor duplicate with **zero** call sites left
+`perturbations/object_sampling.replace_obj()`. It was a pre-refactor duplicate with **zero** call sites left
 — every perturbation imports the `_helpers` one — and it still carried the bbox-centre-as-extent bug
 that `_helpers` and `sb_vrb.py` have since fixed (a world-frame centre read as a half-width; §1).
 Deleted rather than repaired, so there is only one copy to keep correct: the next person to wire up
@@ -289,7 +289,7 @@ DatasetObject, so **a task-0 pass says nothing about its add/remove path** — i
 - ~~**`open_drawer` / `close_drawer` do not build**~~ (`preset_name` `TypeError`) — CLOSED
   2026-08-14 by OG-lite `59af7c0`; both tasks load and pass `tests/test_vector_integrity.py`.
 - ~~**`reset_joints()`'s batching is UNVERIFIED**~~ — CLOSED 2026-08-14, measured on a real
-  cabinet; see `env_base.run_joint_resets()`.
+  cabinet; see `environments/joint_reset.py`.
 - ~~**Scene 0's drawers never reached the commanded openness**~~ — CLOSED 2026-08-14, and worth
   reading, because the symptom pointed at three innocent places. `reset_joints()` commanded all five
   cabinet joints to a normalized -1.0 and in SCENE 0 ONLY the target joint settled at 0.17-0.19 m of
