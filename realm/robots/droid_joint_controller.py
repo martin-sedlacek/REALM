@@ -7,13 +7,10 @@ from omnigibson.controllers.controller_base import (
     ManipulationController,
 )
 from omnigibson.utils.backend_utils import _compute_backend as cb
-from omnigibson.utils.ui_utils import create_module_logger
 from omnigibson.utils.usd_utils import ControllableObjectViewAPI
 import omnigibson as og  # For og.sim.device
 
-
-# Create module logger
-log = create_module_logger(module_name=__name__)
+from realm.robots.gains import prepare_gain
 
 
 class IndividualJointPDController(LocomotionController, ManipulationController, GripperController):
@@ -32,6 +29,15 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
     REALM runs a single robot per environment, so the batch dimension is handled by looping over the
     view's rows; that keeps the per-robot math identical to what was validated in the paper rather
     than re-deriving it in batched form.
+
+    Registered as `CustomJointController`, not under its own class name -- `IndividualJointPDController`
+    resolves to the scalar-gain controller in `custom_joint_controller.py`. See
+    `controller_registry.py`.
+
+    The pre-3.9.1 version also overrode `clip_control`, but that override clipped to exactly the same
+    control limits and then copied every index back, making it equivalent to the base implementation.
+    3.9.1's base version does the same clip on the batched (N, control_dim) signal (and correctly
+    leaves limitless position joints alone), so the override is dropped.
     """
 
     def __init__(
@@ -75,24 +81,13 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             command_output_limits=command_output_limits,
         )
 
-        Kq = self._diagonalize_gain(self._to_tensor(Kq))
-        Kqd = self._diagonalize_gain(self._to_tensor(Kqd))
-        assert Kq.shape == Kqd.shape
-        Kx = self._diagonalize_gain(self._to_tensor(Kx))
-        Kxd = self._diagonalize_gain(self._to_tensor(Kxd))
-        assert Kx.shape == th.Size([6, 6])
-        assert Kxd.shape == th.Size([6, 6])
-
-        # Plain tensors, not th.nn.Parameter: nothing here is ever optimized, and under OG 3.9.1 the
-        # compute backend converts controls with `Tensor.numpy()`, which raises on grad-tracking
-        # tensors. Values are identical -- only requires_grad differs.
-        self.Kq = Kq.detach().to(og.sim.device)
-        self.Kqd = Kqd.detach().to(og.sim.device)
-        self.Kx = Kx.detach().to(og.sim.device)
-        self.Kxd = Kxd.detach().to(og.sim.device)
-
-        self.time_tracker = -1 # we update at the very beginning of compute_control, so this is 0 when controller is queried for the very first time
-        self.cached_torque = None
+        self.Kq = prepare_gain(Kq)
+        self.Kqd = prepare_gain(Kqd)
+        self.Kx = prepare_gain(Kx)
+        self.Kxd = prepare_gain(Kxd)
+        assert self.Kq.shape == self.Kqd.shape
+        assert self.Kx.shape == th.Size([6, 6])
+        assert self.Kxd.shape == th.Size([6, 6])
 
     def _get_joint_positions(self):
         """(N, control_dim) current positions of this controller's DOFs, one row per group member."""
@@ -129,20 +124,22 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         base_dof_offset = max(jac.shape[-1] - ControllableObjectViewAPI.get_all_joint_positions(self.routing_path).shape[-1], 0)
         return jac[..., [idx + base_dof_offset for idx in self.dof_idx]]  # (N, 6, control_dim)
 
-    def _update_goal(self, controller_idx, command):
-        target_joint_pos = cb.to_torch(command).to(og.sim.device)
+    def _compensation_indices(self, forces):
+        """Indices into a generalized-force vector that correspond to this controller's DOFs.
 
-        target_joint_pos = target_joint_pos.clip(
-            cb.to_torch(self._control_limits[ControlType.get_type("position")][0][self.dof_idx]).to(og.sim.device),
-            cb.to_torch(self._control_limits[ControlType.get_type("position")][1][self.dof_idx]).to(og.sim.device),
-        )
+        The offset accounts only for extra *base* DOFs on floating-base robots, so it is measured
+        against the robot's total joint count -- NOT against control_dim, which would shift the arm's
+        slice by (n_joints - n_arm_joints) and silently feed it the gripper's terms instead. On a
+        13-DOF robolab DROID that mis-indexing demanded torques far past the wrist's +-12 Nm limit,
+        so the wrist saturated and settled ~0.29 rad off command.
+        """
+        n_joint_dof = ControllableObjectViewAPI.get_all_joint_positions(self.routing_path).shape[-1]
+        base_dof_offset = max(forces.shape[-1] - n_joint_dof, 0)
+        return [idx + base_dof_offset for idx in self.dof_idx]
 
-        target_joint_vel = th.zeros_like(target_joint_pos)
-
-        return dict(
-            target_joint_pos=cb.from_torch(target_joint_pos),
-            target_joint_vel=cb.from_torch(target_joint_vel),
-        )
+    def _generalized_forces(self, getter):
+        """One of ControllableObjectViewAPI's (N, n_dof) generalized-force arrays, on sim device."""
+        return cb.to_torch(getter(self.routing_path)).to(og.sim.device)[self.view_row_indices, :]
 
     def compute_control(self, goals):
         """
@@ -153,8 +150,6 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         Returns:
             Array: (N, control_dim) outputted (non-clipped!) control signal to deploy
         """
-        self.time_tracker += 1
-
         current_joint_pos = cb.to_torch(self._get_joint_positions()).to(og.sim.device)  # (N, ctrl_dim)
         current_joint_vel = cb.to_torch(self._get_joint_velocities()).to(og.sim.device)  # (N, ctrl_dim)
         jacobians = cb.to_torch(self._get_relative_jacobians()).to(og.sim.device)  # (N, 6, ctrl_dim)
@@ -162,11 +157,10 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         joint_pos_desired = cb.to_torch(goals["target_joint_pos"]).to(og.sim.device)  # (N, ctrl_dim)
         joint_vel_desired = cb.to_torch(goals["target_joint_vel"]).to(og.sim.device)  # (N, ctrl_dim)
 
+        cc_forces = grav_forces = None
         if self._use_cc_compensation:
-            rows = self.view_row_indices
-            cc_forces = cb.to_torch(
-                ControllableObjectViewAPI.get_all_coriolis_and_centrifugal_compensation_forces(self.routing_path)
-            ).to(og.sim.device)[rows, :]
+            cc_forces = self._generalized_forces(
+                ControllableObjectViewAPI.get_all_coriolis_and_centrifugal_compensation_forces)
 
         # Gravity compensation. The pre-3.9.1 controller accepted `use_gravity_compensation` but never
         # applied it -- only the Coriolis term was ever added -- so with it left False (as the stock
@@ -174,22 +168,13 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         # torque. That is tolerable for droid.usd's link masses but not for heavier assets: the
         # robolab arm settles 0.2968 rad off the commanded panda_joint5 without this.
         if self._use_gravity_compensation:
-            rows = self.view_row_indices
-            grav_forces = cb.to_torch(
-                ControllableObjectViewAPI.get_all_gravity_compensation_forces(self.routing_path)
-            ).to(og.sim.device)[rows, :]
+            grav_forces = self._generalized_forces(
+                ControllableObjectViewAPI.get_all_gravity_compensation_forces)
 
-        # Indices into the generalized-force vectors for this controller's DOFs. The offset accounts
-        # only for extra *base* DOFs on floating-base robots, so it is measured against the robot's
-        # total joint count -- NOT against control_dim, which would shift the arm's slice by
-        # (n_joints - n_arm_joints) and silently feed it the gripper's terms instead. On a 13-DOF
-        # robolab DROID that mis-indexing demanded torques far past the wrist's +-12 Nm limit, so the
-        # wrist saturated and settled ~0.29 rad off command.
-        n_joint_dof = ControllableObjectViewAPI.get_all_joint_positions(self.routing_path).shape[-1]
+        comp_idx = None
         if self._use_cc_compensation or self._use_gravity_compensation:
-            ref = cc_forces if self._use_cc_compensation else grav_forces
-            base_dof_offset = max(ref.shape[-1] - n_joint_dof, 0)
-            comp_idx = [idx + base_dof_offset for idx in self.dof_idx]
+            comp_idx = self._compensation_indices(cc_forces if self._use_cc_compensation
+                                                  else grav_forces)
 
         us = []
         for i in range(current_joint_pos.shape[0]):
@@ -205,11 +190,8 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
                 joint_vel_desired[i] - current_joint_vel[i]
             )
 
-            # Add Coriolis / centrifugal compensation
             if self._use_cc_compensation:
                 u = u + cc_forces[i][comp_idx]
-
-            # Add gravity compensation
             if self._use_gravity_compensation:
                 u = u + grav_forces[i][comp_idx]
 
@@ -221,10 +203,21 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
 
         return cb.from_torch(th.stack(us))  # (N, control_dim)
 
-    # NOTE: the pre-3.9.1 version overrode clip_control, but that override clipped to exactly the
-    # same control limits and then copied every index back, making it equivalent to the base
-    # implementation. 3.9.1's base version does the same clip on the batched (N, control_dim)
-    # signal (and correctly leaves limitless position joints alone), so the override is dropped.
+    def _update_goal(self, controller_idx, command):
+        """Clip one member's commanded joint positions to their limits and hold velocity at zero."""
+        target_joint_pos = cb.to_torch(command).to(og.sim.device)
+
+        target_joint_pos = target_joint_pos.clip(
+            cb.to_torch(self._control_limits[ControlType.get_type("position")][0][self.dof_idx]).to(og.sim.device),
+            cb.to_torch(self._control_limits[ControlType.get_type("position")][1][self.dof_idx]).to(og.sim.device),
+        )
+
+        target_joint_vel = th.zeros_like(target_joint_pos)
+
+        return dict(
+            target_joint_pos=cb.from_torch(target_joint_pos),
+            target_joint_vel=cb.from_torch(target_joint_vel),
+        )
 
     def compute_no_op_goal(self, controller_idx):
         target_joint_pos = cb.to_torch(self._get_joint_positions()[controller_idx]).to(og.sim.device)
@@ -243,20 +236,6 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             target_joint_pos=(self.control_dim,),
             target_joint_vel=(self.control_dim,)
         )
-
-    def _to_tensor(self, input):
-        if th.is_tensor(input):
-            return input.to(th.Tensor())
-        else:
-            return th.tensor(input).to(th.Tensor())
-
-    def _diagonalize_gain(self, gain: th.Tensor) -> th.Tensor:
-        if gain.dim() == 1:
-            return th.diag(gain)
-        elif gain.dim() == 2:
-            return gain
-        else:
-            raise ValueError(f"Gain tensor must be 1D or 2D, but got {gain.dim()}D.")
 
     def is_grasping(self, controller_idx):
         return IsGraspingState.UNKNOWN

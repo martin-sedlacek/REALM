@@ -1,38 +1,72 @@
-
+import numpy as np
+import omnigibson as og  # For og.sim.device
+import omnigibson.utils.transform_utils as T
 import torch as th
 from omnigibson.controllers.controller_base import (
-    BaseController,
     ControlType,
     GripperController,
     IsGraspingState,
     LocomotionController,
     ManipulationController,
 )
-from omnigibson.utils.ui_utils import create_module_logger
-import omnigibson as og  # For og.sim.device
 from omnigibson.utils.backend_utils import _compute_backend as cb
 from omnigibson.utils.usd_utils import ControllableObjectViewAPI
-import omnigibson.utils.transform_utils as T
-import numpy as np
-from realm.geometry import pose_diff
 from scipy.spatial.transform import Rotation as R
+
+from realm.geometry import pose_diff
+from realm.robots.gains import prepare_gain
 from realm.robots.robot_ik.robot_ik_solver import RobotIKSolver
 
-# Create module logger
-log = create_module_logger(module_name=__name__)
-
 IK_MODE_COMMAND_DIMS = {
-    "absolute_pose": 6,  # 6DOF (x,y,z,ax,ay,az) control of pose, whether both position and orientation is given in absolute coordinates
-    "pose_absolute_ori": 6,  # 6DOF (dx,dy,dz,ax,ay,az) control over pose, where the orientation is given in absolute axis-angle coordinates
-    "pose_delta_ori": 6,  # 6DOF (dx,dy,dz,dax,day,daz) control over pose
-    "position_fixed_ori": 3,  # 3DOF (dx,dy,dz) control over position, with orientation commands being kept as fixed initial absolute orientation
-    "position_compliant_ori": 3,  # 3DOF (dx,dy,dz) control over position, with orientation commands automatically being sent as 0s (so can drift over time)
-    "cartesian_velocity": 6
+    # 6DOF (x,y,z,ax,ay,az) control of pose, both position and orientation absolute
+    "absolute_pose": 6,
+    # 6DOF (dx,dy,dz,ax,ay,az), orientation given in absolute axis-angle coordinates
+    "pose_absolute_ori": 6,
+    # 6DOF (dx,dy,dz,dax,day,daz)
+    "pose_delta_ori": 6,
+    # 3DOF (dx,dy,dz), orientation held at its initial absolute value
+    "position_fixed_ori": 3,
+    # 3DOF (dx,dy,dz), orientation commanded as 0s, so it can drift over time
+    "position_compliant_ori": 3,
+    "cartesian_velocity": 6,
 }
 IK_MODES = set(IK_MODE_COMMAND_DIMS.keys())
 
 
 class DroidEndEffectorController(LocomotionController, ManipulationController, GripperController):
+    """Cartesian end-effector controller for the DROID platform: IK, then joint-space impedance.
+
+    A command is turned into a cartesian velocity for `RobotIKSolver` -- a dm_control MuJoCo model
+    of the Franka arm under `realm/robots/robot_ik/`, NOT the URDF next to this file -- whose joint
+    solution is then tracked by the same task-space-weighted impedance law as
+    `droid_joint_controller.py`:
+
+        Kp = J^T Kx J + Kq;  Kd = J^T Kxd J + Kqd
+        u  = Kp (q* - q) + Kd (qd* - qd)  [+ Coriolis/centrifugal compensation]
+
+    Only `absolute_pose` and `pose_delta_ori` are used by any config in `realm/config/robots/`.
+
+    Ported to the OG 3.9.1 controller contract, which is batched: one controller instance serves N
+    group members, `_update_goal` / `compute_no_op_goal` take a member index, `compute_control`
+    receives goals of shape (N, ...) and returns (N, control_dim), and robot state comes from
+    `ControllableObjectViewAPI` keyed on `self.routing_path` rather than a per-step `control_dict`.
+    The IK solver and the pose helpers are inherently single-robot, so members are solved in turn;
+    REALM runs one robot per environment, so N is 1 in practice.
+
+    Two things this does NOT do, both deliberate:
+
+    * It accepts `use_gravity_compensation` and never applies it, unlike
+      `droid_joint_controller.py`, which does. Every EE-control config sets it False, so the flag
+      has never had an effect on this controller.
+    * It does not pre-clamp the commanded cartesian delta. `RobotIKSolver` already clamps it to the
+      same limits this controller would use -- 0.075 m linear, 0.15 rad angular -- on the way
+      through `cartesian_delta_to_velocity` / `cartesian_velocity_to_delta`.
+
+    The pre-3.9.1 version also overrode `clip_control`, but that override clipped to exactly the
+    same control limits and then copied every index back, making it equivalent to the (now batched)
+    base implementation. Dropped.
+    """
+
     def __init__(
             self,
             control_freq,
@@ -58,6 +92,14 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
             link_name=None,  # eef link; OG 3.9.1 reads eef state/Jacobian by link name
             **kwargs,
     ):
+        """See `realm/config/robots/DROID_ee_control.yaml` for the values these take in practice.
+
+        `height_offset` is a property of the ASSET, not of this controller: it is the height of the
+        arm base above the robot prim, and it is added to a commanded z before that z is compared
+        against the eef pose relative to the robot prim. The default suits `droid_mounted.usd`
+        (panda_link0 at z = 0.86444 above /panda); the bare robolab arm has panda_link0 at the robot
+        prim, so its config sets 0.0. See DROID_robolab_v2_ee_control.yaml for the measurements.
+        """
         self._link_name = link_name
         self._motor_type = motor_type.lower()
         self._use_impedances = True
@@ -89,24 +131,13 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
             command_output_limits=command_output_limits,
         )
 
-        Kq = self._diagonalize_gain(self._to_tensor(Kq))
-        Kqd = self._diagonalize_gain(self._to_tensor(Kqd))
-        assert Kq.shape == Kqd.shape
-        Kx = self._diagonalize_gain(self._to_tensor(Kx))
-        Kxd = self._diagonalize_gain(self._to_tensor(Kxd))
-        assert Kx.shape == th.Size([6, 6])
-        assert Kxd.shape == th.Size([6, 6])
-
-        # Plain tensors, not th.nn.Parameter: nothing is optimized here, and OG 3.9.1's compute
-        # backend converts controls with Tensor.numpy(), which raises on grad-tracking tensors.
-        self.Kq = Kq.detach().to(og.sim.device)
-        self.Kqd = Kqd.detach().to(og.sim.device)
-        self.Kx = Kx.detach().to(og.sim.device)
-        self.Kxd = Kxd.detach().to(og.sim.device)
-
-        urdf_path = f"/app/realm/robots/panda_robotiq/panda_arm.urdf"
-        self.time_tracker = -1 # we update at the very beginning of compute_control, so this is 0 when controller is queried for the very first time
-        self.cached_torque = None
+        self.Kq = prepare_gain(Kq)
+        self.Kqd = prepare_gain(Kqd)
+        self.Kx = prepare_gain(Kx)
+        self.Kxd = prepare_gain(Kxd)
+        assert self.Kq.shape == self.Kqd.shape
+        assert self.Kx.shape == th.Size([6, 6])
+        assert self.Kxd.shape == th.Size([6, 6])
 
         self._ik_solver = RobotIKSolver()
 
@@ -157,13 +188,18 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         return forces[:, [idx + base_dof_offset for idx in self.dof_idx]].to(og.sim.device)
 
     def _update_goal(self, controller_idx, command):
-        # Grab important info from the view (was the per-step control_dict pre-3.9.1)
+        """Turn one member's command into the goal `compute_control` will track.
+
+        Every declared goal key must carry a real array: OG 3.9.1 stores goals in preallocated
+        per-member buffers (`_goals[k][idx] = cb.copy(v)`). The pre-3.9.1 contract handed the dict
+        over as-is and tolerated Nones for the keys the active mode does not use, so those are
+        filled with zeros of the declared shape instead. `compute_control` only reads the keys its
+        own mode sets, so the zeros are never consumed.
+        """
         all_pos_relative, all_quat_relative = self._get_eef_pose_relative()
         pos_relative = all_pos_relative[controller_idx]
         quat_relative = all_quat_relative[controller_idx]
         command = cb.to_torch(command).to(og.sim.device)
-
-        #command[:3], command[3:6] = self._scale_cartesian_6d_velocity(command[:3], command[3:6])
 
         # Convert position command to absolute values if needed
         if self.mode == "absolute_pose":
@@ -222,11 +258,6 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
             target_cartesian_pos_vel=target_cartesian_pos_vel,
             target_cartesian_rot_vel=target_cartesian_rot_vel,
         )
-        # OG 3.9.1 stores goals in preallocated per-member buffers (`_goals[k][idx] = cb.copy(v)`),
-        # so every declared goal key must carry a real array. The pre-3.9.1 contract handed the dict
-        # over as-is and tolerated the Nones this method leaves for keys the active mode does not
-        # use; fill those with zeros of the declared shape instead. compute_control only reads the
-        # keys its own mode sets, so the zeros are never consumed.
         goal_shapes = self._get_goal_shapes()
         return {
             k: (cb.zeros(goal_shapes[k]) if v is None else cb.from_torch(v))
@@ -241,81 +272,28 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         Returns:
             Array: (N, control_dim) outputted (non-clipped!) control signal to deploy
         """
-        self.time_tracker += 1
-
-        all_current_joint_pos = self._get_joint_positions()  # (N, ctrl_dim)
-        all_current_joint_vel = self._get_joint_velocities()  # (N, ctrl_dim)
+        all_joint_pos = self._get_joint_positions()  # (N, ctrl_dim)
+        all_joint_vel = self._get_joint_velocities()  # (N, ctrl_dim)
         all_jacobians = self._get_relative_jacobians()  # (N, 6, ctrl_dim)
         all_pos_current, all_quat_current = self._get_eef_pose_relative()
         all_cc_forces = self._get_cc_forces() if self._use_cc_compensation else None
 
-        # The IK solver and the pose helpers below are inherently single-robot, so each group member
-        # is solved in turn. REALM runs one robot per environment, so N is 1 in practice.
         us = []
-        for i in range(all_current_joint_pos.shape[0]):
-            current_joint_pos = all_current_joint_pos[i]
-            current_joint_vel = all_current_joint_vel[i]
+        for i in range(all_joint_pos.shape[0]):
             jacobian = all_jacobians[i]
             assert jacobian.shape == (6, self.control_dim), (
                 f"Expected a (6, {self.control_dim}) Jacobian for link {self._link_name}, got {tuple(jacobian.shape)}"
             )
-
             goal = {k: (None if v is None else cb.to_torch(v[i]).to(og.sim.device)) for k, v in goals.items()}
 
-            pos_current = all_pos_current[i]
-            quat_current = all_quat_current[i]
-            rpy_current = th.from_numpy(R.from_quat(quat_current.cpu().numpy()).as_euler("xyz")).to(og.sim.device)
-
-            # If the delta is really small, we just keep the current joint position. This avoids joint
-            # drift caused by IK solver inaccuracy even when zero delta actions are provided.
-            if (
-                self.mode not in ["cartesian_velocity"]
-                and th.allclose(pos_current, goal["target_pos"], atol=1e-4)
-                and th.allclose(quat_current, goal["target_quat"], atol=1e-4)
-            ):
-                joint_pos_desired = current_joint_pos
-            else:
-                action_dict = {}
-                if self.mode == "cartesian_velocity":
-                    action_dict["cartesian_velocity"] = th.cat(
-                        [goal["target_cartesian_pos_vel"], goal["target_cartesian_rot_vel"]]
-                    )
-                    action_dict["cartesian_delta"] = self._ik_solver.cartesian_velocity_to_delta(
-                        action_dict["cartesian_velocity"]
-                    )
-                elif self.mode == "pose_delta_ori":
-                    dpos = goal["target_pos"] - goal["target_pos_relative"]
-                    action_dict["cartesian_delta"] = th.cat([dpos, goal["target_rpy_relative"]])
-                    cartesian_velocity = self._ik_solver.cartesian_delta_to_velocity(action_dict["cartesian_delta"])
-                    action_dict["cartesian_velocity"] = cartesian_velocity.tolist()
-                elif self.mode == "absolute_pose":
-                    action_dict["cartesian_position"] = th.cat([goal["target_pos"], goal["target_rpy"]])
-                    current_cartesian_position = th.cat([pos_current, rpy_current])
-                    cartesian_delta = th.from_numpy(
-                        pose_diff(action_dict["cartesian_position"], current_cartesian_position)
-                    )
-                    cartesian_velocity = self._ik_solver.cartesian_delta_to_velocity(cartesian_delta)
-                    action_dict["cartesian_velocity"] = cartesian_velocity.tolist()
-                else:
-                    raise NotImplementedError()
-
-                action_dict["joint_velocity"] = self._ik_solver.cartesian_velocity_to_joint_velocity(
-                    action_dict["cartesian_velocity"],
-                    robot_state={
-                        "joint_positions": current_joint_pos,
-                        "joint_velocities": current_joint_vel,
-                    },
-                ).tolist()
-                joint_delta = self._ik_solver.joint_velocity_to_delta(action_dict["joint_velocity"])
-                action_dict["joint_position"] = (joint_delta + np.array(current_joint_pos.cpu())).tolist()
-                joint_pos_desired = th.tensor(action_dict["joint_position"], dtype=th.float32, device=og.sim.device)
-
+            joint_pos_desired = self._desired_joint_positions(
+                goal, all_joint_pos[i], all_joint_vel[i], all_pos_current[i], all_quat_current[i]
+            )
             joint_vel_desired = th.zeros(self.control_dim).to(og.sim.device)
 
             Kp = jacobian.T @ self.Kx @ jacobian + self.Kq
             Kd = jacobian.T @ self.Kxd @ jacobian + self.Kqd
-
-            u = Kp @ (joint_pos_desired - current_joint_pos) + Kd @ (joint_vel_desired - current_joint_vel)
+            u = Kp @ (joint_pos_desired - all_joint_pos[i]) + Kd @ (joint_vel_desired - all_joint_vel[i])
 
             # Add Coriolis / centrifugal compensation
             if self._use_cc_compensation:
@@ -329,8 +307,50 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
 
         return cb.from_torch(th.stack(us))  # (N, control_dim)
 
-    # NOTE: the pre-3.9.1 clip_control override clipped to the same limits and copied every index
-    # back, making it equivalent to the (now batched) base implementation. Dropped.
+    def _desired_joint_positions(self, goal, current_joint_pos, current_joint_vel,
+                                 pos_current, quat_current):
+        """Joint targets that carry this member's eef to its goal pose, through the IK solver.
+
+        A pose delta below the IK solver's own accuracy is held rather than solved: solving it makes
+        the joints drift even when the commanded delta is zero.
+        """
+        if (
+            self.mode not in ["cartesian_velocity"]
+            and th.allclose(pos_current, goal["target_pos"], atol=1e-4)
+            and th.allclose(quat_current, goal["target_quat"], atol=1e-4)
+        ):
+            return current_joint_pos
+
+        cartesian_velocity = self._cartesian_velocity_command(goal, pos_current, quat_current)
+        joint_velocity = self._ik_solver.cartesian_velocity_to_joint_velocity(
+            cartesian_velocity,
+            robot_state={
+                "joint_positions": current_joint_pos,
+                "joint_velocities": current_joint_vel,
+            },
+        ).tolist()
+        joint_delta = self._ik_solver.joint_velocity_to_delta(joint_velocity)
+        joint_position = (joint_delta + np.array(current_joint_pos.cpu())).tolist()
+        return th.tensor(joint_position, dtype=th.float32, device=og.sim.device)
+
+    def _cartesian_velocity_command(self, goal, pos_current, quat_current):
+        """The 6-D cartesian velocity the IK solver should track, for this controller's mode."""
+        if self.mode == "cartesian_velocity":
+            return th.cat([goal["target_cartesian_pos_vel"], goal["target_cartesian_rot_vel"]])
+
+        if self.mode == "pose_delta_ori":
+            dpos = goal["target_pos"] - goal["target_pos_relative"]
+            cartesian_delta = th.cat([dpos, goal["target_rpy_relative"]])
+        elif self.mode == "absolute_pose":
+            rpy_current = th.from_numpy(
+                R.from_quat(quat_current.cpu().numpy()).as_euler("xyz")).to(og.sim.device)
+            cartesian_position = th.cat([goal["target_pos"], goal["target_rpy"]])
+            current_cartesian_position = th.cat([pos_current, rpy_current])
+            cartesian_delta = th.from_numpy(pose_diff(cartesian_position, current_cartesian_position))
+        else:
+            raise NotImplementedError()
+
+        return self._ik_solver.cartesian_delta_to_velocity(cartesian_delta).tolist()
 
     def compute_no_op_goal(self, controller_idx):
         all_pos_relative, all_quat_relative = self._get_eef_pose_relative()
@@ -352,26 +372,16 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         return {k: cb.from_torch(v) for k, v in goal_dict.items()}
 
     def _compute_no_op_command(self, controller_idx):
+        """A command that asks for no motion: zero deltas, or the current pose in absolute modes."""
         all_pos_relative, all_quat_relative = self._get_eef_pose_relative()
         pos_relative = all_pos_relative[controller_idx]
         quat_relative = all_quat_relative[controller_idx]
 
         command = th.zeros(6, dtype=th.float32, device=pos_relative.device)
-
-        # Handle position
         if self.mode == "absolute_pose":
             command[:3] = pos_relative
-        else:
-            # We can leave it as zero for delta mode.
-            pass
-
-        # Handle orientation
         if self.mode in ("pose_absolute_ori", "absolute_pose"):
             command[3:] = T.quat2axisangle(quat_relative)
-        else:
-            # For these modes, we don't need to add orientation to the command
-            pass
-
         return cb.from_torch(command)
 
     def _get_goal_shapes(self):
@@ -385,20 +395,6 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
             target_cartesian_pos_vel=(3,),
             target_cartesian_rot_vel=(3,),
         )
-
-    def _to_tensor(self, input):
-        if th.is_tensor(input):
-            return input.to(th.Tensor())
-        else:
-            return th.tensor(input).to(th.Tensor())
-
-    def _diagonalize_gain(self, gain: th.Tensor) -> th.Tensor:
-        if gain.dim() == 1:
-            return th.diag(gain)
-        elif gain.dim() == 2:
-            return gain
-        else:
-            raise ValueError(f"Gain tensor must be 1D or 2D, but got {gain.dim()}D.")
 
     def is_grasping(self, controller_idx):
         return IsGraspingState.UNKNOWN
@@ -414,14 +410,3 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
     @property
     def command_dim(self):
         return IK_MODE_COMMAND_DIMS[self.mode]
-
-    def _scale_cartesian_6d_velocity(self, lin_vel, rot_vel):
-        max_lin_delta = 0.075
-        max_rot_delta = 0.15
-        lin_vel_norm = th.linalg.norm(lin_vel)
-        rot_vel_norm = th.linalg.norm(rot_vel)
-        if lin_vel_norm > max_lin_delta:
-            lin_vel = lin_vel * max_lin_delta / lin_vel_norm
-        if rot_vel_norm > max_rot_delta:
-            rot_vel = rot_vel * max_rot_delta / rot_vel_norm
-        return lin_vel, rot_vel
