@@ -72,13 +72,18 @@ SUITE = {
         note="10 tasks x 1 step x 1 repeat, --no_render.",
     ),
     "test_perturbations_integrity": dict(
-        argv=["tests/test_perturbations_integrity.py"],
+        # --repeats 3 --max_steps 1 is the invocation docs/og391_cluster_port_prompt.md calls
+        # "the reference result ... 16/16", so run exactly that rather than a cheaper variant whose
+        # outcome could not be compared against it. It also costs almost nothing: the Isaac boot
+        # dominates a cell, and it is the only place in the suite that exercises the per-repeat
+        # reset path.
+        argv=["tests/test_perturbations_integrity.py", "--repeats", "3", "--max_steps", "1"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         verdict=[(r"^\S+: FAILED EXECUTION", "FAIL"),
                  (r"^\S+: FAIL \(", "FAIL"),
                  (r"^ALL PERTURBATIONS PASSED INTEGRITY CHECK!", "PASS")],
         cells=r"^[\w-]+: (?:PASS|FAIL|FAILED EXECUTION)\b.*",
-        note="16 perturbations on one task, rendering ON.",
+        note="16 perturbations on task 0, 3 repeats x 1 step, rendering ON.",
     ),
     "test_vector_integrity_tasks": dict(
         argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2"],
