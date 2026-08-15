@@ -64,6 +64,19 @@ SUITE = {
         cells=r"^  \w+_(?:csv|parquet): \w+",
         note="one task, 1 step, 1 repeat, --no_render.",
     ),
+    "test_single_task_drawer": dict(
+        # Task 8 is open_drawer, whose main object is custom_assets/impact_drawer/usd/cabinet.usd.
+        # It is the ONLY task that needs OmniSurfaceMaterialPrim's preset_name default, which the
+        # stock 3.9.1 image does not have and OG-lite / stock_patch do. Run this under MODE=oglite
+        # against the MODE=stock result from test_integrity: same task, same code, different bind.
+        argv=["tests/test_single_task.py", "--task_id", "8"],
+        needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
+        verdict=[(r"^Task \d+ \(.*\) FAILED!", "FAIL"),
+                 (r"^Evaluation failed for ", "FAIL"),
+                 (r"^Task \d+ \(.*\) PASSED!", "PASS")],
+        cells=r"^  \w+_(?:csv|parquet): \w+",
+        note="task 8 open_drawer -- the mode-dependence control for the stock preset_name gap.",
+    ),
     "test_integrity": dict(
         argv=["tests/test_integrity.py"],
         needs_gpu=True, needs_server=False, timeout=10800, tier="slow",
