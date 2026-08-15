@@ -96,6 +96,21 @@ SUITE = {
               r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
         note="10 tasks under Default through the vector path, num_envs=2, rendering ON.",
     ),
+    "test_vector_integrity_tasks_shard0of2": dict(
+        # Half the task matrix -- cells 0,2,4,6,8, i.e. tasks 0,2,4,6,8 -- for when the allocation
+        # cannot hold the full ten. Deliberately a COMPLETED half rather than a truncated whole: a
+        # run killed on the time limit never prints its verdict line. The sample is not arbitrary:
+        # it covers a PrimitiveObject main object (0), a rotate task (2), a DatasetObject pick (4),
+        # a stack (6) and open_drawer (8) -- the one that could not load at all until 2026-08-14.
+        argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2",
+              "--shard", "0/2"],
+        needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
+        verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
+                 (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
+        note="tasks 0,2,4,6,8 under Default through the vector path, num_envs=2, rendering ON.",
+    ),
     "test_vector_integrity_perturbations": dict(
         argv=["tests/test_vector_integrity.py", "--matrix", "perturbations", "--num_envs", "2"],
         needs_gpu=True, needs_server=False, timeout=21600, tier="slow",
