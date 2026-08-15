@@ -68,7 +68,8 @@ SUITE = {
         verdict=[(r"^\S+: FAILED EXECUTION", "FAIL"),
                  (r"^\S+: FAIL \(", "FAIL"),
                  (r"^ALL TASKS PASSED INTEGRITY CHECK!", "PASS")],
-        cells=r"^\S+: (?:PASS|FAIL|FAILED EXECUTION)\b.*",
+        cells=r"^(?:--- Testing Task .*|Ran evaluation for .*|CRASHED during .*|"
+              r"\S+: (?:PASS|FAIL|FAILED EXECUTION)\b.*)$",
         note="10 tasks x 1 step x 1 repeat, --no_render.",
     ),
     "test_perturbations_integrity": dict(
@@ -82,7 +83,8 @@ SUITE = {
         verdict=[(r"^\S+: FAILED EXECUTION", "FAIL"),
                  (r"^\S+: FAIL \(", "FAIL"),
                  (r"^ALL PERTURBATIONS PASSED INTEGRITY CHECK!", "PASS")],
-        cells=r"^[\w-]+: (?:PASS|FAIL|FAILED EXECUTION)\b.*",
+        cells=r"^(?:--- Testing Perturbation .*|Ran evaluation for .*|CRASHED during .*|"
+              r"[\w-]+: (?:PASS|FAIL|FAILED EXECUTION)\b.*)$",
         note="16 perturbations on task 0, 3 repeats x 1 step, rendering ON.",
     ),
     "test_vector_integrity_tasks": dict(
@@ -90,7 +92,8 @@ SUITE = {
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
                  (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
-        cells=r"^\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*",
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
         note="10 tasks under Default through the vector path, num_envs=2, rendering ON.",
     ),
     "test_vector_integrity_perturbations": dict(
@@ -98,7 +101,8 @@ SUITE = {
         needs_gpu=True, needs_server=False, timeout=21600, tier="slow",
         verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
                  (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
-        cells=r"^\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*",
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
         note="16 perturbations on task 0 through the vector path, num_envs=2.",
     ),
     "test_pi0_integration": dict(
