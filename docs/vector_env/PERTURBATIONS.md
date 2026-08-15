@@ -26,13 +26,13 @@ N times, each time disturbing the other N-1 members mid-reset.
 ```
 1. every member restores its own scene                   (no global state touched)
 2. ONE joint-reset loop for every member that asked      (drawer tasks only)
-3. repair the sim's object-init queue                    (see "eviction" below)
-4. ONE og.sim.stop(), only if a member's perturbation needs it
-5. every member's perturbations run
-6. ONE og.sim.play()
-7. work the perturbations deferred because it needs a playing sim
-8. ONE joint-reset loop again, for the perturbations that ask for one
-9. ONE settle loop driving all members together, if any asked for it
+3. ONE og.sim.stop(), only if a member's perturbation needs it
+4. every member's perturbations run
+5. repair the sim's object-init queue, then ONE og.sim.play()   (see "eviction" below)
+6. work the perturbations deferred because it needs a playing sim
+7. ONE joint-reset loop again, for the perturbations that ask for one
+8. ONE settle loop driving all members together, if any asked for it
+9. every member re-takes its main-object scoring reference
 ```
 
 Perturbations never call the global operations directly. They route through
