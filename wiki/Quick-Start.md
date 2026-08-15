@@ -6,6 +6,12 @@ that each verify something before the next one depends on it.
 Everything runs **inside the container**. The wrapper that puts you there is
 `scripts/clara/interactive/rr`.
 
+> **`scripts/clara/` is the development cluster's harness, not a portable installer.** The commands
+> below are exactly what is run in practice, which makes them trustworthy — but the `salloc` line,
+> the partition and GPU names, and the paths resolved by `scripts/clara/lib/paths.sh` are
+> site-specific. Adapt them for your machine. See the note at the end of
+> [Installation](Installation).
+
 ## 0. Hold an allocation
 
 `rr` runs on an allocation you already hold — it does not allocate for you.
@@ -59,16 +65,26 @@ a real evaluation.
 
 ## 4. A real evaluation
 
-Now you need a policy server. Start one — for π0.5 the repo has a launcher:
+Now you need a policy server. **REALM does not ship one** — it is a client. The server is a separate
+process serving your policy over a websocket, and REALM only needs its host and port.
+
+For π0.5 the repo has a launcher, `scripts/clara/interactive/pi05_server.sh`. Read it before running
+it: it `cd`s into an **openpi checkout outside this repository** and defaults to a checkpoint under a
+specific user's home directory, so it will exit immediately on any other machine. Treat it as a
+worked example of the shape:
 
 ```sh
-./scripts/clara/interactive/pi05_server.sh
+PORT=8000 CKPT=/path/to/your/checkpoint ./scripts/clara/interactive/pi05_server.sh
 ```
 
-It defaults to port `8000` and takes about 70 seconds to come up, using roughly 12 GB of VRAM. Wait
-for it to be listening before starting the eval; every batch launcher in the repo does a socket
-preflight for exactly this reason, because the client **blocks forever retrying** rather than failing
-if nothing is there.
+Serving π0.5 yourself means an openpi checkout, a checkpoint directory containing `params/`, and
+`scripts/serve_policy.py` from openpi — not from REALM. It takes roughly 70 seconds to come up and
+about 12 GB of VRAM at the memory fraction that launcher sets, which matters because the simulator
+needs the rest of the card.
+
+Wait for the server to be listening before starting the eval. Every batch launcher in the repo does a
+socket preflight for exactly this reason: the client **blocks forever retrying** rather than failing,
+so an eval against a dead port looks like a hang, not an error.
 
 Single environment:
 

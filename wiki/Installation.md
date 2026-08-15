@@ -33,11 +33,26 @@ under `realm/misc/`, then install the robotics and logging dependencies plus the
 `openpi-client`. Each patch is followed by a check that fails the build if the patch applied nothing,
 so a silently-unpatched image is not possible.
 
-> **Rebuilding is currently blocked on Lustre.** `apptainer build --fakeroot` fails trying to change
-> ownership inside the image rootfs — a filesystem limitation, not a recipe bug. The consequence
-> matters: **a rebuilt image has never been verified**; only the bind-mount path has. Until that
-> changes, the substitute for "an image with the patches in it" is `MODE=stockfix` (see
-> [Running evaluations](Running-Evaluations)).
+Build it **from the repository root** — the recipe copies patches and the vendored client in by
+repo-relative path, so it will not build from anywhere else:
+
+```sh
+apptainer build realm_og391.sif .docker/realm_og391.def
+```
+
+> **Two caveats, and they are the reason there is no one-line install.**
+>
+> 1. **Build somewhere that is not Lustre.** On Lustre, `apptainer build --fakeroot` fails trying to
+>    change ownership inside the image rootfs. That is a filesystem limitation, not a recipe bug —
+>    build on local disk and move the resulting `.sif`.
+> 2. **A rebuilt image has never been verified.** Only the bind-mount path has been exercised. The
+>    recipes are believed correct and the patch checks are real, but nobody has yet confirmed that an
+>    image built from them behaves identically to the one in use. Until someone does, the substitute
+>    for "an image with the patches in it" is `MODE=stockfix` — see
+>    [Running evaluations](Running-Evaluations).
+>
+> There is no published prebuilt image. If you are joining an existing deployment, get the `.sif`
+> path from whoever runs it rather than rebuilding.
 
 Sanity-check an image without a GPU or a job:
 
@@ -118,8 +133,8 @@ If you need to override a path, use the suffixed name:
 
 `REALM_ROOT` is always the checkout that `paths.sh` itself lives in. That is deliberate: it is what
 makes **git worktrees** work. An earlier version named the main checkout absolutely, so a worktree's
-scripts bound the *main* checkout at `/app` — two agents spent time testing fixes against code they
-had not edited.
+scripts bound the *main* checkout at `/app` — meaning edits made in the worktree had no effect on the
+run, silently, and fixes got tested against code that had never been changed.
 
 ## 5. A GPU allocation
 
@@ -132,6 +147,20 @@ salloc --no-shell --job-name=realm-interactive --partition=l40s --nodes=1 \
 ```
 
 Then see [Quick start](Quick-Start).
+
+> ### The harness under `scripts/clara/` is site-specific
+>
+> "clara" is the name of the cluster REALM is developed on. The scripts under
+> `scripts/clara/interactive/` — including `rr`, which every other page on this wiki uses — encode
+> that site's partition names, GPU types, shared-store layout and module conventions.
+>
+> **They are the working reference, not a portable installer.** On a different cluster you will need
+> to adapt at least the `salloc` line, the paths in `scripts/clara/lib/paths.sh`, and anything that
+> names an absolute location outside the repo. The *structure* transfers — bind the repo at `/app`,
+> the dataset at `/data`, a log directory at `/logs`, and run through the image's runscript — and
+> `rr` is short enough to read end to end before adapting it.
+>
+> There is currently no site-neutral launcher. If you write one, that is a welcome contribution.
 
 ## Verifying the install
 
