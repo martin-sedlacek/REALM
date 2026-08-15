@@ -64,8 +64,19 @@ Configured entirely by environment variable. `VEC` is the path selector, not jus
 - `VEC = 0` → `examples/02_evaluate.py`
 
 Other variables include `TASK_ID`, `PERT_ID`, `REPEATS`, `MAX_STEPS`, `HORIZON`, `ROBOT`,
-`MODEL_NAME`, `EXPERIMENT`, `RUN_ID`, `PORT`, `SERVER_WAIT` and `CKPT`. It preflights the image, the
-dataset and the checkpoint before submitting work.
+`MODEL_NAME`, `EXPERIMENT`, `RUN_ID`, `PORT`, `SERVER_WAIT` and `CKPT`.
+
+> **Check two defaults before using it.**
+>
+> - **`ROBOT` defaults to `DROID_robolab_v2`**, not the `DROID` documented everywhere else. Pass
+>   `ROBOT=DROID` unless you specifically want the RoboLab gripper — and note that if its definitions
+>   are not registered, the job fails and **still exits 0**.
+> - **It hard-requires the OG-lite fork** and aborts if it is absent, so it is not usable
+>   unmodified outside a setup that has OG-lite checked out.
+>
+> Its preflight checks the image, dataset, OG-lite and checkpoint — but **on the compute node, after
+> SLURM has accepted the job**, not before submission. They save you a wasted run, not a wasted
+> queue wait.
 
 ### ⚠ Exit code 0 does not mean the run succeeded
 
@@ -80,8 +91,14 @@ Two corollaries:
   verdict has already printed.
 
 The only trustworthy gate is checking the artifacts. `scripts/clara/interactive/check_run.py` does
-this: given a results directory it verifies the expected number of rollouts landed, and
-`--newer-than` guards against counting a previous run's files.
+this two ways, and the second matters most here:
+
+- given a results directory and `--repeats N`, it verifies that N rollouts actually landed
+  (`--newer-than` guards against counting a previous run's files);
+- given a log file as its optional positional argument, it **scans for crash markers** — which is how
+  you catch the exception that a status of 0 hid.
+
+Without `--repeats` it cannot know the expected count, so pass it.
 
 ## Sweeping the matrix
 
@@ -113,9 +130,15 @@ aggregate, another found 8 better under a more aggressive configuration, and 16 
 economic. Treat 4 as the safe default and measure before going higher. Whatever you pick, say which
 measurement you are relying on.
 
-**Four perturbations are not safe vectorized:** `VB-POSE`, `VB-MOBJ`, `VSB-NOBJ` and `SB-VRB`. They
-stop and restart the simulator, which is a **global** operation, not a per-environment one. Run those
-with `VEC=0`.
+**Four perturbations need a stopped simulator:** `V-SC`, `VB-MOBJ`, `VSB-NOBJ` and `SB-VRB` — the
+ones that add or remove objects. Stopping the simulator is a **global** operation, not a
+per-environment one, so the vector environment handles it centrally: it checks whether any member of
+the wave needs a stopped sim and, if so, batches **one** `stop()`/`play()` cycle around the whole
+wave instead of cycling per member.
+
+**So these do vectorize.** They are the expensive resets, not excluded ones. Everything else —
+including `VB-POSE` and `V-VIEW` — only writes poses, works on a live sim, and deliberately never
+triggers a cycle.
 
 **Vector environments historically required `MODE=oglite`**, because the scene z-offset fix lived
 only in the fork. That fix is now in both build recipes, so a rebuilt image — or `MODE=stockfix` with

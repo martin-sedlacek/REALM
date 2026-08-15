@@ -30,8 +30,13 @@ The image is `realm_og391.sif`, roughly 13 GB. Build recipes are in the repo and
 
 Both recipes do the same thing: start from the upstream BEHAVIOR 3.9.1 image, apply the seven patches
 under `realm/misc/`, then install the robotics and logging dependencies plus the vendored
-`openpi-client`. Each patch is followed by a check that fails the build if the patch applied nothing,
-so a silently-unpatched image is not possible.
+`openpi-client`.
+
+Two separate safeguards, worth keeping straight: the `%post` section runs under `set -e`, so a
+**failed** `patch` aborts the build; and `%test` greps for a marker string from each of the seven
+patches, catching one that applied but produced the wrong result. **The greps are in `%test`, so
+`apptainer build --notest` skips them** — do not build with `--notest` and assume the image is
+verified.
 
 Build it **from the repository root** — the recipe copies patches and the vendored client in by
 repo-relative path, so it will not build from anywhere else:
@@ -54,11 +59,15 @@ apptainer build realm_og391.sif .docker/realm_og391.def
 > There is no published prebuilt image. If you are joining an existing deployment, get the `.sif`
 > path from whoever runs it rather than rebuilding.
 
-Sanity-check an image without a GPU or a job:
+Sanity-check an image without a GPU or a job — it checks installed package versions and greps for
+each patch marker:
 
 ```sh
-apptainer test realm_og391.sif
+apptainer test --bind /path/to/datasets:/data realm_og391.sif
 ```
+
+`%test` deliberately does **not** import `omnigibson` (importing it asserts that the data path
+exists), so a pass means "the image was built correctly", not "the simulator runs".
 
 ## 2. Dataset and assets
 
@@ -95,22 +104,38 @@ python scripts/install_robot_definitions.py
 Flags: `--copy` to copy instead of symlinking, `--data-path` to point at a dataset other than
 `$OMNIGIBSON_DATA_PATH`.
 
-These links are **not tracked in git**, so they do not come with a clone and they do not survive a
-fresh dataset directory. On a machine where this has not been run, typically only `droid`,
-`droid_mounted` and `ur` are registered — the RoboLab robots will not load. See
-[Robots and configs](Robots-and-Configs).
+The script installs **all five** definitions in one pass and exits on the first failure — it is
+all-or-nothing, so there is no partially-registered state to diagnose. The links are **not tracked in
+git**, so they do not come with a clone and they do not survive a fresh dataset directory: until you
+run this, **none** of REALM's robots are registered and even `--robot DROID` will fail with
+`... is not a registered robot`. See [Robots and configs](Robots-and-Configs).
 
 ## 4. Check that paths resolve
 
-Every harness script resolves its paths through `scripts/clara/lib/paths.sh`, which derives them from
-its own location rather than reading them from the environment. Print what everything resolved to,
-and whether it exists:
+Every harness script resolves its paths through `scripts/clara/lib/paths.sh`. Print what everything
+resolved to, and whether it exists:
 
 ```sh
 bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
 ```
 
-This is the first thing to run when something behaves oddly, and it is cheap.
+Each path line is marked `ok` or `MISSING` (the leading `(cwd)` line is informational). This is the
+first thing to run when something behaves oddly, and it is cheap.
+
+### Pointing it at your machine
+
+Only `REALM_ROOT` is derived from the script's own location. **Everything else hangs off one shared
+store, which is hardcoded to the original author's path.** So on any other machine the single most
+useful override is:
+
+```sh
+export REALM_SHARED_OG391=/your/shared/store
+```
+
+with that directory laid out as `realm_og391.sif`, `data/datasets_og391/`, `logs/` and
+`stock_patch/`. That one variable fixes the image, dataset, log, stock-patch and OG-lite lookups
+together. Alternatively `realm_og391.sif`, `data/datasets/` and `logs/` inside the checkout itself
+are tried first, so a self-contained clone also resolves without any variable set.
 
 ### Why the overrides have an `_OG391` suffix
 
@@ -128,7 +153,7 @@ If you need to override a path, use the suffixed name:
 | `REALM_DATA_OG391` | the dataset directory (→ `/data`) |
 | `REALM_LOGS_OG391` | the log directory (→ `/logs`) |
 | `REALM_APPDATA_OG391` | the cache directory (→ `/cache`) |
-| `REALM_STOCK_PATCH_OG391` | the patched-files directory used by `MODE=stockfix` |
+| `REALM_STOCK_PATCH_OG391` | the patched-files directory used by `MODE=stockfix` (`rr` also honours a bare `STOCK_PATCH`, since nothing in a shell profile sets that name) |
 | `REALM_OGLITE_OG391` | the OG-lite fork used by `MODE=oglite` |
 
 `REALM_ROOT` is always the checkout that `paths.sh` itself lives in. That is deliberate: it is what

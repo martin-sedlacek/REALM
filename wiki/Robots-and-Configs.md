@@ -35,15 +35,17 @@ actuated revolute joint plus five mimic followers. That changes DOF count (11 vs
 gripper-open/closed conventions used to normalise observations, the base column, and which camera
 prims exist.
 
-**`DROID_robolab_v2` is opt-in for a concrete reason, not just caution:** a non-stock robot needs its
-definition registered into the dataset directory, because OmniGibson 3.9.1 discovers robots by
-globbing for `<data>/*/models/<name>/<name>.yaml`. That registration is a symlink which is **not
-tracked in git**. Use `scripts/install_robot_definitions.py`. On a fresh machine only `droid`,
-`droid_mounted` and `ur` are registered; the robolab definitions are not.
+**Every REALM robot needs registering before it will load** — including `DROID`. OmniGibson 3.9.1
+discovers robots by globbing the dataset directory for `<data>/*/models/<name>/<name>.yaml`, and
+REALM's definitions live in the repo, linked in by symlinks that are **not tracked in git**. Run
+`scripts/install_robot_definitions.py`; it installs all five in one pass and exits on the first
+failure, so the state is all-or-nothing. On a machine where it has not been run, **none** are
+registered.
 
 Internal performance and integrity tooling generally defaults to `DROID_robolab_v2`, which is why you
-will see it all over `scripts/clara/` and the debug probes. The shipped user-facing default is still
-`DROID`.
+will see it all over `scripts/clara/` and the debug probes — including the batch launcher, whose
+`ROBOT` default is `DROID_robolab_v2` rather than the `DROID` this page documents. The shipped
+user-facing default is still `DROID`.
 
 > `DROID_robolab` and `DROID_robolab_v2` differ only in the USD they point at. v2 exists so the two
 > can be A/B compared without disturbing v1.

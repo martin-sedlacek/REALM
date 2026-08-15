@@ -11,8 +11,8 @@ The complete flag surface, and what the knobs actually do.
 
 There is also `examples/01_pi0_eval.py`, which takes **no flags at all** — it is a hardcoded
 demonstration (task 1, no perturbation, one repeat) and silently ignores anything you pass it. And
-`examples/03_vector_first_frames.py`, a build-and-render smoke test that writes one PNG per
-environment.
+`examples/03_vector_first_frames.py`, a build-and-render smoke test that writes an external **and** a
+wrist PNG per environment plus two montages — `2N + 2` files.
 
 > `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. If you find a
 > script invoking `python realm/eval.py --...`, that script is stale — see
@@ -52,6 +52,10 @@ binds whatever it finds there; if the directory is stale, you silently run witho
 Other environment variables `rr` passes through, only when you set them:
 `REALM_INCREMENTAL_CONTACT_CACHE`, `REALM_PROXIMITY_GATE`, `REALM_GPU_DYNAMICS`,
 `OMNIGIBSON_HEADLESS` (defaults to `1`).
+
+> **`REALM_GPU_DYNAMICS=1` segfaults at the first reset.** It is passed through because an
+> investigation needed it, not because it works — see
+> [Performance and scaling](Performance-and-Scaling).
 
 > **Two container traps, both encoded in `rr`'s own comments:**
 > - It uses `apptainer run`, never `exec` — `exec` skips the runscript that activates the conda
@@ -122,7 +126,15 @@ It also means results are not step-for-step comparable against baselines recorde
 
 Anything else raises `NotImplementedError` at construction. You may see `GR00T`, `GR00T_N16` and
 `molmoact` branches further down the inference path — those objects can never be constructed on this
-branch, so treat them as legacy. Ignore any documentation offering `pi0`, `pi0_FAST` or `hamster`.
+branch. Older documentation offering `pi0`, `pi0_FAST` or `hamster` does not apply to this branch
+either.
+
+> **This has a consequence for reproducing the paper.** The published results table is π₀, π₀-FAST
+> and GR00T N1.5. **None of those three can be constructed on this branch** — only `openpi`,
+> `dreamzero` and `debug` can. The `openpi` client is the route to a π-family policy, but it is a
+> different client from the one those numbers were produced with. If you are trying to reproduce the
+> paper specifically rather than evaluate your own policy, start from the paper's own release rather
+> than from this branch, and ask before assuming the two are interchangeable.
 
 `debug` is what the integrity tests use, and it is the right choice for checking that the simulation
 and logging path work before you involve a policy.
@@ -143,7 +155,7 @@ eval against a dead port. Do the same if you are writing your own launcher.
 |---|---|
 | `rt` | ray-traced lighting, the default path |
 | `pt` | path tracing, with a fixed sample count and the Optix denoiser on |
-| `r` | ray-traced lighting with reflections, indirect diffuse, shadows, AO and DLSS turned off |
+| `r` | ray-traced lighting with reflections, indirect diffuse, shadows, ambient occlusion and DLSS **frame generation** disabled; translucency enabled; sampled lighting pinned to 1 spp. DLSS itself is not disabled — it is switched to its performance mode |
 
 `r` is the cheap mode and `pt` the expensive one, but **treat any speed multiplier you see quoted for
 these as unsourced** — the ones in older docs were never measured. More importantly, `r` changes what

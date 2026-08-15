@@ -53,17 +53,21 @@ each appear twice.
 
 > ### ⚠ Two tasks currently have unusable camera views
 >
-> **Task 6 (`stack_cubes`) renders essentially nothing but sky**, and **task 2 (`rotate_marker`)'s
-> external camera is unusable.** This is a scene-configuration problem: the camera rig ends up
-> outside the room.
+> **Task 6 (`stack_cubes`) renders essentially nothing but sky.** Its spawn region sits roughly a
+> metre beyond the nearest wall, so the camera ends up outside the room.
 >
-> What makes it dangerous is that **every artifact and metric check still passes** — the run
-> completes, videos are written, reports are produced, and nothing warns you. A vision-based policy
-> evaluated on task 6 in this state is being scored on images of the sky.
+> **Task 2 (`rotate_marker`) also gives an unusable external view, but for a different reason** — its
+> spawn region is *inside* the wall envelope and the scene does render an interior; the region is
+> simply short of any floor surface. Do not assume the two share a cause.
 >
-> This is a **known and currently accepted limitation**, not an undiscovered bug. Do not report
-> numbers from these two tasks without looking at the frames first. See
-> [Known issues](Known-Issues-and-Gotchas).
+> What makes both dangerous is that **every artifact and metric check still passes** — the run
+> completes, videos are written, reports are produced, and nothing warns you. A vision-conditioned
+> policy evaluated on task 6 in this state is being scored on pictures of the sky.
+>
+> **Status: observed and parked, not diagnosed.** The project's own note says these may simply
+> differ from the pre-port configuration rather than be a port bug, and flags them for eyeballing in
+> the GUI before anything is changed. Do not report numbers from these two tasks without looking at
+> the frames first. See [Known issues](Known-Issues-and-Gotchas).
 
 ### Scoring: partial credit, not pass/fail
 
@@ -140,8 +144,8 @@ contrast parameters once per reset and applies them to each observation.
 > *Read from the task configs and `v_sc.py`, not measured at runtime.*
 >
 > Separately, on the tasks that do have distractors, the spawn region is over-subscribed: roughly two
-> objects per reset fail collision-free placement and are dropped in from above. See
-> [Known issues](Known-Issues-and-Gotchas).
+> objects **per environment** per reset fail collision-free placement and are dropped in from above —
+> at `--num_envs 4` that is about eight. See [Known issues](Known-Issues-and-Gotchas).
 
 ### Semantic — instruction only, scene untouched
 
@@ -215,6 +219,13 @@ python examples/02_evaluate.py --task_id 4 --perturbation_id 15 \
     --experiment_name <exp>
 ```
 
+> **Before copying the sweep commands below:** `scripts/cluster_evals/run_evals_for_ckpt.sh` and
+> `scripts/eval.sh` both **fail against the current container** — they activate a `micromamba`
+> environment the 3.9.1 image does not have, and `scripts/eval.sh` additionally drives a CLI that
+> `realm/eval.py` does not expose. Their **flag grammar** is documented here because it is the
+> project's sweep convention and the ID expansion is worth copying, but the scripts themselves need
+> repair before use. See [Cluster and parallel runs](Cluster-and-Parallel-Runs).
+
 A sweep — `scripts/cluster_evals/run_evals_for_ckpt.sh` takes `--task_ids` and `--perturbation_ids`,
 each accepting comma-separated values and `a-b` ranges:
 
@@ -225,7 +236,8 @@ each accepting comma-separated values and `a-b` ranges:
 **Omitting either flag means "all of it"** — they default to `0-9` and `0-15` respectively. The script
 launches one process per cell and skips cells whose outputs already exist, so it is re-runnable.
 `scripts/karolina/run_eval_for_ckpt.sh` is the same pattern for a different cluster, and
-`scripts/eval.sh` is the single-cell wrapper, which validates that the IDs are in range.
+`scripts/eval.sh` is the single-cell wrapper, which validates that the IDs are in range — subject to
+the caveat above about all three.
 
 ## Rollout budget
 

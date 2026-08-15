@@ -1,12 +1,19 @@
 Welcome to the REALM wiki!
 
 **REALM** is a simulation benchmark for **generalization** in robotic manipulation. It runs 10
-manipulation tasks covering 7 distinct skills, and stress-tests a policy against 16 perturbation
-settings — visual, semantic, behavioural, and combinations of those. The benchmark's premise, argued
-in the paper, is that results measured this way correlate with real-world performance.
+manipulation tasks covering 7 distinct skills, and stress-tests a policy against **15 perturbations**
+— visual, semantic, behavioural, and combinations of those — plus an unperturbed control, so **16
+selectable settings** in total. (The paper says 15 and this wiki mostly says 16; both are right, and
+[Tasks and perturbations](Tasks-and-Perturbations) spells out which is which.) The benchmark's
+premise, argued in the paper, is that results measured this way correlate with real-world
+performance.
 
 Concretely: you point REALM at a policy server, pick a task and a perturbation, and it runs rollouts
 in a photorealistic scene and scores them.
+
+> **Reproducing the paper's table is not the same as running the benchmark.** Those results are π₀,
+> π₀-FAST and GR00T N1.5, and **none of those three can be constructed on this branch** — see
+> [Running evaluations](Running-Evaluations). This wiki documents the code as it currently stands.
 
 - **Project page** — <https://martin-sedlacek.com/realm>
 - **Paper** — <https://arxiv.org/abs/2512.19562>

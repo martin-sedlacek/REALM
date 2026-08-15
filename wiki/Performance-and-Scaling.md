@@ -56,17 +56,20 @@ a more aggressive configuration found 8 better, and 16 was never shown to be eco
 default, measure if you want more, and **say which measurement you are relying on** if you publish a
 number.
 
-Two hard constraints:
+Two things that cost you:
 
-- **Four perturbations are not safe vectorized** — `VB-POSE`, `VB-MOBJ`, `VSB-NOBJ`, `SB-VRB` — because
-  they stop and restart the simulator globally. Run those single-env.
+- **Four perturbations force a stopped-simulator cycle** — `V-SC`, `VB-MOBJ`, `VSB-NOBJ`, `SB-VRB`,
+  the ones that add or remove objects. They still vectorize: the cycle is batched once across the
+  whole wave rather than per member. They are the expensive resets, not excluded ones.
 - **Scene import cost grows worse than linearly.** Each import triggers a global play/stop, so
   building many scenes in one process is quadratic-ish. Importing a large number of scenes has taken
   over an hour.
 
 There is also a **renderer descriptor-pool ceiling** that causes a segfault once enough scenes are
-resident. It is worked around by raising the descriptor-set limits before launch. If you push
-`--num_envs` high and hit an unexplained segfault during scene build, that is the first thing to
+resident. It is worked around by raising the descriptor-set limits before launch — **but that raise
+lives in the OG-lite fork, so you only get it under `MODE=oglite`**, not under the default
+`MODE=stock`. If you push `--num_envs` high and hit an unexplained segfault during scene build, that
+is the first thing to
 check.
 
 ## The contact cache: a lever that was spent

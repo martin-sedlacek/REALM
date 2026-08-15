@@ -32,7 +32,7 @@ One row per rollout. Columns, in order:
 | `env` | always `REALM` |
 | `task_progression` | fraction of the ladder reached, 0.0–1.0 |
 | `task_progression_timestamps` | when each stage was reached |
-| `stage` | the furthest named stage |
+| `stage` | the **first ladder stage not completed** — i.e. where the rollout stopped — or `SUCCESS` if all completed, or `N/A` if no ladder. **It is the failure point, not the furthest stage reached.** |
 | `binary_SR` | 1.0 if `task_progression` reached 1.0, else 0.0 |
 | `joint_vel_var`, `joint_acc_var`, `joint_jerk` | joint-space smoothness |
 | `joint_path_length` | total joint-space distance travelled |
@@ -47,10 +47,29 @@ releasing the object, so one drop is subtracted when the task succeeded.
 `instruction` is the column to check first when a semantic perturbation looks like it did nothing —
 if it matches the task default, the perturbation was a no-op for that rollout.
 
+> **Read `stage` in the right direction.** It is produced by walking the ladder and stopping at the
+> first incomplete stage, so `stage = GRASP` means the rollout **did not** grasp. Use
+> `task_progression` for "how far did it get"; use `stage` for "where did it fail". Getting this
+> backwards inverts every failure-mode breakdown built on it.
+
 ## Reading results
 
-The reports are plain CSV; anything that reads CSV will do. The repo also has a Streamlit viewer in
-the separate REALM toolkit, pointed at the log directory.
+The reports are plain CSV; anything that reads CSV will do.
+
+There is also a Streamlit dashboard, in a **separate repository** —
+<https://github.com/martin-sedlacek/REALM_toolkit>:
+
+```sh
+git clone https://github.com/martin-sedlacek/REALM_toolkit
+cd REALM_toolkit
+uv sync
+REALM_LOGS=/path/to/your/logs uv run streamlit run realm_viewer/dashboard.py
+```
+
+> **The viewer wants `REALM_LOGS`, which is exactly the variable the run harness deliberately
+> ignores** (it reads `REALM_LOGS_OG391` instead — see [Installation](Installation)). Both are
+> correct in their own repository; they are different tools that happen to have collided on a name.
+> Set `REALM_LOGS` for the viewer and do not expect it to affect a run.
 
 ## ⚠ Vector runs: check before trusting `binary_SR`
 

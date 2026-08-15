@@ -11,22 +11,35 @@ documented so you can decide whether they affect your use, not as a to-do list.
 
 ## Limitations that affect results
 
-### Two tasks have unusable camera views — *known and accepted*
+### Two tasks have unusable camera views — *observed, parked, not diagnosed*
 
-**Task 6 (`stack_cubes`) renders essentially nothing but sky.** The camera rig ends up outside the
-room. **Task 2 (`rotate_marker`)'s external camera is also unusable.**
+**Task 6 (`stack_cubes`) renders essentially nothing but sky** — its spawn region sits roughly a
+metre beyond the nearest wall, putting the camera outside the room.
 
-The dangerous part is that **every artifact and metric check still passes** on these tasks. The run
+**Task 2 (`rotate_marker`) also gives an unusable external view, but not for the same reason.** Its
+spawn region is *inside* the wall envelope and the scene does render an interior; the region is
+simply short of any floor surface.
+
+The dangerous part is that **every artifact and metric check still passes** on both. The run
 completes, videos are written, reports are produced, nothing warns. A vision-conditioned policy
 evaluated on task 6 in this state is being scored on pictures of the sky.
 
 **Look at the frames before reporting numbers from tasks 2 or 6.**
 
+Deliberately *not* labelled accepted: the project's own note says these may simply differ from the
+pre-port configuration rather than be a port bug, and asks for them to be eyeballed in the GUI before
+anything is changed. That check has not happened, so the cause is unconfirmed.
+
 ### `SB-NOUN` degenerates on some tasks — *known and accepted*
 
-`SB-NOUN` re-targets the instruction at a different object already present in the scene. On some
-tasks it frequently produces a degenerate instruction — measured at roughly **16% on task 0 and 66%
-on task 6**, with a further 20–25% silent no-op rate on some others.
+`SB-NOUN` re-targets the instruction at a different object already in the scene. On some tasks it
+frequently re-draws the *original* object, giving a degenerate no-op instruction — around **16% on
+task 0 and 66% on task 6**.
+
+**Treat those two figures as indicative, not as measured rates.** Each is a single 25-rollout chain
+and the draws within a chain are not independent, since the original object can be re-drawn. The
+uncertainty is wide and the two are not cleanly comparable. A separate note in the same project puts
+the general no-op rate at "~1/5 of resets"; the gap is sample size, not a contradiction.
 
 Where it degenerates, the perturbation is weaker than its name suggests. Factor that into any
 per-perturbation comparison rather than reading `SB-NOUN` as uniformly hard.

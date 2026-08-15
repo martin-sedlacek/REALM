@@ -87,9 +87,13 @@ srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
     --num_envs 4 --task_id 0 --out_dir /logs/vector_first_frames
 ```
 
-This steps every environment once and writes one PNG per tile. Four images that look like four
-plausible scenes means the vectorized path is wired up. It is much faster to debug here than inside
-a real evaluation.
+This steps every environment once and writes **two PNGs per environment** — `env<i>_external.png`
+and `env<i>_wrist.png` — plus `montage_external.png` and `montage_wrist.png`. At `--num_envs 4` that
+is ten files.
+
+**Look at the wrist images too, not just the external ones.** They are the half that shows whether
+the wrist camera resolved to the prim the observation profile expects, which is the failure this
+smoke test is best at catching. It is much faster to debug here than inside a real evaluation.
 
 ## 4. A real evaluation
 
@@ -144,8 +148,9 @@ With `--num_envs 4 --repeats 25`, the 25 rollouts run in waves of 4.
 > has no `--resume` and no `--no_render`; `examples/02_evaluate.py` has both. Their `--log_dir`
 > defaults also differ. See [Running evaluations](Running-Evaluations).
 
-> **Four perturbations are not safe vectorized** — `VB-POSE`, `VB-MOBJ`, `VSB-NOBJ` and `SB-VRB` stop
-> and restart the simulator globally, which is not per-environment. Run those single-env.
+> **Four perturbations need a stopped simulator** — `V-SC`, `VB-MOBJ`, `VSB-NOBJ` and `SB-VRB`,
+> because they add or remove objects. They still run vectorized: the vector environment batches
+> **one** stop/play cycle across the whole wave. They are simply the expensive ones to reset.
 
 ## Or just submit a batch job
 
@@ -154,12 +159,24 @@ non-colliding port, waits for it, runs the eval, and then **checks that real art
 before reporting success:
 
 ```sh
-VEC=4 PERT_ID=0 MAX_STEPS=800 REPEATS=25 RUN_ID=def_vec4 \
+VEC=4 PERT_ID=0 MAX_STEPS=800 REPEATS=25 RUN_ID=def_vec4 ROBOT=DROID \
   sbatch scripts/clara/interactive/sbatch_eval_pi05.sh
 ```
 
 It is configured entirely through environment variables, and `VEC` selects the path: `VEC>=1` runs
 the vectorized script with that many environments, `VEC=0` runs the single-env script.
+
+> **Two of its defaults will surprise you, which is why `ROBOT=DROID` is set explicitly above.**
+>
+> - **It defaults to `ROBOT=DROID_robolab_v2`**, not the `DROID` that every flag table on this wiki
+>   documents. That robot needs `scripts/install_robot_definitions.py` to have been run, and if it
+>   has not, the job fails with `... is not a registered robot` — **and still exits 0, so SLURM
+>   reports COMPLETED.**
+> - **It hard-requires the OG-lite fork** and aborts if it is not found. OG-lite is not part of a
+>   normal install, so this launcher is not a route an outside user can take unmodified.
+>
+> Its four preflight checks run **on the compute node, after SLURM has accepted the job** — they
+> catch a misconfiguration early in the run, not before submission.
 
 > **A SLURM exit code of 0 proves nothing here.** Isaac's shutdown call hard-exits with status 0, so
 > an unhandled Python exception still produces a `COMPLETED` job that wrote no results. This has
