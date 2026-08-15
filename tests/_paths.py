@@ -98,7 +98,15 @@ def check_artifacts(task_log_dir, task, perturbation, repeats):
             out[key] = "FAIL_EMPTY"
             continue
         # The report is already per-perturbation (its filename carries it); the parquets are not.
-        rows = len(df) if kind == "csv" else int((df["perturbation"] == perturbation).sum())
+        if kind == "csv":
+            rows = len(df)
+        elif "perturbation" not in df.columns:
+            # realm_logging changed its parquet schema. Say so; do not fall back to a row count
+            # that would silently start counting other perturbations' rows as this one's.
+            out[key] = f"FAIL_NO_PERTURBATION_COLUMN({list(df.columns)})"
+            continue
+        else:
+            rows = int((df["perturbation"] == perturbation).sum())
         out[key] = "PASS" if rows == repeats else f"FAIL_ROWS({rows}!={repeats})"
     return out
 
