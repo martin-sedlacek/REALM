@@ -6,10 +6,19 @@ and the diagnostic probes under `scripts/debug_probes/` are what survive.
 **The goal:** make the 2F-85's fingertips visibly bend inward when pressed against a surface, as they
 do on the real gripper and reportedly in RoboLab.
 
-**The outcome:** not achieved. A real and serious OmniGibson bug was found and fixed, which improved
-the measured curl ~10×, but the result is **~0.35°** — Martin's assessment, and it is correct: *"that
-is not even one degree, it's nothing."* The behaviour being chased is probably a different mechanism
-than the one that was measured. See [What had potential](#what-had-potential).
+**The outcome:** not achieved. A genuine numerical defect in OmniGibson was found and fixed, which
+improved the measured curl ~10×, but the result is **~0.35°** — Martin's assessment, and it is
+correct: *"that is not even one degree, it's nothing."* The behaviour being chased is probably a
+different mechanism than the one that was measured. See [What had potential](#what-had-potential).
+
+> **On calling it a "bug": it had no measured effect on sim functionality.** Worth stating plainly,
+> because this document otherwise overstates it. With the defect fully present, all 10 tasks load, all
+> 16 perturbations pass vectorized at Vec=2 and Vec=4, the eval path runs, and the grasp/integrity
+> gate passes 4/4 on tasks 0 and 4. Nothing measured in REALM depended on the affected quantity. It is
+> a real error — a 77× inertia inflation and hulls 61–193 mm off centre — but it was found *because*
+> it was searched for, not because anything broke. The one place it could plausibly matter in normal
+> use is `get_base_aligned_bbox()` in perturbation object replacement, and that was **flagged, never
+> quantified on any BEHAVIOR object**. Treat it as a latent numerical error, not a functional fault.
 
 ---
 
@@ -191,9 +200,35 @@ seen in RoboLab, it did not come from this mechanism under these loads.
 
 ## 6. What was reverted, and how to restore it
 
-Reverted: the `curlgrip` (nf=200), `padspring` and `xflat` robot configs, definitions and variant
-USDs; `padspring_gripper_controller.py` and its registry entry; the three `make_*_gripper_usd.py`
-generators; and the OmniGibson CoM fix in OG-lite.
+A commit-by-commit audit of both repos was done to find everything the debug introduced, not just the
+obvious artefacts. **REALM was clean** — its remaining changes are all vectorization/port work that
+predates this investigation (perturbations, `env_*`, the seven `realm/misc/` patches, task configs).
+**OG-lite was not**, and the first revert missed six commits.
+
+**REALM (`31223c1`)** — the `curlgrip` (nf=200), `padspring` and `xflat` robot configs, definitions
+and variant USDs; `padspring_gripper_controller.py` and its registry entry; the three
+`make_*_gripper_usd.py` generators; the three `data/` definition symlinks.
+
+**OG-lite (`32ea2ca`)** — the CoM fix chain `83b21d5..15b4072`.
+
+**OG-lite (`a767489`)** — the six **device-coercion** commits `43c3c7d..27806cb`. These were missed
+first time round. They were introduced solely to unblock the GPU-dynamics hypothesis *for this
+investigation*, and they touched engine-wide code (`entity_prim`, `robot`, `backend_utils`,
+`transform_utils`, `usd_utils`) for what turned out to be a dead end twice over: GPU dynamics was
+measured near-irrelevant (RoboLab keeps 94% of its compliance on CPU), and even with all 35 sites
+fixed `REALM_GPU_DYNAMICS=1` still segfaults natively in Isaac's `_warm_start`.
+
+**Explicitly NOT reverted — the six port/vectorization fixes that predate the gripper work and that
+REALM's tasks depend on**, each verified still present:
+
+| commit | fix |
+| --- | --- |
+| `ef7442b` | scene-file objects loading 100 m too high in scenes `idx != 0` |
+| `0eba7e7` | empty contact index tensors, unqueryable bodies, descriptor pool |
+| `59af7c0` | init-queue pruned by identity rather than object name |
+| `1dcc5bb` | `OmniSurfaceMaterialPrim.preset_name` default |
+| `7c59ed5` | articulation placed by ROOT LINK, not whichever prim was read |
+| `ec7373b` | exported asset's up axis matched to the stage's — **the drawer fix** |
 
 **Kept:** everything under `scripts/debug_probes/` (the measurement harness and its validated
 observables), this document, `CHANGE_LEDGER.md`, and the `docs/og_deviations/` audit chapters.
