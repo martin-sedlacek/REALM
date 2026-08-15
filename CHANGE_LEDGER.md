@@ -163,9 +163,25 @@ correctness grounds, independent of the maintenance argument.
 These add new robot configs and variant USDs. Nothing selects them unless a run names them, so they
 cannot perturb existing results. Deleting the files is a complete revert.
 
-- `DROID_robolab_curlgrip{,_ee_control}.yaml` + `droid_robolab_curlgrip.usd` + its definition —
-  **`nf=200`**. Chosen against the 18-26x compliance gap, which is now understood to be a *symptom* of
-  the CoM bug. **Likely to be retired**: with `83b21d5` in, it double-compensates.
+- ⚠ **DEPRECATED, pending `fix-validate`** — `DROID_robolab_curlgrip{,_ee_control}.yaml` +
+  `droid_robolab_curlgrip.usd` + its definition — **`nf=200`**. Chosen against the 18-26x compliance
+  gap, which is now understood to be a *symptom* of the CoM bug, so the value **compensates for a bug
+  rather than describing physics**. That bug is fixed by either route independently — engine side
+  OG-lite **`15b4072`** (the `83b21d5..15b4072` `rigid_prim` CoM line), asset side the
+  **`droid_robolab_xflat`** asset on a stock loader — and on a fixed build the curl is restored at the
+  **authored `nf=1000`**, so `nf=200` **double-compensates**. Retained *only* until branch
+  `fix-validate` reports whether the fixed build at authored `nf=1000` is sufficient on its own; that
+  verdict decides deletion. A deprecation banner now heads both configs and the definition. The
+  measured `nf` ladder in the definition was taken on the **broken** build — do not re-derive an `nf`
+  from it.
+
+| file | ships | status | revert |
+| --- | --- | --- | --- |
+| `realm/config/robots/DROID_robolab_curlgrip.yaml` | `nf=200` (via `model:`) | deprecated, banner added | delete the file |
+| `realm/config/robots/DROID_robolab_curlgrip_ee_control.yaml` | `nf=200` (via `model:`) | deprecated, banner added | delete the file |
+| `realm/robots/definitions/droid_robolab_curlgrip/droid_robolab_curlgrip.yaml` | points at the `nf=200` USD | deprecated, banner added | delete the directory |
+| `realm/robots/panda_robotiq/droid_robolab_curlgrip.usd` | `naturalFrequency 200` on the 4 inner mimic joints | deprecated, asset left untouched | delete, or rebuild via `scripts/make_curlgrip_gripper_usd.py` |
+
 - `DROID_robolab_padspring*.yaml` (6 configs) + `droid_robolab_padspring.usd` + definition — the
   pad-pivot spring route. Its supporting evidence was measured on a **closed-jaw press**, which is the
   wrong load case; the code stands, the numbers do not.

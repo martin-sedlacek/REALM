@@ -1,3 +1,28 @@
+# =============================================================================================
+# DEPRECATED -- DO NOT SELECT THIS CONFIG ON A FIXED BUILD. Retained pending `fix-validate`.
+#
+# The `nf=200` this config selects is a COMPENSATION FOR A BUG, not a physical parameter.
+# OmniGibson composed the gripper collision-geoms' centre of mass to the geom's immediate parent
+# rather than to the LINK frame, which put both Robotiq pad CoMs 122-130 mm off -- identically for
+# both pads, the tell that it is a dropped Xform transform and not a real body -- and inflated the
+# pad inertia 77x. A four-bar that stiff would not let an open fingertip curl until nf was dropped
+# from the authored 1000 to 200.
+#
+# That bug is now FIXED, by either of two independent routes:
+#   - engine side: OG-lite `15b4072` (the `83b21d5..15b4072` rigid_prim CoM line)
+#   - asset side:  the `droid_robolab_xflat` asset / DROID_robolab_xflat.yaml, on a stock loader
+# On a fixed build the curl is restored at the AUTHORED nf=1000, so nf=200 DOUBLE-COMPENSATES:
+# it softens a four-bar that is already correct.
+#
+# Not deleted yet only because branch `fix-validate` is still measuring whether the fixed build at
+# authored nf=1000 is sufficient on its own. That verdict decides whether this file,
+# DROID_robolab_curlgrip.yaml, droid_robolab_curlgrip.usd and its definition
+# (realm/robots/definitions/droid_robolab_curlgrip/) are removed outright.
+# See CHANGE_LEDGER.md, section 2 "Opt-in, zero effect unless selected by name".
+#
+# Nothing selects this config unless a run names it, so it cannot perturb an existing result.
+# =============================================================================================
+#
 # Curl-grip robot config: droid_robolab_v2 with a SOFTER four-bar mimic constraint
 # (naturalFrequency 200 instead of 1000 on the four inner mimic joints), so an open fingertip
 # loaded by contact rotates INWARD.
