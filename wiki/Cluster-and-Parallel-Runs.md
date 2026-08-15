@@ -26,13 +26,26 @@ srun --jobid=<ID> --overlap nvidia-smi \
      --query-compute-apps=pid,used_memory,name --format=csv
 ```
 
-Then `rr` runs inside the container on that allocation, and `go` wraps a script with logging:
+**`rr` starts the container wherever you invoke it — it does not `srun` onto the allocation.** Reach
+it through one:
+
+```sh
+srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr python -u ...
+```
+
+`go` does that for you, and additionally tees output to a log, records the command and allocation,
+and appends an explicit exit marker:
 
 ```sh
 ALLOC=<jobid> ./scripts/clara/interactive/go <logname> ./scripts/clara/interactive/<script>.sh
 ```
 
-`go` tees output to a log and appends the exit code, which matters more than usual here — see below.
+`go` takes a **script file**, not an inline command string — multi-line commands passed through
+`srun` have had their newlines collapsed into one mangled command that ran silently. It also refuses
+if the allocation is not RUNNING, and if the script has lost its executable bit (which `sed -i`
+does), because the resulting `srun` failure looks nothing like the real cause.
+
+That explicit exit marker matters more than usual here — see below.
 
 ## Batch: `sbatch_eval_pi05.sh`
 

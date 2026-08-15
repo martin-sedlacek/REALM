@@ -1,6 +1,6 @@
 # Quick start
 
-This page takes you from a working [installation](Installation) to a real evaluation, in four steps
+This page takes you from a working [installation](Installation) to a real evaluation, in steps
 that each verify something before the next one depends on it.
 
 Everything runs **inside the container**. The wrapper that puts you there is
@@ -14,11 +14,39 @@ Everything runs **inside the container**. The wrapper that puts you there is
 
 ## 0. Hold an allocation
 
-`rr` runs on an allocation you already hold — it does not allocate for you.
-
 ```sh
 salloc --no-shell --job-name=realm-interactive --partition=l40s --nodes=1 \
        --cpus-per-task=32 --gres=gpu:L40S:1 --mem=120G --time=24:00:00
+```
+
+Note the job ID it prints — you need it for every command below.
+
+> ### `rr` does not put you on the node. `srun` does.
+>
+> `rr` starts the container **wherever it is invoked**. It does not allocate and it does not `srun`.
+> Run it bare on a login node and you get a container with no GPU, which fails in confusing ways
+> rather than obviously.
+>
+> So every `rr` invocation goes **through `srun` onto the allocation you hold**:
+>
+> ```sh
+> srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr python -u ...
+> ```
+>
+> The repo's `go` wrapper does this for you and adds logging and an explicit exit marker:
+> `ALLOC=<ID> ./scripts/clara/interactive/go <logname> <script> [args...]`. It runs a **script
+> file**, not an inline command string — passing multi-line commands through `srun` has mangled them
+> before, which is why `go` exists.
+>
+> The commands below show the `srun` form explicitly. Drop the prefix only if you already have an
+> interactive shell on the node.
+
+Check the GPU is actually free before using it — holding an allocation does not guarantee nothing
+else is resident on the card:
+
+```sh
+srun --jobid=<ID> --overlap nvidia-smi \
+     --query-compute-apps=pid,used_memory,name --format=csv
 ```
 
 ## 1. Check paths before anything else
@@ -36,7 +64,7 @@ The `debug` model type returns a constant action, so this exercises the whole si
 path without a network dependency. Keep it tiny.
 
 ```sh
-./scripts/clara/interactive/rr \
+srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
   python -u examples/02_evaluate.py \
     --task_id 0 --perturbation_id 0 \
     --repeats 1 --max_steps 20 \
@@ -54,7 +82,7 @@ If that produced a run directory under `/logs/smoke/debug/first`, the install is
 Before running a real vectorized evaluation, check that N environments build and render:
 
 ```sh
-./scripts/clara/interactive/rr \
+srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
   python -u examples/03_vector_first_frames.py \
     --num_envs 4 --task_id 0 --out_dir /logs/vector_first_frames
 ```
@@ -89,7 +117,7 @@ so an eval against a dead port looks like a hang, not an error.
 Single environment:
 
 ```sh
-./scripts/clara/interactive/rr \
+srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
   python -u examples/02_evaluate.py \
     --task_id 0 --perturbation_id 0 \
     --repeats 25 --max_steps 800 --horizon 8 \
@@ -101,7 +129,7 @@ Single environment:
 Vectorized — note this is a **different script** with a slightly different flag set:
 
 ```sh
-./scripts/clara/interactive/rr \
+srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
   python -u examples/04_vector_evaluate.py \
     --num_envs 4 --repeats 25 --max_steps 800 --horizon 8 \
     --task_id 0 --perturbation_id 0 \

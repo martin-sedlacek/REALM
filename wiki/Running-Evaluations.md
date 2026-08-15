@@ -20,13 +20,20 @@ environment.
 
 ## `rr` and `MODE`
 
-Everything runs inside the container. `scripts/clara/interactive/rr` puts you there, on an allocation
-you already hold. It takes **no flags of its own** — everything after `rr` is the in-container
-command, and configuration is by environment variable.
+Everything runs inside the container. `scripts/clara/interactive/rr` puts you there. It takes **no
+flags of its own** — everything after `rr` is the in-container command, and configuration is by
+environment variable.
+
+**`rr` starts the container wherever it is invoked.** It does not allocate and it does not `srun`, so
+it has to be reached through one:
 
 ```sh
-MODE=stock ./scripts/clara/interactive/rr python -u examples/02_evaluate.py --task_id 0 ...
+MODE=stock srun --jobid=<ID> --overlap \
+  ./scripts/clara/interactive/rr python -u examples/02_evaluate.py --task_id 0 ...
 ```
+
+Run bare on a login node you get a container with no GPU. The `go` wrapper does the `srun` for you
+and adds logging — see [Cluster and parallel runs](Cluster-and-Parallel-Runs).
 
 `MODE` selects which OmniGibson the run sees. **`stock` is the default.**
 

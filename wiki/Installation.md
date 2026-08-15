@@ -165,10 +165,11 @@ Then see [Quick start](Quick-Start).
 ## Verifying the install
 
 The strongest check that needs no policy server — it runs all 16 perturbations against one task.
-Like everything else, it runs **inside the container**, via `rr`:
+Like everything else, it runs **inside the container** and **on the allocation**: `rr` starts the
+container wherever you invoke it, so it has to be reached through `srun`.
 
 ```sh
-./scripts/clara/interactive/rr \
+srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
   python -u tests/test_perturbations_integrity.py --repeats 1 --max_steps 1
 ```
 
