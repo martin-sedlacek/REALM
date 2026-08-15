@@ -25,6 +25,12 @@ OUTER_FINGER_OPEN_ANGLE = 0.785
 
 
 class MultiFingerGripperController(OmniGibsonMultiFingerGripperController):
+    """OmniGibson's multi-finger gripper controller with REALM's outer-finger handling.
+
+    Registered as `CustomGripperController`; see `controller_registry.py`, and the module docstring
+    above for what the one override changes and why this is a subclass rather than a copy.
+    """
+
     def compute_control(self, goals):
         """
         Identical to OmniGibson's implementation except for the outer-finger handling in the
