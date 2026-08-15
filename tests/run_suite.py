@@ -99,10 +99,11 @@ SUITE = {
     "test_pi0_integration": dict(
         argv=["tests/test_pi0_integration.py"],
         needs_gpu=True, needs_server=True, timeout=7200, tier="server",
-        verdict=[(r"^FAIL: ", "FAIL"),
+        verdict=[(r"^SKIP: preconditions not met", "SKIP"),
+                 (r"^FAIL: ", "FAIL"),
                  (r"^Failed to run 01_pi0_eval\.py", "FAIL"),
                  (r"^PASS: Pi0-FAST integration test successful!", "PASS")],
-        cells=r"^Task progression: .*",
+        cells=r"^(?:Task progression: |  - ).*",
         note="needs a live openpi policy server on :8000. 500 steps.",
     ),
 }
