@@ -41,8 +41,10 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 RR = str(PROJECT_ROOT / "scripts/clara/interactive/rr")
 
 # ---------------------------------------------------------------------------------------------
-# The suite. `verdict` is an ORDERED list of (regex, status): first match in the log wins, so
-# failure patterns come before success patterns wherever both could appear.
+# The suite. `verdict` is an ORDERED list of (regex, status). Each pattern is searched against the
+# WHOLE log and the first pattern that matches anywhere wins -- not the match that appears earliest
+# in the file. So failure patterns must come before success patterns: a sweep that fails one cell
+# and passes the rest must read FAIL, however late the failing line appears.
 # `cells` extracts the per-item lines a sweep prints, for the detail column.
 # ---------------------------------------------------------------------------------------------
 SUITE = {
@@ -160,8 +162,15 @@ def run_one(name, spec, args, outdir):
             rc = proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            proc.kill()
-            rc = proc.wait()
+            # SIGTERM first, and give srun time to forward it to the step's tasks. SIGKILL straight
+            # to the local srun can leave the Isaac process running on the compute node, holding the
+            # GPU against the next test in the sweep. Escalate only if it does not go.
+            proc.terminate()
+            try:
+                rc = proc.wait(timeout=120)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                rc = proc.wait()
     elapsed = time.time() - started
 
     text = log_path.read_text(errors="replace")
