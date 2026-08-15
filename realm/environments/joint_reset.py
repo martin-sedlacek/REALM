@@ -52,6 +52,7 @@ from realm.environments.utils import (
     reset_joints_batched,
 )
 
+# Normalized openness close_drawer's target drawer starts from; every other joint starts at -1.
 INIT_OPENNESS_FRACTION = 1.0
 
 # The free-run half of a drawer reset: let the cabinet come to rest, tell every one of its joints to
