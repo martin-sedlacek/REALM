@@ -102,8 +102,16 @@ Neither path has a unit test. What exists:
 - `tests/test_integrity.py` / `tests/test_perturbations_integrity.py` sweep the single-env path over
   tasks and perturbations; `tests/test_vector_integrity.py` does both for the vector path. All three
   check that a run produced its artifacts and did not crash -- **not** that any number is right.
-- A run with `--model_type debug` is deterministic: two independent single-env runs of task 0 under
-  `Default` (2 repeats, 30 steps, `MODE=stock`) produced byte-identical reports. That makes a
-  before/after report diff a usable regression check for a refactor, which it would not be under a
-  real policy -- rollouts are nondeterministic within a condition there
-  (see `docs/RESUME_HERE.md`).
+- **A `--model_type debug` run is byte-reproducible on this stack.** Two independent runs of the
+  same command produce identical `reports/*.csv` and identical `qpos`/`actions` parquets, on both
+  paths -- measured 2026-08-16, task 0 / `Default` / 2 repeats / 30 steps, `MODE=stock` single-env
+  and `MODE=oglite` vector at `num_envs=2`. That makes a before/after artifact diff a real
+  regression check for a refactor, which it would not be under a real policy: rollouts are
+  nondeterministic within a condition there (`docs/RESUME_HERE.md`).
+- **mp4 bytes are NOT reproducible.** Two identical runs gave video payloads differing by 11% in
+  size. Compare **frame counts** instead -- parse the `stsz` box, or count what the recorder was
+  given. Frame counts are stable.
+- **A debug run never exercises the render-on-demand blind step.** The debug client returns a
+  single 1-D action rather than a chunk, so the action buffer empties every control step, inference
+  runs every step, and every step renders (29 frames from 30 steps). Exercising the blind-step path
+  end to end needs a real policy server.
