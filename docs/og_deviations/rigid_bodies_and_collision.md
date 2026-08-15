@@ -307,7 +307,8 @@ authored; **C** = constraint imposed on assets (no opt-out); **D** = latent defe
   local volume × the geom's own scale. They feed different consumers and can disagree.
 - **RoboLab's `PhysxCfg` block drops 10 of its 18 keys, and that is RoboLab's doing, not Isaac
   Lab's.** `robolab/core/environments/base.py:171-190` lists both Isaac Lab 2.2 and 2.3 field names
-  and guards each with `if hasattr(physx, attr_name)` (`:192-194`). Isaac Lab 2.2's `PhysxCfg` has 22
+  in one dict, and applies each only if the live `PhysxCfg` object turns out to have an attribute of
+  that name — an existence check, applied per key (`:192-194`). Isaac Lab 2.2's `PhysxCfg` has 22
   fields (`sim/simulation_cfg.py:20-161`) and **none of them are silently dropped** — every one
   reaches PhysX, via `physics_context.py:153-187` or `simulation_context.py:742-787`. The keys
   RoboLab loses are the ones that are not `PhysxCfg` fields at all: `contact_offset`, `rest_offset`,

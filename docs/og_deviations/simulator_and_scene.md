@@ -188,8 +188,9 @@ stepped, despite the train env not taking new actions."*
 - **dt and decimation are equivalent.** Both stacks run physics at **1/120 s** with **decimation 8**.
   OmniGibson: `gm.DEFAULT_PHYSICS_FREQ = 120` (`macros.py:272`) with REALM's `common_freq = 15`
   (`realm/environments/env_dynamic.py:116-118`) → 8 substeps per `og.sim.step()`, verified live via
-  `_n_steps_per_loop × n_physics_timesteps_per_render`. RoboLab: `sim.dt = 1/(60*2)`,
-  `render_interval = 8` (`robolab/core/environments/base.py:159-160`). **Equivalent. Not a
+  `_n_steps_per_loop × n_physics_timesteps_per_render`. RoboLab reaches the same place by setting a
+  physics timestep of 1/120 s and a render interval of 8 (`robolab/core/environments/base.py:159-160`).
+  **Equivalent. Not a
   deviation.** (OmniGibson's *library* default without REALM's override is 30/30/120 → 4 substeps —
   worth knowing when reading a bare `og.launch()` capture, as in Appendix A.)
 - **The 8 substeps are still a measurement trap, not a deviation.** An externally applied force
