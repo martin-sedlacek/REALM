@@ -129,14 +129,14 @@ constraint** / **latent bug**.
 ### G. State published to USD / Fabric
 
 | # | site | what OmniGibson does | consequence |
-|---|---|---|
+|---|---|---|---|
 | 37 | `simulator.py:682-695`, all verified live | `updateToUsd=False`, `updateVelocitiesToUsd=False` (it is `gm.ENABLE_HQ_RENDERING`, default False), `updateParticlesToUsd=True`, `fabricUpdateTransformations=True`, `fabricUpdateVelocities=False`, `fabricUpdateJointStates=False`, `fabricUpdateResiduals=False`, `outputVelocitiesLocalSpace=False`, `fabricUseGPUInterop=True` | **only transforms are published.** Velocities and joint states reach neither USD nor Fabric — any velocity read through a USD/Fabric path is stale, and only the PhysX tensor API is valid. Note the ordering: `enable_fabric` sets `updateParticlesToUsd=False` (`simulation_manager.py:607`) and `_set_renderer_settings` re-enables it at `simulator.py:683` |
 | 38 | `simulator.py:666` | `/rtx/rendermode = "RealTimePathTracing"` | deviation from Kit's default raster path. Images only; belongs to the rendering lane |
 
 ### H. OG-lite-only behaviour changes in this domain
 
 | # | site | what it does | default | why it matters |
-|---|---|---|---|
+|---|---|---|---|---|
 | 39 | `macros.py:233-249`, applied at `simulator.py:1317-1322` | **proximity gate**: objects whose AABB is farther than `PROXIMITY_GATE_RADIUS` from every robot's AABB are dropped from the `RigidContactAPI` contact matrix (rows *and* columns) and skipped in the per-step object-state loop | **`PROXIMITY_GATE_ENABLED = True`, radius 1.5 m — on by default** | the single most behaviour-changing OG-lite default in this domain. Its own docstring says **"TURN THIS OFF FOR MOBILE MANIPULATION"**: membership is computed when the contact view is built (on play, and on handle rebuild), not per step, so a base that drives across the room keeps its initialization-time membership |
 | 40 | `macros.py:217-231` | `CONTACT_REPORTING_PATTERNS` restricts which links get `PhysxContactReportAPI` at load time | `None` (upstream behaviour) | off by default; excluded links are invisible to *every* contact query |
 | 41 | `macros.py:206-215` | `ENABLE_VISUAL_UPDATES`, `OBJECT_STATE_UPDATE_WHITELIST` | `True`, `None` | off by default. The whitelist split is at `simulator.py:530-547`; all state types are still globally initialized (`:566-570`, `:2035-2038`) |
