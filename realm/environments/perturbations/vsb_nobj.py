@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 import omnigibson as og
 from realm.environments.perturbations._helpers import (
     after_play,
-    replace_obj,
     settle,
     sim_play,
     sim_stop,
 )
+from realm.environments.perturbations.object_sampling import replace_obj
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic

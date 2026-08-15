@@ -13,13 +13,12 @@ from realm.environments.utils import load_task_progressions
 TASK_PROGRESSIONS = load_task_progressions()
 from realm.environments.perturbations._helpers import (
     after_play,
-    replace_obj,
-    sample_objects,
     settle,
     sim_play,
     sim_step,
     sim_stop,
 )
+from realm.environments.perturbations.object_sampling import replace_obj, sample_objects
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
@@ -45,7 +44,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
 
     new_verb_for_task = random.choice(available_task_types)
     env.task_type = new_verb_for_task
-    # deepcopy is load-bearing, for the same reason as in env_base.py: TASK_PROGRESSIONS is built ONCE
+    # deepcopy is load-bearing, for the same reason as in task_progression.py: TASK_PROGRESSIONS is built ONCE
     # at module import and recompute_task_progression MUTATES this dict in place
     # (self.task_progression[stage] = True), short-circuiting on stages already marked True. Assigning
     # it directly gave every member that drew the same new verb ONE SHARED progression dict, so one
@@ -58,7 +57,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
         included_categories = ["bowl", "wineglass"]
 
     if len(env.target_objects) == 0:
-        nobj_cfg = sample_objects(env, num_objects=1, included_categories=included_categories)[0]
+        nobj_cfg = sample_objects(num_objects=1, included_categories=included_categories)[0]
         env.cfg['instruction_target_to_replace'] = nobj_cfg["category"]
         nobj_cfg["name"] = "receiver"
 
@@ -179,7 +178,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
     #
     # The wall this used to be expected to hit -- update_initial_file() -> scene.dump_state()
     # asserting "Object must be initialized before dumping state!" -- is fixed, in
-    # RealmVectorEnvironment._repair_init_queue() rather than in any perturbation, so it
+    # environments/vec_init_queue.py rather than in any perturbation, so it
     # applies here too. STILL UNVERIFIED END TO END, though: only V-SC has actually been run
     # vectorized (t9_vbpose_nostopplay.py --perturbation V-SC, 2 members x 3 resets). SB-VRB also
     # ADDS a "receiver" that the other members' scenes do not have, which is a case V-SC never

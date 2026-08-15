@@ -26,19 +26,19 @@ N times, each time disturbing the other N-1 members mid-reset.
 ```
 1. every member restores its own scene                   (no global state touched)
 2. ONE joint-reset loop for every member that asked      (drawer tasks only)
-3. repair the sim's object-init queue                    (see "eviction" below)
-4. ONE og.sim.stop(), only if a member's perturbation needs it
-5. every member's perturbations run
-6. ONE og.sim.play()
-7. work the perturbations deferred because it needs a playing sim
-8. ONE joint-reset loop again, for the perturbations that ask for one
-9. ONE settle loop driving all members together, if any asked for it
+3. ONE og.sim.stop(), only if a member's perturbation needs it
+4. every member's perturbations run
+5. repair the sim's object-init queue, then ONE og.sim.play()   (see "eviction" below)
+6. work the perturbations deferred because it needs a playing sim
+7. ONE joint-reset loop again, for the perturbations that ask for one
+8. ONE settle loop driving all members together, if any asked for it
+9. every member re-takes its main-object scoring reference
 ```
 
 Perturbations never call the global operations directly. They route through
 `perturbations/_helpers.py` — `sim_stop`, `sim_play`, `sim_step`, `after_play`, `settle` — which
 no-op or defer when `env.in_vec_env`. `reset_joints()` follows the same shape via
-`env_base.run_joint_resets()`. **Single-env behaviour is unchanged**, which is what lets the
+`environments/joint_reset.py`. **Single-env behaviour is unchanged**, which is what lets the
 historical numbers stay comparable.
 
 Note the shape `settle()` uses, and which `reset_joints()` copies: in a vector env it **raises a
@@ -92,7 +92,7 @@ sampled `distractor_<i>` ones, whose names do not collide.
 strictly narrower than the name test and always the correct entry, since `scene.add_object` already
 forbids two live same-named objects in one scene. Against the fork the repair below finds nothing.
 
-`RealmVectorEnvironment._repair_init_queue()` is **kept**, as a net rather than a workaround, because
+`vec_init_queue.repair_init_queue()` is **kept**, as a net rather than a workaround, because
 the OG-lite bind is optional and the fix does not travel with the image. `rr` defaults to
 `MODE=stock`, and `MODE=stockfix` — the configuration `make_stock_patch.sh` exists to prepare and
 that both build recipes wire in — binds only `scenes/scene_base.py`, so it still runs the stock
@@ -117,6 +117,35 @@ nothing is evicted.
 two build recipes alongside the `scene_base.py` patch. Until that happens, `MODE=stockfix` and the
 rebuilt SIF carry the bug, and the net above is what keeps them working.
 
+#### The same pop has a second half: the corpse keeps its slot
+
+One wrong pop causes two symmetric problems, and `repair_init_queue()` fixes both:
+
+  **(a)** a **live** object is knocked off the queue and is never initialised — the case above;
+  **(b)** the object that was actually **removed** stays *on* the queue, and the next `play()` runs
+  `initialize()` on a prim that has already been deleted from the stage.
+
+(b) only bites when the removed object was itself still pending, which needs a member to **add** an
+object and then **remove** it inside ONE stopped window. SB-VRB is the only perturbation that does
+that: on a task with no target (`pick_spoon`) it adds a `receiver` and then, if the new verb is
+put/stack, `replace_obj()`s it. Measured on task 4, Vec=2 — member 1 removed its own brand-new
+`receiver`, the pop took member 0's instead, and the batched `play()` then did:
+
+```
+File "omnigibson/simulator.py", line 1273, in _non_physics_step
+  obj.initialize()
+...
+Exception: prim view ['/World/scene_1/receiver/base_link'] is not a valid view
+```
+
+The repair therefore drops the corpses **first**, so the queue is clean before it looks for orphans.
+Telling a corpse from a live object cannot be done by asking whether a prim exists at its path —
+`replace_obj` re-creates the replacement at the **same** relative prim path, so the path is occupied
+again a moment later. (Tried; it silently disabled the whole repair and the crash came straight
+back.) Identity against the scene registry is what distinguishes them, with the empty-prim-path test
+kept only for the case where nothing holds the name at all — which also has to spare
+`scene.add_object(..., register=False)` particle-system templates.
+
 ### 3. The repair running too late
 
 `play()` initialises whatever is on the queue and **then** calls `update()` on every object's states
@@ -140,6 +169,78 @@ play. So anything referencing a just-created object must be **inside** `_post_pl
 
 This one the vectorization refactor **introduced**. It is the failure mode to expect from any future
 perturbation that creates objects.
+
+## The scoring reference: `mo_pos_orig`, `mo_rot_orig`, `mo_bbox_orig`
+
+`mo_pos_orig` / `mo_rot_orig` are the **start-of-rollout** reference the progression stages are
+judged against — `check_lift_and_distance_condition()` (LIFT_SLIGHT, LIFT_LARGE, PUSH) measures both
+the lift `pos.z - mo_pos_orig.z` and the travel `‖pos - mo_pos_orig‖`, and `check_rotated()`
+(ROTATED) measures against `mo_rot_orig`.
+
+`RealmEnvironmentBase.__init__` seeds them from the task config, which is only right while
+`main_objects[0]` is still the object the config declared. Three perturbations change that **during**
+`reset()`, after the seed:
+
+| perturbation | what it does to `main_objects[0]` |
+|---|---|
+| SB-NOUN | pops a random distractor and swaps it in (`sb_noun.py`) |
+| VSB-NOBJ | replaces it with a freshly sampled object (`vsb_nobj.py`) |
+| VB-MOBJ | replaces it with a rescaled copy (`vb_mobj.py`) |
+
+Without a re-capture the reference described one object while the checks read another. Measured
+2026-08-13, SB-NOUN on task 0, 6 resets (`scripts/clara/interactive/t11_mopos_ref.py`): right after
+`reset()` the reference sat 0.111–0.465 m (mean 0.285 m) from the object being scored, and
+LIFT_SLIGHT answered True **at rest** on 3 of 6 resets — progression that never happened.
+
+`RealmEnvironmentBase.capture_mo_reference()` re-takes both from the live object. It must be called
+**only at the end of a reset, never while stepping**: it records where the object *started*, and a
+reference that followed the object would drive both terms to zero and make every lift/distance check
+permanently False — silently deleting the stage instead of fixing it. `t11_mopos_ref.py`'s
+`[FROZEN]` section tests that direction explicitly.
+
+It is one method rather than a line in each perturbation so that a future perturbation that swaps
+the object cannot forget it: every reset path ends there. The call sites are
+`RealmEnvironmentDynamic.apply_perturbations()` (the phase that does the swapping, and the tail of
+`reset()`) plus both warmups. `RealmVectorEnvironment.reset()` needs its own call, because
+`apply_perturbations()` runs there before the shared play — exactly as it already needs its own
+settle and its own deferred post-play drain.
+
+### Why `mo_bbox_orig` is an anchor, not a live value
+
+`mo_bbox_orig` is seeded on the line right after the other two and looks like it has the same
+staleness shape. It does not, and `capture_mo_reference()` deliberately leaves it alone — for three
+separate reasons, any one of which is enough:
+
+- **It is an anchor, not a description of the current object.** Its only reader is VB-MOBJ, which
+  computes `mo_bbox_orig * U(0.5,1.5)³` **every** reset and then rescales (`PrimitiveObject`) or
+  removes-and-re-adds (`DatasetObject`) `main_objects[0]` at that size. Re-taking it would make each
+  reset scale relative to the previous reset's already-scaled object — a multiplicative random walk
+  that ends up pinned against `vb_mobj.py`'s `[0.02, 0.175] m` clip. Anchoring on the task config is
+  what keeps VB-MOBJ's draw independent per reset, which is also what the harness's `size`
+  observable assumes.
+- **The staleness itself is unreachable.** The perturbations that re-point `main_objects[0]` at a
+  *different* object are SB-NOUN and VSB-NOBJ, and REALM runs exactly one perturbation per process
+  (`eval.py` builds `[SUPPORTED_PERTURBATIONS[perturbation_id]]`, `vector_eval.py`
+  `[perturbation]`), so neither can ever precede VB-MOBJ. VB-MOBJ's own swap is
+  same-category/same-model, and is the swap the anchor exists to survive.
+- **There is nothing sound to capture.** For a `PrimitiveObject`, `vb_mobj.py` assigns this value to
+  `mo.scale`, which is a scale *factor*; it only coincides with an extent because primitives are
+  authored at scale 1. `get_position_orientation()` has no analogue for it.
+
+If perturbations are ever **composed** — the same caveat `v_view.py` records — SB-NOUN followed by
+VB-MOBJ would leave `mo_bbox_orig` describing an object that is no longer the target. The fix then
+belongs in the perturbation that does the swapping (re-seed from the new object's *config*), not in
+`capture_mo_reference()`: that method reads the live object, which is exactly what `mo_bbox_orig`
+must not do.
+
+### There is exactly one `replace_obj`
+
+`RealmEnvironmentDynamic.replace_obj()` used to sit in `env_dynamic.py` alongside
+`perturbations/object_sampling.replace_obj()`. It was a pre-refactor duplicate with **zero** call sites left
+— every perturbation imports the `_helpers` one — and it still carried the bbox-centre-as-extent bug
+that `_helpers` and `sb_vrb.py` have since fixed (a world-frame centre read as a half-width; §1).
+Deleted rather than repaired, so there is only one copy to keep correct: the next person to wire up
+"replace an object" has to find the live one.
 
 ## Testing: a pass is not evidence unless something asserts the effect
 
@@ -188,7 +289,7 @@ DatasetObject, so **a task-0 pass says nothing about its add/remove path** — i
 - ~~**`open_drawer` / `close_drawer` do not build**~~ (`preset_name` `TypeError`) — CLOSED
   2026-08-14 by OG-lite `59af7c0`; both tasks load and pass `tests/test_vector_integrity.py`.
 - ~~**`reset_joints()`'s batching is UNVERIFIED**~~ — CLOSED 2026-08-14, measured on a real
-  cabinet; see `env_base.run_joint_resets()`.
+  cabinet; see `environments/joint_reset.py`.
 - ~~**Scene 0's drawers never reached the commanded openness**~~ — CLOSED 2026-08-14, and worth
   reading, because the symptom pointed at three innocent places. `reset_joints()` commanded all five
   cabinet joints to a normalized -1.0 and in SCENE 0 ONLY the target joint settled at 0.17-0.19 m of

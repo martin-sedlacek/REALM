@@ -3,10 +3,15 @@ from __future__ import annotations
 import numpy as np
 from typing import TYPE_CHECKING
 
-from realm.environments.perturbations._helpers import apply_cached_semantic_perturbations
-
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
+
+
+def apply_cached_semantic_perturbations(env: "RealmEnvironmentDynamic", perturbation: str) -> None:
+    """Swap the instruction for one of the rewrites the task config pre-computed for @perturbation."""
+    tmp = env.cfg["cached_semantic_perturbations"][perturbation]
+    idx = np.random.randint(0, len(tmp))
+    env.instruction = tmp[idx]
 
 
 def s_prop(env: "RealmEnvironmentDynamic") -> None:

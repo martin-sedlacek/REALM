@@ -8,9 +8,8 @@ One REALM environment is stitched together from five config files:
   config/env/external_sensors/camera_config.yaml   external camera sensor spec
 
 The section builders take the RealmEnvironmentDynamic instance because they also populate
-attributes the environment needs later (spawn_bbox, robot_pos, robot_rot_rad, ee_control,
-reset_qpos, and the resolved scene_model/scene_part). Behaviour is unchanged from when this
-lived on the class; it is split out so the config schema can be read on its own.
+attributes the environment needs later: spawn_bbox, robot_pos, robot_rot_rad, ee_control,
+reset_qpos, and the resolved scene_model/scene_part.
 """
 import copy
 import math
@@ -27,6 +26,7 @@ from realm.environments.constants import (
     DROID_BASE_HEIGHT,
     DROID_DEFAULT_DOF,
 )
+from realm.environments.perturbations.object_sampling import sample_objects
 from realm.placement import get_non_colliding_positions_for_objects
 
 
@@ -38,13 +38,13 @@ def build_environment_config(env):
     scene_cfg, scene_data = _apply_scene_cfg(env, cfg, task_cfg)
     robot_pos, robot_rot = _apply_robot_cfg(env, cfg, task_cfg, scene_data)
     distractors = _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data)
+    _apply_env_cfg(cfg)
     _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot)
 
     return (copy.deepcopy(cfg),
-            copy.deepcopy([o for o in task_cfg["main_objects"]]),
-            copy.deepcopy([o for o in task_cfg["target_objects"]]),
-            copy.deepcopy([o for o in distractors])
-            )
+            copy.deepcopy(task_cfg["main_objects"]),
+            copy.deepcopy(task_cfg["target_objects"]),
+            copy.deepcopy(distractors))
 
 
 def _apply_scene_cfg(env, cfg, task_cfg):
@@ -115,7 +115,10 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
         torch.tensor(robot_rot, dtype=torch.float32)).tolist()
     cfg_robot["robots"][0]["fixed_base"] = True
 
-    # OG 3.9.1 selects a robot by `model` (a RobotDefinition YAML name), not by Python class.
+    # OG 3.9.1 selects a robot by `model` (a RobotDefinition YAML name), not by Python class:
+    # DROID and UR are declared as RobotDefinition YAMLs under realm/robots/definitions/ and
+    # instantiated by OmniGibson's single Robot class, and WidowX uses OmniGibson's stock `vx300s`
+    # definition -- so there is no robot class for the environment to import any more.
     # The base-mounted DROID used to be chosen by importing a different module; it is now a
     # separate definition. `type` in the REALM robot configs is still accepted -- OmniGibson
     # lowercases it into `model` -- but we set `model` explicitly so the mounted variant works.
@@ -184,7 +187,7 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
         for obj in task_cfg["main_objects"] + task_cfg["target_objects"]:
             if "category" in obj:
                 excluded_categories.append(obj["category"])
-        distractors = env.sample_objects(num_objects=num_distractors, excluded_categories=excluded_categories)
+        distractors = sample_objects(num_objects=num_distractors, excluded_categories=excluded_categories)
 
         cfg["objects"] = get_non_colliding_positions_for_objects(
             xmin=env.spawn_bbox[0],
@@ -210,21 +213,26 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
     return distractors
 
 
-def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
-    """Add the external camera sensors to cfg["env"] (skipped when rendering is off)."""
+def _apply_env_cfg(cfg):
+    """Create cfg["env"] and pin the torch backend device when GPU dynamics is on.
+
+    The device has to move with gm.USE_GPU_DYNAMICS -- both are driven by the same
+    REALM_GPU_DYNAMICS knob (realm/sim_config.py). With GPU dynamics on but the backend left on
+    OmniGibson's "cpu" default, the PhysX articulation view lives on the GPU and
+    ArticulationView.get_joint_positions() returns None to a CPU reader, so the first get_obs()
+    after reset dies with `AttributeError: 'NoneType' object has no attribute 'view'`
+    (entity_prim.py:864), which Isaac then turns into a segfault. Measured 2026-08-13, job 190243.
+    """
     if "env" not in cfg:
         cfg["env"] = {
             "initial_pos_z_offset": 0.2
         }
-    # OmniGibson's torch backend device, which env_base.py defaults to "cpu". It has to move with
-    # gm.USE_GPU_DYNAMICS: with GPU dynamics on but the backend left on CPU, the PhysX articulation
-    # view lives on the GPU and ArticulationView.get_joint_positions() returns None to a CPU reader,
-    # so the first get_obs() after reset dies with
-    #   AttributeError: 'NoneType' object has no attribute 'view'   (entity_prim.py:864)
-    # which Isaac then turns into a segfault. Measured 2026-08-13, job 190243.
-    # Driven by the same REALM_GPU_DYNAMICS knob that sets the macro (realm/sim_config.py).
     if os.environ.get("REALM_GPU_DYNAMICS") == "1":
         cfg["env"]["device"] = os.environ.get("REALM_TORCH_DEVICE", "cuda:0")
+
+
+def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
+    """Add the external camera sensors to cfg["env"] (skipped when rendering is off)."""
     if not env.no_rendering:
         ext_cam1_pose = task_cfg["camera_extrinsics"]["cam1"] if "camera_extrinsics" in task_cfg else "default"
         if "camera_extrinsics" in task_cfg and "cam2" in task_cfg["camera_extrinsics"]:
