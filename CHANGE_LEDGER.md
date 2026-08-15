@@ -143,11 +143,23 @@ reads backwards):
 So patching `rigid_prim.py` demonstrably does not repair the hull: the loader-patched run is as
 backwards as the unpatched one. Only removing the dropped transform from the asset fixes both.
 
-**The bbox site reaches live REALM code, not just diagnostics.** `get_base_aligned_bbox()` is called
-at `realm/environments/perturbations/_helpers.py:200` and `realm/environments/perturbations/sb_vrb.py:74`,
-both in perturbation object replacement. Any object whose collision geometry sits under an
-intermediate Xform can therefore receive a **wrong bounding box during a perturbation**. Not measured
-on any BEHAVIOR object — flagged, not quantified.
+**Live REALM code is affected — but via the HULL site, not the bbox site.** Corrected: an earlier
+version of this file attributed it to `object_utils.py:88`. Wrong. `get_base_aligned_bbox()` at
+`realm/environments/perturbations/_helpers.py:200` and `sb_vrb.py:74` routes through
+`USDObject.get_base_aligned_bbox` → **`geom_prim.py:250`**, i.e. **site 2**. `object_utils.py:88` is a
+third independent copy whose only caller is offline metadata tooling.
+
+That makes the exposure *worse*, not better, and it joins up with the table above: the live REALM path
+runs through the one site that is both **measured broken** and **not repaired by the loader patch**.
+Quantified on the Robotiq links — every collision **and visual** hull is **61.09–192.66 mm** off
+centre, with extents wrong by up to **31.80 mm** — against **0.00 mm on all eight `panda_link*`** under
+the same loader and the same robot. The defect is asset-structure dependent, which is exactly why it
+survived unnoticed.
+
+**Consequence for the route choice, and it is now decided on evidence rather than taste:** the loader
+patch fixes the curl but leaves the hull — and therefore `get_base_aligned_bbox()` in live perturbation
+code — still wrong. Only removing the dropped transform from the asset (`xform-flatten`, or
+`--mass --anchor`) repairs both. Not measured on any BEHAVIOR object; flagged, not quantified.
 
 **Consequence for choosing a route:** the asset-side fixes (`xform-flatten`, or `--mass --anchor`)
 repair all three sites at once, because they remove the dropped transform rather than compensating for
