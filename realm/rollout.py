@@ -97,6 +97,7 @@ def enqueue_action_chunk(buffer, chunk, horizon):
     """Queue up to `horizon` actions from one policy prediction.
 
     A chunk is (chunk_length, action_dim); a policy predicting a single action may return it 1D.
+    Anything with more dimensions is a bug in the client, and trips the assert below.
     """
     if len(chunk.shape) == 2:
         for action in chunk[:horizon]:

@@ -141,6 +141,22 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         """One of ControllableObjectViewAPI's (N, n_dof) generalized-force arrays, on sim device."""
         return cb.to_torch(getter(self.routing_path)).to(og.sim.device)[self.view_row_indices, :]
 
+    def _update_goal(self, controller_idx, command):
+        """Clip one member's commanded joint positions to their limits and hold velocity at zero."""
+        target_joint_pos = cb.to_torch(command).to(og.sim.device)
+
+        target_joint_pos = target_joint_pos.clip(
+            cb.to_torch(self._control_limits[ControlType.get_type("position")][0][self.dof_idx]).to(og.sim.device),
+            cb.to_torch(self._control_limits[ControlType.get_type("position")][1][self.dof_idx]).to(og.sim.device),
+        )
+
+        target_joint_vel = th.zeros_like(target_joint_pos)
+
+        return dict(
+            target_joint_pos=cb.from_torch(target_joint_pos),
+            target_joint_vel=cb.from_torch(target_joint_vel),
+        )
+
     def compute_control(self, goals):
         """
         Args:
@@ -202,22 +218,6 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             us.append(u)
 
         return cb.from_torch(th.stack(us))  # (N, control_dim)
-
-    def _update_goal(self, controller_idx, command):
-        """Clip one member's commanded joint positions to their limits and hold velocity at zero."""
-        target_joint_pos = cb.to_torch(command).to(og.sim.device)
-
-        target_joint_pos = target_joint_pos.clip(
-            cb.to_torch(self._control_limits[ControlType.get_type("position")][0][self.dof_idx]).to(og.sim.device),
-            cb.to_torch(self._control_limits[ControlType.get_type("position")][1][self.dof_idx]).to(og.sim.device),
-        )
-
-        target_joint_vel = th.zeros_like(target_joint_pos)
-
-        return dict(
-            target_joint_pos=cb.from_torch(target_joint_pos),
-            target_joint_vel=cb.from_torch(target_joint_vel),
-        )
 
     def compute_no_op_goal(self, controller_idx):
         target_joint_pos = cb.to_torch(self._get_joint_positions()[controller_idx]).to(og.sim.device)
