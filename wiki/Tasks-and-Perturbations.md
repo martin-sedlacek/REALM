@@ -113,12 +113,35 @@ constructor asserts every requested name is a key of it.
 |---:|---|---|
 | 1 | `V-AUG` | Image quality: Gaussian blur and contrast scaling applied to every rendered view, including the wrist view. |
 | 2 | `V-VIEW` | External camera pose: re-draws a calibrated viewpoint, then jitters position and pitch/yaw. |
-| 3 | `V-SC` | Scene clutter: re-places and re-models the scene's distractor objects — five of them — into a single spawn region. See the caveat under [Known issues](Known-Issues-and-Gotchas): that region is over-subscribed, and roughly two objects per reset fail placement and are dropped in. |
+| 3 | `V-SC` | Scene clutter: re-places the scene's objects collision-free within the spawn region, then swaps each **distractor** for a different object drawn from a different category theme. It does not add objects — it works with the distractors the task config already declares. See the caveats below. |
 | 4 | `V-LIGHT` | Illumination: randomises every light's intensity across a wide range and shifts its colour. |
 
 `V-AUG` is the odd one out: it changes no scene state, so its registry entry is the no-op. The
 augmentation is applied in the **observation path** instead — the environment draws the blur and
 contrast parameters once per reset and applies them to each observation.
+
+> ### ⚠ `V-SC` does nothing on three tasks
+>
+> The number of distractors is **declared per task**, and `V-SC` re-places and re-models whichever
+> ones exist rather than spawning new ones. Read from the task configs:
+>
+> | distractors | tasks |
+> |---:|---|
+> | 5 | `put_green_block_into_bowl` |
+> | 4 | `put_banana_into_box`, `rotate_marker` |
+> | 3 | `rotate_mug`, `pick_spoon`, `pick_water_bottle` |
+> | 2 | `stack_cubes` |
+> | **0** | **`push_switch`, `open_drawer`, `close_drawer`** |
+>
+> On the three tasks with no distractors there is nothing for `V-SC` to clutter with or swap out, so
+> it is effectively inert — while still costing a full stopped-simulator reset. Averaging `V-SC`
+> across all ten tasks therefore averages in three near-no-ops.
+>
+> *Read from the task configs and `v_sc.py`, not measured at runtime.*
+>
+> Separately, on the tasks that do have distractors, the spawn region is over-subscribed: roughly two
+> objects per reset fail collision-free placement and are dropped in from above. See
+> [Known issues](Known-Issues-and-Gotchas).
 
 ### Semantic — instruction only, scene untouched
 

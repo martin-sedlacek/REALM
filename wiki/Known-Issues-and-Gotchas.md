@@ -31,15 +31,23 @@ on task 6**, with a further 20–25% silent no-op rate on some others.
 Where it degenerates, the perturbation is weaker than its name suggests. Factor that into any
 per-perturbation comparison rather than reading `SB-NOUN` as uniformly hard.
 
-### The `V-SC` spawn region is over-subscribed — *known and accepted*
+### `V-SC` is inert on three tasks, and over-subscribed on the rest
 
-`V-SC` re-places and re-models **five** distractors into a single spawn region that is too small for
-them. Roughly **two objects per environment per reset** fail collision-free placement after the
-attempt budget is exhausted and are dropped in from above.
+Two separate things, both worth knowing before averaging `V-SC` across tasks.
 
-So `V-SC` includes some falling-object dynamics that are not really part of its intent. Older
-documentation describing it as "spawns 3 random distractors" is wrong on both the count and the
-mechanism.
+**It does nothing on `push_switch`, `open_drawer` and `close_drawer`.** `V-SC` re-places and
+re-models the distractors a task *already declares*; it does not spawn new ones. Those three tasks
+declare **zero** distractors, so there is nothing to clutter with — while the perturbation still
+pays for a full stopped-simulator reset. A `V-SC` average over all ten tasks is averaging in three
+near-no-ops. *(Read from the task configs and `v_sc.py`; not measured at runtime.)*
+
+**Where it does act, the spawn region is over-subscribed** — *known and accepted*. On the task with
+the most distractors, roughly **two objects per environment per reset** fail collision-free placement
+after the attempt budget is exhausted and are dropped in from above. So `V-SC` carries some
+falling-object dynamics that are not really part of its intent.
+
+Older documentation describing `V-SC` as "spawns 3 random distractors" is wrong on the count, on the
+per-task variation, and on the mechanism.
 
 ### Vector results before the rubric fix have invalid success rates
 
