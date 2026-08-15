@@ -105,7 +105,7 @@ class RealmVectorEnvironment:
             2. ONE joint-reset loop for every member that asked for one (drawer tasks only)
             3. ONE og.sim.stop(), if any member's perturbation needs it
             4. every member's perturbations run
-            5. ONE og.sim.play(), then repair of the sim's object-init queue
+            5. repair of the sim's object-init queue, then ONE og.sim.play()
             6. work the perturbations deferred because it needs a playing sim
             7. ONE joint-reset loop again, for the perturbations that ask for one
             8. ONE settle loop driving all members together, if any asked for it

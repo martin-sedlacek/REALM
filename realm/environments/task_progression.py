@@ -32,11 +32,11 @@ TASK_PROGRESS_RUBRICS = load_task_progressions()
 class TaskProgressionMixin:
     """The stage checkers behind a task's rubric.
 
-    Expects the host to provide the scene handles (``main_objects``, ``target_objects``, ``robot``,
-    ``robot_finger_links``), the start-of-rollout scoring reference (``mo_pos_orig``,
-    ``mo_rot_orig``), the drawer-joint state ``JointResetMixin`` records (``mo_joint``,
-    ``joint_range``, ``init_openness_fraction``), and the contact predicates ``is_grasping`` /
-    ``is_touching``.
+    Expects the host to provide ``task_type``, the scene handles (``main_objects``,
+    ``target_objects``, ``robot``, ``robot_finger_links``), the start-of-rollout scoring reference
+    (``mo_pos_orig``, ``mo_rot_orig``), the drawer-joint state ``JointResetMixin`` records
+    (``mo_joint``, ``joint_range``, ``init_openness_fraction``), and the contact predicates
+    ``is_grasping`` / ``is_touching``.
     """
 
     def _init_task_progression(self, task_type):
@@ -88,7 +88,7 @@ class TaskProgressionMixin:
             assert 0.0 <= reward <= 1.0
         return reward
 
-    # ============================== [POSE STAGES] ==============================
+    # ============================== [PROXIMITY AND GRASP STAGES] ==============================
     def check_reach_condition(self, obs):
         mo = self.main_objects[0]
 
@@ -115,6 +115,7 @@ class TaskProgressionMixin:
     def check_touch_condition(self, obs):
         return self.is_touching(obs, self.main_objects[0])
 
+    # ============================== [MOTION STAGES] ==============================
     # NOTE: switched to checking Z axis rotation only, possible it is still bad but seems to be working well now
     def check_rotated(self, obs, rot_threshold=1.1):
         mo = self.main_objects[0]
