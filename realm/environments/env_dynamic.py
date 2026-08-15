@@ -90,10 +90,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
             cfg["env"]["action_frequency"] = common_freq
 
         # Duplicated from RealmEnvironmentBase.__init__, which finalize_setup() runs later and which
-        # overwrites all three with the same values -- a vector env defers that far enough that a
-        # perturbation could read them first. Read capture_mo_reference() before touching these, in
-        # particular for why mo_bbox_orig is an anchor on the task config and must NOT track the
-        # live object.
+        # overwrites all three with the same values. Read capture_mo_reference() before touching
+        # these -- in particular why mo_bbox_orig is an anchor on the task config and must NOT track
+        # the live object.
         self.mo_pos_orig = np.array(mo_cfgs[0]["position"])
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
@@ -310,7 +309,10 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         OG 3.9.1: robot._controllers[name] is a (group_key, controller_idx) TUPLE, not the controller
         object -- instances live in the ControllerView registry, shared by every robot whose
         kinematic-tree pattern and controller config hash match. So the mode is read off the registry
-        rather than off the entry.
+        rather than off the entry; reading `.mode` straight off the tuple raised `AttributeError:
+        'tuple' object has no attribute 'mode'`. That line is only reachable with ee_control set,
+        which is why it survived the port unnoticed -- it took down BOTH warmup paths for every
+        EE-control config before a single rollout step ran.
         """
         if not self.ee_control:
             return None

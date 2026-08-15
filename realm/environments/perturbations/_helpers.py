@@ -4,7 +4,8 @@
 simulator, not on one member. REALM applies perturbations per member inside ``reset()``, so a
 perturbation that calls them directly does N times the work in a vector env AND disturbs its
 siblings mid-reset. Measured (job 190555, VB-POSE Vec=4): three of four members lost their main
-object from the contact view, scored TP=0.00 with zero collisions, and the job still exited 0.
+object from the contact view and scored TP=0.00, 18 of 25 rollouts logged zero environment
+collisions and never left REACH, and the job still exited 0.
 
 So perturbations never call them directly. They call the wrappers below, which no-op (or defer, or
 raise a flag) when the member belongs to a vector env; ``RealmVectorEnvironment.reset()`` then

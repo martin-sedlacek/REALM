@@ -68,7 +68,7 @@ class SceneSetupMixin:
                         prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
 
     def apply_scene_fixes_from_cfg(self, manage_sim_state=True):
-        """Pin or delete the scene objects config/scenes/scenes.yaml names for this scene part.
+        """Pin or delete the scene objects that config/scenes/scenes.yaml lists for this scene part.
 
         Adding and removing objects needs a STOPPED sim. @manage_sim_state=False leaves the cycle to
         the caller, which is how RealmVectorEnvironment runs one cycle for all members instead of N.

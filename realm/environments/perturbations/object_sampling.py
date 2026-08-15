@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
-# bottom_cabinet models with exactly the drawer layout the drawer tasks assume. Commented-out
-# entries are models that load but are unusable for the task, and the reason each was dropped.
+# bottom_cabinet models the drawer tasks may draw from. The commented-out entries record models
+# that were tried and rejected, each with its reason.
 DRAWER_CABINET_MODELS = [
     "bamfsz",
     "dsbcxl",

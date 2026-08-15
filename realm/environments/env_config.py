@@ -115,7 +115,10 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
         torch.tensor(robot_rot, dtype=torch.float32)).tolist()
     cfg_robot["robots"][0]["fixed_base"] = True
 
-    # OG 3.9.1 selects a robot by `model` (a RobotDefinition YAML name), not by Python class.
+    # OG 3.9.1 selects a robot by `model` (a RobotDefinition YAML name), not by Python class:
+    # DROID and UR are declared as RobotDefinition YAMLs under realm/robots/definitions/ and
+    # instantiated by OmniGibson's single Robot class, and WidowX uses OmniGibson's stock `vx300s`
+    # definition -- so there is no robot class for the environment to import any more.
     # The base-mounted DROID used to be chosen by importing a different module; it is now a
     # separate definition. `type` in the REALM robot configs is still accepted -- OmniGibson
     # lowercases it into `model` -- but we set `model` explicitly so the mounted variant works.

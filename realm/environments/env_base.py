@@ -18,7 +18,8 @@ from realm.environments.task_progression import TaskProgressionMixin
 from realm.inference.utils import get_robot_obs_profile
 from realm.robots.controller_registry import register_realm_controllers
 
-# Re-exported: tests/ and scripts/clara/interactive/ import these from here.
+# Re-exported: these five are imported from here by tests/test_joint_reset_batching.py and by
+# scripts/clara/interactive/{t9,t13}*.py, which predate the split.
 from realm.environments.joint_reset import (  # noqa: F401
     JOINT_HOLD_STEPS,
     JOINT_SETTLE_STEPS,
@@ -93,9 +94,10 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         have to change if perturbations were ever composed are in docs/vector_env/PERTURBATIONS.md
         under "The scoring reference".
         """
-        # Stored as OmniGibson hands them back (torch, cloned, so a snapshot rather than a view onto
-        # the physics buffer). Deliberately NOT converted to numpy: this is byte-for-byte what
-        # warmup() has always stored, so no historical number moves.
+        # Stored as OmniGibson hands them back (torch, cloned -- RigidDynamicPrim.get_position_
+        # orientation defaults to clone=True, so this is a snapshot and not a view onto the physics
+        # buffer). Deliberately NOT converted to numpy: this is byte-for-byte what warmup() has
+        # always stored, so no historical number moves.
         self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
 
     # ============================== [STATUS] ==============================
