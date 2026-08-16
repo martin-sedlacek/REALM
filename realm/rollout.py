@@ -35,27 +35,47 @@ SHORT_TRAJECTORY_SAMPLES = 4
 #: target is a placement rather than a drop.
 PLACEMENT_TASK_TYPES = ("put", "stack")
 
+
 def wants_base_im_second(task_type, base_im_second):
-    """Whether this step should send the SECOND exterior camera to the policy instead of the first.
+    """Whether this step sends the SECOND exterior camera to the policy instead of the first.
 
-    The DROID policies take one exterior view. REALM frames the drawer tasks better on
-    `external_sensor1` than on `external_sensor0`, so the drawer task types -- and only those --
-    hand the policy the second view.
+    The DROID policies take one exterior view, so one of REALM's two exterior cameras has to be
+    picked. The code has always intended to pick the second one for the drawer tasks. It never
+    did, and WHY it should is not recoverable -- read the caveat below before relying on this.
 
-    Two things this has to get right, both of which were wrong or absent before:
+    Two things this has to get right:
 
-      * The task types are ``open_drawer`` / ``close_drawer``. The comparison here read
-        ``task_type == "open_close_drawer"`` from the pre-port checkout through to 2026-08-16 --
-        a string no task config declares, in either the 1.1.1 tree or this one -- so the second
-        camera was NEVER selected, for any task, in any run. Confirmed against
-        `realm/config/tasks/REALM_DROID10/*/default.yaml` in both checkouts.
+      * The task types are ``open_drawer`` / ``close_drawer``. The comparison read
+        ``task_type == "open_close_drawer"`` -- a string no task config declares, in this tree or
+        the pre-port 1.1.1 one -- so the second camera was NEVER selected, for any task, in any
+        run. `git log -S` in the 1.1.1 repo puts that string in `6e895fd init`, the project's
+        first commit, and finds no `task_type: "open_close_drawer"` ever: it is not a rename
+        casualty, it has simply never matched anything.
 
-      * ``base_im_second`` is None whenever the run has no second exterior camera, which is every
-        run without ``--multi-view`` (`realm/inference/utils.py::extract_from_obs` returns None
-        when `external_sensor1` is absent from the observation). Selecting it then would hand the
-        policy client None where it expects an image. Fixing only the task-type string, without
-        this guard, would therefore have turned a silent no-op into a crash on exactly the two
-        tasks it was meant to help.
+      * ``base_im_second`` is None whenever the run has no second exterior camera, i.e. every run
+        without ``--multi-view`` (`realm/inference/utils.py::extract_from_obs` returns None when
+        `external_sensor1` is absent). `InferenceClient.infer`'s openpi path does
+        ``img_to_use = base_im_second if use_base_im_second else base_im`` and then
+        ``resize_with_pad(img_to_use, 224, 224)``, so selecting None is a crash, not a fallback.
+        Fixing the string alone would have turned a silent no-op into a TypeError on exactly the
+        two tasks it was meant to help.
+
+    CAVEAT -- THE INTENT IS CLEAR, THE JUSTIFICATION IS NOT (2026-08-16). Nothing in the repo says
+    why a drawer task wants the second view, and the camera configs do not obviously support it:
+    `open_drawer` is the one task whose cam1 is a hand-picked pose (`CP3`) rather than an episode
+    extrinsic, with cam2 left at `default`, so sending the policy cam2 moves it OFF the pose
+    someone chose for this task; `close_drawer` uses the same standard `ep_001042_cam1/cam2` pair
+    as `put_green_block_into_bowl`, and is not distinctive at all. Selecting camera 2 is what the
+    code says to do and is the defensible reading of a dead branch, but it is not a measured
+    improvement and has never been run.
+
+    Scope of the change, checked rather than assumed: only the `molmoact` branch and the
+    openpi/fall-through branch of `InferenceClient.infer` consult `use_base_im_second` at all --
+    `dreamzero` asserts both images and sends both regardless, `GR00T*` likewise. The only two
+    launchers in this repo that pass ``--multi-view`` unconditionally
+    (`scripts/parallel_sweep_launcher.sh`, `scripts/dreamzero_sweep_driver.sh`) both run
+    ``--model_type dreamzero``. So no harness path that exists today changes behaviour; this bites
+    the first time someone runs openpi or molmoact with ``--multi-view`` on a drawer task.
     """
     return task_type in DRAWER_TASK_TYPES and base_im_second is not None
 
