@@ -48,6 +48,24 @@ robots:
         gripper_0:
           name: "CustomGripperController"
           mode: "binary"
+          # No open_qpos/closed_qpos and no `inverted` override, and that is CORRECT for this asset
+          # -- measured, not assumed. Job 191495, 2026-08-16, MODE=oglite, live droid_mounted build
+          # (scripts/debug_probes/verify_stock_gripper_grasp.py reproduces all of it):
+          #
+          #   gripper DOF limits  prismatic [0, 0.05] m,  revolute [0, 0.7854] rad
+          #   REALM action -1     -> lower limits [0,0,0,0]          -> jaw 80.1 mm  (OPEN)
+          #   REALM action +1     -> upper limits [0.05,0.05,.785,.785] -> jaw  7.1 mm  (SHUT)
+          #
+          # so the joints' UPPER limit is the closed grasp, which is what the controller's
+          # target>=0 branch sends them to. `inverted` would break it, not fix it.
+          #
+          # THE NAMES LIE, HERE AND IN THE CONTROLLER -- this is what makes it easy to get backwards
+          # and cost a day: rollout.binarize_gripper calls +1 "open" (`is_open = value > 0.5`) and
+          # droid_gripper_controller calls the same branch `should_open`, but REALM's +1 is CLOSE.
+          # DROID_robolab_v2.yaml says the same thing about the same branch. Trust the measurement,
+          # not the identifier. "Pads in mutual contact" is the geometry-free check; link-origin
+          # separation happens to agree for this asset (origins sit 133.3 mm from panda_link8, on
+          # the pads) but that is exactly the measurement that read BACKWARDS on robolab.
     sensor_config:
       VisionSensor:
         sensor_kwargs:

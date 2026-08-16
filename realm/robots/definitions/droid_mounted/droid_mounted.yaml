@@ -45,9 +45,22 @@ manipulation:
     "0": ["gripper_link_left_inner_finger", "gripper_link_right_inner_finger"]
   # Order matters and is depended on downstream: droid_gripper_controller.compute_control maps
   # dof_idx[:2] (the two prismatic inner-finger joints) onto dof_idx[2:] (the two revolute ones).
-  # `gripper_control_idx` is derived from these names, reproducing the old hardcoded arange(7, 11):
+  #
+  # CORRECTION (measured 2026-08-16, job 191495, MODE=oglite, live build): this used to claim
+  # `gripper_control_idx` reproduces the old hardcoded arange(7, 11). It does NOT -- it is
+  # [8, 7, 10, 9]. Robot.gripper_control_idx is built as
+  # `[list(self.joints.keys()).index(n) for n in finger_joint_names]`, so it follows THIS list, and
+  # the articulation orders the four the other way round:
+  #   [7 right_inner_finger_prismatic, 8 left_inner_finger_prismatic,
+  #    9 right_inner_finger,           10 left_inner_finger]
+  # Benign, and worth knowing why rather than re-deriving it: the only thing the controller depends
+  # on is the pairing 0<->2 and 1<->3, which is left->left / right->right here and
+  # right->right / left->left under arange(7, 11). Both are self-consistent, and the two prismatics
+  # are driven to the same value anyway.
+  #
+  # The rest of the old claim holds and was checked on the same build: n_dof == n_joints == 11, so
   # the six remaining non-fixed gripper joints close kinematic loops in the 2F-85 four-bar linkage
-  # and so contribute no articulation DOFs.
+  # and contribute no articulation DOFs.
   finger_joint_names:
     "0": [
       "left_inner_finger_prismatic_joint",
