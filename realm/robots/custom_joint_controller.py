@@ -1,6 +1,5 @@
 import torch as th
 from omnigibson.controllers.controller_base import (
-    BaseController,
     ControlType,
     GripperController,
     IsGraspingState,
@@ -8,15 +7,27 @@ from omnigibson.controllers.controller_base import (
     ManipulationController,
 )
 from omnigibson.utils.backend_utils import _compute_backend as cb
-from omnigibson.utils.ui_utils import create_module_logger
 from omnigibson.utils.usd_utils import ControllableObjectViewAPI
 import omnigibson as og  # For og.sim.device
 
-# Create module logger
-log = create_module_logger(module_name=__name__)
-
 
 class IndividualJointPDController(LocomotionController, ManipulationController, GripperController):
+    """Scalar-gain joint PD controller: u = kp (q* - q) + kd (qd* - qd).
+
+    The plain-gain counterpart of `droid_joint_controller.py`, whose gains are weighted by the
+    task-space Jacobian. No Jacobian is involved here, so the whole batch is computed at once and no
+    eef link name is needed. Registered under this class's own name; the Jacobian-weighted
+    controller of the same class name is registered as `CustomJointController`. See
+    `controller_registry.py`.
+
+    `use_gravity_compensation` and `use_cc_compensation` are accepted for config compatibility with
+    the other controllers and are stored, but this controller applies neither.
+
+    The pre-3.9.1 version also overrode `clip_control`, but that override clipped to exactly the
+    same control limits and then copied every index back, making it equivalent to the (now batched)
+    base implementation. Dropped.
+    """
+
     def __init__(
             self,
             control_freq,
@@ -57,8 +68,6 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             command_output_limits=command_output_limits,
         )
 
-        self.cached_torque = None
-
     def _get_joint_positions(self):
         """(N, control_dim) current positions of this controller's DOFs, one row per group member."""
         rows = self.view_row_indices
@@ -80,6 +89,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         ]
 
     def _update_goal(self, controller_idx, command):
+        """Clip one member's commanded joint positions to their limits and hold velocity at zero."""
         target_joint_pos = cb.to_torch(command).to(og.sim.device)
 
         target_joint_pos = target_joint_pos.clip(
@@ -120,9 +130,6 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
 
         return cb.from_torch(u)  # (N, control_dim)
 
-    # NOTE: the pre-3.9.1 clip_control override clipped to the same control limits and copied every
-    # index back, making it equivalent to the (now batched) base implementation. Dropped.
-
     def compute_no_op_goal(self, controller_idx):
         target_joint_pos = cb.to_torch(self._get_joint_positions()[controller_idx]).to(og.sim.device)
         target_joint_vel = th.zeros_like(target_joint_pos)
@@ -140,20 +147,6 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             target_joint_pos=(self.control_dim,),
             target_joint_vel=(self.control_dim,)
         )
-
-    def _to_tensor(self, input):
-        if th.is_tensor(input):
-            return input.to(th.Tensor())
-        else:
-            return th.tensor(input).to(th.Tensor())
-
-    def _diagonalize_gain(self, gain: th.Tensor) -> th.Tensor:
-        if gain.dim() == 1:
-            return th.diag(gain)
-        elif gain.dim() == 2:
-            return gain
-        else:
-            raise ValueError(f"Gain tensor must be 1D or 2D, but got {gain.dim()}D.")
 
     def is_grasping(self, controller_idx):
         return IsGraspingState.UNKNOWN
