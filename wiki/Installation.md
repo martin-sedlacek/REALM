@@ -122,6 +122,10 @@ bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
 Each path line is marked `ok` or `MISSING` (the leading `(cwd)` line is informational). This is the
 first thing to run when something behaves oddly, and it is cheap.
 
+Only three of them are prerequisites — `REALM_SIF`, `REALM_DATA` and `REALM_LOGS`, which are what
+`rr` refuses to start without. **`REALM_APPDATA` reading `MISSING` on a fresh checkout is normal:**
+it is the per-checkout shader cache, and `rr` creates it on first run.
+
 ### Pointing it at your machine
 
 Only `REALM_ROOT` is derived from the script's own location. **Everything else hangs off one shared
@@ -198,11 +202,34 @@ srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
   python -u tests/test_perturbations_integrity.py --repeats 1 --max_steps 1
 ```
 
-Success prints `ALL PERTURBATIONS PASSED INTEGRITY CHECK!`. It uses the `debug` model type, which
-returns a constant action and needs nothing listening on a port.
+Success prints `ALL PERTURBATIONS PASSED INTEGRITY CHECK!`, preceded by one `<NAME>: PASS` line per
+perturbation. It uses the `debug` model type, which returns a constant action and needs nothing
+listening on a port.
+
+> **Budget about 45 minutes, and do not leave it in the foreground of a shell you need back.**
+> It runs each of the 16 perturbations in its own subprocess, so it pays a full Isaac boot sixteen
+> times — the `--repeats 1 --max_steps 1` budget is not what costs. Measured 2026-08-16 on one
+> L40S at `MODE=stock`: **16/16 PASS in ~43 min**. The first per-perturbation line does not appear
+> for several minutes; that is the first boot, not a hang.
+>
+> If you want a cheaper install check, `make test-smoke` covers a different slice — one task end to
+> end plus the scene check — in ~12 minutes. See [Running the test suite](Running-the-Test-Suite).
+
+That is one test out of twelve. To run the rest — including the two static checks that need no GPU,
+no container and no allocation at all — see
+[Running the test suite](Running-the-Test-Suite):
+
+```sh
+make test-static                 # container-free, ~0.1 s
+ALLOC=<jobid> make test          # the full suite
+```
+
+**Do not run `pytest tests/`.** Every file there is named `test_*.py` and none defines a collectable
+test, so it collects zero items — after importing four modules that each boot a full Isaac instance.
 
 ## See also
 
 - [Quick start](Quick-Start)
 - [Running evaluations](Running-Evaluations) — `rr`, `MODE`, and the full flag surface
+- [Running the test suite](Running-the-Test-Suite) — `make test` and what each tier needs
 - [Known issues and gotchas](Known-Issues-and-Gotchas)

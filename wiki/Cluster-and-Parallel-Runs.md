@@ -100,6 +100,18 @@ this two ways, and the second matters most here:
 
 Without `--repeats` it cannot know the expected count, so pass it.
 
+> **The log argument only works on a log that carries an `### EXIT_CODE=` marker.** That marker is
+> written by `go` and by `sbatch_eval_pi05.sh`, and by nothing else. Hand `check_run.py` a log you
+> captured yourself with `srun ... > run.log` and its log scan reports
+> `[warn] no EXIT_CODE marker found (run may still be in flight)` and the **whole verdict is FAIL**,
+> however clean the run was and however complete the artifacts. Confirmed 2026-08-16 against a
+> perfectly good `debug` run: artifacts `pass`, log `FAIL`, exit 1. This is deliberate — an unmarked
+> log might be a truncated one, and `t11_eval_gate.sh` tests for exactly that — but it is
+> indistinguishable from "your run was fine, you just did not use `go`".
+>
+> So: produce the log with `go`, or **omit the log argument** and check the artifacts alone, which
+> gives a clean `VERDICT: PASS` and exit 0.
+
 ## Sweeping the matrix
 
 `scripts/cluster_evals/run_evals_for_ckpt.sh` fans the 10 × 16 matrix out into one process per cell:

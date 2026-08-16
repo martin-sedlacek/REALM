@@ -72,8 +72,10 @@ each appear twice.
 ### Scoring: partial credit, not pass/fail
 
 A rollout is scored against a **progression ladder** for its task type, defined in
-`realm/config/tasks/task_progressions.yaml`, with the per-stage predicates in
-`RealmEnvironmentBase.success_conditions` (`realm/environments/env_base.py`). The last stage is full
+`realm/config/tasks/task_progressions.yaml`, with the per-stage predicates in the
+`success_conditions` dict built by `TaskProgressionMixin`
+(`realm/environments/task_progression.py`), which `RealmEnvironmentBase` inherits — so
+`env.success_conditions` is still where you read them at runtime. The last stage is full
 success; reaching an earlier stage is partial credit.
 
 | Type | Ladder |
@@ -188,9 +190,14 @@ so on those two it can generate a fresh substitution; on the other eight it fall
 - **`NEEDS_STOPPED_SIM`** (`realm/environments/perturbations/_helpers.py`) — `V-SC`, `VB-MOBJ`,
   `VSB-NOBJ`, `SB-VRB`. These add or remove objects and so require a stopped simulator. The rest only
   write poses. This is why those four are the expensive ones to reset.
-- **`MISSING_PERTURBATIONS`** (`realm/environments/env_dynamic.py`) — `V-OBJ`, `VB-ISC`, `VS-PROP`,
-  `SB-ADV`, `SB-SMO` are **declared but not implemented**. They are not selectable and the
-  constructor's assertion rejects them. Do not treat them as available.
+- **Five names that are not implemented** — `V-OBJ`, `VB-ISC`, `VS-PROP`, `SB-ADV`, `SB-SMO`. They
+  appear in the perturbation taxonomy but REALM has no code for them, as the module docstring of
+  `realm/environments/perturbations/registry.py` states. They are not in `PERTURBATION_FNS`, so they
+  are not in `SUPPORTED_PERTURBATIONS`, there is no ID to pass, and
+  `RealmEnvironmentDynamic.__init__` asserts every requested name is a key of its
+  `supported_pertrubations`. Do not treat them as available. (A `MISSING_PERTURBATIONS` constant
+  used to list them; it was removed when `realm/environments/` was split. Nothing behavioural
+  changed — the constant was never what did the rejecting.)
 
 ### Known incompatibilities
 

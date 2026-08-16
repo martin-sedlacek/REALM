@@ -404,7 +404,9 @@ both. Identical eval arguments everywhere: task 0, perturbation 0, 3 repeats x 1
 the two stacks split the work differently:
 
 - 1.1.1's `--og_lite` path calls `env.omnigibson_env.step_blind()` for blind steps
-  (`realm/eval.py:491`), which bypasses `RealmEnvironmentDynamic.step` **and skips
+  (`realm/eval.py:491` **in the pre-port 1.1.1 checkout**, `~/projects/REALM` — not this branch's
+  `realm/eval.py`, which is 204 lines and whose rollout loop now lives in `realm/rollout.py`),
+  which bypasses `RealmEnvironmentDynamic.step` **and skips
   `_non_physics_step` entirely**. Hence `RealmEnv.step` fires 90 times on 1.1.1 against 390 on
   3.9.1, and the 1.1.1 `_non_physics_step` median of 0.72 ms is not the same quantity as 3.9.1's.
 - 1.1.1 renders through explicit `og.sim.render()` (1294 calls); 3.9.1 renders inside

@@ -1,0 +1,32 @@
+# Ruff configuration.
+#
+# Carried over VERBATIM from the pre-port 1.1.1 checkout's pyproject.toml ([tool.ruff]), which is
+# where this project's lint settings have always lived. It is `.ruff.toml` here rather than
+# `pyproject.toml` deliberately: REALM is not pip-installed, has no packaging metadata, and the
+# Installation page says so. A pyproject.toml would imply otherwise to every tool that looks.
+#
+# The ruleset is DELIBERATELY NARROW -- two rules, both of which flag dead code rather than style:
+#
+#   F401  imported but unused
+#   F811  redefinition of an unused name
+#
+# Do not widen it casually. This is a research codebase with a large surface of
+# OmniGibson-interface methods whose parameters are required by the framework and unused by REALM;
+# a broad default ruleset produces hundreds of findings that are all noise, and the signal is lost.
+# `make lint` is only worth running while its output is short enough to read.
+#
+# CURRENT BASELINE, measured 2026-08-16 with ruff 0.16.3: 25 findings.
+#   3 in realm/  (v_sc.py, v_view.py, vb_pose.py -- unused numpy / omnigibson imports)
+#   19 in scripts/ (debug probes, mostly unused torch / omnigibson.lazy imports)
+#   3 in tests/  (test_vector_integrity.py, debug_ee_control.py)
+# All 25 are `--fix`-able. None has been fixed here because this change was scoped to docs, tests
+# wiring, the Makefile and CI. See the wiki's Test coverage page.
+#
+# SEPARATELY, and not covered by this ruleset: `ruff check --select E9,F63,F7,F82` finds
+# 3 x F821 "Undefined name `np`" in scripts/clara/interactive/t10_bhobj_props.py:73-74. That is a
+# real bug -- the file uses np without importing numpy -- not a style finding.
+
+exclude = [".claude"]
+
+[lint]
+select = ["F401", "F811"]

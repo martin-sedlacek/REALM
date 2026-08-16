@@ -91,8 +91,11 @@ Both threads that were open here are now **closed** (2026-08-14):
 Also fixed upstream, 2026-08-14: **`Simulator._pre_remove_object` pruned the global init queue by
 object NAME**, so in a vector env one member's `remove_object` evicted a sibling's freshly added
 object of the same name and nothing ever initialised it. OG-lite now matches on identity.
-`RealmVectorEnvironment._repair_init_queue()` is kept as a net, because `MODE=stock` /
-`MODE=stockfix` still ship the stock `simulator.py`.
+REALM's own repair is kept as a net, because `MODE=stock` / `MODE=stockfix` still ship the stock
+`simulator.py`. It is `repair_init_queue(envs)` in `realm/environments/vec_init_queue.py`, called
+from `RealmVectorEnvironment.reset()`. (It used to be a private method,
+`RealmVectorEnvironment._repair_init_queue()`; the `realm/environments/` split moved it out to a
+module-level function. `realm/misc/simulator_initqueue_og391.patch` still names the old method.)
 
 ### Vectorized evaluation now works end to end
 
@@ -232,8 +235,16 @@ python scripts/clara/interactive/compare_phases.py ~/projects/REALM/logs/phase_r
 
 - 7 near-identical `DROID*.yaml` configs, 60-70% duplicated.
 - `is_grasping`'s `0.45` threshold looks like a typo for `0.045`.
-- `evaluate()` is a 322-line function; splitting it was held back while the robolab benchmark
-  numbers were being validated. That reason has expired.
+- ~~`evaluate()` is a 322-line function; splitting it was held back while the robolab benchmark
+  numbers were being validated.~~ **Done.** `realm/eval.py` and `realm/vector_eval.py` were
+  deduplicated behind `realm/rollout.py`, which now holds the rollout loop, the metrics and the
+  artifact writers. `evaluate()` is 85 lines.
 - `n_pre_obs_renders=2` has never been verified as sufficient (only that 3 was unjustified).
-- `MISSING_PERTURBATIONS` / `SUPPORTED_TASK_TYPES` / `SKILL_COMPATIBILITY_MATRIX` in
-  `env_dynamic.py` are unused, but encode design intent, so they were left alone.
+- ~~`MISSING_PERTURBATIONS` / `SUPPORTED_TASK_TYPES` / `SKILL_COMPATIBILITY_MATRIX` in
+  `env_dynamic.py` are unused, but encode design intent, so they were left alone.~~ **Removed** in
+  the `realm/environments/` split. The only one whose intent survived is the missing-perturbation
+  list, restored as prose in the module docstring of
+  `realm/environments/perturbations/registry.py`: "REALM does not implement V-OBJ, VB-ISC, VS-PROP,
+  SB-ADV or SB-SMO." What actually rejects an unimplemented name is unchanged and was never the
+  constant: `RealmEnvironmentDynamic.__init__` asserts each requested perturbation is a key of
+  `PERTURBATION_FNS`.

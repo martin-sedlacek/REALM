@@ -144,8 +144,10 @@ So patching `rigid_prim.py` demonstrably does not repair the hull: the loader-pa
 backwards as the unpatched one. Only removing the dropped transform from the asset fixes both.
 
 **Live REALM code is affected — but via the HULL site, not the bbox site.** Corrected: an earlier
-version of this file attributed it to `object_utils.py:88`. Wrong. `get_base_aligned_bbox()` at
-`realm/environments/perturbations/_helpers.py:200` and `sb_vrb.py:74` routes through
+version of this file attributed it to `object_utils.py:88`. Wrong. The two `get_base_aligned_bbox()`
+calls in perturbation object replacement — `replace_obj()` in
+`realm/environments/perturbations/object_sampling.py`, and `sb_vrb()` in
+`realm/environments/perturbations/sb_vrb.py` — route through
 `USDObject.get_base_aligned_bbox` → **`geom_prim.py:250`**, i.e. **site 2**. `object_utils.py:88` is a
 third independent copy whose only caller is offline metadata tooling.
 
