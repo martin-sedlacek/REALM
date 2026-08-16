@@ -108,6 +108,23 @@ def add_visual_copies(stage):
     For each link, every direct child subtree containing a collision API is duplicated alongside the
     original and stripped of its collision APIs. Copying at the same level preserves the local
     transform, so the copy lands on the original's world pose with no transform maths.
+
+    TWO KNOWN GAPS, both measured 2026-08-17 -- read before "fixing" either.
+
+    1. The type filter below is `("Xform", "Mesh")`, so a collider authored as a **primitive gprim**
+       (`Cylinder`, `Cube`, `Sphere`, `Cone`) is skipped and gets no visual copy. The robolab asset
+       has exactly one: `/panda/panda_link8/gripper_adapter`, the pad between the flange and the
+       gripper. Widening the tuple is not the fix on its own -- see 2.
+    2. **A visual copy placed on the EEF link would not render even so.** `Robot._load_controllers`
+       (`robot.py:1255`) calls `self._links[self.eef_link_names[arm]].visible = False`, and
+       `panda_link8` IS this robot's eef link, so OmniGibson authors `visibility = invisible` on the
+       link prim. USD visibility prunes: no descendant can override an invisible ancestor, and
+       `purpose` is orthogonal to it. Measured -- `purpose = "render"` on such a copy moves 605 of
+       359,637 pixels against a 390-pixel noise floor, i.e. nothing.
+
+    So a render-only copy of an EEF-link collider has to be parented to a *visible* link that is
+    rigidly joined to it. `scripts/fix_link8_adapter_visual.py` does that for this one prim, moving
+    it to `/panda/base_link` (the gripper base, joined by the fixed `panda_hand_joint`).
     """
     layer = stage.GetRootLayer()
     Collision, MeshCollision = UsdPhysics.CollisionAPI, UsdPhysics.MeshCollisionAPI
