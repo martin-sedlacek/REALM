@@ -25,8 +25,21 @@ from realm.eval import SUPPORTED_TASKS
 REPEATS = 1
 MAX_STEPS = 1
 
+#: The robot asset this test drives. Passed EXPLICITLY rather than inherited from
+#: examples/02_evaluate.py's own default, which is what happened until 2026-08-16 -- so half of
+#: tests/ ran DROID_robolab_v2 (test_vector_integrity, test_scene_object_placement, which set it)
+#: and half ran stock DROID (this file, test_integrity), and nothing in either said so. The value
+#: is unchanged: "DROID" is exactly what 02_evaluate.py's default gave this test before. What
+#: changes is that the choice is now visible and overridable with --robot.
+#:
+#: Which asset this SHOULD be is a separate question, and not one this test can settle: with
+#: --model_type debug and --max_steps 1 no rollout moves, so no success condition is reachable on
+#: any asset. See the run recorded in ~/runbook/streams/realm_og391_port.md for the measurement
+#: that can tell the assets apart.
+DEFAULT_ROBOT = "DROID"
 
-def run_test(task_id=0):
+
+def run_test(task_id=0, robot=DEFAULT_ROBOT):
     task_name = SUPPORTED_TASKS[task_id]
     experiment_name = "single_task_test"
     model_name = "debug"
@@ -54,6 +67,7 @@ def run_test(task_id=0):
         "--experiment_name", experiment_name,
         "--run_id", run_id,
         "--log_dir", base_log_dir,
+        "--robot", robot,
         "--no_render",
     ]
 
@@ -91,5 +105,7 @@ def run_test(task_id=0):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Single-task integrity test")
     parser.add_argument("--task_id", type=int, default=0, help="Task ID to test (0-9)")
+    parser.add_argument("--robot", type=str, default=DEFAULT_ROBOT,
+                        help="robot config to evaluate (default: %(default)s)")
     args = parser.parse_args()
-    run_test(args.task_id)
+    run_test(args.task_id, args.robot)
