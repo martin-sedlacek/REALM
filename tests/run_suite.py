@@ -241,15 +241,18 @@ def run_one(name, spec, args, outdir):
 def print_table(results, out, blob):
     """The pass/fail table. Exit codes are shown because they are recorded, not because they gate."""
     if blob:
-        print(f"generated {blob.get('generated')}  jobid={blob.get('jobid')}  "
-              f"mode={blob.get('mode')}")
-    print("=" * 104)
-    print(f"{'test':<40}{'status':<22}{'seconds':>9}  {'exit':>5}  {'cells':>6}  timed_out")
-    print("-" * 104)
+        print(f"generated {blob.get('generated')}  jobid={blob.get('jobid')}")
+    # MODE is per RESULT, never a header field: this file accumulates across invocations and the
+    # runs that matter here differ precisely in which OmniGibson bind they used. A single header
+    # mode would be the last invocation's and would mislabel every earlier row.
+    print("=" * 116)
+    print(f"{'test':<40}{'status':<22}{'mode':<8}{'seconds':>9}  {'exit':>5}  {'cells':>6}  "
+          f"timed_out")
+    print("-" * 116)
     for r in results:
-        print(f"{r['name']:<40}{r['status']:<22}{r['seconds']:>9}  {r['exit_code']:>5}  "
-              f"{len(r.get('cells', [])):>6}  {r['timed_out']}")
-    print("=" * 104)
+        print(f"{r['name']:<40}{r['status']:<22}{r.get('mode', '?'):<8}{r['seconds']:>9}  "
+              f"{r['exit_code']:>5}  {len(r.get('cells', [])):>6}  {r['timed_out']}")
+    print("=" * 116)
     counts = {}
     for r in results:
         counts[r["status"]] = counts.get(r["status"], 0) + 1
