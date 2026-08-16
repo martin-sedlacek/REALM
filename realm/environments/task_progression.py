@@ -85,7 +85,11 @@ class TaskProgressionMixin:
             "MOVE_JOINT_LARGE": self.check_moved_mo_joint_large,
             "MOVE_JOINT_FULL": self.check_moved_mo_joint_full,
             "TOGGLED_ON": self.check_toggled_on_condition,
-            "POURED": self.check_pour # TODO: pouring
+            # "POUR", not "POURED": the key has to match the stage name the rubric uses, and
+            # task_progressions.yaml's `pour` rubric names POUR. Registered as POURED here and in
+            # the pre-port 1.1.1 tree, which left recompute_task_progression looking POUR up,
+            # getting None, and calling it. See check_pour.
+            "POUR": self.check_pour  # TODO: pouring
         }
 
     def recompute_task_progression(self, obs):
@@ -220,7 +224,23 @@ class TaskProgressionMixin:
         mo = self.main_objects[0]
         return mo.states[og.object_states.ToggledOn].get_value()
 
-    def check_pour(self):
+    def check_pour(self, obs):
+        """POUR: not implemented. Returns False so a `pour` rubric stops here rather than crashing.
+
+        Still a stub -- no task config declares `task_type: pour`, so nothing reaches it -- but it
+        is now a stub that can be CALLED. `recompute_task_progression` invokes every checker as
+        `checker_function(obs)`, unconditionally, so both of the following were crashes waiting on
+        the first `pour` task, in this checkout and in the pre-port 1.1.1 one:
+
+          * the rubric names the stage POUR while the registry keyed it POURED, so
+            `self.success_conditions.get("POUR")` returned None and the next line called
+            `None(obs)` -> `TypeError: 'NoneType' object is not callable`;
+          * and this method took no `obs`, so fixing only the key would have moved the crash one
+            line down to `TypeError: check_pour() takes 1 positional argument but 2 were given`.
+
+        Both halves go together; neither alone helps. Latent either way -- with `pour` declared by
+        no task config, no live rollout changes behaviour.
+        """
         return False
 
     # ============================== [DRAWER JOINT STAGES] ==============================
