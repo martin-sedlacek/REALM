@@ -25,6 +25,14 @@ STATIC, and deliberately so: no container, no simulator, no GPU, ~0.05 s on the 
 run-time behaviour of the fixed predicate is covered by tests/test_rollout_camera_selection.py,
 which needs the container because `realm.rollout` imports omnigibson.
 
+WHAT IT DOES NOT SEE. Only `==`, `!=`, `in` and `not in` against a string constant or a
+list/tuple/set of them, with the name reached as `x.task_type`, `task_type`, `d["task_type"]` or
+`getattr(o, "task_type", ...)`. A comparison built any other way -- `.startswith(...)`, a match
+statement, a dict lookup keyed on task type, a name bound to the literal earlier -- is invisible
+here. So a clean run is evidence for the forms above and not a proof that no dead task-type
+comparison exists anywhere. It covers the two forms that were actually wrong; widen it when a
+third turns up rather than trusting it to be exhaustive.
+
     python3 tests/test_task_type_literals.py
 """
 import ast
