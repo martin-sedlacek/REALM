@@ -107,7 +107,56 @@ _realm_pick() {
 # (realm_og391.sif -> shared, data/datasets -> shared, logs -> shared) precisely so the in-repo path
 # is the normal answer, and after the rename they are real entries at the root. A fresh worktree has
 # only some of those symlinks, which is what the fallback covers.
-REALM_SIF=${REALM_SIF_OG391:-$(_realm_pick -f "$REALM_ROOT/realm_og391.sif" "$REALM_SHARED/realm_og391.sif")}
+#
+# THE IMAGE: v2 FIRST, 2026-08-16. realm_og391_v2.sif (built 2026-08-14) carries MOST of the
+# OmniGibson patches that used to require MODE=oglite or MODE=stockfix.
+#
+# NOT ALL OF THEM. md5 of the six patch-site files, read out of both images and compared against
+# the OG-lite fork and stock_patch (2026-08-16):
+#
+#   entity_prim.py     old cd864e4c -> v2 8c806c2f   == OG-lite        PATCHED
+#   scene_base.py      old 3ea4bb3f -> v2 0fa9c9fb   == OG-lite        PATCHED
+#   simulator.py       old 0af218df -> v2 66761e35   == stock_patch    PATCHED
+#   material_prim.py   old 93bff5e6 -> v2 4c7dbd23   == OG-lite        PATCHED
+#   xform_prim.py      old c9f34000 -> v2 4ce55192   == OG-lite        PATCHED
+#   usd_object.py      old dbac789f -> v2 dbac789f   != OG-lite 95e1fde4   *** NOT PATCHED ***
+#
+# The missing one is the UP-AXIS fix in USDObject._preapply_articulation_root. Quoting OG-lite's own
+# comment for the mechanism: referencing a layer whose upAxis disagrees with the stage's makes Kit's
+# metrics assembler append `xformOp:rotateX:unitsResolve` to the referencing prim's xformOpOrder,
+# which no OmniGibson pose setter can see, and it is materialised only for the FIRST reference to
+# the asset. Measured there on impact_drawer's cabinet.usd (upAxis=Y, stage Z) at num_envs=2: scene
+# 0's cabinet lay on its back and its drawers jammed at 0.229 m of a 0.300 m range while scene 1's
+# stood upright.
+#
+# So on v2 the drawer tasks LOAD and RUN -- that part is measured, 10/10 on tests/test_integrity.py
+# and 2/2 on test_vector_integrity's cells 8,9, both at MODE=stock -- but scene 0's cabinet is
+# expected to be mis-oriented, and NOTHING IN tests/ WOULD NOTICE: every check is "the artifacts
+# exist with the right row count", and the debug policy never touches the drawer. Use MODE=oglite
+# when the drawer's OUTCOME matters, not just that the task builds.
+#
+# The preset_name default IS in v2, which is the one that decides whether cabinet.usd loads at all
+# (omnigibson/prims/material_prim.py:638), read out of both images rather than taken on report:
+#
+#   realm_og391.sif     def __init__(self, relative_prim_path, name, preset_name, load_config=None)
+#   realm_og391_v2.sif  def __init__(self, relative_prim_path, name, preset_name=None, load_config=None)
+#
+# (omnigibson/prims/material_prim.py:638.) The required argument in the OLD image is why
+# tests/test_integrity.py's tasks 8 and 9 -- the only two whose main object is
+# custom_assets/impact_drawer/usd/cabinet.usd -- died under MODE=stock with
+# "TypeError: missing a required argument: 'preset_name'".
+#
+# EVERY RESULT RECORDED BEFORE 2026-08-16 WAS PRODUCED AGAINST THE OLD IMAGE. To reproduce one, or
+# to bisect a behaviour change against the rebuild, name it explicitly:
+#
+#   REALM_SIF_OG391=$REALM_SHARED/realm_og391.sif ./scripts/clara/interactive/rr python ...
+#
+# The candidate list falls back to the old image if v2 is absent, so a checkout without it still
+# runs; when neither exists the caller's own `[ -f "$REALM_SIF" ]` names v2, which is the path a
+# reader should be looking for.
+REALM_SIF=${REALM_SIF_OG391:-$(_realm_pick -f \
+  "$REALM_ROOT/realm_og391_v2.sif" "$REALM_SHARED/realm_og391_v2.sif" \
+  "$REALM_ROOT/realm_og391.sif"    "$REALM_SHARED/realm_og391.sif")}
 REALM_DATA=${REALM_DATA_OG391:-$(_realm_pick -d "$REALM_ROOT/data/datasets" "$REALM_SHARED/data/datasets_og391")}
 # NOTE for whoever performs the rename: this checkout's `logs` is a symlink to $REALM_SHARED/logs,
 # so once the tree IS ~/projects/REALM that symlink points at itself and neither candidate resolves.
