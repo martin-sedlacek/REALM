@@ -75,27 +75,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Upstream's generate-then-matrix pattern (examples-as-test.yml): a cheap job emits the list of
+  # tests as JSON and the matrix consumes it. Without this the `level` input would be decorative --
+  # a static matrix runs every entry no matter what was selected, so picking `smoke` would silently
+  # run the whole `matrix` level. This job is the thing that makes the input mean something.
+  select:
+    name: Expand level "${{ inputs.level }}"
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.expand.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: expand
+        # LEVELS lives in tests/run_suite.py and is the SAME definition `make test-smoke` uses, so
+        # the workflow and the manual path cannot drift apart. Nothing here imports omnigibson.
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import importlib.util, json, os
+          spec = importlib.util.spec_from_file_location("run_suite", "tests/run_suite.py")
+          m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+          names = m.LEVELS[os.environ["LEVEL"]]
+          print("tests=" + json.dumps(names))
+          PY
+        env:
+          LEVEL: ${{ inputs.level }}
+
   run_suite:
-    name: ${{ inputs.level }} / ${{ matrix.test }} / MODE=${{ inputs.mode }}
+    name: ${{ matrix.test }} @ MODE=${{ inputs.mode }}
+    needs: [select]
     runs-on: [self-hosted, linux, gpu, dataset-enabled]
 
     strategy:
-      # One job per suite entry, so a single bad cell does not hide the other eleven's results.
-      # Never fail-fast: the whole point of the matrix is per-entry granularity, and a crash in
-      # test_integrity says nothing about test_perturbations_integrity.
+      # One job per suite entry, so a single bad cell does not hide the other results. Never
+      # fail-fast: the point of the matrix is per-entry granularity, and a crash in test_integrity
+      # says nothing about test_perturbations_integrity.
       fail-fast: false
       matrix:
-        test:
-          - test_task_progression_rubrics
-          - test_joint_reset_batching
-          - test_single_task
-          - test_single_task_drawer
-          - test_scene_object_placement
-          - test_integrity
-          - test_perturbations_integrity
-          - test_vector_integrity_drawers
-          - test_vector_integrity_tasks
-          - test_vector_integrity_perturbations
+        test: ${{ fromJson(needs.select.outputs.tests) }}
 
     steps:
       - name: Checkout source
@@ -109,11 +125,14 @@ jobs:
           nvidia-smi --query-compute-apps=pid,used_memory,name --format=csv
 
       - name: Resolve paths
+        # The same check the wiki's Quick start step 1 tells a human to run. REALM_APPDATA reading
+        # MISSING here is normal -- rr creates it on first run.
         run: bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
 
       # `continue-on-error` because an exit code cannot distinguish "passed" from "died before it
       # could say so": Isaac hard-exits 0 on an unhandled exception and segfaults at teardown after
-      # a pass. The gate is the XML, two steps down. This is upstream BEHAVIOR-1K's pattern.
+      # a pass. MEASURED on job 191496, 2026-08-16: test_scene_object_placement reported FAIL with
+      # exit=0. The gate is the XML, two steps down. This is upstream BEHAVIOR-1K's pattern.
       - name: Run ${{ matrix.test }}
         continue-on-error: true
         run: |
@@ -139,6 +158,10 @@ jobs:
       # THE GATE. A missing XML is the crash signal: run_suite.py writes it once, after the last
       # test, so its absence means the driver itself died -- OOM, walltime kill, node failure --
       # which no exit code would have told us.
+      #
+      # EXPECT test_task_progression_rubrics AND, at MODE=stock, test_scene_object_placement TO
+      # FAIL HERE. Both are real and documented (the wiki's Test coverage page); the second is
+      # MODE-sensitive by design and passes under oglite. Neither is flaky.
       - name: Check for failures, errors, or missing XML
         run: |
           XML=tmp/suite/${{ matrix.test }}.xml
@@ -147,7 +170,6 @@ jobs:
             exit 1
           elif grep -Eq 'failures="[1-9][0-9]*"|errors="[1-9][0-9]*"' "$XML"; then
             echo "Error: test failures or errors found"
-            grep -o 'name="[^"]*"' "$XML" || true
             exit 1
           else
             echo "${{ matrix.test }} passed under MODE=${{ inputs.mode }}"
