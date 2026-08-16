@@ -3,25 +3,25 @@
 Sweeps all 10 tasks under Default through examples/02_evaluate.py, one process each, and checks
 the reports csv plus the qpos/actions/videos parquets.
 
-    MODE=oglite ./scripts/clara/interactive/rr python -u tests/test_integrity.py
+    ./scripts/clara/interactive/rr python -u tests/test_integrity.py
 
-THE MODE MATTERS AND rr's DEFAULT IS NOT ENOUGH FOR ALL TEN TASKS. Under `MODE=stock` -- what you
-get if you do not say otherwise -- tasks 8 and 9 (open_drawer / close_drawer) die while loading
-`custom_assets/impact_drawer/usd/cabinet.usd` with
+WHICH IMAGE YOU ARE ON DECIDES WHETHER THIS PASSES. Tasks 8 and 9 (open_drawer / close_drawer) are
+the only two whose main object is `custom_assets/impact_drawer/usd/cabinet.usd`, and loading it
+needs a `preset_name` default in `OmniSurfaceMaterialPrim.__init__`
+(omnigibson/prims/material_prim.py). Without it they die with
 
     TypeError: missing a required argument: 'preset_name'
-      omnigibson/prims/material_prim.py, via OmniSurfaceMaterialPrim.__init__
 
-They are the only two tasks whose main object needs it. That default is one of the three things
-OG-lite and `stock_patch` supply and the image does not (see the MODE=stockfix block in
-scripts/clara/interactive/rr). Measured 2026-08-16 as a controlled pair, same task, same code:
+Three measured runs, 2026-08-16, differing only in image and bind:
 
-    MODE=stock   task 8 -> crash, the TypeError above     (this sweep, 8/10 tasks passed)
-    MODE=oglite  task 8 -> PASSED, all four artifacts     (tests/run_suite.py --only
-                                                           test_single_task_drawer)
+    realm_og391.sif     MODE=stock    8/10 -- tasks 8 and 9 crash with the TypeError above
+    realm_og391.sif     MODE=oglite   task 8 PASSES  (the fork carries the default)
+    realm_og391_v2.sif  MODE=stock    10/10 ALL TASKS PASSED
 
-So a red result here is not evidence of a code regression until the mode is checked. Run under
-`MODE=oglite` or `MODE=stockfix` for a full-ten pass.
+`realm_og391_v2.sif` (built 2026-08-14) ships that patch and six others, and
+`scripts/clara/lib/paths.sh` now selects it by default, so plain `rr` is sufficient. If you are
+reproducing a result recorded before 2026-08-16, pin the old image --
+`REALM_SIF_OG391=$REALM_SHARED/realm_og391.sif` -- and expect 8/10 here.
 
 WHAT THIS DOES NOT COVER -- read before treating a green run as evidence
 -----------------------------------------------------------------------
