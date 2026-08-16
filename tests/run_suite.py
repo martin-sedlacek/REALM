@@ -56,6 +56,24 @@ SUITE = {
         cells=r"^\[\d\] .*",
         note="rubric stages vs success_conditions; static, no container.",
     ),
+    "test_task_type_literals": dict(
+        argv=["tests/test_task_type_literals.py"],
+        local=True,   # login python, stdlib + yaml only: no container, no allocation, ~0.05 s
+        needs_gpu=False, needs_server=False, timeout=120, tier="local",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d\] .*",
+        note="task_type literals in realm/ vs what the task configs declare; static, no container.",
+    ),
+    "test_rollout_camera_selection": dict(
+        # Imports realm.rollout, which imports omnigibson, so it needs the container -- but it
+        # builds no environment and touches no GPU. Same tier as test_joint_reset_batching, for
+        # the same reason.
+        argv=["tests/test_rollout_camera_selection.py"],
+        needs_gpu=False, needs_server=False, timeout=900, tier="fast",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^(?:\[\d\] .*|    task_type=.*)$",
+        note="which exterior camera the drawer tasks send the policy, and the None guard.",
+    ),
     "test_scene_object_placement": dict(
         # The only test that looks at the SCENE rather than at the artifacts. It exists because
         # both drawer tests passed on a build whose scene-0 cabinet was lying on its back.

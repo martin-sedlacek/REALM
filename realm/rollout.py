@@ -17,6 +17,7 @@ import numpy as np
 import omnigibson as og
 from scipy.spatial.transform import Rotation
 
+from realm.environments.task_progression import DRAWER_TASK_TYPES
 from realm.inference import extract_from_obs
 from realm.realm_logging import append_trajectory, append_video
 
@@ -33,6 +34,30 @@ SHORT_TRAJECTORY_SAMPLES = 4
 #: Task types that end with the object somewhere rather than in the gripper, so a release over the
 #: target is a placement rather than a drop.
 PLACEMENT_TASK_TYPES = ("put", "stack")
+
+def wants_base_im_second(task_type, base_im_second):
+    """Whether this step should send the SECOND exterior camera to the policy instead of the first.
+
+    The DROID policies take one exterior view. REALM frames the drawer tasks better on
+    `external_sensor1` than on `external_sensor0`, so the drawer task types -- and only those --
+    hand the policy the second view.
+
+    Two things this has to get right, both of which were wrong or absent before:
+
+      * The task types are ``open_drawer`` / ``close_drawer``. The comparison here read
+        ``task_type == "open_close_drawer"`` from the pre-port checkout through to 2026-08-16 --
+        a string no task config declares, in either the 1.1.1 tree or this one -- so the second
+        camera was NEVER selected, for any task, in any run. Confirmed against
+        `realm/config/tasks/REALM_DROID10/*/default.yaml` in both checkouts.
+
+      * ``base_im_second`` is None whenever the run has no second exterior camera, which is every
+        run without ``--multi-view`` (`realm/inference/utils.py::extract_from_obs` returns None
+        when `external_sensor1` is absent from the observation). Selecting it then would hand the
+        policy client None where it expects an image. Fixing only the task-type string, without
+        this guard, would therefore have turned a silent no-op into a crash on exactly the two
+        tasks it was meant to help.
+    """
+    return task_type in DRAWER_TASK_TYPES and base_im_second is not None
 
 #: Policies trained on DROID emit the gripper as (open, closed) = (1, 0); molmoact emits (0, 1).
 #: REALM's gripper controller expects (1, -1).
@@ -311,7 +336,8 @@ class Rollout:
             chunk = client.infer(
                 env.instruction, observation.base_im, observation.base_im_second,
                 observation.wrist_im, observation.robot_state, observation.gripper_state,
-                use_base_im_second=(getattr(env, "task_type", None) == "open_close_drawer"),
+                use_base_im_second=wants_base_im_second(getattr(env, "task_type", None),
+                                                        observation.base_im_second),
                 ee_control=env.ee_control,
                 cartesian_position=robot_frame_ee_pose(env, observation.ee_pos,
                                                        observation.ee_quat),

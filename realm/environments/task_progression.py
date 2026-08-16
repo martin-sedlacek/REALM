@@ -32,6 +32,18 @@ from realm.geometry import compute_rot_diff_magnitude
 
 TASK_PROGRESS_RUBRICS = load_task_progressions()
 
+#: The two task types whose main object is the `impact_drawer` cabinet -- the ones that articulate
+#: a joint instead of moving a free body. These are the literals
+#: `realm/config/tasks/REALM_DROID10/{open,close}_drawer/default.yaml` declare, and the only two
+#: values of `task_type` for which `mo_joint` is ever set.
+#:
+#: Stated once here because ``"open_close_drawer"`` -- a value NO task config has ever produced, in
+#: this checkout or in the pre-port 1.1.1 one -- was compared against at two sites (this module's
+#: `check_reach_condition` and `realm/rollout.py`'s second-camera selection) and was constant False
+#: at both. Both now use this tuple. The perturbation modules still spell the pair out inline;
+#: that is a duplication, not a bug, and is left alone.
+DRAWER_TASK_TYPES = ("open_drawer", "close_drawer")
+
 
 class TaskProgressionMixin:
     """The stage checkers behind a task's rubric.
@@ -94,9 +106,32 @@ class TaskProgressionMixin:
 
     # ============================== [PROXIMITY AND GRASP STAGES] ==============================
     def check_reach_condition(self, obs):
+        """REACH: fingers near the main object, or touching it.
+
+        The drawer tasks take the touch-only branch. Centre-to-centre distance is the wrong
+        measure for a cabinet -- ``mo`` is the whole `impact_drawer` asset, whose origin sits
+        inside the carcass, well outside anything the robot reaches for -- so the 10 cm test below
+        is not a proximity test on a point a rollout can approach.
+
+        THIS BRANCH WAS DEAD UNTIL 2026-08-16, in this checkout and in the pre-port 1.1.1 one
+        (`~/projects/REALM/realm/environments/env_base.py:234`). It read
+        ``if self.task_progression in ["open_close_drawer"]``, which is wrong twice over:
+        ``self.task_progression`` is this environment's rubric -- an ``OrderedDict`` of
+        stage -> bool -- not a task type, and ``"open_close_drawer"`` is not a value any task
+        config declares (they declare ``open_drawer`` / ``close_drawer``). An ``OrderedDict`` is
+        never ``in`` a list of strings, so the condition was constant False.
+
+        Making it live makes REACH STRICTLY HARDER for the two drawer tasks, and for nothing else.
+        The general path returns ``d1 < 0.1 or d2 < 0.1 or check_touch_condition(obs)`` and this
+        branch returns ``is_touching(obs, mo)``, which is exactly ``check_touch_condition``'s body
+        -- so the branch drops the two centre-distance disjuncts and keeps the touch term. Any
+        drawer rollout that scored REACH on touch still does; one that scored it purely on being
+        within 10 cm of the cabinet's origin no longer does. Drawer ``task_progression`` numbers
+        recorded before this date are therefore an upper bound on what this code now reports.
+        """
         mo = self.main_objects[0]
 
-        if self.task_progression in ["open_close_drawer"]:
+        if self.task_type in DRAWER_TASK_TYPES:
             return self.is_touching(obs, mo)
 
         pos1 = mo.get_position_orientation()[0]
