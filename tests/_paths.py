@@ -29,6 +29,25 @@ def scratch_log_root(name):
 
     Order: an explicit REALM_TEST_LOG_DIR wins, then the container's bound log tree at /logs, then
     PROJECT_ROOT/logs for a plain host checkout that has a real logs directory.
+
+    TWO SUITE RUNS CANNOT SHARE THIS PATH. The name is fixed per test -- there is no tree, pid or
+    invocation discriminator -- so two `tests/run_suite.py` invocations running at the same time,
+    typically one per allocation to compare two checkouts, write into the SAME
+    `/logs/<name>` tree. The parquets are appended to (`realm_logging.append_trajectory` reads the
+    existing file and concats), so the run that finishes second sees both runs' rows and
+    `check_artifacts` reports `FAIL_ROWS(2!=1)`.
+
+    Measured 2026-08-16: a before/after comparison run concurrently on 191494 and 191495 had its
+    `test_single_task_drawer` cell PASS on the tree that finished first (11:09:06) and FAIL on the
+    tree that finished second (11:10:18), with identical code on that path. It reads exactly like a
+    regression in the second tree and is not one.
+
+    So: **set REALM_TEST_LOG_DIR to a distinct path per concurrent invocation, or serialize the
+    runs.** The same hazard applies to tests/test_vector_integrity.py, which has no env override --
+    it writes to `<log_dir>/<experiment_name>/debug/t<task>_<pert>` and needs a distinct
+    `--experiment_name` instead. Do not "fix" this by relaxing the row count: the exact-rows check
+    is what made the collision visible at all, and it is the same check that stops a half-finished
+    sweep reading as complete.
     """
     override = os.environ.get("REALM_TEST_LOG_DIR")
     if override:

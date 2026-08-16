@@ -57,6 +57,41 @@ def registry_and_checkers():
     return registry, checkers
 
 
+def delegations():
+    """method name -> the set of sibling `self.check_*` methods its body calls."""
+    tree = ast.parse(SOURCE.read_text())
+    out = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        called = set()
+        for sub in ast.walk(node):
+            if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
+                    and isinstance(sub.func.value, ast.Name) and sub.func.value.id == "self"
+                    and sub.func.attr.startswith("check_")):
+                called.add(sub.func.attr)
+        out[node.name] = called
+    return out
+
+
+#: What each MOVE_JOINT_* checker delegates to. PINNED, NOT DERIVED -- the point is that a change
+#: has to be made here as well, deliberately, instead of slipping through as a "cleanup".
+#:
+#: check_moved_mo_joint_full calls the _LARGE pair, not the _FULL pair. That reads like a
+#: copy-paste slip and IS NOT ONE TO FIX: it is identical to the pre-port 1.1.1 implementation
+#: (~/projects/REALM/realm/environments/env_base.py:330-331), so it is the behaviour every REALM
+#: number was ever scored against, and under the standing rule that pre-port behaviour is
+#: presumed intentional it stays. Changing it would tighten MOVE_JOINT_FULL from openness
+#: >0.65/<0.35 to >0.95/<0.05. Nothing reaches it today -- only the `turn_faucet` rubric names
+#: MOVE_JOINT_FULL and no task config declares that task_type -- so the change would move no
+#: number now while silently redefining the stage for whoever adds that task.
+EXPECTED_MOVE_JOINT_DELEGATION = {
+    "check_moved_mo_joint_small": {"check_closed_mo_joint_small", "check_opened_mo_joint_small"},
+    "check_moved_mo_joint_large": {"check_closed_mo_joint_large", "check_opened_mo_joint_large"},
+    "check_moved_mo_joint_full":  {"check_closed_mo_joint_large", "check_opened_mo_joint_large"},
+}
+
+
 def main():
     rubrics = yaml.safe_load(RUBRICS.read_text())
     registry, checkers = registry_and_checkers()
@@ -106,6 +141,26 @@ def main():
     # ---- 3: informational -- registered but no rubric names it ---------------------------------
     unused = sorted(k for k in registry if k not in stages)
     print(f"[3] registered but named by no rubric (informational, not a failure): {unused}")
+
+    # ---- 4: the MOVE_JOINT_* family delegates where it is pinned to ----------------------------
+    # A CHARACTERIZATION check, not a correctness one: it locks current behaviour, including the
+    # _full -> _large delegation that looks wrong and is pre-port. See
+    # EXPECTED_MOVE_JOINT_DELEGATION for why that one is deliberately not "fixed".
+    calls = delegations()
+    print("[4] MOVE_JOINT_* delegation (pinned):")
+    for method, expected in EXPECTED_MOVE_JOINT_DELEGATION.items():
+        got = calls.get(method)
+        note = ("  <- deliberately the _large pair; pre-port, see the constant"
+                if method.endswith("_full") else "")
+        print(f"    {method} -> {sorted(got) if got is not None else '<missing>'}{note}")
+        if got is None:
+            failures.append(f"[4] {method} is not defined in {SOURCE.name}")
+        elif got != expected:
+            failures.append(
+                f"[4] {method} now delegates to {sorted(got)}, pinned as {sorted(expected)}. If "
+                f"this change is intended, update EXPECTED_MOVE_JOINT_DELEGATION and say why in "
+                f"its comment -- for _full that means arguing the case for moving MOVE_JOINT_FULL "
+                f"off pre-port thresholds, which is a scoring change, not a cleanup.")
 
     print("\n" + "=" * 78)
     if failures:

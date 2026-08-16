@@ -33,14 +33,19 @@ from tests._paths import check_artifacts, crash_lines, scratch_log_root, summari
 
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 
+#: See tests/test_integrity.py for why this is stated here rather than inherited
+#: from examples/02_evaluate.py. The value is unchanged from what that default gave.
+DEFAULT_ROBOT = "DROID"
 
-def run_test(task_id=0, repeats=1, max_steps=1):
+
+def run_test(task_id=0, repeats=1, max_steps=1, robot=DEFAULT_ROBOT):
     """Run a short rollout under every perturbation.
 
     Args:
         task_id (int): which task from SUPPORTED_TASKS to exercise
         repeats (int): rollouts per perturbation -- >1 also exercises the per-repeat reset path
         max_steps (int): steps per rollout
+        robot (str): robot config to evaluate
     """
     experiment_name = "pert_integrity_test"
     model_name = "debug"
@@ -77,7 +82,8 @@ def run_test(task_id=0, repeats=1, max_steps=1):
             "--port", str(port),
             "--experiment_name", experiment_name,
             "--run_id", run_id,
-            "--log_dir", base_log_dir
+            "--log_dir", base_log_dir,
+            "--robot", robot
         ]
 
         # NOT check=True: Isaac segfaults at teardown on passing runs too. See test_integrity.py.
@@ -135,5 +141,8 @@ if __name__ == "__main__":
     parser.add_argument("--task_id", type=int, default=0)
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--max_steps", type=int, default=1)
+    parser.add_argument("--robot", type=str, default=DEFAULT_ROBOT,
+                        help="robot config to evaluate (default: %(default)s)")
     args = parser.parse_args()
-    run_test(task_id=args.task_id, repeats=args.repeats, max_steps=args.max_steps)
+    run_test(task_id=args.task_id, repeats=args.repeats, max_steps=args.max_steps,
+             robot=args.robot)

@@ -58,6 +58,18 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
     * It accepts `use_gravity_compensation` and never applies it, unlike
       `droid_joint_controller.py`, which does. Every EE-control config sets it False, so the flag
       has never had an effect on this controller.
+
+      CHECKED AGAINST PRE-PORT AND DELIBERATELY LEFT ALONE (2026-08-16). The 1.1.1 controller
+      (`~/projects/REALM/realm/robots/droid_ee_controller.py:46,62`) also only ASSIGNS
+      `self._use_gravity_compensation` and never reads it -- the two occurrences in that file are
+      the constructor default and the assignment, exactly as here. So this controller's behaviour
+      is identical to the reference implementation, which is the definition of correct for
+      anything under `realm/robots/`. Neither implementing the flag nor rejecting the key is a
+      documentation fix: both would change a working controller. The same key on
+      `droid_joint_controller.py` DOES have an effect there (that controller gained a real gravity
+      term during the 3.9.1 port; pre-port it, too, only stored the flag), so one YAML key means
+      two different things depending on which controller reads it. That asymmetry is recorded
+      here rather than removed.
     * It does not pre-clamp the commanded cartesian delta. `RobotIKSolver` already clamps it to the
       same limits this controller would use -- 0.075 m linear, 0.15 rad angular -- on the way
       through `cartesian_delta_to_velocity` / `cartesian_velocity_to_delta`.
@@ -195,6 +207,22 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         over as-is and tolerated Nones for the keys the active mode does not use, so those are
         filled with zeros of the declared shape instead. `compute_control` only reads the keys its
         own mode sets, so the zeros are never consumed.
+
+        `target_pos = command[:3]` IS A VIEW, AND THAT IS LEFT AS IT IS (checked 2026-08-16).
+        `target_pos[-1] += self.height_offset` therefore writes the offset back into `command`,
+        and `command` is the array `BaseController.update_goal` handed down --
+        `preprocessed = self._preprocess_command(command)`, which returns its input UNCHANGED when
+        `self._command_input_limits is None` (`controller_base.py:318`). `absolute_pose` mode
+        asserts exactly that (see `__init__`), so in the one mode where the `+=` executes, the
+        write does reach the caller's command array. The aliasing is real, not theoretical.
+
+        It is also pre-port behaviour, byte for byte:
+        `~/projects/REALM/realm/robots/droid_ee_controller.py:113-115` is the same two lines with
+        the same view semantics. Whatever depends on it has depended on it since before the 3.9.1
+        port, and this controller is a reference implementation that worked as intended. Copying
+        (`command[:3].clone()`) would be a behaviour change to a controller, undertaken to fix a
+        smell rather than an observed defect, so it is NOT made here. Anyone who does change it
+        must first establish what reads `command` after `update_goal` returns.
         """
         all_pos_relative, all_quat_relative = self._get_eef_pose_relative()
         pos_relative = all_pos_relative[controller_idx]
