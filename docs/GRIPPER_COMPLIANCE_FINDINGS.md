@@ -62,8 +62,9 @@ That is what turned a plausible story into a diagnosis, and it retrospectively e
 | `prims/geom_prim.py:250` `points_in_parent_frame` | collision + visual **hull** | **no** |
 | `utils/object_utils.py:88` `compute_base_aligned_bboxes` | bounding boxes (offline tooling only) | **no** |
 
-The **hull** site is the one that reaches live REALM code: `get_base_aligned_bbox()` at
-`perturbations/_helpers.py:200` and `sb_vrb.py:74` routes through it. Measured on the Robotiq links,
+The **hull** site is the one that reaches live REALM code: the two `get_base_aligned_bbox()` calls in
+perturbation object replacement — `replace_obj()` in `realm/environments/perturbations/object_sampling.py`
+and `sb_vrb()` in `realm/environments/perturbations/sb_vrb.py` — route through it. Measured on the Robotiq links,
 every collision *and visual* hull is **61.09–192.66 mm** off centre with extents wrong by up to
 **31.80 mm** — against **0.00 mm on all eight `panda_link*`** under the same loader and same robot.
 The defect is asset-structure dependent, which is why it went unnoticed.

@@ -25,8 +25,20 @@ block-buffered child loses everything it printed when it is killed.
 RESULTS ARE WRITTEN BEFORE THEY ARE PRINTED. The JSON is rewritten after every test, so a driver
 that is itself killed still leaves a complete record of the tests that finished.
 
-    python3 tests/run_suite.py --jobid 191441 --out /path/results.json --only fast
-    python3 tests/run_suite.py --jobid 191441 --list
+TIERS. `--only` takes test names or a tier: `local`, `fast`, `medium`, `slow`, `server`. Only
+`local` is container-free -- no image, no GPU, no Slurm allocation, ~0.06 s. `fast` still needs the
+container: test_joint_reset_batching stubs `og.sim`, but it `import omnigibson` at module scope, so
+it cannot run on the login python. Do not read `needs_gpu=False` as "runs anywhere".
+
+    python3 tests/run_suite.py --only local --strict          # container-free; what CI runs
+    python3 tests/run_suite.py --jobid 191441 --out /path/results.json --only medium
+    python3 tests/run_suite.py --list
+    python3 tests/run_suite.py --report --out /path/results.json
+
+LEVELS are the other axis, and the one the Makefile exposes: `--level smoke|suite|matrix` picks a
+GATE (see LEVELS below) rather than a capability class. `make check` / `make test-static` are
+tier 1; `make test-smoke` / `test-suite` / `test-matrix` are tier 2. `make test` runs ONLY the
+`local` tier and prints what it skipped -- it is not the suite.
 """
 import argparse
 import json
@@ -182,6 +194,47 @@ SUITE = {
 # covered in the report as debug scripts, which is what they are.
 
 
+# ---------------------------------------------------------------------------------------------
+# LEVELS -- the manual, GPU-side pipeline. A `tier` says what a test NEEDS; a `level` says which
+# gate you are running. They are different axes on purpose: `--only slow` is "the expensive ones",
+# `--level suite` is "the gate before you trust a change".
+#
+# Seconds are MEASURED, from logs/suite_results_v2.json and a `make test-smoke` run on job 191496
+# (both 2026-08-16, MODE=stock, one L40S). They are what `make test-smoke` / `test-suite` quote, so they must not drift into
+# guesses -- if you re-time the suite, update these from the JSON rather than from memory.
+# ---------------------------------------------------------------------------------------------
+LEVELS = {
+    # The cheap gate: static checks, the scheduling test, one task end to end, and the only test
+    # that looks at the SCENE, at num_envs=2. Catches "the port is broken" in about ten minutes.
+    "smoke": ["test_task_progression_rubrics",   #    0.1 s
+              "test_joint_reset_batching",       #   53.6 s
+              "test_single_task",                #  223.3 s
+              "test_scene_object_placement"],    #  329.2 s   -> ~10 min total
+    # The gate before trusting a change: every task, every perturbation, both drawer paths.
+    "suite": ["test_task_progression_rubrics",   #     0.1 s
+              "test_joint_reset_batching",       #    83.4 s
+              "test_single_task",                #   223.3 s
+              "test_scene_object_placement",     #   329.2 s
+              "test_single_task_drawer",         #   301.3 s
+              "test_vector_integrity_drawers",   #   635.7 s
+              "test_integrity",                  #  1834.8 s
+              "test_perturbations_integrity"],   #  2584.3 s   -> ~1.7 h total
+    # The full task x perturbation sweep through the vector path. NO COMPLETED RUN IS ON RECORD:
+    # the half-matrix shard reached NO_VERDICT after 1315 s in job 191441. Budget hours, and
+    # expect to shard it -- test_vector_integrity_tasks_shard0of2 exists for exactly that.
+    "matrix": ["test_vector_integrity_tasks",
+               "test_vector_integrity_perturbations"],
+}
+
+#: Cells whose SCENE correctness depends on the OmniGibson bind. The v2 image carries most of the
+#: patches but NOT the up-axis fix, which lives only in the OG-lite fork; without it a drawer
+#: scene's cabinet can be mis-oriented while every artifact check still passes. `make test-suite`
+#: re-runs these under MODE=oglite as a second invocation, so the JSON carries both modes and the
+#: per-result `mode` column says which is which.
+OGLITE_SENSITIVE = ["test_single_task_drawer", "test_vector_integrity_drawers",
+                    "test_scene_object_placement"]
+
+
 def run_one(name, spec, args, outdir):
     log_path = outdir / f"{name}.log"
     if spec.get("local"):
@@ -269,6 +322,88 @@ def print_table(results, out, blob):
     print(f"results: {out}")
 
 
+def write_junit(results, path, suite_name="realm"):
+    """Emit a JUnit XML report, one <testcase> per suite entry.
+
+    WHY, AND WHY IT IS WRITTEN ONLY AT THE END
+    ------------------------------------------
+    This is the CI GATE, and it is deliberately a different artifact from the JSON, which is the
+    RECORD. The pattern is upstream BEHAVIOR-1K's (.github/workflows/tests.yml): run the tests with
+    `continue-on-error`, then judge on the file --
+
+        if [ ! -f results.xml ]; then echo "probably a segfault"; exit 1
+        elif grep -Eq 'failures="[1-9][0-9]*"|errors="[1-9][0-9]*"' results.xml; then exit 1
+
+    -- because an exit code cannot distinguish "passed" from "died before it could tell you". That
+    is the same hazard REALM has everywhere: Isaac hard-exits 0 on an unhandled exception.
+
+    run_suite.py already survives a CHILD dying: it reads the child's log and matches verdict
+    lines. What it could not signal until now is THE DRIVER ITSELF dying -- an OOM, a walltime
+    kill, a node failure. So the XML is written ONCE, after the last test. If the driver is killed,
+    the XML is absent and CI says so, while the JSON -- rewritten after every test, as before --
+    still holds the complete record of the tests that did finish. Writing the XML incrementally
+    would destroy exactly the signal it exists to carry.
+
+    Status mapping: PASS -> bare testcase; SKIP -> <skipped>; FAIL -> <failure>; TIMEOUT /
+    NO_VERDICT / *_AFTER_TIMEOUT -> <error>, because those mean the harness could not establish an
+    outcome, which is a different thing from the test having failed.
+    """
+    import xml.etree.ElementTree as ET
+
+    failures = sum(1 for r in results if r["status"] == "FAIL")
+    skipped = sum(1 for r in results if r["status"] == "SKIP")
+    errors = sum(1 for r in results
+                 if r["status"] not in OK_STATUSES and r["status"] != "FAIL")
+
+    ts = ET.Element("testsuite", name=suite_name, tests=str(len(results)),
+                    failures=str(failures), errors=str(errors), skipped=str(skipped),
+                    time=f"{sum(r['seconds'] for r in results):.1f}")
+    for r in results:
+        tc = ET.SubElement(ts, "testcase", classname=f"{suite_name}.{r.get('mode', 'stock')}",
+                           name=r["name"], time=f"{r['seconds']:.1f}")
+        detail = (f"status={r['status']} mode={r.get('mode')} exit={r['exit_code']} "
+                  f"timed_out={r['timed_out']}\nverdict_line={r.get('verdict_line')}\n"
+                  f"argv={' '.join(r['argv'])}\nlog={r['log']}\nnote={r['note']}")
+        if r["status"] == "SKIP":
+            ET.SubElement(tc, "skipped", message=str(r.get("verdict_line") or "skipped"))
+        elif r["status"] == "FAIL":
+            ET.SubElement(tc, "failure",
+                          message=str(r.get("verdict_line") or "FAIL")).text = detail
+        elif r["status"] not in OK_STATUSES:
+            ET.SubElement(tc, "error", message=r["status"]).text = detail
+        # cells are the per-item lines a sweep printed -- keep them, they are the detail a
+        # reviewer wants when one cell of sixteen went wrong.
+        if r.get("cells"):
+            ET.SubElement(tc, "system-out").text = "\n".join(r["cells"])
+
+    root = ET.ElementTree(ET.Element("testsuites"))
+    root.getroot().append(ts)
+    path = Path(path).absolute()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ET.indent(root, space="  ")
+    root.write(path, encoding="utf-8", xml_declaration=True)
+    print(f"junit: {path}  tests={len(results)} failures={failures} errors={errors} "
+          f"skipped={skipped}")
+
+
+#: statuses that are not a failure of the code under test. SKIP is a test declining to run because
+#: a precondition it cannot supply is absent (test_pi0_integration with no policy server), which is
+#: information, not a fault. Everything else -- FAIL, TIMEOUT, NO_VERDICT, *_AFTER_TIMEOUT -- is.
+OK_STATUSES = frozenset({"PASS", "SKIP"})
+
+
+def verdict_status(results, strict):
+    """Exit status for the DRIVER. 0 unless --strict and something did not end PASS/SKIP."""
+    if not strict:
+        return 0
+    bad = [r for r in results if r["status"] not in OK_STATUSES]
+    if not bad:
+        return 0
+    print(f"\n--strict: {len(bad)} test(s) did not pass: "
+          + ", ".join(f"{r['name']}={r['status']}" for r in bad), file=sys.stderr)
+    return 1
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -276,9 +411,25 @@ def main():
                                                  "on the current node.")
     p.add_argument("--mode", default=None, help="MODE for rr (stock/stockfix/oglite)")
     p.add_argument("--out", default="suite_results.json")
+    p.add_argument("--junit-xml", default=None, metavar="PATH",
+                   help="also write a JUnit XML report here, ONCE, after the last test. This is "
+                        "the CI gate: its ABSENCE means the driver itself died, which an exit "
+                        "code cannot tell you. The JSON (--out) remains the incremental record.")
     p.add_argument("--logdir", default=None, help="where per-test logs go (default: next to --out)")
     p.add_argument("--only", default=None,
-                   help="comma-separated test names, or a tier: fast/medium/slow/server")
+                   help="comma-separated test names, or a tier: local/fast/medium/slow/server. "
+                        "'local' is the container-free tier -- no GPU, no allocation, no image.")
+    p.add_argument("--strict", action="store_true",
+                   help="make THIS DRIVER's exit status meaningful: 1 if any test did not end "
+                        "PASS or SKIP, else 0. Off by default, because the normal use of this "
+                        "script is to record what happened, and a suite with a known-failing "
+                        "member is still a useful record. This flag is what `make test` and CI "
+                        "gate on. It says nothing about any CHILD's exit code, which is still "
+                        "recorded and still never trusted -- see the header.")
+    p.add_argument("--level", default=None, choices=sorted(LEVELS),
+                   help="which GATE to run: smoke (~11 min), suite (~1.7 h), matrix (hours). "
+                        "A level says what you are gating on; --only's tiers say what a test "
+                        "needs. Alternative to --only, not combinable with it.")
     p.add_argument("--list", action="store_true")
     p.add_argument("--report", action="store_true",
                    help="print the table from an existing --out JSON and exit, running nothing. "
@@ -302,10 +453,19 @@ def main():
             return 2
         blob = json.loads(out.read_text())
         print_table(blob.get("results", []), out, blob)
-        return 0
+        return verdict_status(blob.get("results", []), args.strict)
+
+    if args.level and args.only:
+        print("--level and --only are alternatives; pass one", file=sys.stderr)
+        return 2
 
     names = list(SUITE)
-    if args.only:
+    if args.level:
+        if args.level not in LEVELS:
+            print(f"unknown level {args.level!r}; known: {', '.join(LEVELS)}", file=sys.stderr)
+            return 2
+        names = list(LEVELS[args.level])
+    elif args.only:
         tiers = {s["tier"] for s in SUITE.values()}
         wanted = args.only.split(",")
         if set(wanted) <= tiers:
@@ -342,8 +502,16 @@ def main():
         print(f"  -> {rec['status']}  {rec['seconds']}s  exit={rec['exit_code']}"
               f"{' TIMED OUT' if rec['timed_out'] else ''}", flush=True)
 
+    # Only the tests this invocation actually ran decide its status, and only they go in the XML.
+    # `results` also carries rows merged in from earlier invocations against the same --out, and an
+    # old FAIL from a tier this run did not select must neither fail this run nor appear as a
+    # failure in this run's CI report.
+    mine = [r for r in results if r["name"] in names]
+
     print_table(results, out, None)
-    return 0
+    if args.junit_xml:
+        write_junit(mine, args.junit_xml)
+    return verdict_status(mine, args.strict)
 
 
 if __name__ == "__main__":

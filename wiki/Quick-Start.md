@@ -55,8 +55,17 @@ srun --jobid=<ID> --overlap nvidia-smi \
 bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
 ```
 
-Every line should say `ok`. If the image, dataset or log directory is missing, `rr` will refuse to
-start anyway — this just tells you *which* one, immediately, instead of after a container spin-up.
+The three that `rr` actually checks before it will start are `REALM_SIF`, `REALM_DATA` and
+`REALM_LOGS`. **Those three must say `ok`**; if one is missing `rr` refuses anyway, and this just
+tells you *which*, immediately, instead of after a container spin-up.
+
+> **`REALM_APPDATA` reads `MISSING` on a fresh checkout, and that is fine.** It is
+> `$REALM_ROOT/data/cache`, the per-checkout Kit/USD shader cache, and `rr` creates it on first run
+> — it is an output, not a prerequisite. Verified 2026-08-16 on a clean worktree: seven lines `ok`,
+> `REALM_APPDATA` `MISSING`, and step 2 below then ran fine and wrote all four artifacts. Do not go
+> hunting for it.
+
+`(cwd)` is the first line and is informational, not a path check.
 
 ## 2. A run that needs no policy server
 

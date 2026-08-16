@@ -163,6 +163,48 @@ Tabular results for the tested VLA models:
 | **S-Avg.** | 0.30 (-0.14 $\downarrow$) | 0.50 (-0.11 $\downarrow$) |      0.19 (-0.00 -)       |
 | **B-Avg.** | 0.30 (-0.13 $\downarrow$) | 0.44 (-0.17 $\downarrow$) | 0.13 (-0.06 $\downarrow$) |
 
+# Tests 🧪
+
+**Do not run `pytest tests/`.** Every file there is named `test_*.py`, but none of them defines a
+collectable test — they are standalone scripts with a `__main__` block. `pytest` collects zero
+items, and collects them by *importing* each module, four of which boot a full Isaac instance at
+module scope to find nothing. The driver is `tests/run_suite.py`, wrapped by `make`.
+
+The pipeline has two tiers, split on "does this need Isaac, the container and a GPU".
+
+```bash
+# Tier 1 -- static. No container, no GPU, no dataset. ~1 s. Runs in CI on every push and PR.
+make check                          # lint + the container-free tests
+
+# Tier 2 -- GPU. Needs the ~13 GB image, the ~36 GB dataset and a card.
+ALLOC=<slurm jobid> make test-smoke  # ~11 min   the cheap gate
+ALLOC=<slurm jobid> make test-suite  # ~1.7 h    the gate before trusting a change
+ALLOC=<slurm jobid> make test-matrix # hours     the task x perturbation sweep
+
+make test        # tier 1 only, then a list of exactly what it SKIPPED
+make test-list   # what is in the suite and what each member needs
+```
+
+Three things to know before you read a result:
+
+- **Verdicts never come from exit codes.** Isaac's shutdown hard-exits 0 on an unhandled exception
+  and can segfault at teardown after a pass, so a child's status is meaningless. Verdicts come from
+  each test's own printed verdict line. Two things *are* gateable: `--strict` makes the driver's
+  status mean "everything I ran ended PASS or SKIP", and `--junit-xml` writes a report once at the
+  end — its *absence* is how you detect that the driver itself died.
+- **Tier 1 is known red, deliberately.** `make lint` reports 25 `F401`/`F811` findings (baseline in
+  `.ruff.toml`), and `make test-static` reports `FAILED -- 2 problem(s)` because
+  `tests/test_task_progression_rubrics.py` was committed red on purpose: the `pour` rubric names a
+  `POUR` stage with no checker, and `check_pour` does not take `obs`. Both latent, both real.
+- **A green run is worth less than it looks.** Every test drives `--model_type debug`, whose
+  constant action never closes the gripper, so **none of the 22 success conditions is ever
+  evaluated** and every rollout the suite produces stops at `stage=REACH`.
+
+**There is deliberately no CI badge above.** CI (`static-checks`) exercises no simulation at all.
+
+- How to run each tier: **[Running the test suite](https://github.com/martin-sedlacek/REALM/wiki/Running-the-Test-Suite)**
+- What a pass does and does not establish: **[Test coverage](https://github.com/martin-sedlacek/REALM/wiki/Test-Coverage)**
+
 # Roadmap 🚧
 - [x] Streamlined installation
 - [x] Example scripts for getting started

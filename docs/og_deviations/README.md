@@ -34,6 +34,21 @@ Two findings recur across chapters and are cross-referenced rather than duplicat
 `frame="parent"` frame-composition defect (three live sites) and OmniGibson's habit of computing a
 value and then overwriting whatever the asset authored.
 
+## How paths are cited
+
+**An unqualified filename in these tables is never a REALM file.** `simulator.py`, `env_base.py`,
+`joint_prim.py`, `macros.py` and friends are OmniGibson's, relative to the `omnigibson/` package —
+so `env_base.py:730` means `omnigibson/envs/env_base.py:730`, **not** REALM's
+`realm/environments/env_base.py`, which shares the basename and is a quarter the length. Likewise
+`base.py` in the "what raw Isaac / Isaac Lab does" column is RoboLab's
+`robolab/core/environments/base.py`, spelled out in full the first time it appears in each table.
+**REALM's own files are always written with the `realm/` prefix.**
+
+Line numbers on OmniGibson and Isaac Lab files are against the versions in the container
+(`omnigibson 3.9.1`, Isaac Sim 5.1.0, Isaac Lab 2.2.0) and the OG-lite fork; those trees do not move
+under this repo's refactors. Line numbers on `realm/` files do, so REALM sites are cited by
+**function or class** wherever the exact line does not carry the point.
+
 ## How much to trust this
 
 **The OmniGibson side is what this project measured or read directly. It is not exhaustive**, and it

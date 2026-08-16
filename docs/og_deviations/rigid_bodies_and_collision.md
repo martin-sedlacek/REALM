@@ -110,9 +110,9 @@ hours of direction confusion.
 
 **This site reaches live REALM code.** `USDObject.get_base_aligned_bbox` consumes
 `link.visual_boundary_points_world` / `link.collision_boundary_points_world` at
-`objects/usd_object.py:1058-1060`, and REALM calls it during object replacement at
-`realm/environments/perturbations/_helpers.py:200` and
-`realm/environments/perturbations/sb_vrb.py:74`. Any object whose collision geometry sits under an
+`objects/usd_object.py:1058-1060`, and REALM calls it during perturbation object replacement in
+`replace_obj()` (`realm/environments/perturbations/object_sampling.py`) and in `sb_vrb()`
+(`realm/environments/perturbations/sb_vrb.py`). Any object whose collision geometry sits under an
 intermediate Xform can get a wrong bounding box during a perturbation. Not quantified on any
 BEHAVIOR object.
 

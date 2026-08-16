@@ -1,0 +1,185 @@
+# ==================================================================================================
+# TIER 2 OF TWO. THE REAL SUITE -- Isaac, the container, a GPU and the dataset.
+#
+# ############################################################################################
+# ## THIS WORKFLOW CANNOT RUN YET. NO SELF-HOSTED RUNNER IS REGISTERED FOR THIS REPOSITORY.  ##
+# ## It is `workflow_dispatch` only, on purpose: a scheduled job with no matching runner      ##
+# ## queues until it times out and reports a failure that means nothing. DO NOT enable the    ##
+# ## `schedule:` block below until a runner exists.                                           ##
+# ############################################################################################
+#
+# WHY IT IS COMMITTED ANYWAY. The same entry point runs both ways, and the manual way works today:
+#
+#     ALLOC=<slurm jobid> make test-suite        # on Clara, against a held allocation
+#
+# The steps below are that command with an allocation-shaped hole. Nothing here is speculative
+# except the runner: `tests/run_suite.py` already emits the JSON and the JUnit XML this gates on,
+# and the levels, the modes and the timings are all measured. Registering a runner is the only
+# missing piece.
+#
+# WHAT REGISTERING ONE WOULD TAKE -- A DECISION FOR MARTIN, NOT FOR THIS BRANCH:
+#
+#   * A machine that holds a GPU, the ~13 GB realm_og391_v2.sif and the ~36 GB dataset, and can
+#     make an OUTBOUND HTTPS connection to github.com. GitHub's runner polls out; no inbound hole
+#     is needed. Whether Clara's policy permits a long-lived agent phoning out is the question --
+#     it is a site policy matter and an administrative one, not a technical blocker.
+#   * Labels `[self-hosted, linux, gpu, dataset-enabled]`, matching upstream BEHAVIOR-1K's
+#     convention (.github/workflows/tests.yml), which this file follows.
+#   * A decision about how it gets a GPU. On a Slurm cluster the runner is on a login node and must
+#     `srun --overlap` into an allocation -- which is exactly what run_suite.py's --jobid does, so
+#     the shape already fits. It needs an allocation to point at: either a long-lived reservation,
+#     or a step that allocates per run. That choice belongs to whoever administers the queue.
+#   * Security: a self-hosted runner executing PRs from forks is a known escalation path. Restrict
+#     it to `workflow_dispatch` and `schedule` on trusted branches -- which is what this file does
+#     -- and never to `pull_request` from forks.
+#
+# WHAT THIS DOES *NOT* MAKE TRUE. Running the suite in CI does not widen what the suite covers. The
+# honest coverage statement, including the gaps that matter more than any of these jobs passing, is
+# the wiki's "Test coverage" page. In particular every test here drives `--model_type debug`, whose
+# constant action never closes the gripper, so no success condition beyond REACH is ever evaluated.
+# A green run of this workflow would mean "the simulation builds, steps and writes artifacts". It
+# would NOT mean a policy can do the tasks. Do not add a badge for it.
+# ==================================================================================================
+
+name: gpu-suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: 'Which gate to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options: [smoke, suite, matrix]
+      mode:
+        description: 'OmniGibson bind. Use oglite where SCENE correctness matters.'
+        required: true
+        default: 'stock'
+        type: choice
+        options: [stock, stockfix, oglite]
+      allocation:
+        description: 'Slurm job id to srun --overlap into. Blank runs on the runner itself.'
+        required: false
+        type: string
+
+  # Enable ONLY once a self-hosted runner is registered. Nightly, following upstream's
+  # examples-as-test.yml, because the suite is ~1.7 h and has no business on every push.
+  # schedule:
+  #   - cron: '0 3 * * *'
+
+concurrency:
+  # One GPU, one run. Never cancel in progress: a killed run leaves a partial allocation and a
+  # half-written log tree, and the next run then inherits a card that is not empty.
+  group: gpu-suite
+  cancel-in-progress: false
+
+jobs:
+  run_suite:
+    name: ${{ inputs.level }} / ${{ matrix.test }} / MODE=${{ inputs.mode }}
+    runs-on: [self-hosted, linux, gpu, dataset-enabled]
+
+    strategy:
+      # One job per suite entry, so a single bad cell does not hide the other eleven's results.
+      # Never fail-fast: the whole point of the matrix is per-entry granularity, and a crash in
+      # test_integrity says nothing about test_perturbations_integrity.
+      fail-fast: false
+      matrix:
+        test:
+          - test_task_progression_rubrics
+          - test_joint_reset_batching
+          - test_single_task
+          - test_single_task_drawer
+          - test_scene_object_placement
+          - test_integrity
+          - test_perturbations_integrity
+          - test_vector_integrity_drawers
+          - test_vector_integrity_tasks
+          - test_vector_integrity_perturbations
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Print environment
+        run: |
+          printenv | grep -v -i token
+          nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv
+          # An allocation is not a guarantee the card is empty. This has cost real time before.
+          nvidia-smi --query-compute-apps=pid,used_memory,name --format=csv
+
+      - name: Resolve paths
+        run: bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
+
+      # `continue-on-error` because an exit code cannot distinguish "passed" from "died before it
+      # could say so": Isaac hard-exits 0 on an unhandled exception and segfaults at teardown after
+      # a pass. The gate is the XML, two steps down. This is upstream BEHAVIOR-1K's pattern.
+      - name: Run ${{ matrix.test }}
+        continue-on-error: true
+        run: |
+          python3 tests/run_suite.py \
+            --only ${{ matrix.test }} \
+            --mode ${{ inputs.mode }} \
+            ${{ inputs.allocation && format('--jobid {0}', inputs.allocation) || '' }} \
+            --strict \
+            --out tmp/suite/${{ matrix.test }}.json \
+            --junit-xml tmp/suite/${{ matrix.test }}.xml
+
+      - name: Upload report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.run_id }}-gpu-${{ matrix.test }}
+          path: |
+            tmp/suite/${{ matrix.test }}.xml
+            tmp/suite/${{ matrix.test }}.json
+            tmp/suite/${{ matrix.test }}.log
+          if-no-files-found: warn
+
+      # THE GATE. A missing XML is the crash signal: run_suite.py writes it once, after the last
+      # test, so its absence means the driver itself died -- OOM, walltime kill, node failure --
+      # which no exit code would have told us.
+      - name: Check for failures, errors, or missing XML
+        run: |
+          XML=tmp/suite/${{ matrix.test }}.xml
+          if [ ! -f "$XML" ]; then
+            echo "Error: $XML not found -- the driver died before finishing (segfault, OOM, kill)"
+            exit 1
+          elif grep -Eq 'failures="[1-9][0-9]*"|errors="[1-9][0-9]*"' "$XML"; then
+            echo "Error: test failures or errors found"
+            grep -o 'name="[^"]*"' "$XML" || true
+            exit 1
+          else
+            echo "${{ matrix.test }} passed under MODE=${{ inputs.mode }}"
+          fi
+
+  upload_report:
+    name: Compile report
+    runs-on: ubuntu-latest
+    needs: [run_suite]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports
+          merge-multiple: true
+
+      - name: Test report
+        uses: dorny/test-reporter@v1
+        with:
+          name: REALM GPU suite (${{ inputs.level }}, MODE=${{ inputs.mode }})
+          path: reports/*.xml
+          reporter: java-junit
+          fail-on-error: 'false'
+          fail-on-empty: 'false'
+
+      - name: Coverage reminder
+        if: always()
+        run: |
+          echo "A pass here means the simulation builds, steps and writes artifacts."
+          echo "It does NOT mean a policy can do the tasks: every test drives --model_type debug,"
+          echo "whose constant action never closes the gripper, so no success condition beyond"
+          echo "REACH is evaluated. See the wiki's Test coverage page for the full gap list."

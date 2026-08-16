@@ -122,6 +122,10 @@ bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
 Each path line is marked `ok` or `MISSING` (the leading `(cwd)` line is informational). This is the
 first thing to run when something behaves oddly, and it is cheap.
 
+Only three of them are prerequisites — `REALM_SIF`, `REALM_DATA` and `REALM_LOGS`, which are what
+`rr` refuses to start without. **`REALM_APPDATA` reading `MISSING` on a fresh checkout is normal:**
+it is the per-checkout shader cache, and `rr` creates it on first run.
+
 ### Pointing it at your machine
 
 Only `REALM_ROOT` is derived from the script's own location. **Everything else hangs off one shared
@@ -201,8 +205,21 @@ srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
 Success prints `ALL PERTURBATIONS PASSED INTEGRITY CHECK!`. It uses the `debug` model type, which
 returns a constant action and needs nothing listening on a port.
 
+That is one test out of twelve. To run the rest — including the two static checks that need no GPU,
+no container and no allocation at all — see
+[Running the test suite](Running-the-Test-Suite):
+
+```sh
+make test-static                 # container-free, ~0.1 s
+ALLOC=<jobid> make test          # the full suite
+```
+
+**Do not run `pytest tests/`.** Every file there is named `test_*.py` and none defines a collectable
+test, so it collects zero items — after importing four modules that each boot a full Isaac instance.
+
 ## See also
 
 - [Quick start](Quick-Start)
 - [Running evaluations](Running-Evaluations) — `rr`, `MODE`, and the full flag surface
+- [Running the test suite](Running-the-Test-Suite) — `make test` and what each tier needs
 - [Known issues and gotchas](Known-Issues-and-Gotchas)
