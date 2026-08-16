@@ -79,6 +79,7 @@ def wants_base_im_second(task_type, base_im_second):
     """
     return task_type in DRAWER_TASK_TYPES and base_im_second is not None
 
+
 #: Policies trained on DROID emit the gripper as (open, closed) = (1, 0); molmoact emits (0, 1).
 #: REALM's gripper controller expects (1, -1).
 GRIPPER_OPEN_ABOVE_HALF = ("debug", "openpi", "GR00T", "GR00T_N16", "dreamzero")
