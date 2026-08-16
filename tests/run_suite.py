@@ -56,6 +56,15 @@ SUITE = {
         cells=r"^\[\d\] .*",
         note="rubric stages vs success_conditions; static, no container.",
     ),
+    "test_scene_object_placement": dict(
+        # The only test that looks at the SCENE rather than at the artifacts. It exists because
+        # both drawer tests passed on a build whose scene-0 cabinet was lying on its back.
+        argv=["tests/test_scene_object_placement.py", "--num_envs", "2"],
+        needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^(?:member \d+.*|member \d+ vs member \d+.*)$",
+        note="cross-member object placement + unitsResolve; MODE-sensitive by design.",
+    ),
     "test_joint_reset_batching": dict(
         argv=["tests/test_joint_reset_batching.py"],
         needs_gpu=False, needs_server=False, timeout=900, tier="fast",
