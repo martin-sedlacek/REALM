@@ -288,4 +288,20 @@ class TaskProgressionMixin:
         return self.check_closed_mo_joint_large(obs) or self.check_opened_mo_joint_large(obs)
 
     def check_moved_mo_joint_full(self, obs):
+        """MOVE_JOINT_FULL: delegates to the _LARGE checkers, not the _FULL ones.
+
+        DELIBERATELY LEFT AS IS. It reads like a copy-paste slip -- `_small` calls the `_small`
+        pair, `_large` calls the `_large` pair, and this one calls the `_large` pair again instead
+        of `check_closed_mo_joint_full` / `check_opened_mo_joint_full` -- but it is identical to
+        the pre-port 1.1.1 implementation (`~/projects/REALM`,
+        `realm/environments/env_base.py:330-331`). So this is not port breakage, and the behaviour
+        it produces is the behaviour every REALM number was ever scored against.
+
+        What "fixing" it would do: MOVE_JOINT_FULL would demand openness > 0.95 or < 0.05 instead
+        of > 0.65 or < 0.35, making the last stage of a `turn_faucet` rubric strictly harder.
+        Nothing reaches it today -- MOVE_JOINT_FULL is named only by the `turn_faucet` rubric and
+        no task config declares `task_type: turn_faucet` -- so the change would alter no number
+        now while silently redefining the stage for whoever adds that task. That decision belongs
+        to them, with the thresholds in front of them, not to a drive-by cleanup.
+        """
         return self.check_closed_mo_joint_large(obs) or self.check_opened_mo_joint_large(obs)
