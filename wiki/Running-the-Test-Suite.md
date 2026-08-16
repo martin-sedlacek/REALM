@@ -10,8 +10,10 @@ Every file in `tests/` is named `test_*.py`, and **none of them defines a collec
 `if __name__ == "__main__":` block that `sys.exit(1)` on failure.
 
 So `pytest tests/` collects nothing — and it collects nothing *expensively*, because collection
-works by **importing** each module, and four of these import `omnigibson` at module scope. That is a
-full Isaac boot, about a minute, to discover zero tests.
+works by **importing** each module, and **five of the eight** pull in `omnigibson` at module scope:
+`test_joint_reset_batching` and `test_scene_object_placement` import it directly, and
+`test_integrity`, `test_single_task` and `test_perturbations_integrity` reach it through
+`realm.eval`. That is a full Isaac boot, about a minute, to discover zero tests.
 
 (pytest is not missing. It is installed in the container. It is simply the wrong tool here.)
 
@@ -35,7 +37,7 @@ Runs in GitHub Actions on every push and pull request
 ### Tier 2 — GPU. Needs the image, the dataset and a card.
 
 ```sh
-ALLOC=<jobid> make test-smoke    # ~11 min   the cheap gate
+ALLOC=<jobid> make test-smoke    # ~12 min   the cheap gate
 ALLOC=<jobid> make test-suite    # ~1.7 h    the gate before trusting a change
 ALLOC=<jobid> make test-matrix   # hours     the task × perturbation sweep
 ALLOC=<jobid> make test-server   #           needs a policy server on :8000
@@ -43,12 +45,28 @@ ALLOC=<jobid> make test-server   #           needs a policy server on :8000
 
 | Level | What it runs | Cost |
 |---|---|---|
-| `smoke` | the static test, joint-reset scheduling, one task end to end, and the scene check at `num_envs=2` | ~11 min |
+| `smoke` | the static test, joint-reset scheduling, one task end to end, and the scene check at `num_envs=2` | ~12 min |
 | `suite` | `smoke` plus both drawer paths, all 10 tasks, all 16 perturbations | ~1.7 h |
 | `matrix` | the full task × perturbation sweep through the vector path | hours; no completed run on record |
 
-Costs are **measured**, from `logs/suite_results_v2.json` (2026-08-16, one L40S) — except
-`test_single_task`, which had no completed measurement when the levels were written.
+Costs are **measured**: `smoke` end to end on job 191496 (705.5 s), the rest from
+`logs/suite_results_v2.json` — both 2026-08-16, one L40S, `MODE=stock`.
+
+> ### ⚠ `make test-smoke` and `make test-suite` report a FAILURE at the default `MODE=stock`
+>
+> Two of them, and neither is your install:
+>
+> - `test_task_progression_rubrics` — the two real code defects described below;
+> - **`test_scene_object_placement`** — which is **MODE-sensitive by design**. It is the only test
+>   that looks at the *scene* rather than at the artifacts, and the v2 image lacks the up-axis fix,
+>   so at `MODE=stock` a drawer scene genuinely is wrong. Measured on job 191496: **FAIL at `stock`
+>   in 428.5 s**, PASS at `oglite`.
+>
+> Run `SUITE_MODE=oglite make test-smoke` when the scene has to be right. **Do not loosen that
+> test's tolerance** — it is the tripwire, and everything else about the drawer passes regardless.
+>
+> That same run is a live demonstration of why verdicts are not exit codes:
+> `test_scene_object_placement` **failed while exiting 0**.
 
 `make test-suite` additionally **re-runs the OG-lite-sensitive cells at `MODE=oglite`** as a second
 invocation, because at `MODE=stock` a drawer scene can be physically wrong while every artifact

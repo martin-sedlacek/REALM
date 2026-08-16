@@ -15,7 +15,7 @@
 #             SAME entry point unchanged (.github/workflows/gpu-suite.yml -- see its header; no
 #             such runner is registered yet, that is a decision for Martin).
 #
-#               ALLOC=<jobid> make test-smoke    ~11 min   the cheap gate
+#               ALLOC=<jobid> make test-smoke    ~12 min   the cheap gate
 #               ALLOC=<jobid> make test-suite    ~1.7 h    the gate before trusting a change
 #               ALLOC=<jobid> make test-matrix   hours     the task x perturbation sweep
 #               ALLOC=<jobid> make test-server             needs a policy server on :8000
@@ -39,7 +39,7 @@
 #
 # REALM HAS NO PYTEST SUITE. Every file in tests/ is named test_*.py, but none defines a
 # collectable test. `pytest tests/` collects ZERO items -- and collects them by IMPORTING each
-# module, which for four of them boots a full Isaac instance to find nothing. Do not use it.
+# module, which for five of the eight boots a full Isaac instance to find nothing. Do not use it.
 #
 # EXPECT `make test-static` TO REPORT A FAILURE, and `make lint` to report 25 findings. Both are
 # the repository's real state, not a broken install:
@@ -47,6 +47,12 @@
 #     names a POUR stage success_conditions has no key for, and check_pour does not take `obs`.
 #     Both latent -- no shipped task declares `pour` -- both real.
 #   * ruff's 25 F401/F811 findings sit in realm/ (3), scripts/ (19) and tests/ (3).
+#
+# AND EXPECT `make test-smoke` / `make test-suite` TO REPORT A FAILURE AT THE DEFAULT MODE=stock.
+# test_scene_object_placement is MODE-sensitive BY DESIGN: it is the only test that looks at the
+# SCENE, and the v2 image lacks the up-axis fix, so a drawer scene really is wrong under stock.
+# Measured on job 191496 (2026-08-16): FAIL at stock in 428.5 s; PASS at oglite. Run
+# `SUITE_MODE=oglite` when the scene has to be right. Do NOT loosen that test's tolerance.
 # Coverage, and the gaps that matter more than either: the wiki's Test coverage page.
 #
 # Knobs: SUITE_OUT= (results JSON), SUITE_XML= (JUnit report), SUITE_MODE= (stock/stockfix/oglite),
@@ -118,7 +124,7 @@ test: ## Tier 1 only (1 of the suite's 12 entries), then print what it skipped
 	@echo "   test_pi0_integration             needs a live policy server on :8000"
 	@echo ""
 	@echo " No scene is loaded and no rollout is run below. For tier 2:"
-	@echo "   ALLOC=<slurm jobid> make test-smoke     (~11 min)"
+	@echo "   ALLOC=<slurm jobid> make test-smoke     (~12 min)"
 	@echo "   ALLOC=<slurm jobid> make test-suite     (~1.7 h)"
 	@echo "======================================================================================"
 	@echo ""
@@ -130,7 +136,7 @@ test-static: ## The container-free tests (no GPU, no allocation, no container)
 
 # --- tier 2 ---------------------------------------------------------------------------------------
 
-test-smoke: ## ~11 min. Static + scheduling + one task end to end + the scene check at num_envs=2
+test-smoke: ## ~12 min. Static + scheduling + one task end to end + the scene check at num_envs=2
 	$(require_alloc)
 	$(PYTHON) $(SUITE) --jobid $(ALLOC) --mode $(SUITE_MODE) --level smoke --strict \
 	    --out $(SUITE_OUT) --junit-xml $(SUITE_XML) $(SUITE_ARGS)

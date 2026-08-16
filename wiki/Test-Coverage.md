@@ -172,8 +172,14 @@ bind:
 
 | `MODE` | `test_scene_object_placement` | `test_integrity` (10 tasks) | `test_vector_integrity_drawers` |
 |---|---|---|---|
-| `stock` | **FAIL** (329.2 s) | PASS | PASS |
+| `stock` | **FAIL** (329.2 s; 428.5 s on a re-run) | PASS | PASS |
 | `oglite` | **PASS** (334.5 s) | — | — |
+
+> **That failing run exited 0.** Measured on job 191496, 2026-08-16: `test_scene_object_placement`
+> reported `FAIL` with `exit=0`. If the suite gated on exit codes it would have called that a pass.
+> It gates on the test's own printed verdict line instead, which is why it did not — and it is the
+> single clearest demonstration in this repository of why "exit code 0 proves nothing" is a rule
+> and not a caution.
 
 **That row is the whole point of this page.** The two tests that exercise the drawer *pass* under
 the bind where the drawer is physically wrong; the one test that looks at the scene is the only one

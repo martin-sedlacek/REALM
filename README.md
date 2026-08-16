@@ -167,8 +167,8 @@ Tabular results for the tested VLA models:
 
 **Do not run `pytest tests/`.** Every file there is named `test_*.py`, but none of them defines a
 collectable test — they are standalone scripts with a `__main__` block. `pytest` collects zero
-items, and collects them by *importing* each module, four of which boot a full Isaac instance at
-module scope to find nothing. The driver is `tests/run_suite.py`, wrapped by `make`.
+items, and collects them by *importing* each module — five of the eight boot a full Isaac instance
+at module scope to find nothing. The driver is `tests/run_suite.py`, wrapped by `make`.
 
 The pipeline has two tiers, split on "does this need Isaac, the container and a GPU".
 

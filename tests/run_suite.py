@@ -4,8 +4,10 @@ WHY THIS EXISTS, AND WHY IT IS NOT PYTEST
 -----------------------------------------
 Every file in tests/ is named `test_*.py` but NONE of them defines a pytest-collectable test:
 there is no `def test_*`, no `class Test*`, no `import pytest`. `pytest tests/` collects zero
-items -- and it collects them by IMPORTING each module, which for three of these files means
-booting a full Isaac instance at module scope purely to find nothing. (pytest IS installed in the
+items -- and it collects them by IMPORTING each module, which for FIVE of the eight means booting
+a full Isaac instance at module scope purely to find nothing (test_joint_reset_batching and
+test_scene_object_placement import omnigibson directly; test_integrity, test_single_task and
+test_perturbations_integrity reach it through realm.eval). (pytest IS installed in the
 container, at /opt/conda/envs/behavior/lib/python3.11/site-packages; it is absent from the login
 python. So "pytest is missing" is not the reason.) They are standalone scripts with a
 `if __name__ == "__main__":` block and `sys.exit(1)` on failure, and that is how this driver runs
@@ -206,10 +208,13 @@ SUITE = {
 LEVELS = {
     # The cheap gate: static checks, the scheduling test, one task end to end, and the only test
     # that looks at the SCENE, at num_envs=2. Catches "the port is broken" in about ten minutes.
+    # NOTE: at MODE=stock this level is EXPECTED TO REPORT 2 FAILURES -- the rubric test (a real
+    # code defect, see its docstring) and test_scene_object_placement, which is MODE-sensitive by
+    # design and only passes under oglite. Measured end to end on job 191496, 2026-08-16: 705.5 s.
     "smoke": ["test_task_progression_rubrics",   #    0.1 s
               "test_joint_reset_batching",       #   53.6 s
               "test_single_task",                #  223.3 s
-              "test_scene_object_placement"],    #  329.2 s   -> ~10 min total
+              "test_scene_object_placement"],    #  428.5 s   -> 705.5 s (~12 min) total
     # The gate before trusting a change: every task, every perturbation, both drawer paths.
     "suite": ["test_task_progression_rubrics",   #     0.1 s
               "test_joint_reset_batching",       #    83.4 s
@@ -427,7 +432,7 @@ def main():
                         "gate on. It says nothing about any CHILD's exit code, which is still "
                         "recorded and still never trusted -- see the header.")
     p.add_argument("--level", default=None, choices=sorted(LEVELS),
-                   help="which GATE to run: smoke (~11 min), suite (~1.7 h), matrix (hours). "
+                   help="which GATE to run: smoke (~12 min, measured), suite (~1.7 h), matrix (hours). "
                         "A level says what you are gating on; --only's tiers say what a test "
                         "needs. Alternative to --only, not combinable with it.")
     p.add_argument("--list", action="store_true")
