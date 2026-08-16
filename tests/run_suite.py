@@ -48,6 +48,14 @@ RR = str(PROJECT_ROOT / "scripts/clara/interactive/rr")
 # `cells` extracts the per-item lines a sweep prints, for the detail column.
 # ---------------------------------------------------------------------------------------------
 SUITE = {
+    "test_task_progression_rubrics": dict(
+        argv=["tests/test_task_progression_rubrics.py"],
+        local=True,   # runs on the login python: no container, no allocation, ~0.06 s
+        needs_gpu=False, needs_server=False, timeout=120, tier="local",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d\] .*",
+        note="rubric stages vs success_conditions; static, no container.",
+    ),
     "test_joint_reset_batching": dict(
         argv=["tests/test_joint_reset_batching.py"],
         needs_gpu=False, needs_server=False, timeout=900, tier="fast",
@@ -167,12 +175,17 @@ SUITE = {
 
 def run_one(name, spec, args, outdir):
     log_path = outdir / f"{name}.log"
-    inner = "cd %s && exec ./scripts/clara/interactive/rr python -u %s" % (
-        PROJECT_ROOT, " ".join(spec["argv"]))
-    if args.jobid:
-        cmd = ["srun", "--jobid", str(args.jobid), "--overlap", "bash", "-c", inner]
+    if spec.get("local"):
+        # No container, no allocation: a pure-Python test that reads source and config. Sending it
+        # through rr+srun would cost ~40 s of apptainer start to run something that takes 0.06 s.
+        cmd = [sys.executable, "-u"] + [str(PROJECT_ROOT / spec["argv"][0])] + spec["argv"][1:]
     else:
-        cmd = ["bash", "-c", inner]
+        inner = "cd %s && exec ./scripts/clara/interactive/rr python -u %s" % (
+            PROJECT_ROOT, " ".join(spec["argv"]))
+        if args.jobid:
+            cmd = ["srun", "--jobid", str(args.jobid), "--overlap", "bash", "-c", inner]
+        else:
+            cmd = ["bash", "-c", inner]
 
     env = dict(os.environ)
     if args.mode:
