@@ -126,6 +126,19 @@ SUITE = {
               r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
         note="tasks 0,2,4,6,8 under Default through the vector path, num_envs=2, rendering ON.",
     ),
+    "test_vector_integrity_drawers": dict(
+        # The two drawer cells only. A sibling measured 8:Default crashing under MODE=stock with
+        # material_prim.py's missing preset_name default; this is that cell, re-run against the
+        # rebuilt image. Vector rather than single-env because open_drawer/close_drawer are the
+        # only task types that reach run_joint_resets(), and the batching only exists at num_envs>1.
+        argv=["tests/test_vector_integrity.py", "--cells", "8:Default,9:Default", "--num_envs", "2"],
+        needs_gpu=True, needs_server=False, timeout=5400, tier="slow",
+        verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
+                 (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
+        note="open_drawer + close_drawer through the vector path -- the run_joint_resets cells.",
+    ),
     "test_vector_integrity_perturbations": dict(
         argv=["tests/test_vector_integrity.py", "--matrix", "perturbations", "--num_envs", "2"],
         needs_gpu=True, needs_server=False, timeout=21600, tier="slow",
