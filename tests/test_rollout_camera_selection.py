@@ -108,6 +108,38 @@ def main():
     for t in uncovered:
         failures.append(f"[3] declared task type {t!r} is not exercised by the truth table")
 
+    # ---- 4: negative control -- the table must REJECT the predicate this replaced ---------------
+    # Without this, [2] proves only "the current code agrees with the current expectations". The
+    # two predicates that were live or plausible before 2026-08-16 are evaluated inline here and
+    # must both disagree with the table, so a revert or a half-fix cannot pass this file.
+    #
+    #   old      -- what realm/rollout.py:314 actually did: a string no config declares.
+    #   unguarded -- the string fixed but base_im_second not checked for None. This one is worse
+    #                than the bug it replaces: it hands resize_with_pad(None) to the openpi path.
+    def old(task_type, second):
+        return task_type == "open_close_drawer"
+
+    def unguarded(task_type, second):
+        return task_type in DRAWER_TASK_TYPES
+
+    print("\n[4] negative control -- rejected predicates:")
+    for label, pred, must_differ_on in (
+            ("pre-fix (== 'open_close_drawer')", old, ("open_drawer", IMAGE)),
+            ("string-only fix (no None guard)", unguarded, ("open_drawer", None))):
+        differs = [(t, s) for t, s, expected in cases if bool(pred(t, s)) != expected]
+        agrees_where_it_must_not = bool(pred(*must_differ_on)) == wants_base_im_second(*must_differ_on)
+        print(f"    {label:<36} disagrees with the table on {len(differs)} case(s)")
+        if not differs:
+            failures.append(
+                f"[4] the rejected predicate {label!r} satisfies the whole truth table, so [2] "
+                f"cannot tell the fix from the defect. Strengthen the table.")
+        if agrees_where_it_must_not:
+            failures.append(
+                f"[4] the rejected predicate {label!r} agrees with the fixed one on "
+                f"{must_differ_on[0]!r} / "
+                f"{'image' if must_differ_on[1] is not None else None}, which is the exact case "
+                f"it was supposed to get wrong.")
+
     print("\n" + "=" * 78)
     if failures:
         print(f"FAILED -- {len(failures)} problem(s):")
