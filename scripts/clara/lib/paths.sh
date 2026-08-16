@@ -107,7 +107,31 @@ _realm_pick() {
 # (realm_og391.sif -> shared, data/datasets -> shared, logs -> shared) precisely so the in-repo path
 # is the normal answer, and after the rename they are real entries at the root. A fresh worktree has
 # only some of those symlinks, which is what the fallback covers.
-REALM_SIF=${REALM_SIF_OG391:-$(_realm_pick -f "$REALM_ROOT/realm_og391.sif" "$REALM_SHARED/realm_og391.sif")}
+#
+# THE IMAGE: v2 FIRST, 2026-08-16. realm_og391_v2.sif (built 2026-08-14) carries the seven
+# OmniGibson patches that used to require MODE=oglite or MODE=stockfix to get -- entity_prim,
+# usd_object, scene_base_zoffset, simulator_initqueue, material_prim_preset, xform_prim_rootlink,
+# entity_prim_rootlink. Verified by reading the file inside both images rather than by report:
+#
+#   realm_og391.sif     def __init__(self, relative_prim_path, name, preset_name, load_config=None)
+#   realm_og391_v2.sif  def __init__(self, relative_prim_path, name, preset_name=None, load_config=None)
+#
+# (omnigibson/prims/material_prim.py:638.) The required argument in the OLD image is why
+# tests/test_integrity.py's tasks 8 and 9 -- the only two whose main object is
+# custom_assets/impact_drawer/usd/cabinet.usd -- died under MODE=stock with
+# "TypeError: missing a required argument: 'preset_name'".
+#
+# EVERY RESULT RECORDED BEFORE 2026-08-16 WAS PRODUCED AGAINST THE OLD IMAGE. To reproduce one, or
+# to bisect a behaviour change against the rebuild, name it explicitly:
+#
+#   REALM_SIF_OG391=$REALM_SHARED/realm_og391.sif ./scripts/clara/interactive/rr python ...
+#
+# The candidate list falls back to the old image if v2 is absent, so a checkout without it still
+# runs; when neither exists the caller's own `[ -f "$REALM_SIF" ]` names v2, which is the path a
+# reader should be looking for.
+REALM_SIF=${REALM_SIF_OG391:-$(_realm_pick -f \
+  "$REALM_ROOT/realm_og391_v2.sif" "$REALM_SHARED/realm_og391_v2.sif" \
+  "$REALM_ROOT/realm_og391.sif"    "$REALM_SHARED/realm_og391.sif")}
 REALM_DATA=${REALM_DATA_OG391:-$(_realm_pick -d "$REALM_ROOT/data/datasets" "$REALM_SHARED/data/datasets_og391")}
 # NOTE for whoever performs the rename: this checkout's `logs` is a symlink to $REALM_SHARED/logs,
 # so once the tree IS ~/projects/REALM that symlink points at itself and neither candidate resolves.
