@@ -1,0 +1,96 @@
+PROPOSAL ONLY -- DO NOT APPLY WITHOUT THE USER'S APPROVAL.
+==========================================================
+
+`realm/sim_config.py` lives on the main port branch and the user has not approved a change to it.
+This file exists so the proposal is reviewable as a diff rather than as prose. Nothing applies it.
+
+WHAT IT ADDS
+    A fourth `rendering_mode`, "r111", that reproduces OmniGibson 1.1.1's renderer configuration on
+    the 3.9.1 stack. Two parts, and the second is the half that is easy to forget:
+
+      1. the eight carb values 1.1.1's `_set_renderer_settings` produces under
+         `gm.ENABLE_HQ_RENDERING = True` (OG-lite/omnigibson/simulator.py:480-496), and
+      2. turning OFF the five things OG 3.9.1 sets that 1.1.1 never touches --
+         `rendermode = RealTimePathTracing`, `rtx/modes/rt/enabled`, `rtx/modes/rt2/enabled`,
+         `raytracing/fractionalCutoutOpacity`, `flow/enabled`.
+
+WHY IT DOES NOT TOUCH gm.ENABLE_HQ_RENDERING
+    Because it must not. Setting that macro True on 3.9.1 trips
+    `assert (1 / self.get_rendering_dt()) >= 60` (simulator.py:700) at REALM's 15 Hz, and the
+    cascade behind it is three asserts deep -- raising the render rate then trips
+    `sim_step_dt == rendering_dt` under `gm.HEADLESS`, and raising the sim rate then trips
+    robot.py:488 against `control_freq: 15`, hardcoded twice in every realm/config/robots/*.yaml.
+    Applying the carb values the HQ branch WOULD have produced sidesteps all three, and the macro's
+    only other effect in 3.9.1 outside an isosurface-only block is `dlss/execMode`, which is set
+    explicitly here anyway.
+
+WHY IT IS NOT THE EXISTING "r" BRANCH
+    "r" is not a revert to 1.1.1, it is a third look. It sets `RaytracedLighting` but ALSO disables
+    shadows, reflections, indirectDiffuse and ambientOcclusion, and leaves ambient at 1.0 -- and it
+    measures BRIGHTER than the 3.9.1 default, not darker (exterior cam1 206.20 vs 173.34, against
+    1.1.1's 117.99). Do not reach for "r" expecting 1.1.1's look.
+
+TIMING -- LOAD-BEARING
+    `set_rendering_mode()` is called from `env_dynamic.finalize_setup()`, i.e. after env creation but
+    BEFORE the scene has ever been rendered. That is the right place and it is why this belongs here
+    rather than in a post-hoc helper: the same settings applied after warmup are worth measurably
+    less (`rendering_mode="r"` scores +9.8% on exterior cam1 applied post-warmup vs +20.0% applied
+    here). Any caller that wants this must go through `rendering_mode`, not set carb keys later.
+
+BEFORE PROPOSING THIS AS A FIX, READ THE MEASUREMENT
+    `r111` was measured on og391 and it does NOT restore 1.1.1's appearance -- see
+    ~/runbook/streams/realm_og391_port.md. It is worth adding as a *documented, faithful* control so
+    nobody has to re-derive what 1.1.1 actually configured, not as a repair. The residual gap is not
+    a carb setting.
+
+--- a/realm/sim_config.py
++++ b/realm/sim_config.py
+@@ -111,6 +111,45 @@ def set_rendering_mode(rendering_mode):
+
+         #carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing", True)
+         enable_interactive_path_tracing(carb_settings, samples_per_pixel=8)
++    elif rendering_mode == "r111":
++        # Reproduce OmniGibson 1.1.1's renderer configuration on the 3.9.1 stack.
++        #
++        # NOT a performance mode and NOT the "r" branch below -- "r" additionally kills shadows,
++        # reflections, indirectDiffuse and AO and leaves ambient at 1.0, and measures BRIGHTER than
++        # the 3.9.1 default. This branch matches 1.1.1's VALUES.
++        #
++        # Deliberately does not set gm.ENABLE_HQ_RENDERING: that macro is read at env creation, and
++        # True trips 3.9.1's ">= 60 FPS" isosurface assert at REALM's 15 Hz. These are the carb
++        # values its HQ branch would have produced.
++        #
++        # Part 1 -- OG-lite/omnigibson/simulator.py:480-496, ENABLE_HQ_RENDERING=True branch.
++        carb_settings.set_bool("/rtx/reflections/enabled", True)
++        carb_settings.set_bool("/rtx/indirectDiffuse/enabled", True)
++        carb_settings.set_int("/rtx/post/dlss/execMode", 3)                       # "Auto"
++        carb_settings.set_bool("/rtx/ambientOcclusion/enabled", True)
++        carb_settings.set_bool("/rtx/directLighting/sampledLighting/enabled", False)
++        carb_settings.set_int("/rtx/raytracing/showLights", 1)
++        # 3.9.1 sets 1.0 here (simulator.py:677). Ten times 1.1.1's value -- and measured to be
++        # worth under 0.5% of the brightness gap on its own, at this timing. Matched for fidelity,
++        # not because it is the lever.
++        carb_settings.set_float("/rtx/sceneDb/ambientLightIntensity", 0.1)
++        carb_settings.set_bool("/app/renderer/skipMaterialLoading", False)
++        #
++        # Part 2 -- undo what 3.9.1 adds and 1.1.1 never sets. Easy to miss, and the reason a
++        # "match" built only from Part 1 is not one.
++        #
++        # On `rendermode`: 3.9.1's source sets "RealTimePathTracing", but a carb readback after env
++        # creation already reports "RaytracedLighting" -- something later in startup overrides the
++        # string, so this line is belt-and-braces. The flags that actually select RTX Real-Time 2.0
++        # are the two mode toggles below, which 1.1.1 leaves off.
++        carb_settings.set_string("/rtx/rendermode", "RaytracedLighting")
++        carb_settings.set_bool("/rtx/rtx/modes/rt/enabled", False)
++        carb_settings.set_bool("/rtx/rtx/modes/rt2/enabled", False)
++        carb_settings.set_bool("/rtx/raytracing/fractionalCutoutOpacity", False)  # 1.1.1 Kit: false
++        carb_settings.set_bool("/rtx/flow/enabled", False)                        # 1.1.1: unset
+     elif rendering_mode == "r":
+         carb_settings.set_string("/rtx/rendermode", "RaytracedLighting")
+         carb_settings.set_bool("/rtx/translucency/enabled", True)
+@@ -127,4 +166,4 @@ def set_rendering_mode(rendering_mode):
+         carb_settings.set_bool("/exts/omni.renderer.core/present/enabled", False)
+         carb_settings.set_string("/isaaclab/rendering/rendering_mode", "performance")
+     else:
+-        assert rendering_mode == "rt", f"rendering mode must be 'pt', 'rt', or 'r'"
++        assert rendering_mode == "rt", f"rendering mode must be 'pt', 'rt', 'r', or 'r111'"
