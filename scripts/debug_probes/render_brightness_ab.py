@@ -203,6 +203,68 @@ def build_ladder(only=None):
 # ==================================================================================================
 # frames
 # ==================================================================================================
+def dump_carb_tree(lazy):
+    """The ENTIRE carb settings tree as flat {path: value}, plus how it was obtained.
+
+    Tries the clean route first (carb.dictionary.get_dict_copy on the root item, which returns a
+    nested python dict), then falls back to an explicit breadth-first walk over the dictionary
+    interface. Returns (flat_dict, method, error_or_None) and never raises -- a failed dump must be
+    recorded as a failed dump, not crash a run that has already paid for an Isaac boot.
+    """
+    import collections
+
+    def flatten(node, prefix, out):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                flatten(v, f"{prefix}/{k}", out)
+        elif isinstance(node, (list, tuple)):
+            # Record arrays whole; per-index keys would explode the diff for no gain.
+            out[prefix] = list(node)
+        else:
+            out[prefix] = node
+
+    cs = lazy.carb.settings.get_settings()
+
+    # Route 1: nested dict copy of the root item.
+    try:
+        import carb.dictionary
+        di = carb.dictionary.get_dictionary()
+        root = cs.get_settings_dictionary("/")
+        nested = di.get_dict_copy(root)
+        flat = {}
+        flatten(nested, "", flat)
+        if flat:
+            return flat, "carb.dictionary.get_dict_copy", None
+    except Exception as e:
+        route1_err = f"{type(e).__name__}: {e}"
+    else:
+        route1_err = "empty result"
+
+    # Route 2: explicit BFS over the dictionary interface.
+    try:
+        import carb.dictionary
+        di = carb.dictionary.get_dictionary()
+        flat = {}
+        q = collections.deque([(cs.get_settings_dictionary("/"), "")])
+        seen = 0
+        while q and seen < 500000:
+            item, path = q.popleft()
+            seen += 1
+            n = di.get_item_child_count(item)
+            if n == 0:
+                try:
+                    flat[path or "/"] = cs.get(path or "/")
+                except Exception:
+                    flat[path or "/"] = "<unreadable>"
+                continue
+            for i in range(n):
+                child = di.get_item_child_by_index(item, i)
+                q.append((child, f"{path}/{di.get_item_name(child)}"))
+        return flat, f"BFS over carb.dictionary (route1: {route1_err})", None
+    except Exception as e:
+        return {}, "FAILED", f"route1: {route1_err}; route2: {type(e).__name__}: {e}"
+
+
 def collect_rgb(obs):
     """Every RGB leaf in an obs dict, keyed by its dotted path. Stack-agnostic on purpose: the two
     trees disagree about extract_from_obs' return arity, but both nest {...: {'rgb': HxWx(3|4)}}."""
@@ -316,6 +378,13 @@ def main():
                          "where OmniGibson itself applies them. Needed because writes made AFTER "
                          "env creation were MEASURED to be inert -- every post-creation ladder "
                          "variant landed within 0.5%% of baseline. One variant per boot.")
+    ap.add_argument("--dump-carb", default=None,
+                    help="After the frame gate passes, walk the ENTIRE carb settings tree and write "
+                         "it to this path as flat {path: value} JSON. The point is to stop guessing "
+                         "which keys matter: neither OmniGibson sets tonemapping, auto-exposure or "
+                         "colour correction, so both stacks inherit KIT defaults, and Kit differs "
+                         "between Isaac 4.x (OG 1.1.1) and 5.1 (OG 3.9.1). A default that changed "
+                         "between Isaac versions is invisible to any hand-written key list.")
     ap.add_argument("--gate-min-colors", type=int, default=2000)
     ap.add_argument("--gate-max-dominant", type=float, default=0.50)
     args = ap.parse_args()
@@ -534,6 +603,37 @@ def main():
     report["cameras"] = cams
     print(f"[cams] {cams}")
     flush()
+
+    # ---------- the exhaustive carb dump ----------
+    # GATED: a settings dump is only meaningful if it describes a renderer that was actually
+    # producing a real frame at the time. The 1.1.1 stack has returned 87%-white buffers here, and a
+    # dump taken alongside one of those would describe a half-initialised pipeline.
+    if args.dump_carb:
+        got = collect_rgb(obs)
+        gate = {c: frame_stats(got[c], args.gate_min_colors, args.gate_max_dominant) for c in cams}
+        ok = all(g["gate_ok"] for g in gate.values())
+        report["carb_dump_gate"] = {c: {k: g[k] for k in ("mean", "n_colors", "dominant_frac",
+                                                          "gate_ok", "gate_fail")}
+                                    for c, g in gate.items()}
+        if not ok:
+            report["carb_dump_error"] = "frame gate FAILED at dump time -- dump not written"
+            print(f"[carb-dump] REFUSING: frame gate failed -- "
+                  f"{ {c: g['gate_fail'] for c, g in gate.items() if not g['gate_ok']} }")
+            flush()
+        else:
+            flat, method, err = dump_carb_tree(lazy)
+            payload = {"stack": stack, "label": args.label, "method": method, "error": err,
+                       "n_keys": len(flat),
+                       "gate": report["carb_dump_gate"],
+                       "settings": {k: (v if isinstance(v, (int, float, bool, str, list, type(None)))
+                                        else str(v)) for k, v in flat.items()}}
+            os.makedirs(os.path.dirname(args.dump_carb) or ".", exist_ok=True)
+            with open(args.dump_carb, "w") as f:
+                json.dump(payload, f, indent=1, sort_keys=True)
+            report["carb_dump"] = {"path": args.dump_carb, "n_keys": len(flat), "method": method,
+                                  "error": err}
+            print(f"[carb-dump] {len(flat)} keys via {method} -> {args.dump_carb}")
+            flush()
 
     # ---------- the ladder ----------
     ladder = build_ladder(args.only)
