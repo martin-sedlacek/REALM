@@ -65,6 +65,35 @@ an A/B without an edit.
 
 ## Probes here
 
+- `link8_adapter_render.py` — dumps, for every robot link, how OmniGibson classified each geom
+  (visual vs collision, `purpose`, `visible`) plus a physics fingerprint (`mass`, `density`,
+  `center_of_mass`, the collision-mesh set, the authored `physics:*`). Written for the
+  gripper-adapter question but generic: **run it whenever a prim you expect to see is missing from a
+  render**, because it separates "OmniGibson dropped the geom" from "OmniGibson kept it and the
+  renderer did not draw it", which look identical from the outside. Its own images go through a
+  broken read path (see the trap below) — use it for the JSON, not the frames.
+- `link8_adapter_ladder.py` — the pixel-level A/B. Freezes a camera on a chosen link, then applies
+  candidate fixes one at a time in a single boot and re-renders after each, reporting the change
+  inside the target's own *projected* bounding box against a measured no-change control. This is the
+  probe that showed `purpose = "render"` to be a no-op on an EEF link and that un-hiding the link is
+  the whole story. `--variant-usd` runs it against a modified asset without touching the shipped one.
+- `link8_adapter_sheet.py` — host-side (no container, no GPU): tiles those frames into one
+  before/after contact sheet, cropping every panel to the *same* box so two panels are never
+  compared at different framings.
+
+  **Three traps these cost, all silent:**
+  * `og.sim.render()` + `CAM.get_obs()` on an external sensor returned a **99.99% pure-white buffer
+    with four unique colours** — an unticked annotator, not a scene. Two of those differ by a few
+    hundred speck pixels, which read as "the geom renders". **Render through `env.step()`, and gate
+    every frame on a minimum unique-colour count before it is allowed to produce a verdict.**
+  * At `rendering_mode="rt"` two renders of an **unchanged** scene differ on **25% of pixels** at a
+    summed-channel threshold of 12 (p50 = 6, p90 = 27, p99 = 97). One frame is not evidence:
+    median-combine ~5, threshold at ~120, and report the largest connected component — a 7.5 cm disc
+    is one 60,000-px blob, noise is ~19,000 tiny ones.
+  * `prim.SetActive(False)` is **not** a safe A/B toggle inside a loaded robot — the next
+    `og.sim.step()` died in `object_states/toggle.py:209` with `'NoneType' object is not
+    subscriptable`. Use `UsdGeom.Imageable(prim).MakeInvisible()`.
+
 - `verify_gripper_mapping.py` — holds each binary gripper command and reads back the physical jaw gap
   *and* the `gripper_state` handed to the policy, refusing to run rollouts if either is inverted.
   **Run this before any batch on a new gripper.** Both failure modes it checks are silent, and one of
