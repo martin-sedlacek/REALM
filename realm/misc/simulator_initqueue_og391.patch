@@ -36,8 +36,9 @@ Date:   Fri Aug 14 01:38:40 2026 +0200
     stock 3.9.1.
     
     Verified against REALM's vector env at num_envs=2, three resets plus a warmup
-    reset, with REALM's own workaround (RealmVectorEnvironment._repair_init_queue)
-    left in place so it can report what it finds:
+    reset, with REALM's own workaround of the time (RealmVectorEnvironment._repair_init_queue,
+    since REMOVED -- it exists in no .py in the tree) left in place so it could
+    report what it found:
     
       perturbation   before                                              after
       V-SC           4 x "Re-queueing 5 object(s) evicted ... scene0/     0

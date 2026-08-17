@@ -3,7 +3,6 @@ from __future__ import annotations
 import numpy as np
 from typing import TYPE_CHECKING
 
-import omnigibson as og
 from realm.environments.perturbations._helpers import settle
 from realm.geometry import add_rotation_noise
 from realm.placement import get_non_colliding_positions_for_objects

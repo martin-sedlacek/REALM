@@ -12,7 +12,6 @@ Answers, at runtime rather than by reading:
 """
 import os
 import sys
-import traceback
 
 import numpy as np
 import torch as th

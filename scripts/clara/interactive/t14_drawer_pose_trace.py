@@ -15,11 +15,9 @@ caller, so a phase that moves it can be attributed to a call site rather than gu
 import argparse
 import traceback
 
-import torch as th
 
 import omnigibson as og
-import omnigibson.lazy as lazy
-import omnigibson.utils.transform_utils as T
+import omnigibson.lazy as lazy  # noqa: F401 -- extension/lazy-loader side effects on import
 from omnigibson.prims.entity_prim import EntityPrim
 from omnigibson.prims.xform_prim import XFormPrim
 from omnigibson.utils.usd_utils import get_local_pose

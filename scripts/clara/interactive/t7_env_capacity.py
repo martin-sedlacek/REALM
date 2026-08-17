@@ -19,7 +19,6 @@ This deliberately does NOT play the simulator or step. Stepping throughput at a 
 t5_vec_sustained.py; conflating the two would mean paying the build cost twice.
 """
 import argparse
-import os
 import subprocess
 import time
 

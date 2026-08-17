@@ -37,9 +37,7 @@ except Exception:
     traceback.print_exc()
 
 try:
-    from dm_control import mjcf
     print("  import dm_control.mjcf                 OK")
-    from dm_robotics.moma.effectors import arm_effector, cartesian_6d_velocity_effector
     print("  import dm_robotics.moma.effectors      OK")
 except Exception:
     print("  IMPORT FAILED")

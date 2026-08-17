@@ -5,7 +5,6 @@ press so a ~1.7 mm roll is visible at all. Frame labels are burned in by the pro
 also says which phase each frame is.
 """
 import argparse
-import os
 
 import numpy as np
 from PIL import Image, ImageDraw

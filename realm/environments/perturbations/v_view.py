@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from typing import TYPE_CHECKING
 
-import omnigibson as og
 import omnigibson.utils.transform_utils as omnigibson_transform_utils
 
 if TYPE_CHECKING:

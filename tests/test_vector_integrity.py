@@ -38,7 +38,6 @@ build they share.
 """
 import argparse
 import csv
-import os
 import re
 import subprocess
 import sys

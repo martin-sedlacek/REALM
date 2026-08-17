@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import numpy as np
 from typing import TYPE_CHECKING
 
 import omnigibson as og
