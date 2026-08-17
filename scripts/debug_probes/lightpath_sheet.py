@@ -87,6 +87,33 @@ def resolve(st, out_dir):
     return None
 
 
+def fit_offset(cand_png, ref_png):
+    """Least-squares `cand_luma ~= a * ref_luma + b` over pixel-aligned frames.
+
+    `b` is the primary metric of this whole investigation: the gap between the stacks is ADDITIVE
+    (slope ~1, offset ~+67 luma), so a change that lowers `b` is closing the gap and a change that
+    only lowers the mean may just be scaling an image that still has the floor in it. Frames must be
+    the same camera at the same framing, which is why the sheets are per-camera.
+    """
+    try:
+        a_img = np.asarray(Image.open(cand_png).convert("RGB"), dtype=np.float32)
+        r_img = np.asarray(Image.open(ref_png).convert("RGB"), dtype=np.float32)
+    except Exception:
+        return None
+    if a_img.shape != r_img.shape:
+        return None
+    y, x = luma(a_img).ravel(), luma(r_img).ravel()
+    A = np.stack([x, np.ones_like(x)], 1)
+    (a, b), *_ = np.linalg.lstsq(A, y, rcond=None)
+    resid = y - (a * x + b)
+    ss_tot = float(((y - y.mean()) ** 2).sum())
+    r2 = 1.0 - float((resid ** 2).sum()) / ss_tot if ss_tot > 0 else float("nan")
+    # What the mean would become if the flat offset were simply subtracted and clipped.
+    corrected = float(np.clip(y - b, 0, 255).mean())
+    return {"slope": round(float(a), 4), "offset": round(float(b), 2), "r2": round(r2, 4),
+            "mean_minus_offset": round(corrected, 2)}
+
+
 def find_ref(ref_dir, cam):
     """The settled OG 1.1.1 baseline PNG for this camera, if the earlier probe left one behind."""
     if not ref_dir:
@@ -124,8 +151,10 @@ def sheet(panels, path, title):
         d.text((x + 4, y + ph + 17),
                f"mean {st['mean']:.1f}   p5 {st['p05']:.0f}   p50 {st['p50']:.0f}   p95 {st['p95']:.0f}",
                fill=(190, 200, 212) if ok else (255, 200, 200))
+        f = st.get("_fit")
         d.text((x + 4, y + ph + 31),
                f"%dark {st['dark_pct']:.1f}   sat {st['sat_pct']:.2f}%   detail {st['detail']:.0f}"
+               + (f"   offset {f['offset']:+.1f}" if f else "")
                + ("" if ok else f"  GATE FAIL {st.get('gate_fail')}"),
                fill=(190, 200, 212) if ok else (255, 200, 200))
     sh.save(path)
@@ -137,8 +166,10 @@ def main():
     ap.add_argument("out_dir")
     ap.add_argument("--ref-dir", default="/mnt/home_lustre/sedlam56/projects/REALM/logs/render_bright_ab")
     ap.add_argument("--sheet-dir", default=None)
-    ap.add_argument("--sort", default="dark", choices=["dark", "mean", "name"],
-                    help="table order: 'dark' puts the rows closest to 1.1.1's %%dark on top")
+    ap.add_argument("--sort", default="offset", choices=["offset", "dark", "mean", "name"],
+                    help="table order. 'offset' (default) ranks by the fitted additive floor, which "
+                         "is the metric that matters: the gap is additive, so the smallest offset "
+                         "is the closest to 1.1.1 regardless of what the mean does")
     args = ap.parse_args()
     sheet_dir = args.sheet_dir or args.out_dir
     os.makedirs(sheet_dir, exist_ok=True)
@@ -154,11 +185,12 @@ def main():
         ref_png = find_ref(args.ref_dir, cam)
         ref_st = stats_of_png(ref_png) if ref_png else None
         print(f"{'configuration':44s} {'mean':>8s} {'p5':>6s} {'p50':>6s} {'p95':>6s} "
-              f"{'sat%':>7s} {'%dark':>7s} {'detail':>8s}   gate")
+              f"{'sat%':>7s} {'%dark':>7s} {'detail':>8s} {'offset':>8s} {'slope':>6s} {'R2':>5s}")
         if ref_st:
             print(f"{'OG 1.1.1 REFERENCE (measured)':44s} {ref_st['mean']:8.2f} {ref_st['p05']:6.1f} "
                   f"{ref_st['p50']:6.1f} {ref_st['p95']:6.1f} {ref_st['sat_pct']:7.3f} "
-                  f"{ref_st['dark_pct']:7.2f} {ref_st['detail']:8.1f}   <== TARGET")
+                  f"{ref_st['dark_pct']:7.2f} {ref_st['detail']:8.1f} {0.0:8.2f} {1.0:6.3f} "
+                  f"{1.0:5.2f}   <== TARGET")
         table = []
         for _k, lbl, _v, st in rows:
             if cam not in st:
@@ -166,16 +198,23 @@ def main():
             s = st[cam]
             if not s.get("gate_ok", False):
                 print(f"{lbl:44s} {'--':>8s} {'--':>6s} {'--':>6s} {'--':>6s} {'--':>7s} "
-                      f"{'--':>7s} {'--':>8s}   FAIL {s.get('gate_fail')}")
+                      f"{'--':>7s} {'--':>8s}   GATE FAIL {s.get('gate_fail')}")
                 continue
+            p = resolve(s, args.out_dir)
+            s = dict(s, _fit=(fit_offset(p, ref_png) if (p and ref_png) else None))
             table.append((lbl, s))
-        if args.sort == "dark" and ref_st:
+        if args.sort == "offset":
+            table.sort(key=lambda t: (t[1]["_fit"] or {}).get("offset", 9e9))
+        elif args.sort == "dark" and ref_st:
             table.sort(key=lambda t: abs(t[1]["dark_pct"] - ref_st["dark_pct"]))
         elif args.sort == "mean" and ref_st:
             table.sort(key=lambda t: abs(t[1]["mean"] - ref_st["mean"]))
         for lbl, s in table:
+            f = s.get("_fit")
+            tail = (f"{f['offset']:8.2f} {f['slope']:6.3f} {f['r2']:5.2f}" if f
+                    else f"{'--':>8s} {'--':>6s} {'--':>5s}")
             print(f"{lbl:44s} {s['mean']:8.2f} {s['p05']:6.1f} {s['p50']:6.1f} {s['p95']:6.1f} "
-                  f"{s['sat_pct']:7.3f} {s['dark_pct']:7.2f} {s['detail']:8.1f}   ok")
+                  f"{s['sat_pct']:7.3f} {s['dark_pct']:7.2f} {s['detail']:8.1f} {tail}")
         print()
 
         panels = []
