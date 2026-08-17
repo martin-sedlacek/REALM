@@ -121,6 +121,53 @@ def build_ladder(only=None):
             "/rtx/directLighting/sampledLighting/enabled": ("b", False),
             "/rtx/raytracing/showLights": ("i", 1),
         }, "og111_hq_full with ONLY the ambient term left at 3.9.1's value"),
+        # THE ACTUAL "drop RealTimePathTracing" LEVER, and the one the earlier ablation missed.
+        #
+        # `rendermode` is a red herring: 3.9.1's source sets "RealTimePathTracing", but the readback
+        # after env creation says "RaytracedLighting" on og391 already -- something later in startup
+        # overrides the string. What genuinely differs is the RTX Real-Time 2.0 MODE FLAGS:
+        # rt/enabled and rt2/enabled are True on og391 and False on 1.1.1 (1.1.1 never sets them, and
+        # its Kit app config leaves them off). So testing `rendermode` alone tested nothing.
+        ("rt2_off", {"/rtx/rtx/modes/rt2/enabled": ("b", False),
+                     "/rtx/rtx/modes/rt/enabled": ("b", False)},
+         "turn RTX Real-Time 2.0 OFF -- the real 'drop RealTimePathTracing', isolated"),
+        ("fractionalCutout_off", {"/rtx/raytracing/fractionalCutoutOpacity": ("b", False)},
+         "3.9.1 sets True; 1.1.1's Kit config sets false"),
+        ("flow_off", {"/rtx/flow/enabled": ("b", False)}, "3.9.1 sets True; 1.1.1 never sets it"),
+        # THE FULL FAITHFUL 1.1.1 MATCH: every value 1.1.1's HQ branch produces, PLUS undoing the
+        # four things 3.9.1 added on top. Deliberately NOT the same as REALM's existing "r" branch,
+        # which disables shadows/reflections/indirectDiffuse/AO and leaves ambient at 1.0 -- "r" is
+        # not a revert, it is a third look.
+        ("r111", {
+            # --- 1.1.1 _set_renderer_settings, ENABLE_HQ_RENDERING=True branch ---
+            "/rtx/reflections/enabled": ("b", True),
+            "/rtx/indirectDiffuse/enabled": ("b", True),
+            "/rtx/post/dlss/execMode": ("i", 3),                      # "Auto"
+            "/rtx/ambientOcclusion/enabled": ("b", True),
+            "/rtx/directLighting/sampledLighting/enabled": ("b", False),
+            "/rtx/raytracing/showLights": ("i", 1),
+            "/rtx/sceneDb/ambientLightIntensity": ("f", 0.1),         # 3.9.1 sets 1.0 -- 10x
+            "/app/renderer/skipMaterialLoading": ("b", False),
+            # --- undo what 3.9.1 adds and 1.1.1 never sets ---
+            "/rtx/rendermode": ("s", "RaytracedLighting"),
+            "/rtx/rtx/modes/rt/enabled": ("b", False),
+            "/rtx/rtx/modes/rt2/enabled": ("b", False),
+            "/rtx/raytracing/fractionalCutoutOpacity": ("b", False),
+            "/rtx/flow/enabled": ("b", False),
+        }, "FULL 1.1.1 MATCH: 1.1.1's 8 values + turning off 3.9.1's 5 additions"),
+        ("r111_but_rt2_on", {
+            "/rtx/reflections/enabled": ("b", True),
+            "/rtx/indirectDiffuse/enabled": ("b", True),
+            "/rtx/post/dlss/execMode": ("i", 3),
+            "/rtx/ambientOcclusion/enabled": ("b", True),
+            "/rtx/directLighting/sampledLighting/enabled": ("b", False),
+            "/rtx/raytracing/showLights": ("i", 1),
+            "/rtx/sceneDb/ambientLightIntensity": ("f", 0.1),
+            "/app/renderer/skipMaterialLoading": ("b", False),
+            "/rtx/rendermode": ("s", "RaytracedLighting"),
+            "/rtx/raytracing/fractionalCutoutOpacity": ("b", False),
+            "/rtx/flow/enabled": ("b", False),
+        }, "r111 with rt/rt2 left ON -- isolates how much of the full match rt2 carries"),
         # dlss execMode is the ONLY thing gm.ENABLE_HQ_RENDERING changes in 3.9.1's renderer block
         # (the rest of that block is isosurface-only). Test it directly rather than paying a boot.
         ("dlss_perf", {"/rtx/post/dlss/execMode": ("i", 0)}, "Performance -- 3.9.1 with HQ off"),
@@ -257,6 +304,12 @@ def main():
                          "materials asynchronously, and on the 1.1.1 stack 6 settle steps was not "
                          "enough: the frame came back 85%% pure white with the geometry as unlit "
                          "silhouettes. Use a few hundred there.")
+    ap.add_argument("--render-match-111", action="store_true",
+                    help="shorthand for --patch-launch r111: reproduce OmniGibson 1.1.1's renderer "
+                         "configuration on og391, applied where set_rendering_mode would. Does NOT "
+                         "touch gm.ENABLE_HQ_RENDERING -- it applies the carb values that macro's "
+                         "HQ branch WOULD have produced, which sidesteps 3.9.1's >=60 FPS assert "
+                         "entirely.")
     ap.add_argument("--patch-launch", default=None,
                     help="apply a ladder variant's carb deltas from INSIDE "
                          "Simulator._set_renderer_settings, i.e. at simulator-launch time, which is "
@@ -330,6 +383,11 @@ def main():
     # while the realm_mode_r bundle -- which also turns shadows/reflections/indirectDiffuse/AO off
     # -- moved the exterior mean by +13%). So for the settings that do not respond after the fact,
     # apply them where OmniGibson does: inside Simulator._set_renderer_settings, during launch.
+    if args.render_match_111:
+        assert not args.patch_launch or args.patch_launch == "r111", \
+            "--render-match-111 IS --patch-launch r111; do not pass a different variant too"
+        args.patch_launch = "r111"
+
     launch_deltas = {}
     if args.patch_launch:
         for _vname, dd, _note in build_ladder(args.patch_launch):
