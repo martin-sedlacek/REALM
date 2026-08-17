@@ -1,10 +1,16 @@
 #!/bin/bash
-# Run render_brightness_ab.py inside EITHER stack's container, on an already-held allocation.
+# Run a debug probe inside EITHER stack's container, on an already-held allocation.
 #
 #   STACK=og391 ./scripts/debug_probes/run_brightness_ab.sh --label og391_rt
 #   STACK=og111 ./scripts/debug_probes/run_brightness_ab.sh --label og111_rt
 #
 # Everything after the script name is passed through to the probe.
+#
+# PROBE= selects which file in THIS directory runs, defaulting to the one this launcher was written
+# for. Both container invocations mount the whole debug_probes dir, so any probe there works; the
+# name was hardcoded only because there used to be one.
+#
+#   STACK=og391 PROBE=post_tone_sweep.py ./scripts/debug_probes/run_brightness_ab.sh --label x
 #
 # og391 goes through scripts/clara/interactive/rr, so it inherits that path resolution unchanged.
 #
@@ -18,7 +24,9 @@
 set -uo pipefail
 
 STACK=${STACK:-og391}
+PROBE=${PROBE:-render_brightness_ab.py}
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+[ -f "$HERE/$PROBE" ] || { echo "ERROR: no probe at $HERE/$PROBE" >&2; exit 1; }
 source "$HERE/../clara/lib/paths.sh"
 [ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source scripts/clara/lib/paths.sh" >&2; exit 1; }
 
@@ -28,7 +36,7 @@ mkdir -p "$OUT_HOST"
 case "$STACK" in
 og391)
   echo "=== stack og391 :: $REALM_SIF ==="
-  exec "$HERE/../clara/interactive/rr" python -u /app/scripts/debug_probes/render_brightness_ab.py \
+  exec "$HERE/../clara/interactive/rr" python -u "/app/scripts/debug_probes/$PROBE" \
     --out /logs/render_bright_ab "$@"
   ;;
 
@@ -87,7 +95,7 @@ og111)
     --env MAMBA_CACHE_DIR="$REALM_ROOT/mamba_cache/$JOB" \
     --env PIP_CACHE_DIR="$REALM_ROOT/pip_cache/$JOB" \
     "$OG111_SIF" \
-    micromamba run -n omnigibson python -u /dbg/render_brightness_ab.py \
+    micromamba run -n omnigibson python -u "/dbg/$PROBE" \
       --out /logs/render_bright_ab "$@"
   ;;
 
