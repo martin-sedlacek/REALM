@@ -60,9 +60,26 @@ def rows_from(runs):
     return rows
 
 
-def sheet(rows, cam, path, title):
-    have = [(lbl, st[cam]) for _k, lbl, _s, _v, st in rows if cam in st and st[cam].get("png")
-            and os.path.exists(st[cam]["png"])]
+def resolve_png(st, out_dir):
+    """The probe records the path it wrote INSIDE the container (/logs/render_bright_ab/...), which
+    does not exist on the host. Same basename, host directory."""
+    p = st.get("png")
+    if not p:
+        return None
+    for cand in (p, os.path.join(out_dir, os.path.basename(p))):
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
+def sheet(rows, cam, path, title, out_dir):
+    have = []
+    for _k, lbl, _s, _v, st in rows:
+        if cam not in st:
+            continue
+        p = resolve_png(st[cam], out_dir)
+        if p:
+            have.append((lbl, dict(st[cam], png=p)))
     if not have:
         return None
     n = len(have)
@@ -142,7 +159,7 @@ def main():
     # ---- the sheets ----
     for cam in cams:
         p = os.path.join(sheet_dir, f"contact_sheet__{cam.replace('.', '-')}.png")
-        got = sheet(rows, cam, p, f"REALM render brightness: 1.1.1 vs og391 -- {cam}")
+        got = sheet(rows, cam, p, f"REALM render brightness: 1.1.1 vs og391 -- {cam}", args.out_dir)
         if got:
             print(f"sheet: {got}")
 

@@ -478,9 +478,23 @@ def main():
     report["ladder"] = []
     gate_failures = 0
 
+    # Restore ONLY the keys a previous variant actually wrote -- never the whole snapshot.
+    #
+    # Writing the full snapshot was destructive on the 1.1.1 stack: the pre-render trace showed a
+    # perfectly good wrist frame (mean 58.3, converged to d=+0.002), and then the very first ladder
+    # row -- `baseline`, whose delta set is EMPTY -- came back 79% pure white, because the restore
+    # had rewritten 26 RTX keys with their own values on the way in. Every later variant went 100%
+    # black. Rewriting a carb key with an identical value is not a no-op there.
+    #
+    # With this, `baseline` touches nothing at all, so a stack that cannot take runtime carb writes
+    # still yields a trustworthy as-shipped row.
+    dirty = {}
+
     for vname, deltas, note in ladder:
-        # Restore the snapshot first so variants never compound.
-        for k, t in CARB_KEYS:
+        for k in list(dirty):
+            if k in deltas:
+                continue
+            t = dirty.pop(k)
             v = snapshot[k]
             if isinstance(v, str) and v.startswith("<err"):
                 continue
@@ -496,6 +510,7 @@ def main():
             except Exception:
                 pass
         for k, (t, v) in deltas.items():
+            dirty[k] = t
             if t == "f":
                 cs.set_float(k, float(v))
             elif t == "i":
