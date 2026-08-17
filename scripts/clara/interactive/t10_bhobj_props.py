@@ -46,6 +46,8 @@ an articulated USD cabinet as its main object and is the cheapest way to exercis
 import argparse
 import math
 
+import numpy as np
+
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.eval import SUPPORTED_TASKS
 from realm.sim_config import set_sim_config

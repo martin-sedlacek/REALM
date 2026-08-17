@@ -77,7 +77,6 @@ def stage(n, name, fn):
     return out
 
 
-import torch as th                                                              # noqa: E402
 import omnigibson as og                                                         # noqa: E402
 from omnigibson.macros import gm                                                # noqa: E402
 from omnigibson.utils.usd_utils import RigidContactAPI                          # noqa: E402

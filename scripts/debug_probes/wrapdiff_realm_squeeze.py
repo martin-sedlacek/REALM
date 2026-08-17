@@ -56,7 +56,7 @@ ap.add_argument("--variant-usd", default=None,
 args = ap.parse_args()
 
 import omnigibson as og  # noqa: E402
-import omnigibson.lazy as lazy  # noqa: E402
+import omnigibson.lazy as lazy  # noqa: E402,F401 -- lazy-loader side effects on import
 
 from realm.sim_config import set_sim_config  # noqa: E402
 from realm.environments.env_dynamic import RealmEnvironmentDynamic  # noqa: E402

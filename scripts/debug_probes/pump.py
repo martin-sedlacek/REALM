@@ -43,11 +43,10 @@ print(f"[pump] robot={ROBOT} task={TASK_CFG} port={PORT}", flush=True)
 print("[pump] importing omnigibson ...", flush=True)
 try:
     import numpy as np
-    import torch as th
     from scipy.spatial.transform import Rotation as Rot
 
     import omnigibson as og
-    from omnigibson.macros import gm
+    from omnigibson.macros import gm  # noqa: F401 -- omnigibson.macros.gm import has side effects
 
     from realm.sim_config import set_sim_config
     from realm.environments.env_dynamic import RealmEnvironmentDynamic

@@ -45,7 +45,7 @@ simulation_app = app_launcher.app
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
-import isaaclab.sim as sim_utils  # noqa: E402
+import isaaclab.sim as sim_utils  # noqa: E402,F401 -- loads Isaac extensions on import
 from isaaclab.assets import Articulation  # noqa: E402
 from isaaclab.sim import SimulationContext  # noqa: E402
 
@@ -111,7 +111,7 @@ print(f"  pad bodies= {PADS}")
 assert len(PADS) == 2, f"expected two inner_finger bodies, got {PADS}"
 
 # ---- gearing / offset / referenceJoint straight off the live prims, per follower --------------
-from pxr import PhysxSchema, UsdPhysics  # noqa: E402
+from pxr import PhysxSchema, UsdPhysics  # noqa: E402,F401 -- PhysxSchema import REGISTERS USD schemas
 import omni.usd  # noqa: E402
 
 stage = omni.usd.get_context().get_stage()

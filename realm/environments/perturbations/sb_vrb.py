@@ -40,7 +40,12 @@ COMPATIBILITY_MATRIX = {
 
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
-    available_task_types = COMPATIBILITY_MATRIX[env.task_type]
+    # A task_type with no compatible verbs is a DELIBERATE opt-out, not an oversight -- "push" is
+    # commented out above rather than deleted. Treat it as a no-op perturbation instead of letting
+    # random.choice([]) raise IndexError, which is what killed task 7 + SB-VRB.
+    available_task_types = COMPATIBILITY_MATRIX.get(env.task_type, [])
+    if not available_task_types:
+        return
 
     new_verb_for_task = random.choice(available_task_types)
     env.task_type = new_verb_for_task

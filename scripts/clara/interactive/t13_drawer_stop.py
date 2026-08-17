@@ -26,7 +26,6 @@ import argparse
 import torch as th
 
 import omnigibson as og
-import omnigibson.utils.transform_utils as T
 from omnigibson.prims.xform_prim import XFormPrim
 from omnigibson.utils.usd_utils import get_local_pose
 

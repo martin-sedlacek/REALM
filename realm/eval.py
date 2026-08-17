@@ -71,7 +71,7 @@ def evaluate(
         repeats=1,
         max_steps=500,
         horizon=8,
-        model_type="pi0_FAST",
+        model_type="openpi",   # "pi0_FAST" is NOT a value InferenceClient accepts -- it raises
         port=8000,
         host="127.0.0.1",
         log_dir="/app/logs",
