@@ -67,6 +67,10 @@ source "$_lib/paths.sh"
 [ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source $_lib/paths.sh" >&2; exit 1; }
 OPENPI_ROOT=/mnt/home_lustre/sedlam56/projects/openpi   # a different project; unaffected by the move
 CKPT=${CKPT:-/home/sedlam56/.cache/openpi/openpi-assets/checkpoints/pi05_droid_jointpos}
+# Must name the openpi training config the checkpoint was produced under, or the server loads
+# weights into the wrong architecture. pi05_droid_jointpos -> pi05_full_droid_finetune;
+# pi0_fast_droid_jointpos -> pi0_fast_full_droid_finetune. CKPT and POLICY_CONFIG move together.
+POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 
 VEC=${VEC:-4}
 PERT_ID=${PERT_ID:-0}
@@ -92,6 +96,7 @@ mkdir -p "$REALM_ROOT/tmp/$JOB" "$REALM_APPDATA/appdata" "$REALM_LOGS/$EXPERIMEN
 echo "=================================================================="
 echo " pi0.5 eval  vec=$VEC  pert_id=$PERT_ID  task=$TASK_ID"
 echo " repeats=$REPEATS  max_steps=$MAX_STEPS  horizon=$HORIZON  robot=$ROBOT"
+echo " policy_config=$POLICY_CONFIG  ckpt=$CKPT"
 echo " run_id=$RUN_ID  port=$PORT  node=$(hostname)"
 echo "=================================================================="
 
@@ -103,7 +108,7 @@ SERVER_LOG="$REALM_LOGS/pi05_server_${JOB}.log"
   export XLA_PYTHON_CLIENT_MEM_FRACTION=0.25
   export HF_HUB_OFFLINE=1
   exec uv run scripts/serve_policy.py --port="$PORT" policy:checkpoint \
-      --policy.config=pi05_full_droid_finetune --policy.dir="$CKPT"
+      --policy.config="$POLICY_CONFIG" --policy.dir="$CKPT"
 ) >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 echo "[eval] server pid=$SERVER_PID port=$PORT log=$SERVER_LOG"
