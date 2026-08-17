@@ -65,11 +65,24 @@ fi
 [ -f "$_lib/paths.sh" ] || { echo "ERROR: cannot locate scripts/clara/lib/paths.sh (BASH_SOURCE=${BASH_SOURCE[0]} SLURM_SUBMIT_DIR=${SLURM_SUBMIT_DIR:-unset})" >&2; exit 1; }
 source "$_lib/paths.sh"
 [ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source $_lib/paths.sh" >&2; exit 1; }
-OPENPI_ROOT=/mnt/home_lustre/sedlam56/projects/openpi   # a different project; unaffected by the move
+# OPENPI_ROOT, POLICY_CONFIG and CKPT are ONE unit -- a config name only resolves in the checkout
+# that defines it, and only an *inference* config carries the DROID policy transforms. Serving a
+# checkpoint under a training config yields a silent 0% run, not an error: see the retraction in
+# ~/runbook/streams/realm_og391_port.md, 2026-08-17.
+#
+#   pi0.5    OPENPI_ROOT=.../openpi        POLICY_CONFIG=pi05_full_droid_finetune
+#                                          CKPT=.../pi05_droid_jointpos
+#   pi0-FAST OPENPI_ROOT=.../openpi_realm  POLICY_CONFIG=pi0_fast_droid_jointpos
+#                                          CKPT=.../pi0_fast_droid_jointpos
+#
+# pi0_fast_droid_jointpos is defined ONLY in openpi_realm (config.py:643) and is what
+# REALM/scripts/eval.sh:585 served for the original 1.1.1 benchmarks. It carries DroidInputs /
+# DroidOutputs, prompt_from_task=True (without which the FAST model never emits the "Action: "
+# marker its detokenizer needs) and AbsoluteActions(make_bool_mask(7, -1)).
+# pi0_fast_full_droid_finetune in .../openpi is a FINE-TUNING recipe -- no policy transforms, an
+# unfilled rlds_data_dir -- and must not be used to serve.
+OPENPI_ROOT=${OPENPI_ROOT:-/mnt/home_lustre/sedlam56/projects/openpi}
 CKPT=${CKPT:-/home/sedlam56/.cache/openpi/openpi-assets/checkpoints/pi05_droid_jointpos}
-# Must name the openpi training config the checkpoint was produced under, or the server loads
-# weights into the wrong architecture. pi05_droid_jointpos -> pi05_full_droid_finetune;
-# pi0_fast_droid_jointpos -> pi0_fast_full_droid_finetune. CKPT and POLICY_CONFIG move together.
 POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 
 VEC=${VEC:-4}
@@ -90,13 +103,19 @@ SERVER_WAIT=${SERVER_WAIT:-300}
 [ -f "$REALM_SIF" ]                     || { echo "ERROR: no SIF" >&2; exit 1; }
 [ -d "$REALM_DATA/behavior-1k-assets" ] || { echo "ERROR: no dataset" >&2; exit 1; }
 [ -d "$CKPT/params" ]                   || { echo "ERROR: no params/ under $CKPT" >&2; exit 1; }
+[ -f "$OPENPI_ROOT/scripts/serve_policy.py" ] || { echo "ERROR: no serve_policy.py under OPENPI_ROOT=$OPENPI_ROOT" >&2; exit 1; }
+# Fail here rather than serve a checkpoint under a config that does not exist in this checkout --
+# tyro would error, but the pairing is easy to get wrong and cheap to assert.
+grep -q "name=\"$POLICY_CONFIG\"" "$OPENPI_ROOT/src/openpi/training/config.py" \
+  || { echo "ERROR: POLICY_CONFIG=$POLICY_CONFIG is not defined in $OPENPI_ROOT/src/openpi/training/config.py" >&2; exit 1; }
 [ -d "$REALM_OGLITE_ROOT/omnigibson" ]  || { echo "ERROR: no OG-lite" >&2; exit 1; }
 mkdir -p "$REALM_ROOT/tmp/$JOB" "$REALM_APPDATA/appdata" "$REALM_LOGS/$EXPERIMENT"
 
 echo "=================================================================="
 echo " pi0.5 eval  vec=$VEC  pert_id=$PERT_ID  task=$TASK_ID"
 echo " repeats=$REPEATS  max_steps=$MAX_STEPS  horizon=$HORIZON  robot=$ROBOT"
-echo " policy_config=$POLICY_CONFIG  ckpt=$CKPT"
+echo " policy_config=$POLICY_CONFIG  openpi_root=$OPENPI_ROOT"
+echo " ckpt=$CKPT"
 echo " run_id=$RUN_ID  port=$PORT  node=$(hostname)"
 echo "=================================================================="
 
