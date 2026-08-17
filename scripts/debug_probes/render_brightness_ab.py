@@ -330,36 +330,14 @@ def main():
     # while the realm_mode_r bundle -- which also turns shadows/reflections/indirectDiffuse/AO off
     # -- moved the exterior mean by +13%). So for the settings that do not respond after the fact,
     # apply them where OmniGibson does: inside Simulator._set_renderer_settings, during launch.
+    launch_deltas = {}
     if args.patch_launch:
-        deltas = {}
-        for vname, dd, _note in build_ladder(args.patch_launch):
-            deltas.update(dd)
-        if not deltas:
+        for _vname, dd, _note in build_ladder(args.patch_launch):
+            launch_deltas.update(dd)
+        if not launch_deltas:
             raise SystemExit(f"--patch-launch: no ladder variant named '{args.patch_launch}'")
-        Sim = type(og.sim) if getattr(og, "sim", None) is not None else None
-        if Sim is None:
-            import omnigibson.simulator as _simmod
-            Sim = _simmod.Simulator
-        orig = Sim._set_renderer_settings
-
-        def patched(self, _orig=orig, _deltas=deltas):
-            _orig(self)
-            cs2 = lazy.carb.settings.get_settings()
-            for k, (t, v) in _deltas.items():
-                if t == "f":
-                    cs2.set_float(k, float(v))
-                elif t == "i":
-                    cs2.set_int(k, int(v))
-                elif t == "b":
-                    cs2.set_bool(k, bool(v))
-                else:
-                    cs2.set_string(k, str(v))
-            print(f"[patch-launch] applied {len(_deltas)} delta(s) inside "
-                  f"_set_renderer_settings: {sorted(_deltas)}")
-
-        Sim._set_renderer_settings = patched
         report["patch_launch"] = {"variant": args.patch_launch,
-                                 "deltas": {k: v[1] for k, v in deltas.items()}}
+                                 "deltas": {k: v[1] for k, v in launch_deltas.items()}}
         print(f"[patch-launch] {args.patch_launch} -> {report['patch_launch']['deltas']}")
 
     macros = {k: getattr(gm, k, "<absent>") for k in [
@@ -421,6 +399,32 @@ def main():
     report["carb_readback_after_env_creation"] = snapshot
     print("[carb] " + json.dumps(snapshot, indent=2))
     flush()
+
+    # --patch-launch applies HERE: after env creation, before reset/warmup -- i.e. BEFORE the scene
+    # has ever been rendered. That is exactly where REALM's own set_rendering_mode() runs
+    # (env_dynamic.finalize_setup), and timing is the whole story. The post-warmup ladder found
+    # rendering_mode="r"'s carb bundle worth +9.8% on cam1, while a real boot at
+    # rendering_mode="r" -- same settings, applied here -- was worth +20.0%. So the ladder
+    # UNDERSTATES effects, and any "this setting is inert" claim has to be confirmed at this point
+    # rather than after 60-odd renders have already built the pipeline.
+    #
+    # It cannot go earlier: OG 3.9.1 defines the Simulator class inside its launch factory, so
+    # `omnigibson.simulator.Simulator` does not exist to be monkey-patched before launch
+    # (AttributeError, measured).
+    if launch_deltas:
+        for k, (t, v) in launch_deltas.items():
+            if t == "f":
+                cs.set_float(k, float(v))
+            elif t == "i":
+                cs.set_int(k, int(v))
+            elif t == "b":
+                cs.set_bool(k, bool(v))
+            else:
+                cs.set_string(k, str(v))
+        report["carb_after_patch_launch"] = {k: carb_get(k, t) for k, t in CARB_KEYS}
+        print(f"[patch-launch] applied {len(launch_deltas)} delta(s) pre-first-render: "
+              f"{ {k: report['carb_after_patch_launch'][k] for k in launch_deltas} }")
+        flush()
 
     # ---------- reset + warmup ----------
     obs, _ = env.reset()
