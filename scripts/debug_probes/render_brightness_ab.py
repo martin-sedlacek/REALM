@@ -131,6 +131,55 @@ def build_ladder(only=None):
         ("rt2_off", {"/rtx/rtx/modes/rt2/enabled": ("b", False),
                      "/rtx/rtx/modes/rt/enabled": ("b", False)},
          "turn RTX Real-Time 2.0 OFF -- the real 'drop RealTimePathTracing', isolated"),
+        # FROM THE EXHAUSTIVE CARB DIFF, not from OmniGibson's source: of 478 differing shared keys,
+        # these are the ONLY two that match tonemap/exposure/colour-correction. Neither OmniGibson
+        # sets them -- they are Kit defaults that changed between Isaac 4.x and 5.1, which is exactly
+        # the class of difference a hand-written key list cannot see.
+        ("invert_tonemap_off", {"/rtx/post/registeredCompositing/invertToneMap": ("b", False),
+                                "/rtx/post/registeredCompositing/invertColorCorrection": ("b", False)},
+         "Kit default flipped False->True between Isaac 4.x and 5.1; the only tone/colour keys in the diff"),
+        # ALSO FROM THE DUMP: the remaining LIVE /rtx/* keys that differ and could plausibly touch
+        # appearance. None of these is set by either OmniGibson -- all are Kit defaults that moved
+        # between Isaac 4.1.0 and 5.1.0.
+        #
+        # CAVEAT on mdlDistilling: it governs how MDL materials are TRANSLATED, so it almost
+        # certainly only takes effect while materials compile -- i.e. before the stage finishes
+        # loading. This probe can only set it after env creation, so an inert result here does NOT
+        # clear it; it would need to be set on the Kit command line to test properly.
+        ("mdlDistilling_off", {"/rtx/mdltranslator/mdlDistilling": ("b", False)},
+         "og391 distills MDL materials, 1.1.1 does not -- LOAD-TIME, so a null result is inconclusive"),
+        ("lodBias_111", {"/rtx/textures/lodBias": ("f", -2.0)},
+         "texture LOD bias -2 (1.1.1) vs -1.5 (og391); affects texture sharpness"),
+        ("risHistory_111", {"/rtx/directLighting/sampledLighting/ris/historyLength": ("i", 2)},
+         "temporal reuse length 2 (1.1.1) vs 5 (og391) -- candidate for og391's render-cadence sensitivity"),
+        ("demoire_on", {"/rtx/raytracing/demoire": ("b", True)}, "1.1.1 True, og391 False"),
+        # r111 plus every remaining live /rtx difference the dump found: the maximal settings-based
+        # match that is reachable from this probe's timing.
+        ("r111_max", {
+            "/rtx/reflections/enabled": ("b", True),
+            "/rtx/indirectDiffuse/enabled": ("b", True),
+            "/rtx/post/dlss/execMode": ("i", 3),
+            "/rtx/ambientOcclusion/enabled": ("b", True),
+            "/rtx/directLighting/sampledLighting/enabled": ("b", False),
+            "/rtx/raytracing/showLights": ("i", 1),
+            "/rtx/sceneDb/ambientLightIntensity": ("f", 0.1),
+            "/app/renderer/skipMaterialLoading": ("b", False),
+            "/rtx/rendermode": ("s", "RaytracedLighting"),
+            "/rtx/rtx/modes/rt/enabled": ("b", False),
+            "/rtx/rtx/modes/rt2/enabled": ("b", False),
+            "/rtx/raytracing/fractionalCutoutOpacity": ("b", False),
+            "/rtx/flow/enabled": ("b", False),
+            # ... and the dump's additions:
+            "/rtx/post/registeredCompositing/invertToneMap": ("b", False),
+            "/rtx/post/registeredCompositing/invertColorCorrection": ("b", False),
+            "/rtx/mdltranslator/mdlDistilling": ("b", False),
+            "/rtx/textures/lodBias": ("f", -2.0),
+            "/rtx/directLighting/sampledLighting/ris/historyLength": ("i", 2),
+            "/rtx/raytracing/demoire": ("b", True),
+            "/rtx/raytracing/indexdirect/enabled": ("b", False),
+            "/rtx/translucency/virtualDepth": ("b", False),
+            "/rtx/translucency/worldEps": ("f", 0.004999999888241291),
+        }, "MAXIMAL settings match: r111 + every remaining live /rtx difference from the full dump"),
         ("fractionalCutout_off", {"/rtx/raytracing/fractionalCutoutOpacity": ("b", False)},
          "3.9.1 sets True; 1.1.1's Kit config sets false"),
         ("flow_off", {"/rtx/flow/enabled": ("b", False)}, "3.9.1 sets True; 1.1.1 never sets it"),
@@ -548,9 +597,14 @@ def main():
                 cs.set_bool(k, bool(v))
             else:
                 cs.set_string(k, str(v))
-        report["carb_after_patch_launch"] = {k: carb_get(k, t) for k, t in CARB_KEYS}
+        # Read back over CARB_KEYS *plus* whatever the variant touched -- variants sourced from the
+        # exhaustive dump legitimately name keys that are not in the hand-written CARB_KEYS list, and
+        # indexing the readback by launch_deltas alone raised KeyError after a 9-minute boot.
+        readback_keys = list(CARB_KEYS) + [(k, t) for k, (t, _v) in launch_deltas.items()
+                                           if k not in dict(CARB_KEYS)]
+        report["carb_after_patch_launch"] = {k: carb_get(k, t) for k, t in readback_keys}
         print(f"[patch-launch] applied {len(launch_deltas)} delta(s) pre-first-render: "
-              f"{ {k: report['carb_after_patch_launch'][k] for k in launch_deltas} }")
+              f"{ {k: report['carb_after_patch_launch'].get(k) for k in launch_deltas} }")
         flush()
 
     # ---------- reset + warmup ----------
