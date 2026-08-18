@@ -7,9 +7,12 @@ FRONTS face relative to the camera that feeds the policy. That is a geometric qu
 readback answer, and this script is that readback.
 
 The front direction comes from the **handle cylinders**: the three `Cylinder*` meshes under the target
-drawer link are its handles, which sit on the front face, so the vector from the link's AABB centre to
-their world centroid is the outward front direction. Pure geometry, no assumption about which local
-axis means what -- which is the point, because the obvious alternative is wrong:
+drawer link are its handles, which sit on the front face, so their offset from the drawer's overall
+geometry centroid is the outward front direction. Both centroids are taken in the LINK's own frame, so
+the direction is body-fixed and valid whether the drawer rests closed (task 8) or starts open at
+`init_openness_fraction = 1.0` (task 9) -- see `front_direction()` for the 0.300 m error that reading
+world positions off the USD stage caused instead. Pure geometry, no assumption about which local axis
+means what -- which is the point, because the obvious alternative is wrong:
 
     A first version of this probe took the drawer link's local +Z, reasoning from the asset that the
     front panel is the `Cube` mesh at local (0.0007, 0.0677, +0.2348) with scale (0.39, 0.09, 0.005)
@@ -114,25 +117,58 @@ def dump_xform_chain(prim_path, label):
         print(f"         world trans = {mat_to_rows(w)[3][:3]}")
 
 
-def handle_centroid(cabinet, link_name):
-    """World centroid of the drawer's handle cylinders, and how many were found."""
+def front_direction(cabinet, link_name):
+    """The drawer's outward front direction in world coords, plus the parts it was built from.
+
+    Body-fixed by construction, and it has to be. An earlier version took the handles' world
+    transforms straight off the USD stage and differenced them against the link's `aabb` centre --
+    but the USD authored transform does NOT track the simulated joint, while `aabb` comes from
+    PhysX/Fabric and does. On `open_drawer`, whose drawer rests closed, the two agree and the answer
+    was right. On `close_drawer`, which starts at `init_openness_fraction = 1.0` with the drawer
+    extended 0.300 m, they disagree by exactly that 0.300 m: the measured centre-to-handles vector
+    came out 0.082 m long instead of 0.339 m and pointed up rather than out. Same probe, same asset,
+    silently wrong on one of the two tasks it exists to judge.
+
+    So both centroids are taken in the LINK's own frame, where they are body-fixed and valid at any
+    joint position, and only the final direction is rotated into world by the link's SIMULATED pose:
+
+        handles centroid H_local   (the `Cylinder*` meshes -- they sit on the front face)
+        all-geometry centroid G_local
+        front_world = R_link_world . normalize(H_local - G_local)
+    """
     stage = og.sim.stage
     link = cabinet.links[link_name]
     root = stage.GetPrimAtPath(link.prim_path)
     if not root.IsValid():
-        return None, 0
+        return None, 0, 0
+    link_world_inv = world_xform(link.prim_path).GetInverse()
     cache = lazy.pxr.UsdGeom.XformCache(lazy.pxr.Usd.TimeCode.Default())
-    pts, n = th.zeros(3, dtype=th.float64), 0
+
+    handles, allgeom = [], []
     for prim in lazy.pxr.Usd.PrimRange(root):
         if not prim.IsA(lazy.pxr.UsdGeom.Mesh):
             continue
-        if not prim.GetName().startswith("Cylinder"):
-            continue
-        m = cache.GetLocalToWorldTransform(prim)
+        # Position in the LINK's frame: (mesh -> world) composed with (world -> link).
+        m = cache.GetLocalToWorldTransform(prim) * link_world_inv
         t = m.ExtractTranslation()
-        pts += th.tensor([float(t[0]), float(t[1]), float(t[2])], dtype=th.float64)
-        n += 1
-    return (pts / n if n else None), n
+        p = th.tensor([float(t[0]), float(t[1]), float(t[2])], dtype=th.float64)
+        allgeom.append(p)
+        if prim.GetName().startswith("Cylinder"):
+            handles.append(p)
+    if not handles or not allgeom:
+        return None, len(handles), len(allgeom)
+
+    H = th.stack(handles).mean(0)
+    G = th.stack(allgeom).mean(0)
+    local_dir = H - G
+    if float(th.linalg.norm(local_dir)) < 1e-9:
+        return None, len(handles), len(allgeom)
+    local_dir = local_dir / th.linalg.norm(local_dir)
+
+    # Rotate into world with the link's SIMULATED orientation, not the authored one.
+    _, ori = link.get_position_orientation()
+    front = quat_to_mat(ori) @ local_dir
+    return front / th.linalg.norm(front), len(handles), len(allgeom)
 
 
 def facing_block(env, i):
@@ -178,21 +214,17 @@ def facing_block(env, i):
         print(f"        link local +{name} -> world {f3(R[i] / th.linalg.norm(R[i]))}")
     print(f"        drawer link aabb centre = {f3(centre)} extent={f3(hi - lo)}")
 
-    # --- the front direction: the handle cylinders ----------------------------------------------
-    # The three `Cylinder*` meshes under the drawer link are its handles, which are physically on the
-    # front face, so the vector from the link's AABB centre to their world centroid IS the outward
-    # front direction. This is pure geometry -- no assumption about which local axis means what --
-    # which is why it is the estimate the verdict below is built on.
-    hc, nh = handle_centroid(cabinet, link_name)
-    print(f"\n        --- front direction (handle cylinders) ---")
-    if hc is None:
-        print("        no Cylinder* meshes found under the drawer link -- CANNOT JUDGE FACING")
-        front_axis = None
+    # --- the front direction: handles vs all geometry, in the link's own frame -------------------
+    # The `Cylinder*` meshes are the drawer's handles and sit on its front face, so their offset from
+    # the drawer's overall geometry centroid is the outward front direction. Pure geometry, no
+    # assumption about which local axis means what, and body-fixed so it is valid whether the drawer
+    # rests closed (task 8) or starts open (task 9).
+    front_axis, nh, ng = front_direction(cabinet, link_name)
+    print(f"\n        --- front direction ({nh} handle meshes vs {ng} geometry meshes, link frame) ---")
+    if front_axis is None:
+        print("        could not build a front direction -- CANNOT JUDGE FACING")
     else:
-        v = hc - centre
-        front_axis = v / th.linalg.norm(v)
-        print(f"        {nh} handle meshes, world centroid = {f3(hc)}")
-        print(f"        centre -> handles = {f3(v)}  unit = {f3(front_axis)}  |v|={float(th.linalg.norm(v)):.4f}")
+        print(f"        front (world unit) = {f3(front_axis)}")
 
     # --- the camera that actually feeds the policy ------------------------------------------------
     print(f"\n        --- cameras ---")
