@@ -177,3 +177,10 @@ realm-container.skill
 
 # Session scratch (logs, probe scripts, extracted frames)
 tmp/
+
+# Robot assets awaiting proper integration (owner decision 2026-08-18: keep local, do not commit).
+# r1lite has no config/definition yet; the live WidowX path uses OmniGibson's stock VX300S, not
+# these files. When one is wired up (definitions/ entry + config), remove its line here and add
+# the assets deliberately.
+realm/robots/r1lite/
+realm/robots/widowx/
