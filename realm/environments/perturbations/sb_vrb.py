@@ -24,27 +24,68 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
-# Which verbs may replace which. Module level rather than a local, so a test can assert the drawn
-# verb against the SAME table the perturbation drew from instead of keeping its own copy in sync.
-# Note that no key lists itself: the new verb always differs from the current one, which is what
-# makes "task_type changed" a sound assertion rather than a probabilistic one.
+# Which task_types may replace which. Module level rather than a local, so a test can assert the
+# drawn task_type against the SAME table the perturbation drew from instead of keeping its own copy
+# in sync. Note that no key lists itself: the new task_type always differs from the current one,
+# which is what makes "task_type changed" a sound assertion rather than a probabilistic one.
+#
+# KEYS AND VALUES ARE BOTH IN THE `task_type` NAMESPACE -- the one the task YAMLs declare and
+# task_progressions.yaml is keyed by: put / pick / rotate / stack / push / open_drawer /
+# close_drawer. NOT the natural-language verb, which is a separate field in the task YAMLs
+# (`instruction_verb_to_replace`) and is mapped in VERB_PHRASE below.
+#
+# That distinction was got wrong once and BOTH halves of the error mattered. The drawer entries read
+# "open": ["close"] / "close": ["open"], where:
+#   - the KEYS never matched anything. The configs declare task_type "open_drawer"/"close_drawer",
+#     so COMPATIBILITY_MATRIX.get(task_type, []) fell through to [] and SB-VRB silently perturbed
+#     NOTHING on tasks 8 and 9. It stopped crashing, which read as fixed.
+#   - the VALUES were not valid task_types either: "close" is not a key of task_progressions.yaml,
+#     so even a matching key would have KeyError'd on the TASK_PROGRESSIONS lookup below.
+# tests/test_perturbation_task_types.py now pins both halves against the configs, with no GPU.
 COMPATIBILITY_MATRIX = {
     "put": ["pick", "rotate", "stack"],
     "push": [], #["put", "pick", "rotate", "stack"],
     "pick": ["put", "rotate", "stack"],
     "rotate": ["put", "pick", "stack"],
     "stack": ["put", "pick", "rotate"],
-    "open": ["close"],
-    "close": ["open"]
+    "open_drawer": ["close_drawer"],
+    "close_drawer": ["open_drawer"],
+}
+
+# task_type -> the natural-language verb phrase the instruction is rebuilt with. Separate from the
+# table above because the namespaces genuinely differ: task_type "open_drawer" reads "open the top
+# drawer". The task YAMLs already carry this split as `instruction_verb_to_replace`.
+VERB_PHRASE = {
+    "pick": "pick up",
+    "put": "put",
+    "rotate": "rotate",
+    "stack": "stack",
+    "push": "push",
+    "open_drawer": "open",
+    "close_drawer": "close",
 }
 
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
-    # A task_type with no compatible verbs is a DELIBERATE opt-out, not an oversight -- "push" is
-    # commented out above rather than deleted. Treat it as a no-op perturbation instead of letting
-    # random.choice([]) raise IndexError, which is what killed task 7 + SB-VRB.
-    available_task_types = COMPATIBILITY_MATRIX.get(env.task_type, [])
+    # An ABSENT key and a key with an EMPTY list mean different things, and collapsing them with
+    # .get(task_type, []) is exactly what hid the drawer-namespace bug:
+    #   - empty list -> DELIBERATE opt-out. "push" is commented out above rather than deleted. No-op,
+    #                   rather than letting random.choice([]) raise the IndexError that killed
+    #                   task 7 + SB-VRB.
+    #   - absent key -> the table and the task configs DISAGREE. That is a bug in one of them and it
+    #                   must be LOUD: silently no-op'ing is how a perturbation gets reported as
+    #                   passing while measuring nothing at all.
+    if env.task_type not in COMPATIBILITY_MATRIX:
+        raise KeyError(
+            f"SB-VRB: task_type {env.task_type!r} is not in COMPATIBILITY_MATRIX "
+            f"(known: {sorted(COMPATIBILITY_MATRIX)}). Add it -- with an empty list if the "
+            f"perturbation genuinely does not apply -- rather than leaving it absent."
+        )
+    available_task_types = COMPATIBILITY_MATRIX[env.task_type]
     if not available_task_types:
+        og.log.info(
+            f"SB-VRB: no-op, task_type {env.task_type!r} is a deliberate opt-out (empty candidate list)"
+        )
         return
 
     new_verb_for_task = random.choice(available_task_types)
@@ -196,14 +237,20 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
 
     after_play(env, _post_play)
 
-    if new_verb_for_task in ["rotate", "push", "pick", "open", "close"]:
-        tmp = "pick up" if new_verb_for_task == "pick" else new_verb_for_task
-        env.instruction = f"{tmp} the {env.cfg['instruction_obj_to_replace']}"
+    # VERB_PHRASE, not the task_type itself: "open_drawer" as a verb would read "open_drawer the top
+    # drawer", and the trailing .replace("_", " ") would launder that into the plausible-looking
+    # "open drawer the top drawer" rather than failing. Single-object phrasings share a branch; the
+    # two that name a second object do not.
+    if new_verb_for_task in ("rotate", "push", "pick", "open_drawer", "close_drawer"):
+        env.instruction = f"{VERB_PHRASE[new_verb_for_task]} the {env.cfg['instruction_obj_to_replace']}"
     elif new_verb_for_task == "stack":
         env.instruction = f"stack the {env.cfg['instruction_obj_to_replace']} on top of the {env.cfg['instruction_target_to_replace']}"
     elif new_verb_for_task == "put":
         env.instruction = f"put the {env.cfg['instruction_obj_to_replace']} into the {env.cfg['instruction_target_to_replace']}"
     else:
-        raise NotImplementedError()
+        raise NotImplementedError(
+            f"SB-VRB: no instruction phrasing for task_type {new_verb_for_task!r}. It is reachable "
+            f"from COMPATIBILITY_MATRIX, so add a branch here rather than widening the matrix alone."
+        )
     env.instruction = env.instruction.replace("_", " ")
     og.log.info(f"New instruction: {env.instruction}")
