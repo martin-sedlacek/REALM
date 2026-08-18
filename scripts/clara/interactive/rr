@@ -88,12 +88,34 @@ case "$MODE" in
   *) echo "rr: MODE must be stock, stockfix or oglite (got '$MODE')" >&2; exit 1 ;;
 esac
 
+# REALM_LIGHT_FIX only exists in patched OmniGibson. Under MODE=stock the image's own 3.9.1 has no
+# code that reads it, so the run would silently use stock lighting while its environment claimed
+# otherwise -- the one failure mode an explicit flag is supposed to prevent. Refuse instead.
+# DROP THIS GUARD once the SIF is rebuilt: both build recipes now bake the two light patches in, and
+# a rebuilt image honours the flag under MODE=stock like any other.
+if [ "${REALM_LIGHT_FIX:-0}" != 0 ] && [ "$MODE" = stock ]; then
+  echo "rr: REALM_LIGHT_FIX=$REALM_LIGHT_FIX needs MODE=oglite or MODE=stockfix -- the image's own" >&2
+  echo "    OmniGibson 3.9.1 has no code that reads it, so this run would silently be stock-lit." >&2
+  exit 1
+fi
+
 mkdir -p "$TMPROOT" "$REALM_APPDATA/appdata"
 
 # Pass through the REALM/OG knobs only when the caller set them, so an unset var does not
 # become the string "".
+#
+# REALM_LIGHT_FIX=1 restores OG 1.1.1's light configuration (FORCE_LIGHT_INTENSITY 150000 and no
+# inputs:normalize write). OFF BY DEFAULT -- unset or 0 is stock OG 3.9.1, bit-identical. It exists
+# because 3.9.1's two changes (intensity /15, emission x1/area) cancel only at light area
+# 1/15 m^2, leaving a PER-SCENE error: as shipped the per-task brightness ratio against 1.1.1 spans
+# x1.03-x1.56, and with the flag on it collapses to x1.199-x1.313. Full rationale at the
+# FORCE_LIGHT_INTENSITY definition in omnigibson/macros.py. Every run prints its resolved state as
+# a "[REALM_LIGHT_FIX] ..." line, so grep the log rather than guessing.
+#
+# Needs MODE=oglite or MODE=stockfix -- plain MODE=stock runs the image's unpatched OmniGibson,
+# where the variable has nothing to read it, so it is silently inert. Guarded below.
 PASS_ENV=()
-for v in REALM_INCREMENTAL_CONTACT_CACHE REALM_PROXIMITY_GATE REALM_GPU_DYNAMICS OMNIGIBSON_HEADLESS; do
+for v in REALM_INCREMENTAL_CONTACT_CACHE REALM_PROXIMITY_GATE REALM_GPU_DYNAMICS REALM_LIGHT_FIX OMNIGIBSON_HEADLESS; do
   if [ -n "${!v:-}" ]; then PASS_ENV+=(--env "$v=${!v}"); fi
 done
 

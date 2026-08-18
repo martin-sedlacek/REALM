@@ -85,6 +85,25 @@ OPENPI_ROOT=${OPENPI_ROOT:-/mnt/home_lustre/sedlam56/projects/openpi}
 CKPT=${CKPT:-/home/sedlam56/.cache/openpi/openpi-assets/checkpoints/pi05_droid_jointpos}
 POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 
+# REALM_LIGHT_FIX=1 restores OG 1.1.1's light configuration (FORCE_LIGHT_INTENSITY 150000 and no
+# inputs:normalize write). OFF BY DEFAULT -- unset or 0 is stock OG 3.9.1 lighting, bit-identical to
+# every run recorded before this knob existed, so leaving it alone changes nothing.
+#
+# It exists because 3.9.1's two lighting changes (intensity /15, emission x1/area via
+# normalize=True) cancel only at light area 1/15 m^2, which leaves a PER-SCENE error rather than a
+# global one: as shipped the per-task brightness ratio against the 1.1.1 references spans x1.03-x1.56
+# (spread 0.53), and with the flag on it collapses to x1.199-x1.313 (spread 0.11). It does NOT match
+# 1.1.1 -- a uniform ~20-30% excess remains -- it makes the residual uniform, which is what a single
+# exposure term could absorb and a per-scene shift never could. Do not pair it with an
+# appearance-tuned intensity scale; that undoes exactly that property. Full rationale sits at the
+# FORCE_LIGHT_INTENSITY definition in omnigibson/macros.py.
+#
+# This script always binds OG-lite over the image's package (see --bind below), so the flag is live
+# here in both states. Every run prints one "[REALM_LIGHT_FIX] ..." line at startup, and the value is
+# echoed in the config block below, so no result is ever ambiguous about which lighting produced it.
+# CHANGING IT INVALIDATES COMPARISONS against runs made with the other setting.
+REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-0}
+
 VEC=${VEC:-4}
 PERT_ID=${PERT_ID:-0}
 TASK_ID=${TASK_ID:-0}
@@ -117,6 +136,7 @@ echo " repeats=$REPEATS  max_steps=$MAX_STEPS  horizon=$HORIZON  robot=$ROBOT"
 echo " policy_config=$POLICY_CONFIG  openpi_root=$OPENPI_ROOT"
 echo " ckpt=$CKPT"
 echo " run_id=$RUN_ID  port=$PORT  node=$(hostname)"
+echo " light_fix=$REALM_LIGHT_FIX  ($([ "$REALM_LIGHT_FIX" != 0 ] && echo 'OG 1.1.1 lighting: intensity 150000, no normalize' || echo 'off -- stock OG 3.9.1 lighting'))"
 echo "=================================================================="
 
 #--- own policy server -----------------------------------------------------------------------------
@@ -177,6 +197,7 @@ apptainer run --userns --nv --writable-tmpfs --pwd /app \
   --env NVIDIA_DRIVER_CAPABILITIES=all \
   --env CUDA_VISIBLE_DEVICES=0 \
   --env PYTHONUNBUFFERED=1 \
+  --env REALM_LIGHT_FIX="$REALM_LIGHT_FIX" \
   "$REALM_SIF" \
   "${ENTRY[@]}" \
     --task_id "$TASK_ID" --perturbation_id "$PERT_ID" \
