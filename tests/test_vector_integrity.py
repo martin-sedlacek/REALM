@@ -96,8 +96,20 @@ KNOWN_BROKEN_TASKS = {}
 CRASH_MARKERS = re.compile(
     r"Traceback \(most recent call last\)|AssertionError|AttributeError|KeyError|TypeError|"
     r"IndexError|RuntimeError|Segmentation fault|CUDA error|out of memory", re.I)
-# Isaac segfaults during teardown on EVERY run, passing or failing, after all work is done. Matching
-# it as a crash would fail every cell.
+# Isaac CAN segfault during teardown after all work is done, and matching that as a crash would fail
+# a cell that actually succeeded -- hence this filter.
+#
+# But it does NOT happen on every run, which this comment used to claim. Measured over the 2026-08-18
+# matrix re-run on examples/04_vector_evaluate.py: the only cell whose log carried a segfault or a
+# traceback was 8:VB-MOBJ, which raises an intentional NotImplementedError, and a control build where
+# nothing raises passed with zero segfaults. The "every run" claim is true of
+# t9_vbpose_nostopplay.py, where it was first written, and was over-generalised to here.
+#
+# Consequence worth keeping: on this path a segfault usually means an uncaught Python exception
+# propagated out, so it correlates with a real failure rather than being pure noise. Do not widen
+# this filter -- the CRASH verdict comes from CRASH_MARKERS matching "Traceback", not from the exit
+# code, so a cell reports CRASH even when the process exits 0, and the -11 itself carries no
+# information.
 TEARDOWN_NOISE = re.compile(r"Fatal Python error: Segmentation fault|"
                             r"srun: error:.*Segmentation fault|core dumped")
 

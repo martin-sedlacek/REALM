@@ -270,8 +270,14 @@ V-SC was briefly mapped to `objects`, which is a guaranteed false failure: it pa
 as `objects_to_skip` and re-randomises only distractors, so its main-object spread with a *working*
 V-SC is exactly `0.0000`.
 
-Two harness gotchas: the script **exits 139 (SIGSEGV) whether it passes or fails** — Isaac segfaults
-at teardown after the verdict prints, so grep `^PASSED`/`^FAILED` and never gate on exit code. And
+Two harness gotchas: **`t9_vbpose_nostopplay.py` exits 139 (SIGSEGV) whether it passes or fails** —
+Isaac segfaults at teardown after the verdict prints, so grep `^PASSED`/`^FAILED` and never gate on
+exit code. This is **script-specific, not universal**, and this sentence used to claim otherwise:
+`examples/04_vector_evaluate.py` on this image does NOT segfault on a passing run. Measured over the
+2026-08-18 matrix re-run, the only cell whose log contained a segfault or a traceback was
+`8:VB-MOBJ`, which raises an intentional `NotImplementedError` — and a control build where nothing
+raises passes with zero segfaults. So on that path a segfault means something really went wrong, and
+treating it as teardown noise would hide a real crash. And
 `og.log.info()` is invisible (`simulator.py:294` pins the root logger to WARNING), which is why the
 repair logs at warning level.
 
