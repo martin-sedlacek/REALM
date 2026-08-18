@@ -86,8 +86,11 @@ CKPT=${CKPT:-/home/sedlam56/.cache/openpi/openpi-assets/checkpoints/pi05_droid_j
 POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 
 # REALM_LIGHT_FIX=1 restores OG 1.1.1's light configuration (FORCE_LIGHT_INTENSITY 150000 and no
-# inputs:normalize write). OFF BY DEFAULT -- unset or 0 is stock OG 3.9.1 lighting, bit-identical to
-# every run recorded before this knob existed, so leaving it alone changes nothing.
+# inputs:normalize write). ON BY DEFAULT FOR EVALS as of 2026-08-18: Martin reviewed the rendered
+# task-3 comparison and picked the flag-on look ("the one called on_baseline looks good lets use
+# that"). Pass REALM_LIGHT_FIX=0 to reproduce a run made before that call -- that path is
+# bit-identical to stock OG 3.9.1 lighting, verified at 184.510 vs an unpatched container's 184.508.
+# The library default in omnigibson/macros.py stays 0, so nothing outside this launcher changed.
 #
 # It exists because 3.9.1's two lighting changes (intensity /15, emission x1/area via
 # normalize=True) cancel only at light area 1/15 m^2, which leaves a PER-SCENE error rather than a
@@ -102,7 +105,7 @@ POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 # here in both states. Every run prints one "[REALM_LIGHT_FIX] ..." line at startup, and the value is
 # echoed in the config block below, so no result is ever ambiguous about which lighting produced it.
 # CHANGING IT INVALIDATES COMPARISONS against runs made with the other setting.
-REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-0}
+REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-1}
 
 VEC=${VEC:-4}
 PERT_ID=${PERT_ID:-0}
