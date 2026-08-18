@@ -35,11 +35,28 @@ FLAGS = {
     2: "og391: objects off the surface",
     6: "og391: objects off the surface",
     8: "1.1.1 has one extra object",
-    9: "og391: drawer not open at reset",
+    9: "og391: cabinet not in frame -- but the drawer IS open (measured)",
 }
-# Task 9 earns its place here from the frames, not from a prior expectation: 1.1.1 starts
-# `close_drawer` with the drawer OPEN and the exterior camera looking into it, and og391 starts it
-# with no open drawer in frame at all. The two stacks are photographing different scenes.
+# RETRACTION 2026-08-18. This said "og391: drawer not open at reset", read off the frames: 1.1.1
+# starts `close_drawer` with the drawer OPEN and the exterior camera looking into its slide rails,
+# og391's frame from the same viewpoint shows the room unobstructed, so the drawer was inferred to
+# be shut. MEASURED FALSE. t13_drawer_stop.py --task_id 9, MODE=oglite, DROID_robolab_v2:
+#
+#   init_openness_fraction  1.0000 (want 1.0000) on all 4 vector members AND at num_envs=1,
+#                           at construction and again after a re-driven reset_joints()
+#   target drawer_joint_00  0.3000 of limits [0.0000, 0.3000], residual 0.0000
+#   link displacement       closed -> open moves drawer_blender_cut_00 by (-0.052, +0.295, 0.000),
+#                           |d| = 0.3000 = the full joint range, dominant axis y -- a horizontal
+#                           slide of the right magnitude, so the link tracks the joint
+#   200 free sim steps      openness 1.0000 throughout, drift 0.0000 -- it does not creep shut
+#                           before the frame is taken
+#
+# So task 9 stays CONFOUNDED -- the two stacks genuinely are not photographing the same content --
+# but the START STATE is not the reason and must not be cited as one. Why og391's exterior camera
+# does not show a cabinet that is measurably present, upright, at the config pose and holding an
+# open drawer is UNEXPLAINED; the open lead is that og391 logs a material fallback on exactly this
+# asset ("Material prim at .../drawer/Materials/Material_Cabinet_{Body,Drawer} ... does not have a
+# known shader file associated with it"). Do not turn that lead into a cause without measuring it.
 CONFOUNDED = (2, 6, 9)
 
 # The three tasks measured in the previous session, and the label each stack wrote there.

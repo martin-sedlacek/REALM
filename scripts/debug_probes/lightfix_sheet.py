@@ -42,9 +42,13 @@ REF_PREFIX = {0: "og111_post_t0__baseline__", 3: "og111_rt_clean__baseline__",
 # Scenes where the two stacks are NOT photographing the same content, so a mean ratio measures
 # layout and not tone. Carried over from scene_sweep_sheet.py, which established each one from the
 # frames. Still reported; never counted as a lighting result.
+# Task 9's flag was "og391: drawer not open at reset" and that is MEASURED FALSE -- see the
+# retraction at scene_sweep_sheet.py's FLAGS, which carries the numbers. It stays confounded, but
+# for an unexplained reason, not for its start state.
 CONFOUNDED = (2, 6, 9)
 FLAGS = {2: "og391: objects off the surface", 6: "og391: objects off the surface",
-         8: "1.1.1 has one extra object", 9: "og391: drawer not open at reset"}
+         8: "1.1.1 has one extra object",
+         9: "og391: cabinet not in frame -- but the drawer IS open (measured)"}
 
 ARMS = ("off", "on")
 OFF_TOL = 0.05
