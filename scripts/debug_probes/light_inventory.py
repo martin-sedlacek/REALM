@@ -90,6 +90,38 @@ WRITABLE = ("intensity", "exposure", "color", "colorTemperature", "enableColorTe
             "diffuse", "specular", "normalize")
 
 
+def light_area(rec):
+    """Emitting area in m^2, per light type -- what `normalize=True` divides emission by.
+
+    Used only by the `areaint` rung, which is the algebraic mirror of turning normalize off:
+    normalize=True makes emission proportional to intensity/area, so intensity = I*area reproduces
+    what normalize=False at intensity I would emit. The exact convention RTX uses for a sphere is
+    not documented, so treat `areaint` as a cross-check on the empirical scale sweep, not as ground
+    truth -- if the two disagree, the sweep is the measurement and this is the model.
+    """
+    import math
+    a = rec.get("attrs", {})
+
+    def g(k):
+        v = a.get(k, {}).get("value")
+        return float(v) if isinstance(v, (int, float)) else None
+
+    t = rec.get("type")
+    if t == "RectLight":
+        w, h = g("width"), g("height")
+        return w * h if w and h else None
+    if t == "DiskLight":
+        r = g("radius")
+        return math.pi * r * r if r else None
+    if t == "SphereLight":
+        r = g("radius")
+        return 4.0 * math.pi * r * r if r else None
+    if t == "CylinderLight":
+        r, l = g("radius"), g("length")
+        return 2.0 * math.pi * r * l if r and l else None
+    return None
+
+
 def close_enough(a, b, tol=1e-4):
     """Float-tolerant equality, used to decide whether a written value survived env.reset()."""
     try:
@@ -242,6 +274,21 @@ def main():
     ap.add_argument("--frames", type=int, default=5)
     ap.add_argument("--pre-renders", type=int, default=300)
     ap.add_argument("--settle-renders", type=int, default=60)
+    ap.add_argument("--ladder", default=None,
+                    help="sweep several light configurations in ONE boot, comma separated. USD light "
+                         "edits take effect immediately (unlike carb writes, which the earlier probe "
+                         "measured as attenuated post-warmup), so a ladder is legitimate here -- and "
+                         "the `normoff` rung doubles as the control, because a dedicated boot already "
+                         "measured it at cam1 89.48 on rotate_mug. Rungs:\n"
+                         "  base                 no change\n"
+                         "  normoff              normalize=False wherever og391 authored True\n"
+                         "  normoff*S            normalize=False AND intensity x S\n"
+                         "  xS                   intensity x S only\n"
+                         "  areaint[:I]          keep normalize=True, set intensity = I * area\n"
+                         "                       (default I = 150000, OG 1.1.1's FORCE_LIGHT_INTENSITY)")
+    ap.add_argument("--ladder-settle", type=int, default=90,
+                    help="render ticks after each rung. The indirectDiffuse temporal denoiser keeps "
+                         "a 100-frame history, so a small value measures a half-converged image.")
     ap.add_argument("--no-measure", action="store_true", help="inventory only, no frames")
     ap.add_argument("--og-lite", action="store_true")
     ap.add_argument("--gate-min-colors", type=int, default=2000)
@@ -567,33 +614,138 @@ def main():
     report["material_settle"] = trace
 
     cams = sorted(collect_rgb(obs).keys())
-    seq = [read_obs() for _ in range(args.frames)]
-    row = {"variant": args.apply or "baseline", "cameras": {}}
-    for cam in cams:
-        imgs = [s[cam] for s in seq if cam in s]
-        if not imgs:
-            row["cameras"][cam] = {"gate_ok": False, "gate_fail": ["camera absent"]}
-            continue
-        med = np.median(np.stack(imgs, 0), axis=0).astype(np.uint8)
-        st = frame_stats(med, args.gate_min_colors, args.gate_max_dominant)
-        png = os.path.join(args.out, f"{args.label}__{row['variant']}__{cam.replace('.', '-')}.png")
-        try:
-            from PIL import Image
-            Image.fromarray(med).save(png)
-            st["png"] = png
-        except Exception as e:
-            st["png_error"] = f"{type(e).__name__}: {e}"
-        row["cameras"][cam] = st
-        flag = "" if st["gate_ok"] else "  !!GATE-FAIL " + "; ".join(st["gate_fail"])
-        print(f"  {row['variant']:22s} {cam:44s} mean={st['mean']:7.2f} p5={st['p05']:6.1f} "
-              f"p50={st['p50']:6.1f} p95={st['p95']:6.1f} sat={st['sat_pct']:6.3f}% "
-              f"dark={st['dark_pct']:6.2f}% detail={st['detail']:7.1f}{flag}")
-    report["rows"] = [row]
-    gate_fails = sum(1 for c in row["cameras"].values() if not c.get("gate_ok"))
+
+    def measure_row(name, extra=None):
+        seq = [read_obs() for _ in range(args.frames)]
+        row = {"variant": name, "cameras": {}}
+        if extra:
+            row.update(extra)
+        for cam in cams:
+            imgs = [s[cam] for s in seq if cam in s]
+            if not imgs:
+                row["cameras"][cam] = {"gate_ok": False, "gate_fail": ["camera absent"]}
+                continue
+            med = np.median(np.stack(imgs, 0), axis=0).astype(np.uint8)
+            st = frame_stats(med, args.gate_min_colors, args.gate_max_dominant)
+            safe = name.replace("/", "_").replace(" ", "")
+            png = os.path.join(args.out, f"{args.label}__{safe}__{cam.replace('.', '-')}.png")
+            try:
+                from PIL import Image
+                Image.fromarray(med).save(png)
+                st["png"] = png
+            except Exception as e:
+                st["png_error"] = f"{type(e).__name__}: {e}"
+            row["cameras"][cam] = st
+            flag = "" if st["gate_ok"] else "  !!GATE-FAIL " + "; ".join(st["gate_fail"])
+            print(f"  {name:22s} {cam:44s} mean={st['mean']:7.2f} p5={st['p05']:6.1f} "
+                  f"p50={st['p50']:6.1f} p95={st['p95']:6.1f} sat={st['sat_pct']:6.3f}% "
+                  f"dark={st['dark_pct']:6.2f}% detail={st['detail']:7.1f}{flag}")
+        return row
+
+    rows = []
+    report["rows"] = rows
+
+    if not args.ladder:
+        rows.append(measure_row(args.apply or "baseline"))
+    else:
+        # Snapshot every light's (intensity, normalize) AFTER reset, so a rung is always applied to
+        # the true as-shipped state and rungs never compound.
+        live = inventory(lazy, stage)["lights"]
+        snap = {}
+        for r in live:
+            if r.get("instance_proxy"):
+                continue
+            snap[r["path"]] = {
+                "intensity": r["attrs"].get("intensity", {}).get("value"),
+                "normalize": r["attrs"].get("normalize", {}).get("value"),
+                "authored_norm": r["attrs"].get("normalize", {}).get("authored"),
+                "type": r["type"],
+                "area": light_area(r),
+            }
+        n_auth = sum(1 for v in snap.values() if v["authored_norm"] and v["normalize"] is True)
+        report["ladder_snapshot"] = {"n_lights": len(snap), "n_authored_normalize_true": n_auth}
+        print(f"[ladder] snapshot {len(snap)} authorable light(s); "
+              f"{n_auth} have normalize=True AUTHORED (og391's own write)")
+
+        def restore():
+            for p, v in snap.items():
+                prim = stage.GetPrimAtPath(p)
+                if not prim or not prim.IsValid():
+                    continue
+                if v["intensity"] is not None:
+                    set_attr(prim, "intensity", float(v["intensity"]), lazy, usd_edit)
+                if v["normalize"] is not None:
+                    set_attr(prim, "normalize", bool(v["normalize"]), lazy, usd_edit)
+
+        def apply_rung(spec):
+            """Returns (description, n_touched). Applied on top of a freshly restored stage."""
+            norm_off = False
+            scale = None
+            area_i = None
+            if spec == "base":
+                return {"op": "none"}, 0
+            if spec.startswith("areaint"):
+                area_i = 150000.0
+                if ":" in spec:
+                    area_i = float(spec.split(":", 1)[1])
+            elif spec.startswith("normoff"):
+                norm_off = True
+                if "*" in spec:
+                    scale = float(spec.split("*", 1)[1])
+            elif spec.startswith("x"):
+                scale = float(spec[1:])
+            else:
+                raise SystemExit(f"--ladder: unknown rung '{spec}'")
+            n = 0
+            for p, v in snap.items():
+                prim = stage.GetPrimAtPath(p)
+                if not prim or not prim.IsValid():
+                    continue
+                # Only touch the lights og391 itself forced. The dome is left alone: it is
+                # normalize=False on both stacks and measured worth 0.01 luma indoors.
+                if not (v["authored_norm"] and v["normalize"] is True):
+                    continue
+                if area_i is not None:
+                    if v["area"]:
+                        set_attr(prim, "intensity", area_i * v["area"], lazy, usd_edit)
+                        n += 1
+                    continue
+                if norm_off:
+                    set_attr(prim, "normalize", False, lazy, usd_edit)
+                if scale is not None and v["intensity"] is not None:
+                    set_attr(prim, "intensity", float(v["intensity"]) * scale, lazy, usd_edit)
+                n += 1
+            return {"op": spec, "normalize_off": norm_off, "intensity_scale": scale,
+                    "area_intensity": area_i}, n
+
+        for i, spec in enumerate([s.strip() for s in args.ladder.split(",") if s.strip()]):
+            restore()
+            desc, n = apply_rung(spec)
+            # Read back a sample so the row proves what was in force, not what was requested.
+            sample = {}
+            for p, v in list(snap.items()):
+                if v["authored_norm"] and v["normalize"] is True:
+                    prim = stage.GetPrimAtPath(p)
+                    if prim and prim.IsValid():
+                        sample = {"path": p,
+                                  "intensity": jsonable(prim.GetAttribute("inputs:intensity").Get()),
+                                  "normalize": jsonable(prim.GetAttribute("inputs:normalize").Get()),
+                                  "area": v["area"]}
+                    break
+            for _ in range(args.ladder_settle):
+                og.sim.render()
+            read_obs()
+            print(f"[rung {i}] {spec}: touched {n} light(s); in force on {sample.get('path','?')}: "
+                  f"intensity={sample.get('intensity')} normalize={sample.get('normalize')}")
+            rows.append(measure_row(spec, {"rung": desc, "n_touched": n, "in_force": sample}))
+            flush()
+        restore()
+
+    gate_fails = sum(1 for r in rows for c in r["cameras"].values() if not c.get("gate_ok"))
     report["gate_failures"] = gate_fails
     report["ok"] = gate_fails == 0
     flush()
-    print(f"\n[done] {jpath} gate_failures={gate_fails}")
+    print(f"\n[done] {jpath} rows={len(rows)} gate_failures={gate_fails}")
     return 0 if gate_fails == 0 else 4
 
 

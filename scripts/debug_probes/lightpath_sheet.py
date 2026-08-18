@@ -114,13 +114,24 @@ def fit_offset(cand_png, ref_png):
             "mean_minus_offset": round(corrected, 2)}
 
 
-def find_ref(ref_dir, cam):
-    """The settled OG 1.1.1 baseline PNG for this camera, if the earlier probe left one behind."""
+def find_ref(ref_dir, cam, ref_glob=None):
+    """The settled OG 1.1.1 baseline PNG for this camera.
+
+    `ref_glob` is mandatory whenever the reference directory holds more than one task -- the
+    10-task sweep wrote `og111_ss_t0__baseline__*` ... `og111_ss_t9__baseline__*` side by side, and
+    a bare `og111*baseline*` would silently pick whichever task sorts first and then quote every
+    offset against the wrong scene. Pass e.g. --ref-glob 'og111_ss_t5__baseline__{tag}.png'.
+    """
     if not ref_dir:
         return None
     tag = cam.replace(".", "-")
-    for pat in (f"og111_rt_clean__baseline__{tag}.png", f"og111*baseline*{tag}.png"):
+    pats = [ref_glob.format(tag=tag)] if ref_glob else [
+        f"og111_rt_clean__baseline__{tag}.png", f"og111*baseline*{tag}.png"]
+    for pat in pats:
         g = sorted(glob.glob(os.path.join(ref_dir, pat)))
+        if len(g) > 1 and not ref_glob:
+            raise SystemExit(f"{len(g)} candidate references match {pat} in {ref_dir}: {g}\n"
+                             f"pass --ref-glob to say which task's reference to use")
         if g:
             return g[0]
     return None
@@ -166,6 +177,10 @@ def main():
     ap.add_argument("out_dir")
     ap.add_argument("--ref-dir", default="/mnt/home_lustre/sedlam56/projects/REALM/logs/render_bright_ab")
     ap.add_argument("--sheet-dir", default=None)
+    ap.add_argument("--ref-glob", default=None,
+                    help="filename pattern for the reference frame, with {tag} for the camera, e.g. "
+                         "'og111_ss_t5__baseline__{tag}.png'. Required when --ref-dir holds more "
+                         "than one task's frames.")
     ap.add_argument("--sort", default="offset", choices=["offset", "dark", "mean", "name"],
                     help="table order. 'offset' (default) ranks by the fitted additive floor, which "
                          "is the metric that matters: the gap is additive, so the smallest offset "
@@ -182,7 +197,7 @@ def main():
 
     for cam in cams:
         print(f"===== {cam} " + "=" * max(0, 92 - len(cam)))
-        ref_png = find_ref(args.ref_dir, cam)
+        ref_png = find_ref(args.ref_dir, cam, args.ref_glob)
         ref_st = stats_of_png(ref_png) if ref_png else None
         print(f"{'configuration':44s} {'mean':>8s} {'p5':>6s} {'p50':>6s} {'p95':>6s} "
               f"{'sat%':>7s} {'%dark':>7s} {'detail':>8s} {'offset':>8s} {'slope':>6s} {'R2':>5s}")
