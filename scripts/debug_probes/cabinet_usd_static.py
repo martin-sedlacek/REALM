@@ -22,7 +22,7 @@ Usage:
 import argparse
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 
 from pxr import Usd, UsdGeom, UsdShade, Sdf
 

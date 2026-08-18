@@ -15,12 +15,10 @@
 # a broad default ruleset produces hundreds of findings that are all noise, and the signal is lost.
 # `make lint` is only worth running while its output is short enough to read.
 #
-# CURRENT BASELINE, measured 2026-08-16 with ruff 0.16.3: 25 findings.
-#   3 in realm/  (v_sc.py, v_view.py, vb_pose.py -- unused numpy / omnigibson imports)
-#   19 in scripts/ (debug probes, mostly unused torch / omnigibson.lazy imports)
-#   3 in tests/  (test_vector_integrity.py, debug_ee_control.py)
-# All 25 are `--fix`-able. None has been fixed here because this change was scoped to docs, tests
-# wiring, the Makefile and CI. See the wiki's Test coverage page.
+# CURRENT BASELINE, re-measured 2026-08-18 with ruff 0.16.3: 0 findings across
+# realm/ tests/ examples/ scripts/. Keep it at zero -- with only two dead-code rules active, any
+# finding is worth either fixing or explaining here. (packages/dm_robotics/ is vendored third-party
+# code and is not part of the lint scope; do not chase its findings.)
 #
 # SEPARATELY, and not covered by this ruleset: `ruff check --select E9,F63,F7,F82` finds
 # 3 x F821 "Undefined name `np`" in scripts/clara/interactive/t10_bhobj_props.py:73-74. That is a

@@ -124,7 +124,6 @@ def main():
 
     sys.path.insert(0, "/app")
     import omnigibson as og
-    from omnigibson.macros import gm
     import omnigibson.lazy as lazy
 
     try:

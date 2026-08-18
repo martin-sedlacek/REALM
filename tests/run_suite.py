@@ -209,9 +209,9 @@ SUITE = {
     ),
 }
 
-# tests/debug_eval.py and tests/debug_ee_control.py are NOT in the suite: neither prints a verdict,
-# neither asserts anything, and debug_ee_control.py is a hand-driven scratch script. They are
-# covered in the report as debug scripts, which is what they are.
+# Hand-driven debug scripts live in scripts/debug/, not here: they print no verdict and assert
+# nothing, so they cannot be suite entries. (tests/debug_eval.py, a hardcoded duplicate of
+# `02_evaluate.py --task_id 8 --model_type debug`, was deleted 2026-08-18.)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -345,6 +345,14 @@ def print_table(results, out, blob):
     print(f"results: {out}")
 
 
+#: statuses that are not a failure of the code under test. SKIP is a test declining to run because
+#: a precondition it cannot supply is absent (test_pi0_integration with no policy server), which is
+#: information, not a fault. Everything else -- FAIL, TIMEOUT, NO_VERDICT, *_AFTER_TIMEOUT -- is.
+#: Defined ABOVE its users (write_junit, verdict_status); it used to sit between them, which worked
+#: only because both are functions and the module body had finished executing by call time.
+OK_STATUSES = frozenset({"PASS", "SKIP"})
+
+
 def write_junit(results, path, suite_name="realm"):
     """Emit a JUnit XML report, one <testcase> per suite entry.
 
@@ -407,12 +415,6 @@ def write_junit(results, path, suite_name="realm"):
     root.write(path, encoding="utf-8", xml_declaration=True)
     print(f"junit: {path}  tests={len(results)} failures={failures} errors={errors} "
           f"skipped={skipped}")
-
-
-#: statuses that are not a failure of the code under test. SKIP is a test declining to run because
-#: a precondition it cannot supply is absent (test_pi0_integration with no policy server), which is
-#: information, not a fault. Everything else -- FAIL, TIMEOUT, NO_VERDICT, *_AFTER_TIMEOUT -- is.
-OK_STATUSES = frozenset({"PASS", "SKIP"})
 
 
 def verdict_status(results, strict):

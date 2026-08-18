@@ -17,7 +17,6 @@ import glob
 import json
 import os
 
-import numpy as np
 from PIL import Image, ImageDraw
 
 BAR = 34           # label strip height under each panel
