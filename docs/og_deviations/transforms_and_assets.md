@@ -244,6 +244,27 @@ positions), `utils/usd_utils.py:1866-1932` (`_get_all_relative_poses`, relative 
   `target @ pose_inv(root_local)` with a **local** transform, so it is frame-agnostic; skipped
   entirely when the root link sits at the entity origin (`:1043`), which every BEHAVIOR asset does.
   Not a behaviour change for the dataset.
+  **CORRECTION (2026-08-18): benign for the BEHAVIOR dataset, NOT benign for a custom asset whose
+  root link carries a rotation** — and `custom_assets/impact_drawer/usd/cabinet.usd` is exactly that
+  case. Its `/cabinet/base_link` authored a **179.117°** turn about the asset's own up axis (the
+  layer is `upAxis=Y`), to align a body mesh modelled backwards with the five drawer links, which are
+  its *siblings* and so never inherited it. `:1043` therefore did **not** skip, and because the task
+  config's own quaternion is ~Rx(90) — it maps the asset's `+Y` onto world `+Z` — the compensating
+  `pose_inv(root_local)` landed as a **pure 180° yaw about world Z**. The cabinet came out upright, at
+  exactly the config quaternion (`angle_to_config_quat_deg = 0.0000`), with a drawer joint travelling
+  its full 0.300 m, and facing away from the camera. OG 1.1.1 places the **entity prim** instead
+  (`OG-lite/omnigibson/prims/entity_prim.py:1028-1029`), so it never divided the rotation out and
+  rendered the cabinet the right way round.
+  Measured pre-fix on task 8: handle cylinders at world `y = -0.953`, cabinet centre `y = -1.280`,
+  `external_sensor0` at `y = -2.453`, `front · (cam − centre) = -0.82`.
+  Fixed in the **asset**, not here: `scripts/fix_drawer_base_link_frame.py` re-parameterises the
+  cabinet so `root_local` is the identity and `:1043` skips as it does for every dataset asset. That
+  edit is a change of coordinates — every prim pose and joint anchor relative to `/cabinet` is
+  preserved to 1.4e-08 — so it is also a **no-op under OG 1.1.1** and cannot regress that tree.
+  `7c59ed5` itself is correct and must not be reverted: without it this asset does not load on stock
+  3.9.1 at all (the `xform_prim.py` round-trip assert quoted in
+  `realm/misc/material_prim_preset_og391.patch` is this same composition), and root-link placement is
+  what both versions already do once playing.
 - **`objects/usd_object.py:355-364`, the up-axis rewrite** (OG-lite `ec7373b`). Rotates nothing: up
   axis is layer metadata, every caller places the object explicitly afterwards, and for a Z-up asset
   the branch is untaken. Verified untaken on `droid_robolab_padspring.usd` (**measured**: `upAxis=Z`).
