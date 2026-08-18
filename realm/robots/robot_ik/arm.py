@@ -7,8 +7,9 @@ from dm_robotics.moma.models.robots.robot_arms import robot_arm
 
 
 class RobotArm(robot_arm.RobotArm):
-    def _build(self, model_file):
-        self._mjcf_root = mjcf.from_path(self._model_file)
+    """dm_robotics arm entity backed by an MJCF model. Instantiate a subclass (FrankaArm), whose
+    _build sets _name/_model_file/_mjcf_root and calls _create_body -- the base class deliberately
+    defines no _build of its own (the one it used to have read an attribute nothing had set)."""
 
     def _create_body(self):
         # Find MJCF elements that will be exposed as attributes.
@@ -18,7 +19,11 @@ class RobotArm(robot_arm.RobotArm):
         self._wrist_site = self.mjcf_model.find("site", "wrist_site")
         self._base_site = self.mjcf_model.find("site", "base_site")
 
+    @property
     def name(self) -> str:
+        # A property, matching the dm_robotics RobotArm contract. Without the decorator,
+        # `arm.name` was a BOUND METHOD, and RobotIKSolver passed it as robot_name into the
+        # effectors -- so their prefix strings embedded `<bound method ...>` instead of "franka".
         return self._name
 
     @property

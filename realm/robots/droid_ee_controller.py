@@ -30,7 +30,15 @@ IK_MODE_COMMAND_DIMS = {
     "position_compliant_ori": 3,
     "cartesian_velocity": 6,
 }
-IK_MODES = set(IK_MODE_COMMAND_DIMS.keys())
+
+#: The modes that actually EXECUTE. The other four in IK_MODE_COMMAND_DIMS above are declared-only
+#: and each dies mid-episode if selected: pose_absolute_ori / position_compliant_ori raise
+#: NotImplementedError in _cartesian_velocity_command, position_fixed_ori reads a
+#: `_fixed_quat_target` attribute nothing initialises (AttributeError), and cartesian_velocity
+#: returns a torch tensor down a path the IK solver expects a list on. __init__ therefore rejects
+#: them at CONSTRUCTION, where the config is in hand -- not on the first control step. Implement
+#: and verify a mode before adding it here.
+SUPPORTED_MODES = ("absolute_pose", "pose_delta_ori")
 
 
 class DroidEndEffectorController(LocomotionController, ManipulationController, GripperController):
@@ -82,7 +90,9 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
     def __init__(
             self,
             control_freq,
-            motor_type,  # This will be forced to 'effort' for hybrid control
+            motor_type,  # Stored as given; control_type is EFFORT regardless (base-class clipping
+                         # keys off control_type, so the two disagreeing is currently harmless --
+                         # unlike the joint controllers, which force motor_type to 'effort').
             control_limits,
             dof_idx,
             command_input_limits="default",
@@ -124,7 +134,11 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
 
         self.height_offset = height_offset
 
-        assert mode in IK_MODES, f"Invalid ik mode specified! Valid options are: {IK_MODES}, got: {mode}"
+        assert mode in SUPPORTED_MODES, (
+            f"Unsupported ik mode {mode!r}. Implemented and verified modes: {SUPPORTED_MODES}. "
+            f"({sorted(set(IK_MODE_COMMAND_DIMS) - set(SUPPORTED_MODES))} are declared but broken "
+            f"-- see SUPPORTED_MODES in realm/robots/droid_ee_controller.py.)"
+        )
 
         # If mode is absolute pose, make sure command input limits / output limits are None
         if mode == "absolute_pose":
@@ -132,7 +146,6 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
             assert command_output_limits is None, "command_output_limits should be None if using absolute_pose mode!"
 
         self.workspace_pose_limiter = workspace_pose_limiter
-        self.task_name = f"eef_0"
         self.mode = mode
 
         super().__init__(
