@@ -52,8 +52,12 @@ def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr
         }])
 
         if os.path.exists(parquet_path):
-            existing = pd.read_parquet(parquet_path)
-            combined = pd.concat([existing, new_row], ignore_index=True)
+            try:
+                existing = pd.read_parquet(parquet_path)
+                combined = pd.concat([existing, new_row], ignore_index=True)
+            except Exception as e:
+                og.log.warning(f"Corrupted parquet at {parquet_path}, starting fresh: {e}")
+                combined = new_row
         else:
             combined = new_row
 
@@ -78,8 +82,12 @@ def append_video(log_dir, task, perturbation, repeat, video_bytes):
     }])
 
     if os.path.exists(parquet_path):
-        existing = pd.read_parquet(parquet_path)
-        combined = pd.concat([existing, new_row], ignore_index=True)
+        try:
+            existing = pd.read_parquet(parquet_path)
+            combined = pd.concat([existing, new_row], ignore_index=True)
+        except Exception as e:
+            og.log.warning(f"Corrupted parquet at {parquet_path}, starting fresh: {e}")
+            combined = new_row
     else:
         combined = new_row
 
