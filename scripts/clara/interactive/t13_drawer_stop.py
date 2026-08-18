@@ -246,6 +246,44 @@ def hold_and_watch(vec_env, steps, every=25):
     print(flush=True)
 
 
+def slide_axis_test(vec_env):
+    """Does the target drawer LINK actually translate when its joint does, and along which axis?
+
+    A joint position that reads 0.30 m is not the same claim as a drawer that has moved 0.30 m: the
+    joint value is a DOF reading, while what a camera photographs -- and what the 1.1.1 reference
+    frame shows engulfing the exterior camera -- is the link's pose. So teleport the target joint to
+    both ends of its range and difference the link's AABB centre. Expect |delta| ~= the joint range
+    along one horizontal axis. A near-zero delta means the link is not following the joint at all; a
+    delta along z means the drawer slides vertically, which is the up-axis signature confined to the
+    drawer link rather than the whole cabinet.
+    """
+    print("\n########## slide-axis test: link displacement per unit of joint travel ##########",
+          flush=True)
+    for i, env in enumerate(vec_env.envs):
+        cabinet = env.main_objects[0]
+        j = env.mo_joint
+        link = cabinet.links[j.body1.split("/")[-1]]
+        centres = {}
+        for tag, npos in (("closed(-1)", -1.0), ("open(+1)", 1.0)):
+            j.set_pos(npos, normalized=True)
+            j.set_vel(0)
+            # render() flushes the physx->fabric sync; without it the AABB read below is the
+            # PREVIOUS pose and the delta comes out zero for a purely bookkeeping reason.
+            og.sim.render()
+            lo, hi = link.aabb
+            centres[tag] = (lo + hi) / 2.0
+            print(f"  member {i} {tag:<10s} joint={float(j.get_state()[0][0]):+.4f} "
+                  f"link_aabb lo={f3(lo)} hi={f3(hi)} extent={f3(hi - lo)}")
+        d = centres["open(+1)"] - centres["closed(-1)"]
+        rng = float(j.upper_limit - j.lower_limit)
+        print(f"  member {i} link centre delta={f3(d)} |delta|={float(th.linalg.norm(d)):.4f} "
+              f"(joint range {rng:.4f}) link={link.prim_path.split('/')[-1]}")
+        axis = int(th.argmax(th.abs(d)))
+        print(f"  member {i} dominant axis={'xyz'[axis]} "
+              f"{'** LINK DOES NOT FOLLOW THE JOINT **' if float(th.linalg.norm(d)) < 0.5 * rng else ('** SLIDES VERTICALLY **' if axis == 2 else 'horizontal slide, as expected')}")
+    print(flush=True)
+
+
 def main(num_envs, task_id, robot, perturbation, dz, resets, hold_steps):
     set_sim_config(robot=robot)
     vec_env = RealmVectorEnvironment(
@@ -255,6 +293,11 @@ def main(num_envs, task_id, robot, perturbation, dz, resets, hold_steps):
         robot=robot,
     )
     report("after construction (reset_joints has run once)", vec_env)
+    slide_axis_test(vec_env)
+    # slide_axis_test leaves the target joint wherever its last teleport put it.
+    for env in vec_env.envs:
+        env.reset_joints()
+    run_joint_resets(vec_env.envs)
 
     if hold_steps:
         hold_and_watch(vec_env, hold_steps)
