@@ -329,8 +329,11 @@ def main():
     for arm in ARMS:
         rs = {TASKS[t]: ratio(data[t].get(cam_ref, {}), arm) for t in comparable}
         vals = [v for v in rs.values() if v is not None]
+        # A spread needs two tasks. Mid-sweep there may be one, so this is None rather than 0.0 --
+        # reporting 0.0 there would read as "perfectly uniform" off a single measurement.
+        sp = spread(vals)
         summary[arm] = {"ratios": {k: (round(v, 4) if v else None) for k, v in rs.items()},
-                        "n": len(vals), "spread": round(spread(vals), 4) if vals else None,
+                        "n": len(vals), "spread": round(sp, 4) if sp is not None else None,
                         "min": round(min(vals), 4) if vals else None,
                         "max": round(max(vals), 4) if vals else None,
                         "mean": round(float(np.mean(vals)), 4) if vals else None}
