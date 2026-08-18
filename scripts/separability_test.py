@@ -37,6 +37,11 @@ from collections import defaultdict
 # Bare experiment names resolve under this. Override with REALM_LOGS when running off-cluster:
 #   REALM_LOGS=~/Downloads/logs python3 scripts/separability_test.py expA expB
 # Absolute or relative paths are used as-is, so REALM_LOGS is optional.
+# Task indices as SUPPORTED_TASKS orders them, so --exclude-tasks accepts either form.
+TASK_NAMES = ["put_green_block_into_bowl", "put_banana_into_box", "rotate_marker", "rotate_mug",
+              "pick_spoon", "pick_water_bottle", "stack_cubes", "push_switch",
+              "open_drawer", "close_drawer"]
+
 LOG_ROOT = os.path.expanduser(os.environ.get("REALM_LOGS", "logs"))
 
 
@@ -166,7 +171,22 @@ def main():
                          "and listed, never silently truncated")
     ap.add_argument("--alpha", type=float, default=0.05)
     ap.add_argument("--csv", default=None)
+    ap.add_argument("--exclude-tasks", default="",
+                    help="comma-separated task names or indices to drop, e.g. '2,6' or "
+                         "'rotate_marker,stack_cubes'. Tasks 2 and 6 spawn their objects off the "
+                         "work surface, so their cells measure scene layout rather than policy or "
+                         "tone -- excluding them is usually right, but it is never the default: an "
+                         "aggregate that silently drops tasks is how a benchmark starts lying.")
     args = ap.parse_args()
+
+    excluded = set()
+    for tok in (t.strip() for t in args.exclude_tasks.split(",") if t.strip()):
+        if tok.isdigit() and int(tok) < len(TASK_NAMES):
+            excluded.add(TASK_NAMES[int(tok)])
+        else:
+            excluded.add(tok)
+    if excluded:
+        print(f"EXCLUDED tasks (by request): {', '.join(sorted(excluded))}\n")
 
     A, B = load_experiment(resolve(args.expA)), load_experiment(resolve(args.expB))
     print(f"A = {resolve(args.expA)}\nB = {resolve(args.expB)}\n")
@@ -192,6 +212,8 @@ def main():
         print(f"{'task':28s} {'pert':10s} {'nA':>4} {'nB':>4} {'paired':>6}  status")
         eligible = []
         for cell in sorted(set(cellsA) | set(cellsB)):
+            if cell[0] in excluded:
+                continue
             ra = {rid: v for rid, v in cellsA.get(cell, [])}
             rb = {rid: v for rid, v in cellsB.get(cell, [])}
             shared_ids = sorted(set(ra) & set(rb))
@@ -265,6 +287,17 @@ def main():
                   f"B={sum(sum(v[i] for v in vb) for _, _, vb in eligible)/sum(len(vb) for _, _, vb in eligible):.3f} "
                   f"d={d:+.4f} SE={se:.4f} z={z:+.2f} p={2*norm_sf(abs(z)):.5f}  ({len(per_task)} tasks)")
         print()
+        # ---- the plain answer: is this cell separable at all ----
+        print(f"  {'task':28s} {'perturbation':12s} separable   on")
+        print(f"  {'-'*28} {'-'*12} ---------   --")
+        for r in cell_rows:
+            sig = [m for m in ("SR", "TP", "RF") if r["p" + m + "_holm"] < args.alpha]
+            print(f"  {r['task']:28s} {r['pert']:12s} {'YES' if sig else 'no':9s}   {','.join(sig)}")
+        n_sep = sum(1 for r in cell_rows
+                    if any(r["p" + m + "_holm"] < args.alpha for m in ("SR", "TP", "RF")))
+        print(f"  -> {n_sep} of {len(cell_rows)} cells separable at alpha={args.alpha} "
+              f"(Holm-corrected over {3*len(cell_rows)} tests)\n")
+
         rows.extend(cell_rows)
 
     if args.csv and rows:
@@ -274,10 +307,35 @@ def main():
             w.writerows(rows)
         print(f"wrote {args.csv}")
 
-    print("\nREADING THIS: at n=25 a single cell resolves only very large differences (CP half-width")
-    print("~20pp), so judge separability on the POOLED task-stratified rows. A pooled p above alpha")
-    print("means the benchmark cannot distinguish these two arms at this sample size -- which is a")
-    print("statement about the benchmark's power, not evidence that the arms are equivalent.")
+    print("""
+HOW TO READ THIS
+----------------
+dSR / dRF are in percentage points, B minus A. dTP is on TP's own 0-1 scale. Negative dSR means
+B did worse. p-values are two-sided.
+
+The per-cell table is underpowered by construction. At n=25 the Clopper-Pearson half-width is
+about 20pp, so a cell needs roughly a 30pp difference before one cell alone can show it. A "no"
+in the separable column therefore means "not resolvable at n=25", NOT "these are the same".
+Absence of separability is absence of evidence.
+
+The POOLED task-stratified rows are the ones with power. Read them first. They average the
+per-task differences instead of pooling rollouts across strata, which is what stops a task with
+an extreme rate from dominating.
+
+  pooled p < alpha   -> the benchmark distinguishes these two arms. The size that matters is d.
+  pooled p > alpha   -> the benchmark CANNOT distinguish them at this sample size. That is a
+                        statement about power, not a finding of equivalence.
+
+Three failure modes this script is built to stop:
+  * a cell counted when one arm is short or its run_ids do not line up -- excluded and listed,
+    never silently truncated, because a half-populated cell reads as a real result;
+  * multiplicity -- scanning cells and quoting the nominal hits is how this project has
+    previously "found" effects that were chance, so every reported cell is Holm-corrected;
+  * unpaired comparison -- REALM reuses one RNG stream per run_id, so pairing is free power and
+    the unpaired version can miss a real effect (one real pair: pooled p=0.104, paired p=0.049).
+
+RF is a DISPROVEN selection surrogate (rho = -0.554 with SR). Report it, never select on it.
+""")
 
 
 if __name__ == "__main__":
