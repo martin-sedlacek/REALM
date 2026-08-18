@@ -6,27 +6,27 @@ and its drawer joint travels the full 0.300 m -- so the claim rests entirely on 
 FRONTS face relative to the camera that feeds the policy. That is a geometric question with a
 readback answer, and this script is that readback.
 
-Two independent estimates of the front direction, because one of them alone could be wrong for a
-boring reason:
+The front direction comes from the **handle cylinders**: the three `Cylinder*` meshes under the target
+drawer link are its handles, which sit on the front face, so the vector from the link's AABB centre to
+their world centroid is the outward front direction. Pure geometry, no assumption about which local
+axis means what -- which is the point, because the obvious alternative is wrong:
 
-  1. **Frame axis.** In `custom_assets/impact_drawer/usd/cabinet.usd` each drawer's front panel is
-     the `Cube` mesh at local (0.0007, 0.0677, +0.2348) with scale (0.39, 0.09, 0.005) -- a plate
-     0.005 thick along the drawer's local Z, i.e. a face whose normal is local +/-Z -- and the side
-     and bottom walls (`Cube_06/07/08`, scale (*, 0.001, 0.48)) extend 0.48 along Z BEHIND it. So
-     the drawer's own +Z is its outward front direction. Mapping local +Z through the link's world
-     rotation gives the front normal without touching any mesh data.
-
-  2. **Handle centroid.** The three `Cylinder*` meshes at local z ~ +0.25..+0.27 are the handles,
-     which are physically on the front face. The vector from the drawer link's AABB centre to the
-     handles' world centroid must point the same way as (1). If the two disagree the asset is not
-     what the comment above says it is, and the script says so rather than reporting a number.
+    A first version of this probe took the drawer link's local +Z, reasoning from the asset that the
+    front panel is the `Cube` mesh at local (0.0007, 0.0677, +0.2348) with scale (0.39, 0.09, 0.005)
+    -- a plate 0.005 thick along Z -- with the side and bottom walls (`Cube_06/07/08`, scale
+    (*, 0.001, 0.48)) extending 0.48 along Z behind it. That reasoning is about the MESH frame, and
+    `ObjectCapture` sits between the link and the meshes carrying `xformOp:rotateXYZ = (90, 0, 0)`.
+    Measured, the link's own +Z is world (-0.013, -0.003, 0.9999) -- straight up. It reported "FACE
+    this camera" both before and after the cabinet was turned round. The link axes are still printed
+    as a diagnostic, but no verdict is drawn from them.
 
 Then the actual question: `external_sensor0` is the camera whose RGB becomes the policy's `base_im`
 (`realm/inference/utils.py:137-139`); `external_sensor1` exists only under --multi-view. Its pose is
 NOT the raw yaml extrinsic -- `_apply_camera_cfg` passes the yaml pose through
 `construct_ext_cam_pose_by_name(name, robot_pos, robot_rot)`, so it is robot-relative and the sign of
-its world y cannot be read off `camera_extrinsics.yaml`. Hence: read the placed camera, and report
-`front_normal . (cam_pos - drawer_centre)`. Positive means the fronts face the camera.
+its world y cannot be read off `camera_extrinsics.yaml`. On task 8 that matters: `CP3`'s yaml
+`y = +0.55` lands at world `y = -2.45` once the robot's 180 deg base yaw is applied. Hence: read the
+PLACED camera, and report `front . (cam_pos - drawer_centre)`. Positive means the fronts face it.
 
 Builds the members and reports; runs no policy. Does not move any joint, so it is safe to run before
 t13's slide test (which does).
@@ -161,32 +161,38 @@ def facing_block(env, i):
     if link.prim_path != cabinet.root_link.prim_path:
         dump_xform_chain(link.prim_path, f"drawer link ({link_name})")
 
-    # --- estimate 1: the drawer link's own +Z ----------------------------------------------------
+    # --- diagnostic only: the drawer LINK frame's axes ------------------------------------------
+    # NOT a front-direction estimate. The docstring's reasoning about the front panel being the thin
+    # face along local +Z is about the MESH frame, and `ObjectCapture` sits between the link and the
+    # meshes carrying `xformOp:rotateXYZ = (90, 0, 0)`, so the link frame is a further Rx(90) away
+    # from the mesh frame. Measured: the link's own +Z comes out as world (-0.013, -0.003, 0.9999),
+    # i.e. straight up, which is not a front direction at all. Printed because the axes are useful
+    # when reading the joint frame, but no FACE / FACE-AWAY verdict is derived from it -- an earlier
+    # version did, and reported "FACE this camera" both before and after the cabinet was turned round.
     lw = world_xform(link.prim_path)
     R = th.tensor([[float(lw.GetRow(r)[c]) for c in range(3)] for r in range(3)], dtype=th.float64)
-    # USD matrices are row-vector convention: a local direction d maps to d @ M. So the image of
-    # local +Z is row 2 of the upper-left 3x3, not column 2.
-    front_axis = R[2] / th.linalg.norm(R[2])
     lo, hi = link.aabb
     centre = ((lo + hi) / 2.0).to(th.float64)
-    print(f"\n        --- front direction, estimate 1 (drawer local +Z through world rotation) ---")
-    print(f"        drawer link world +Z = {f3(front_axis)}")
+    print(f"\n        --- drawer link frame axes (diagnostic, NOT the front direction) ---")
+    for i, name in enumerate("XYZ"):
+        print(f"        link local +{name} -> world {f3(R[i] / th.linalg.norm(R[i]))}")
     print(f"        drawer link aabb centre = {f3(centre)} extent={f3(hi - lo)}")
 
-    # --- estimate 2: the handles -----------------------------------------------------------------
+    # --- the front direction: the handle cylinders ----------------------------------------------
+    # The three `Cylinder*` meshes under the drawer link are its handles, which are physically on the
+    # front face, so the vector from the link's AABB centre to their world centroid IS the outward
+    # front direction. This is pure geometry -- no assumption about which local axis means what --
+    # which is why it is the estimate the verdict below is built on.
     hc, nh = handle_centroid(cabinet, link_name)
-    print(f"\n        --- front direction, estimate 2 (handle cylinders) ---")
+    print(f"\n        --- front direction (handle cylinders) ---")
     if hc is None:
-        print(f"        no Cylinder* meshes found under the drawer link -- estimate 2 unavailable")
-        handle_axis = None
+        print("        no Cylinder* meshes found under the drawer link -- CANNOT JUDGE FACING")
+        front_axis = None
     else:
         v = hc - centre
-        handle_axis = v / th.linalg.norm(v)
+        front_axis = v / th.linalg.norm(v)
         print(f"        {nh} handle meshes, world centroid = {f3(hc)}")
-        print(f"        centre -> handles = {f3(v)}  unit = {f3(handle_axis)}")
-        agree = float(th.dot(front_axis, handle_axis))
-        print(f"        agreement with estimate 1: dot = {agree:+.4f}  "
-              f"({'AGREE' if agree > 0.5 else 'DISAGREE -- do not trust either number'})")
+        print(f"        centre -> handles = {f3(v)}  unit = {f3(front_axis)}  |v|={float(th.linalg.norm(v)):.4f}")
 
     # --- the camera that actually feeds the policy ------------------------------------------------
     print(f"\n        --- cameras ---")
@@ -203,18 +209,17 @@ def facing_block(env, i):
         to_cab_u = to_cab / th.linalg.norm(to_cab)
         cam_to = th.tensor([float(c) for c in cpos], dtype=th.float64) - centre
         cam_to_u = cam_to / th.linalg.norm(cam_to)
-        faces = float(th.dot(front_axis, cam_to_u))
         role = "POLICY base_im" if name == "external_sensor0" else "second view (--multi-view only)"
         print(f"        {name} [{role}]")
         print(f"            world pos = {f3(cpos)} ori(xyzw)={f3(cori)}")
         print(f"            view dir (-Z) = {f3(fwd)}   aim at cabinet = {f3(to_cab_u)}   "
               f"dot={float(th.dot(fwd, to_cab_u)):+.4f}")
-        print(f"            front_normal . (cam - drawer_centre) = {faces:+.4f}  "
-              f"=> fronts {'FACE this camera' if faces > 0 else 'FACE AWAY from this camera'}")
-        if handle_axis is not None:
-            fh = float(th.dot(handle_axis, cam_to_u))
-            print(f"            (handle estimate says {fh:+.4f} => "
-                  f"{'FACE' if fh > 0 else 'FACE AWAY'})")
+        if front_axis is None:
+            print("            front direction unavailable -- no verdict")
+            continue
+        faces = float(th.dot(front_axis, cam_to_u))
+        print(f"            front . (cam - drawer_centre) = {faces:+.4f}  "
+              f"=> fronts {'FACE this camera' if faces > 0 else '** FACE AWAY from this camera **'}")
 
     # --- robot base, since the camera pose is robot-relative -------------------------------------
     robot = env.omnigibson_env.robots[0]
