@@ -18,6 +18,8 @@ From: stanfordvl/behavior:3.9.1
     realm/misc/material_prim_preset_og391.patch /opt/material_prim_preset_og391.patch
     realm/misc/xform_prim_rootlink_og391.patch /opt/xform_prim_rootlink_og391.patch
     realm/misc/entity_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch
+    realm/misc/light_normalize_macros_og391.patch /opt/light_normalize_macros_og391.patch
+    realm/misc/light_normalize_dataset_object_og391.patch /opt/light_normalize_dataset_object_og391.patch
     .docker/og391-constraints.txt /opt/og391-constraints.txt
     packages/openpi-client /opt/openpi-client
 
@@ -69,9 +71,23 @@ From: stanfordvl/behavior:3.9.1
     patch -p1 -d /behavior-src/OmniGibson < /opt/xform_prim_rootlink_og391.patch
     patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_rootlink_og391.patch
 
+    # REALM_LIGHT_FIX -- OPT-IN, OFF BY DEFAULT, so baking these in changes nothing until a run sets
+    # REALM_LIGHT_FIX=1. Two 3.9.1 changes cancel each other and leave a PER-SCENE lighting error:
+    # FORCE_LIGHT_INTENSITY went 150000 -> 10000 while dataset_object.py started also writing
+    # inputs:normalize = True, which divides emission by light AREA. The two cancel EXACTLY at
+    # area = 1/15 m^2, so scenes whose lights sit near that already match 1.1.1 (push_switch x1.03)
+    # and scenes with smaller lights are too bright (rotate_mug x1.56). Setting the flag restores
+    # 1.1.1's exact configuration; that does not MATCH 1.1.1 (a uniform ~20-30% excess remains) but
+    # it collapses the per-task spread from 0.53 to 0.11, turning a per-scene domain shift into one
+    # global gain. ONE change in two files -- 150000 WITH normalize=True is ~35x too bright, so they
+    # must never be applied separately; dataset_object.py asserts macros.py carries its half.
+    patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_macros_og391.patch
+    patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_dataset_object_og391.patch
+
     rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch \
        /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch \
-       /opt/xform_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch
+       /opt/xform_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch \
+       /opt/light_normalize_macros_og391.patch /opt/light_normalize_dataset_object_og391.patch
 
     CONDA_PIP=/opt/conda/envs/behavior/bin/pip
 
@@ -148,4 +164,7 @@ PY
         /behavior-src/OmniGibson/omnigibson/prims/xform_prim.py
     grep -q "root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))" \
         /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py
+    # Both halves of the opt-in light fix. Half of it is worse than none of it.
+    grep -q "gm.REALM_LIGHT_FIX = " /behavior-src/OmniGibson/omnigibson/macros.py
+    grep -q "if not light_fix:" /behavior-src/OmniGibson/omnigibson/objects/dataset_object.py
     echo "REALM patches present"

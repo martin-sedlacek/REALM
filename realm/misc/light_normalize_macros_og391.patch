@@ -1,0 +1,88 @@
+Add REALM_LIGHT_FIX (opt-in, off by default) at the FORCE_LIGHT_INTENSITY definition
+
+    Half one of two. The companion hunk is light_normalize_dataset_object_og391.patch;
+    the two files MUST be applied together -- see the runtime assert there.
+
+    ROOT CAUSE. Two OmniGibson changes between 1.1.1 and 3.9.1 cancel each other and
+    leave a PER-SCENE lighting error:
+
+      macros.py                  1.1.1: FORCE_LIGHT_INTENSITY = 150000  3.9.1: = 10000
+      objects/dataset_object.py  1.1.1: sets inputs:intensity only       3.9.1: ALSO
+                                                                        sets normalize=True
+
+    normalize=True divides emission by the light's AREA, so the two cancel EXACTLY at
+    area = 1/15 = 0.0667 m^2. Scenes whose lights sit near that area already match 1.1.1
+    (push_switch x1.03, put_green_block x1.01); scenes with smaller lights are too bright
+    (rotate_mug's rect lights are 0.028 m^2 -> x1.56 on the exterior cam). The defect
+    scales with light SIZE, not light count. normalize=True is authored on 107 of 108
+    og391 lights and on none of the 108 og111 lights.
+
+    WHAT THE FLAG BUYS. Not a match -- a uniform ~20-30% excess remains, which belongs to
+    tonemapping/exposure and the material re-export, not to lights. It makes the error
+    UNIFORM: per-task ratio spread 0.53 (x1.03-x1.56) -> 0.11 (x1.199/x1.203/x1.313), 5x
+    tighter. That converts a per-scene domain shift no downstream correction can fix into
+    one global gain a single exposure term could absorb. DO NOT pair it with an
+    appearance-tuned scale: on push_switch a x3 scale moves the mean +3.4% -> -15.0% and
+    degrades the affine fit (slope 0.782 -> 0.610, R2 0.72 -> 0.51).
+
+    OFF BY DEFAULT. Unset or "0" leaves stock 3.9.1 behaviour statement for statement.
+    The env var is read once at import time so a run's setting is visible in its
+    environment, and the resolved state is printed unconditionally -- macros.py is
+    imported before OmniGibson configures logging, hence print and not a logger call.
+
+--- a/omnigibson/macros.py	2026-08-18 11:14:55.000000000 +0200
++++ b/omnigibson/macros.py	2026-08-18 11:17:48.000000000 +0200
+@@ -214,7 +214,52 @@
+ gm.DEFAULT_PHYSICS_FREQ = 120
+ 
+ # Forced light intensity for all DatasetObjects. None if the USD-provided intensities should be respected.
+-gm.FORCE_LIGHT_INTENSITY = 10000
++#
++# REALM_LIGHT_FIX -- OPT-IN, OFF BY DEFAULT. Unset or "0" leaves stock OG 3.9.1 behaviour untouched.
++#
++# WHY THIS EXISTS. Two OmniGibson changes between 1.1.1 and 3.9.1 cancel each other and leave a
++# PER-SCENE lighting error:
++#
++#     macros.py                 1.1.1: FORCE_LIGHT_INTENSITY = 150000   3.9.1: = 10000  (15x lower)
++#     objects/dataset_object.py 1.1.1: sets inputs:intensity only       3.9.1: ALSO sets
++#                                                                              inputs:normalize=True
++#
++# `normalize=True` divides emission by the light's AREA, so the two changes cancel EXACTLY at
++# area = 1/15 = 0.0667 m^2. Scenes whose lights sit near that area already match 1.1.1
++# (push_switch x1.03, put_green_block x1.01); scenes with smaller lights are too bright
++# (rotate_mug's rect lights are 0.028 m^2 -> x1.56 on the exterior cam). The defect scales with
++# light SIZE, not light count. `normalize=True` is authored on 107 of 108 og391 lights and on none
++# of the 108 og111 lights.
++#
++# Setting this to 1 restores 1.1.1's exact light configuration: intensity 150000, and NO normalize
++# write. That does NOT make og391 match 1.1.1 -- a uniform ~20-30% excess remains, which belongs to
++# tonemapping/exposure and to the material re-export, not to lights. The point is that it makes the
++# error UNIFORM: per-task ratio spread collapses from 0.53 (x1.03-x1.56) to 0.11
++# (x1.199/x1.203/x1.313), 5x tighter, converting a per-scene domain shift that no downstream
++# correction can fix into one global gain a single exposure term could absorb.
++#
++# DO NOT pair this with an appearance-tuned intensity scale. That destroys exactly the property
++# above: on push_switch, which already matches within 3%, a x3 scale moves the mean from +3.4% to
++# -15.0% and degrades the affine fit (slope 0.782 -> 0.610, R2 0.72 -> 0.51).
++#
++# The env var is read HERE, once, at import time, so a run's setting is visible in its environment
++# and the resolved state is logged below. objects/dataset_object.py consumes gm.REALM_LIGHT_FIX
++# rather than re-reading the environment, so the intensity and the normalize write can never
++# disagree -- intensity 150000 WITH normalize=True would be ~35x too bright.
++_REALM_LIGHT_FIX_RAW = os.environ.get("REALM_LIGHT_FIX")
++gm.REALM_LIGHT_FIX = (_REALM_LIGHT_FIX_RAW or "0").strip().lower() in ("1", "true", "yes", "on")
++gm.FORCE_LIGHT_INTENSITY = 150000 if gm.REALM_LIGHT_FIX else 10000
++
++# Log the resolved state UNCONDITIONALLY: no run may be ambiguous about which lighting it used.
++# macros.py is imported before OmniGibson configures logging, so this is a print, not a logger call.
++print(
++    "[REALM_LIGHT_FIX] {} -- FORCE_LIGHT_INTENSITY={} normalize_write={} (env REALM_LIGHT_FIX={})".format(
++        "ON (OG 1.1.1 lighting)" if gm.REALM_LIGHT_FIX else "off (stock OG 3.9.1 lighting)",
++        gm.FORCE_LIGHT_INTENSITY,
++        "skipped" if gm.REALM_LIGHT_FIX else "True",
++        "unset" if _REALM_LIGHT_FIX_RAW is None else repr(_REALM_LIGHT_FIX_RAW),
++    )
++)
+ 
+ # Forced roughness for all DatasetObjects. None if the USD-provided roughness maps should be respected.
+ gm.FORCE_ROUGHNESS = 0.7

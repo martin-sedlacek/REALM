@@ -51,12 +51,20 @@ OUT_DIR=${OUT_DIR:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch}
 # (entity_prim_og391.patch) or ships stock (xform_prim.py). Each is applied to a fresh copy of the
 # image's own file, so what comes out is the image's version plus this hunk -- which is exactly
 # what MODE=stockfix then binds back over it.
+#
+# The two light_normalize stems are ONE change in two files and must never be applied separately:
+# macros.py restores FORCE_LIGHT_INTENSITY = 150000 while dataset_object.py drops the companion
+# `inputs:normalize = True` write, and 150000 WITH normalize=True is ~35x too bright. Both are gated
+# on REALM_LIGHT_FIX and are inert unless it is set, so shipping them costs nothing; dataset_object.py
+# asserts that macros.py carries its half, which catches the dangerous direction at env creation.
 PATCHES=(
   "scene_base_zoffset:omnigibson/scenes/scene_base.py"
   "simulator_initqueue:omnigibson/simulator.py"
   "material_prim_preset:omnigibson/prims/material_prim.py"
   "xform_prim_rootlink:omnigibson/prims/xform_prim.py"
   "entity_prim_rootlink:omnigibson/prims/entity_prim.py"
+  "light_normalize_macros:omnigibson/macros.py"
+  "light_normalize_dataset_object:omnigibson/objects/dataset_object.py"
 )
 ALLOC=${ALLOC:-${SLURM_JOB_ID:-}}
 
@@ -89,6 +97,11 @@ grep -q "current_orientation = XFormPrim.get_position_orientation(self)" "$OUT_D
   || { echo "xform_prim root-link marker missing" >&2; exit 1; }
 grep -q "root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))" "$OUT_DIR/omnigibson/prims/entity_prim.py" \
   || { echo "entity_prim root-link marker missing" >&2; exit 1; }
+# Both halves of the light fix, checked separately: half of it is worse than none of it.
+grep -q "gm.REALM_LIGHT_FIX = " "$OUT_DIR/omnigibson/macros.py" \
+  || { echo "REALM_LIGHT_FIX macros marker missing" >&2; exit 1; }
+grep -q "if not light_fix:" "$OUT_DIR/omnigibson/objects/dataset_object.py" \
+  || { echo "REALM_LIGHT_FIX dataset_object marker missing" >&2; exit 1; }
 
 echo "wrote ${#PATCHES[@]} patched file(s) under $OUT_DIR/omnigibson/"
 echo "use with:  MODE=stockfix ./scripts/clara/interactive/rr <cmd>"
