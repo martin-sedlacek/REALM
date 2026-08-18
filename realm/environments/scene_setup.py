@@ -67,6 +67,100 @@ class SceneSetupMixin:
                     if approx in ["none", "meshSimplification"]:
                         prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
 
+    def restore_double_duty_render_purpose(self):
+        """Un-hide geometry that is BOTH the collider and the visual mesh.
+
+        WHAT BREAKS. ``RigidPrim._post_load`` classifies every geom under a link as collision or
+        visual, and writes ``purpose = "guide"`` on the collision ones
+        (``omnigibson/prims/rigid_prim.py:242``). ``guide`` never reaches the colour pass, which is
+        correct for a dedicated collider sitting next to a separate visual mesh -- the shape every
+        BEHAVIOR asset has, because ``convert_urdf_to_usd`` emits ``visuals/`` and ``collisions/``
+        Xforms per link.
+
+        REALM's own assets do not have that shape. ``custom_assets/impact_drawer/usd/cabinet.usd``
+        applies ``UsdPhysics.CollisionAPI`` directly to its render meshes -- one mesh does both jobs
+        -- so OmniGibson guides the only geometry the link has and the object becomes INVISIBLE
+        while staying fully physical. Measured on og391, task 8, over the live stage: all 56 geoms
+        `guide`, the ``default``+``render`` purpose world bound EMPTY, the ``guide`` bound
+        (0.512, 0.669, 0.545); hiding the cabinet changed 27-182 px (the rt noise floor) where
+        hiding the breakfast table changed 245,182; and with every other object hidden the cabinet
+        still contributed 0 px on all three cameras.
+
+        WHY 1.1.1 DREW IT ANYWAY, i.e. why this is a port regression and not a long-standing bug.
+        Two independent changes, and this asset is hit by both:
+
+          * DEPTH. 1.1.1 scanned exactly two levels below each link. 55 of the 56 geoms -- including
+            all five drawer render meshes at ``drawer_blender_cut_0N/ObjectCapture/Geometry/Mesh/
+            Mesh`` -- sit FOUR levels down, so 1.1.1 never visited them and never wrote a purpose.
+            og391's ``_find_geom_prims`` recurses without a depth limit and reaches them.
+          * INHERITANCE. og391 makes its ``is_collision`` flag sticky down the recursion, so a
+            CollisionAPI on an ancestor Xform marks every mesh beneath it. That, not its own API, is
+            what guides the cabinet BODY (``base_link/Geometry_01/Object_Geometry_02``, which has no
+            CollisionAPI of its own and inherits from ``base_link``).
+
+        THE CRITERION, and why it cannot un-hide a real collider. A link is only touched when
+        OmniGibson left it with NO visual meshes at all -- meaning every geom it has was classified
+        collision, so the link would render nothing and its colliders must be doing double duty.
+        Any asset with dedicated visual geometry has a non-empty ``visual_meshes`` and is skipped
+        outright, so this is a no-op on every BEHAVIOR object and on the robot. Within a qualifying
+        link, a geom whose OWN layer authored ``guide`` keeps it: the asset's ``collider_guide`` /
+        ``Cube`` helpers were meant to be hidden and stay hidden. The authored opinion is read off
+        the property stack's first non-anonymous layer, so it survives OmniGibson having already
+        written ``guide`` into the anonymous session layer above it -- and it is the asset's own
+        value that gets restored, not a hardcoded ``default`` (the drawer handles author ``render``).
+
+        RENDER-ONLY. ``purpose`` is a ``UsdGeom.Imageable`` attribute. The CollisionAPI, the
+        contact/rest offsets, the collision approximation and the link centre-of-mass are all left
+        exactly as OmniGibson set them; this writes nothing else. Verified bitwise: joint positions,
+        joint velocities and every link pose of both the cabinet and the robot are identical across
+        the writes, with no simulation step in between.
+        """
+        Usd, UsdGeom = lazy.pxr.Usd, lazy.pxr.UsdGeom
+
+        def asset_authored_purpose(prim):
+            """The `purpose` opinion from the asset's own (non-anonymous) layer, or None.
+
+            OmniGibson's runtime write lands in an anonymous session layer, so a plain
+            `GetPurposeAttr().Get()` returns `guide` for everything and cannot distinguish "the
+            author hid this" from "OmniGibson hid this". The property stack still carries both.
+            """
+            attr = UsdGeom.Imageable(prim).GetPurposeAttr()
+            if not attr:
+                return None
+            try:
+                for spec in attr.GetPropertyStack(Usd.TimeCode.Default()):
+                    if spec.layer is not None and not spec.layer.anonymous:
+                        return str(spec.default)
+            except Exception:
+                return None
+            return None
+
+        restored, kept_guide = [], []
+        objects = list(self.main_objects) + list(self.target_objects) + list(self.distractors)
+        with og.sim.editing_usd():
+            for obj in objects:
+                for link_name, link in (getattr(obj, "links", None) or {}).items():
+                    # Dedicated visual geometry exists -> OmniGibson's guiding is right. Skip.
+                    if link.visual_meshes:
+                        continue
+                    for mesh in link.collision_meshes.values():
+                        prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(mesh.prim_path)
+                        if not prim.IsValid():
+                            continue
+                        authored = asset_authored_purpose(prim)
+                        if authored == UsdGeom.Tokens.guide:
+                            kept_guide.append(mesh.prim_path)
+                            continue
+                        UsdGeom.Imageable(prim).CreatePurposeAttr().Set(
+                            authored or UsdGeom.Tokens.default_)
+                        restored.append(mesh.prim_path)
+        # One line per env, so a run's log says whether this fired and on what. Silence here would
+        # make a regression (or an accidental no-op) invisible.
+        print(f"[render_purpose] restored {len(restored)} double-duty geom(s) to their authored "
+              f"purpose, kept {len(kept_guide)} authored-guide geom(s) hidden"
+              + (f"; first restored: {restored[0]}" if restored else ""))
+        return restored, kept_guide
+
     def apply_scene_fixes_from_cfg(self, manage_sim_state=True):
         """Pin or delete the scene objects that config/scenes/scenes.yaml lists for this scene part.
 

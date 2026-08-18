@@ -162,6 +162,10 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
             self.v_aug_alpha = np.random.uniform(0.5, 2.0)
 
         self.update_robot_physics()
+        # Ordered before apply_scene_fixes_from_cfg() / rebase_initial_file(), so the restored
+        # `purpose` is part of the state rebase_initial_file() captures and every later reset()
+        # therefore keeps. Both the single-env and the vector path reach it through here.
+        self.restore_double_duty_render_purpose()
 
     def finalize_setup(self):
         """Visual toggles, render mode and base-class init (post scene-fix half)."""
