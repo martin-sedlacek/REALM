@@ -214,7 +214,39 @@ def teleport_home_and_look(vec_env):
     print(flush=True)
 
 
-def main(num_envs, task_id, robot, perturbation, dz, resets):
+def hold_and_watch(vec_env, steps, every=25):
+    """Free-run @steps sim steps and trace each member's openness, as a rollout's first steps would.
+
+    `init_openness_fraction` is captured INSIDE the reset, before the settle loop, but a frame is
+    rendered -- and the policy's first actions are taken -- many steps later. A drawer that is open
+    at reset and drifts shut on its own before then invalidates the eval cell just as thoroughly as
+    one that never opened, while leaving init_openness_fraction reading a perfect 1.0. Distinguishing
+    those two is the whole point of this loop, so it reports the SCORED quantity
+    (get_mo_joint_openness_fraction) next to the reference and the delta the rubric thresholds on.
+    """
+    print(f"\n########## hold: {steps} free sim steps after the reset ##########", flush=True)
+    print("  step | " + " | ".join(f"m{i} openness (delta)" for i in range(len(vec_env.envs))),
+          flush=True)
+
+    def row(k):
+        cells = []
+        for env in vec_env.envs:
+            frac = float(env.get_mo_joint_openness_fraction())
+            cells.append(f"{frac:.4f} ({float(env.init_openness_fraction) - frac:+.4f})")
+        print(f"  {k:>5d} | " + " | ".join(cells), flush=True)
+
+    row(0)
+    # No render: nothing here reads a camera, and the robot holds its last position targets, so it
+    # does not collapse. This is the drawer's own behaviour under an idle policy.
+    with og.sim.render_on_step(False):
+        for k in range(1, steps + 1):
+            og.sim.step()
+            if k % every == 0 or k == steps:
+                row(k)
+    print(flush=True)
+
+
+def main(num_envs, task_id, robot, perturbation, dz, resets, hold_steps):
     set_sim_config(robot=robot)
     vec_env = RealmVectorEnvironment(
         num_envs,
@@ -223,6 +255,14 @@ def main(num_envs, task_id, robot, perturbation, dz, resets):
         robot=robot,
     )
     report("after construction (reset_joints has run once)", vec_env)
+
+    if hold_steps:
+        hold_and_watch(vec_env, hold_steps)
+        report(f"after {hold_steps} free steps", vec_env)
+        # Back to a defined start state before anything below runs.
+        for env in vec_env.envs:
+            env.reset_joints()
+        run_joint_resets(vec_env.envs)
 
     for r in range(resets):
         vec_env.reset()
@@ -288,6 +328,10 @@ if __name__ == "__main__":
     p.add_argument("--perturbation", type=str, default=SUPPORTED_PERTURBATIONS[0])
     p.add_argument("--resets", type=int, default=0)
     p.add_argument("--dz", type=str, default="", help="comma-separated per-member z shift, e.g. -0.044,0.044")
+    p.add_argument("--hold_steps", type=int, default=0,
+                   help="free-run this many sim steps after the reset and trace the openness. Use "
+                        "~300 to cover a render probe's pre-render budget: it separates 'the drawer "
+                        "never opened' from 'it opened and then drifted shut before the frame'.")
     a = p.parse_args()
     main(a.num_envs, a.task_id, a.robot, a.perturbation,
-         [float(x) for x in a.dz.split(",")] if a.dz else [], a.resets)
+         [float(x) for x in a.dz.split(",")] if a.dz else [], a.resets, a.hold_steps)
