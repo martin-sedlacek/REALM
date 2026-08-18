@@ -1,3 +1,13 @@
+"""Run artifacts: CSV reports, consolidated parquet trajectories/videos, and the video recorder.
+
+Layout contract (frozen -- downstream tooling and tests/test_vector_integrity.py read it):
+    reports/{task}_{perturbation}.csv          one row per rollout, written by save_results
+    {qpos,actions}/{task}.parquet              one row per rollout, appended by append_trajectory
+    videos/{task}.parquet                      one row per rollout, appended by append_video
+
+The parquet "append" is read-concat-rewrite, so cost grows with rows already written -- fine at 25
+repeats, worth a real row-group append if repeats ever grow by an order of magnitude.
+"""
 import numpy as np
 import os
 import csv
@@ -7,8 +17,18 @@ from PIL import Image
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import omnigibson as og
 
+#: Recorded videos are downscaled to this height (keeping aspect) before encoding.
+VIDEO_TARGET_HEIGHT = 480
+
 
 def save_results(results, log_dir, task, perturbation, filename=None):
+    """Write the run report CSV: one row per rollout, minus the large array/bytes columns.
+
+    Rewrites the file in full each call (the caller invokes this after every rollout, so a run that
+    dies part way leaves a readable prefix). Column order comes from the entry dicts -- see
+    realm/rollout.py::build_result_entry. Returns the CSV path, which the caller passes back in as
+    @filename to keep appending to the same report.
+    """
     if filename is None:
         os.makedirs(log_dir, exist_ok=True)
         base_filename = f"{log_dir}/{task}_{perturbation}"
@@ -18,7 +38,7 @@ def save_results(results, log_dir, task, perturbation, filename=None):
 
     csv_filename = f"{base_filename}.csv"
     if len(results) > 0:
-        # Filter out large data from CSV
+        # The trajectories and video bytes go to the parquets, not the report.
         csv_results = []
         for r in results:
             csv_row = {k: v for k, v in r.items() if k not in ["qpos", "actions", "video"]}
@@ -34,52 +54,14 @@ def save_results(results, log_dir, task, perturbation, filename=None):
     return csv_filename
 
 
-def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr):
-    """Append one repeat's qpos and actions to consolidated parquets in log_dir.
+def _append_parquet_row(parquet_path, row):
+    """Append one row (a plain dict) to @parquet_path, creating it if absent.
 
-    Each parquet is named after the task (e.g., task_name.parquet) and has 
-    columns: task, perturbation, repeat, data (as nested list).
+    Read-concat-rewrite, because parquet has no in-place append. A corrupted existing file is
+    replaced rather than crashing a long eval on its final write.
     """
-    for subdir, arr in [("qpos", qpos_arr), ("actions", actions_arr)]:
-        parquet_path = os.path.join(log_dir, subdir, f"{task}.parquet")
-        os.makedirs(os.path.join(log_dir, subdir), exist_ok=True)
-
-        new_row = pd.DataFrame([{
-            "task": task,
-            "perturbation": perturbation,
-            "repeat": repeat,
-            "data": arr.tolist(),
-        }])
-
-        if os.path.exists(parquet_path):
-            try:
-                existing = pd.read_parquet(parquet_path)
-                combined = pd.concat([existing, new_row], ignore_index=True)
-            except Exception as e:
-                og.log.warning(f"Corrupted parquet at {parquet_path}, starting fresh: {e}")
-                combined = new_row
-        else:
-            combined = new_row
-
-        combined.to_parquet(parquet_path, index=False)
-
-
-def append_video(log_dir, task, perturbation, repeat, video_bytes):
-    """Append one repeat's video bytes to a consolidated parquet in log_dir/videos.
-    Each parquet is named after the task (e.g., task_name.parquet).
-    """
-    if video_bytes is None:
-        return
-
-    parquet_path = os.path.join(log_dir, "videos", f"{task}.parquet")
-    os.makedirs(os.path.join(log_dir, "videos"), exist_ok=True)
-
-    new_row = pd.DataFrame([{
-        "task": task,
-        "perturbation": perturbation,
-        "repeat": repeat,
-        "video": video_bytes,
-    }])
+    os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
+    new_row = pd.DataFrame([row])
 
     if os.path.exists(parquet_path):
         try:
@@ -94,7 +76,45 @@ def append_video(log_dir, task, perturbation, repeat, video_bytes):
     combined.to_parquet(parquet_path, index=False)
 
 
+def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr):
+    """Append one repeat's qpos and actions to {qpos,actions}/{task}.parquet.
+
+    Columns: task, perturbation, repeat, data (the trajectory as a nested list).
+    """
+    for subdir, arr in [("qpos", qpos_arr), ("actions", actions_arr)]:
+        _append_parquet_row(
+            os.path.join(log_dir, subdir, f"{task}.parquet"),
+            {"task": task, "perturbation": perturbation, "repeat": repeat, "data": arr.tolist()},
+        )
+
+
+def append_video(log_dir, task, perturbation, repeat, video_bytes):
+    """Append one repeat's encoded video bytes to videos/{task}.parquet. None is a silent no-op."""
+    if video_bytes is None:
+        return
+    _append_parquet_row(
+        os.path.join(log_dir, "videos", f"{task}.parquet"),
+        {"task": task, "perturbation": perturbation, "repeat": repeat, "video": video_bytes},
+    )
+
+
+def _to_uint8(img):
+    """@img as uint8: floats are assumed [0, 1] and scaled by 255, everything else is cast."""
+    if img.dtype.kind == 'f':
+        return (img * 255).astype(np.uint8)
+    if img.dtype != np.uint8:
+        return img.astype(np.uint8)
+    return img
+
+
 class VideoRecorder:
+    """Accumulates one rollout's camera frames and encodes them to H.264 on demand.
+
+    Frames are tiled per step: base | wrist side by side, or a 2x2 grid (base | second exterior /
+    wrist | black) when a second exterior view is recorded. `disk_mode` spools frames to PNGs under
+    @log_dir instead of holding them in memory -- call cleanup() afterwards to remove them.
+    """
+
     def __init__(self, log_dir, timestamp, run_id, task=None, perturbation=None, disk_mode=False):
         self.disk_mode = disk_mode
         self.count = 0
@@ -112,24 +132,13 @@ class VideoRecorder:
             self.frames = []
 
     def _build_frame(self, base_im, wrist_im, base_im_second=None):
-        # Ensure images are uint8
-        if base_im.dtype.kind == 'f':
-            base_im = (base_im * 255).astype(np.uint8)
-        elif base_im.dtype != np.uint8:
-            base_im = base_im.astype(np.uint8)
-
-        if wrist_im.dtype.kind == 'f':
-            wrist_im = (wrist_im * 255).astype(np.uint8)
-        elif wrist_im.dtype != np.uint8:
-            wrist_im = wrist_im.astype(np.uint8)
-
+        """Tile one step's views into a single even-dimensioned uint8 frame of <= 480p height."""
+        base_im = _to_uint8(base_im)
+        wrist_im = _to_uint8(wrist_im)
         if base_im_second is not None:
-            if base_im_second.dtype.kind == 'f':
-                base_im_second = (base_im_second * 255).astype(np.uint8)
-            elif base_im_second.dtype != np.uint8:
-                base_im_second = base_im_second.astype(np.uint8)
+            base_im_second = _to_uint8(base_im_second)
 
-        # Check if resizing is needed
+        # All tiles are brought to the base image's size before concatenation.
         target_size = (base_im.shape[1], base_im.shape[0])  # (width, height)
 
         if wrist_im.shape[:2] != base_im.shape[:2]:
@@ -146,14 +155,12 @@ class VideoRecorder:
         else:
             frame_img = np.concatenate((base_im, wrist_im), axis=1)
 
-        # Downsize to 480p
-        target_height = 480
         h, w = frame_img.shape[:2]
-        if h > target_height:
-            new_w = int(w * (target_height / h))
-            frame_img = np.array(Image.fromarray(frame_img).resize((new_w, target_height)))
+        if h > VIDEO_TARGET_HEIGHT:
+            new_w = int(w * (VIDEO_TARGET_HEIGHT / h))
+            frame_img = np.array(Image.fromarray(frame_img).resize((new_w, VIDEO_TARGET_HEIGHT)))
 
-        # Ensure dimensions are even for H.264 compatibility
+        # H.264 requires even dimensions.
         h, w = frame_img.shape[:2]
         if h % 2 != 0 or w % 2 != 0:
             new_h = h if h % 2 == 0 else h - 1
@@ -174,45 +181,42 @@ class VideoRecorder:
 
         self.count += 1
 
+    def _build_clip(self, fps):
+        """An ImageSequenceClip over the recorded frames, or None when nothing was recorded."""
+        source = self.frame_filenames if self.disk_mode else self.frames
+        if not source:
+            return None
+        return ImageSequenceClip(source, fps=fps)
+
     def save_video(self, save_filename, fps=15):
         save_dir = os.path.dirname(save_filename)
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
 
-        if self.disk_mode:
-            if not self.frame_filenames:
-                return
-            clip = ImageSequenceClip(self.frame_filenames, fps=fps)
-        else:
-            if not self.frames:
-                return
-            clip = ImageSequenceClip(self.frames, fps=fps)
-        
+        clip = self._build_clip(fps)
+        if clip is None:
+            return
         clip.write_videofile(save_filename + ".mp4", codec="libx264")
 
     def get_video_bytes(self, fps=15):
+        """The recording encoded to mp4, as bytes -- what append_video stores. None if no frames."""
+        clip = self._build_clip(fps)
+        if clip is None:
+            return None
+
         import tempfile
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
             tmp_name = tmp.name
-        
+
         try:
-            if self.disk_mode:
-                if not self.frame_filenames:
-                    return None
-                clip = ImageSequenceClip(self.frame_filenames, fps=fps)
-            else:
-                if not self.frames:
-                    return None
-                clip = ImageSequenceClip(self.frames, fps=fps)
-            
             clip.write_videofile(tmp_name, codec="libx264", logger=None)
             with open(tmp_name, "rb") as f:
-                video_bytes = f.read()
-            return video_bytes
+                return f.read()
         finally:
             if os.path.exists(tmp_name):
                 os.remove(tmp_name)
 
     def cleanup(self):
+        """Remove the spooled PNG frames (disk_mode only)."""
         if self.disk_mode and os.path.exists(self.temp_frame_dir):
             shutil.rmtree(self.temp_frame_dir)
