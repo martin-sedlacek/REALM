@@ -1,7 +1,9 @@
 """Why do a drawer task's cabinet joints not reach the commanded openness?
 
-`RealmEnvironmentBase.reset_joints()` commands every openable joint of the task cabinet to a
-normalized -1.0 (fully closed) via `utils.reset_joints_batched`, which TELEPORTS the joint
+`RealmEnvironmentBase.reset_joints()` commands the task cabinet's openable joints to their per-task
+start state via `utils.reset_joints_batched` -- normalized -1.0 (fully closed) for all of them on
+`open_drawer`, and the same except `INIT_OPENNESS_FRACTION` on the TARGET drawer for `close_drawer`,
+whose whole point is that the robot has to push an open drawer back in. That call TELEPORTS the joint
 (`JointPrim.set_pos(..., normalized=True)` with drive=False writes `set_joint_positions`) and then
 steps. A joint that does not stay where it was put is therefore being pushed back out by
 depenetration, not failing to be driven -- so this probe reports, per member:
@@ -32,6 +34,7 @@ from omnigibson.utils.usd_utils import get_local_pose
 from realm.environments.contact_utils import get_impulse_contacts
 from realm.environments.env_base import run_joint_resets
 from realm.environments.env_vector import RealmVectorEnvironment
+from realm.environments.joint_reset import INIT_OPENNESS_FRACTION
 from realm.environments.utils import get_openable_joints
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.sim_config import set_sim_config
@@ -39,6 +42,22 @@ from realm.sim_config import set_sim_config
 
 def f3(v):
     return tuple(round(float(x), 4) for x in (v.cpu() if hasattr(v, "cpu") else v))
+
+
+def expected_targets(env):
+    """The normalized position each openable joint SHOULD hold after a reset, per TASK TYPE.
+
+    `close_drawer` is the one task that does not start fully closed: its target drawer starts at
+    INIT_OPENNESS_FRACTION, because the robot's job is to push it back in. Reading that off the env
+    instead of assuming -1.0 for everything is what lets one probe judge both drawer tasks -- the
+    hardcoded -1.0 this replaced called a CORRECT task 9 reset "DID NOT REACH", and called the
+    actual defect (task 9 starting closed) "OK -- every joint home".
+    """
+    init_open = env.task_type == "close_drawer"
+    return {
+        j.joint_name: (INIT_OPENNESS_FRACTION if (init_open and j is env.mo_joint) else -1.0)
+        for j in get_openable_joints(env.main_objects[0])
+    }
 
 
 def pose_block(env, i):
@@ -61,6 +80,26 @@ def pose_block(env, i):
     print(f"      cabinet aabb        lo={f3(aabb_lo)} hi={f3(aabb_hi)}")
 
 
+def drive_state(j):
+    """This joint's position/velocity target and its PhysX drive gains, or why they are unreadable.
+
+    Wrapped because both reads go through the articulation view, which raises rather than returning
+    a sentinel when the physics handle is not live -- and a probe that dies reporting the diagnosis
+    is worse than one that prints the reason it cannot.
+    """
+    try:
+        tpos, tvel = j.get_target()
+        tgt = f"pos={float(tpos[0]):+.4f} vel={float(tvel[0]):+.4f}"
+    except Exception as e:
+        tgt = f"<unreadable: {type(e).__name__}>"
+    try:
+        kps, kds = j._articulation_view.get_gains(joint_indices=j.dof_indices)
+        tgt += f" kp={float(kps[0][0]):.1f} kd={float(kds[0][0]):.1f}"
+    except Exception as e:
+        tgt += f" gains=<unreadable: {type(e).__name__}>"
+    return tgt
+
+
 def joint_block(env, i, commanded=None):
     """Per-joint commanded vs achieved. @commanded maps joint name -> normalized target."""
     cabinet = env.main_objects[0]
@@ -79,6 +118,14 @@ def joint_block(env, i, commanded=None):
         print(f"      {j.joint_name:<12s} [{j.joint_type:<16s}] limits=[{lo:+.4f},{hi:+.4f}] "
               f"cmd={tgt:+.4f}({tgt_n:+.2f}) got={pos:+.4f}({npos:+.4f}) "
               f"resid={pos - tgt:+.4f} vel={float(vel[0]):+.4f}{mark}{star}")
+        # The DRIVE state, not just the position. OG 3.9.1 only writes a joint's position TARGET
+        # when JointPrim.driven is True, and driven is `HasAPI(DriveAPI) and load_config["driven"]`
+        # -- and EntityPrim.is_driven is hardcoded False, so a cabinet's joints are never "driven"
+        # even when the USD authors a drive. OG 1.1.1's set_pos wrote the target unconditionally.
+        # If a teleported-open drawer is being pulled shut, a stale target plus a live stiffness is
+        # how, so print both rather than inferring.
+        print(f"        {'':<12s} driven={j.driven} control_type={j._control_type} "
+              f"target={drive_state(j)}")
         rows.append((j.joint_name, pos, npos, tgt, tgt_n))
     print(f"      init_openness_fraction={float(env.init_openness_fraction):.4f} "
           f"joint_range={float(env.joint_range):.4f}")
@@ -136,7 +183,7 @@ def report(tag, vec_env):
         pose_block(env, i)
     print()
     for i, env in enumerate(vec_env.envs):
-        joint_block(env, i)
+        joint_block(env, i, commanded=expected_targets(env))
     print()
     for i, env in enumerate(vec_env.envs):
         contact_block(env, i)
@@ -145,11 +192,14 @@ def report(tag, vec_env):
 
 def teleport_home_and_look(vec_env):
     """Teleport every openable joint home, look at the overlaps BEFORE physics resolves them."""
-    print("\n########## teleport-home, pre-step overlap ##########", flush=True)
+    print("\n########## teleport to the task's init state, pre-step overlap ##########", flush=True)
     for i, env in enumerate(vec_env.envs):
         cabinet = env.main_objects[0]
+        targets = expected_targets(env)
         for j in get_openable_joints(cabinet):
-            j.set_pos(-1.0, normalized=True)
+            # The TASK's init state, not a hardcoded -1.0: on close_drawer the obstruction that
+            # matters is the one a FULLY OPEN drawer runs into, and -1.0 never puts it there.
+            j.set_pos(targets[j.joint_name], normalized=True)
             j.set_vel(0)
     og.sim.render()  # flush the physx->fabric sync so the AABBs below are the teleported ones
     for i, env in enumerate(vec_env.envs):
@@ -164,7 +214,77 @@ def teleport_home_and_look(vec_env):
     print(flush=True)
 
 
-def main(num_envs, task_id, robot, perturbation, dz, resets):
+def hold_and_watch(vec_env, steps, every=25):
+    """Free-run @steps sim steps and trace each member's openness, as a rollout's first steps would.
+
+    `init_openness_fraction` is captured INSIDE the reset, before the settle loop, but a frame is
+    rendered -- and the policy's first actions are taken -- many steps later. A drawer that is open
+    at reset and drifts shut on its own before then invalidates the eval cell just as thoroughly as
+    one that never opened, while leaving init_openness_fraction reading a perfect 1.0. Distinguishing
+    those two is the whole point of this loop, so it reports the SCORED quantity
+    (get_mo_joint_openness_fraction) next to the reference and the delta the rubric thresholds on.
+    """
+    print(f"\n########## hold: {steps} free sim steps after the reset ##########", flush=True)
+    print("  step | " + " | ".join(f"m{i} openness (delta)" for i in range(len(vec_env.envs))),
+          flush=True)
+
+    def row(k):
+        cells = []
+        for env in vec_env.envs:
+            frac = float(env.get_mo_joint_openness_fraction())
+            cells.append(f"{frac:.4f} ({float(env.init_openness_fraction) - frac:+.4f})")
+        print(f"  {k:>5d} | " + " | ".join(cells), flush=True)
+
+    row(0)
+    # No render: nothing here reads a camera, and the robot holds its last position targets, so it
+    # does not collapse. This is the drawer's own behaviour under an idle policy.
+    with og.sim.render_on_step(False):
+        for k in range(1, steps + 1):
+            og.sim.step()
+            if k % every == 0 or k == steps:
+                row(k)
+    print(flush=True)
+
+
+def slide_axis_test(vec_env):
+    """Does the target drawer LINK actually translate when its joint does, and along which axis?
+
+    A joint position that reads 0.30 m is not the same claim as a drawer that has moved 0.30 m: the
+    joint value is a DOF reading, while what a camera photographs -- and what the 1.1.1 reference
+    frame shows engulfing the exterior camera -- is the link's pose. So teleport the target joint to
+    both ends of its range and difference the link's AABB centre. Expect |delta| ~= the joint range
+    along one horizontal axis. A near-zero delta means the link is not following the joint at all; a
+    delta along z means the drawer slides vertically, which is the up-axis signature confined to the
+    drawer link rather than the whole cabinet.
+    """
+    print("\n########## slide-axis test: link displacement per unit of joint travel ##########",
+          flush=True)
+    for i, env in enumerate(vec_env.envs):
+        cabinet = env.main_objects[0]
+        j = env.mo_joint
+        link = cabinet.links[j.body1.split("/")[-1]]
+        centres = {}
+        for tag, npos in (("closed(-1)", -1.0), ("open(+1)", 1.0)):
+            j.set_pos(npos, normalized=True)
+            j.set_vel(0)
+            # render() flushes the physx->fabric sync; without it the AABB read below is the
+            # PREVIOUS pose and the delta comes out zero for a purely bookkeeping reason.
+            og.sim.render()
+            lo, hi = link.aabb
+            centres[tag] = (lo + hi) / 2.0
+            print(f"  member {i} {tag:<10s} joint={float(j.get_state()[0][0]):+.4f} "
+                  f"link_aabb lo={f3(lo)} hi={f3(hi)} extent={f3(hi - lo)}")
+        d = centres["open(+1)"] - centres["closed(-1)"]
+        rng = float(j.upper_limit - j.lower_limit)
+        print(f"  member {i} link centre delta={f3(d)} |delta|={float(th.linalg.norm(d)):.4f} "
+              f"(joint range {rng:.4f}) link={link.prim_path.split('/')[-1]}")
+        axis = int(th.argmax(th.abs(d)))
+        print(f"  member {i} dominant axis={'xyz'[axis]} "
+              f"{'** LINK DOES NOT FOLLOW THE JOINT **' if float(th.linalg.norm(d)) < 0.5 * rng else ('** SLIDES VERTICALLY **' if axis == 2 else 'horizontal slide, as expected')}")
+    print(flush=True)
+
+
+def main(num_envs, task_id, robot, perturbation, dz, resets, hold_steps):
     set_sim_config(robot=robot)
     vec_env = RealmVectorEnvironment(
         num_envs,
@@ -173,6 +293,19 @@ def main(num_envs, task_id, robot, perturbation, dz, resets):
         robot=robot,
     )
     report("after construction (reset_joints has run once)", vec_env)
+    slide_axis_test(vec_env)
+    # slide_axis_test leaves the target joint wherever its last teleport put it.
+    for env in vec_env.envs:
+        env.reset_joints()
+    run_joint_resets(vec_env.envs)
+
+    if hold_steps:
+        hold_and_watch(vec_env, hold_steps)
+        report(f"after {hold_steps} free steps", vec_env)
+        # Back to a defined start state before anything below runs.
+        for env in vec_env.envs:
+            env.reset_joints()
+        run_joint_resets(vec_env.envs)
 
     for r in range(resets):
         vec_env.reset()
@@ -209,15 +342,24 @@ def main(num_envs, task_id, robot, perturbation, dz, resets):
     print("\n########## VERDICT ##########", flush=True)
     for i, env in enumerate(vec_env.envs):
         cabinet = env.main_objects[0]
+        targets = expected_targets(env)
+        # What init_openness_fraction must read for THIS task: 1.0 where close_drawer starts its
+        # target drawer open, 0.0 where open_drawer starts it shut. The value the progression
+        # stages are scored against, so a wrong one silently invalidates the whole eval cell.
+        want_frac = (INIT_OPENNESS_FRACTION + 1.0) / 2.0 if env.task_type == "close_drawer" else 0.0
         bad = []
         for j in get_openable_joints(cabinet):
             lo, hi = j.lower_limit, j.upper_limit
+            want = (targets[j.joint_name] + 1.0) / 2.0 * (hi - lo) + lo
             pos = float(j.get_state()[0][0])
-            if abs(pos - lo) > 1e-3:
-                bad.append(f"{j.joint_name}={pos:.4f}(lo={lo:.4f})")
-        print(f"  member {i} (scene {env.omnigibson_env.scene.idx}): "
-              f"init_openness_fraction={float(env.init_openness_fraction):.4f} "
-              f"{'OK -- every joint home' if not bad else 'NOT HOME: ' + ', '.join(bad)}")
+            if abs(pos - want) > 1e-3:
+                bad.append(f"{j.joint_name}={pos:.4f}(want={want:.4f})")
+        got_frac = float(env.init_openness_fraction)
+        frac_ok = abs(got_frac - want_frac) < 1e-3
+        print(f"  member {i} (scene {env.omnigibson_env.scene.idx}) {env.task_type}: "
+              f"init_openness_fraction={got_frac:.4f} (want {want_frac:.4f}) "
+              f"{'OK' if frac_ok else '** WRONG START STATE **'}; "
+              f"{'every joint at its task target' if not bad else 'OFF TARGET: ' + ', '.join(bad)}")
     og.shutdown()
 
 
@@ -229,6 +371,10 @@ if __name__ == "__main__":
     p.add_argument("--perturbation", type=str, default=SUPPORTED_PERTURBATIONS[0])
     p.add_argument("--resets", type=int, default=0)
     p.add_argument("--dz", type=str, default="", help="comma-separated per-member z shift, e.g. -0.044,0.044")
+    p.add_argument("--hold_steps", type=int, default=0,
+                   help="free-run this many sim steps after the reset and trace the openness. Use "
+                        "~300 to cover a render probe's pre-render budget: it separates 'the drawer "
+                        "never opened' from 'it opened and then drifted shut before the frame'.")
     a = p.parse_args()
     main(a.num_envs, a.task_id, a.robot, a.perturbation,
-         [float(x) for x in a.dz.split(",")] if a.dz else [], a.resets)
+         [float(x) for x in a.dz.split(",")] if a.dz else [], a.resets, a.hold_steps)
