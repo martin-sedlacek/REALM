@@ -47,6 +47,38 @@ LOG_ROOT = os.path.expanduser(os.environ.get("REALM_LOGS", "logs"))
 
 # ---- distributions, no scipy -------------------------------------------------------------------
 
+HOW_TO_READ = """
+HOW TO READ THIS
+----------------
+dSR / dRF are percentage points, B minus A. dTP is on TP's own 0-1 scale. Negative means B did
+worse. p-values are two-sided. CIs are Clopper-Pearson (exact) for SR/RF and normal-approximation
+for TP, which is bounded and skewed, so treat TP's interval as indicative.
+
+The per-cell tables are underpowered by construction. At n=25 the Clopper-Pearson half-width is
+about 20pp, so a cell needs roughly a 30pp difference before one cell alone can show it. A "no" in
+the separable column means "not resolvable at n=25", NOT "these are the same". Absence of
+separability is absence of evidence.
+
+The POOLED task-stratified rows are the ones with power. Read them first. They average per-task
+differences instead of pooling rollouts across strata, which stops one task with an extreme rate
+from dominating.
+
+  pooled p < alpha   -> the benchmark distinguishes these two arms; the size that matters is d.
+  pooled p > alpha   -> it CANNOT distinguish them at this sample size. A statement about power,
+                        not a finding of equivalence.
+
+Three failure modes this script exists to stop:
+  * a cell counted when one arm is short or its run_ids do not line up -- excluded and listed,
+    never silently truncated, because a half-populated cell reads as a real result;
+  * multiplicity -- scanning cells and quoting the nominal hits is how this project has previously
+    "found" effects that were chance, so every reported cell is Holm-corrected;
+  * unpaired comparison -- REALM reuses one RNG stream per run_id, so pairing is free power and the
+    unpaired version can miss a real effect (one real pair: pooled p=0.104, paired p=0.049).
+
+RF is a DISPROVEN selection surrogate (rho = -0.554 with SR). Report it, never select on it.
+"""
+
+
 def norm_sf(z):
     return 0.5 * math.erfc(z / math.sqrt(2.0))
 
@@ -60,6 +92,53 @@ def binom_two_sided(k, n, p=0.5):
     obs = pmf(k)
     # Sum every outcome no more likely than the observed one; 1e-12 absorbs float wobble on ties.
     return min(1.0, sum(pmf(i) for i in range(n + 1) if pmf(i) <= obs * (1 + 1e-12)))
+
+
+def binom_cdf(k, n, p):
+    return sum(math.comb(n, i) * p**i * (1 - p)**(n - i) for i in range(k + 1))
+
+
+def cp_ci(k, n, alpha=0.05):
+    """Clopper-Pearson exact interval, found by bisecting the binomial CDF directly.
+
+    Lower = smallest p with P(X >= k) >= alpha/2; upper = largest p with P(X <= k) >= alpha/2.
+    Avoids needing an incomplete-beta implementation.
+    """
+    if n == 0:
+        return 0.0, 1.0
+    lo = 0.0
+    if k > 0:
+        a, b = 0.0, 1.0
+        for _ in range(60):
+            m = (a + b) / 2
+            if 1.0 - binom_cdf(k - 1, n, m) >= alpha / 2:
+                b = m
+            else:
+                a = m
+        lo = (a + b) / 2
+    hi = 1.0
+    if k < n:
+        a, b = 0.0, 1.0
+        for _ in range(60):
+            m = (a + b) / 2
+            if binom_cdf(k, n, m) >= alpha / 2:
+                a = m
+            else:
+                b = m
+        hi = (a + b) / 2
+    return lo, hi
+
+
+def mean_ci(xs, alpha=0.05):
+    """Normal-approximation interval for a continuous metric (TP). Not exact -- TP is bounded and
+    skewed -- but it is the right order and is labelled as such in the output."""
+    n = len(xs)
+    if n < 2:
+        return (xs[0] if xs else 0.0), (xs[0] if xs else 0.0)
+    m = sum(xs) / n
+    sd = math.sqrt(sum((x - m)**2 for x in xs) / (n - 1))
+    h = 1.959964 * sd / math.sqrt(n)
+    return max(0.0, m - h), min(1.0, m + h)
 
 
 def wilcoxon_signed_rank(diffs):
@@ -188,6 +267,7 @@ def main():
     if excluded:
         print(f"EXCLUDED tasks (by request): {', '.join(sorted(excluded))}\n")
 
+    print(HOW_TO_READ)
     A, B = load_experiment(resolve(args.expA)), load_experiment(resolve(args.expB))
     print(f"A = {resolve(args.expA)}\nB = {resolve(args.expB)}\n")
 
@@ -287,12 +367,30 @@ def main():
                   f"B={sum(sum(v[i] for v in vb) for _, _, vb in eligible)/sum(len(vb) for _, _, vb in eligible):.3f} "
                   f"d={d:+.4f} SE={se:.4f} z={z:+.2f} p={2*norm_sf(abs(z)):.5f}  ({len(per_task)} tasks)")
         print()
+        # ---- rates with intervals, so a difference can be judged against its own spread ----
+        print(f"  {'task':28s} {'pert':10s} {'SR_A':>6} {'95% CI':>14}  {'SR_B':>6} {'95% CI':>14}   "
+              f"{'TP_A':>6} {'95% CI':>14}  {'TP_B':>6} {'95% CI':>14}")
+        for cell, va, vb in eligible:
+            n = len(va)
+            ka, kb = round(sum(v[0] for v in va)), round(sum(v[0] for v in vb))
+            la, ha = cp_ci(ka, n, args.alpha)
+            lb, hb = cp_ci(kb, n, args.alpha)
+            ta, tb = [v[1] for v in va], [v[1] for v in vb]
+            lta, hta = mean_ci(ta, args.alpha)
+            ltb, htb = mean_ci(tb, args.alpha)
+            print(f"  {cell[0]:28s} {cell[1]:10s} {ka/n:6.3f} [{la:.3f},{ha:.3f}]  {kb/n:6.3f} "
+                  f"[{lb:.3f},{hb:.3f}]   {sum(ta)/n:6.3f} [{lta:.3f},{hta:.3f}]  "
+                  f"{sum(tb)/n:6.3f} [{ltb:.3f},{htb:.3f}]")
+        print()
+
         # ---- the plain answer: is this cell separable at all ----
-        print(f"  {'task':28s} {'perturbation':12s} separable   on")
-        print(f"  {'-'*28} {'-'*12} ---------   --")
+        w = max(len(ckpt), 5)
+        print(f"  {'model':{w}s} {'task':28s} {'perturbation':12s} separable   on")
+        print(f"  {'-'*w} {'-'*28} {'-'*12} ---------   --")
         for r in cell_rows:
             sig = [m for m in ("SR", "TP", "RF") if r["p" + m + "_holm"] < args.alpha]
-            print(f"  {r['task']:28s} {r['pert']:12s} {'YES' if sig else 'no':9s}   {','.join(sig)}")
+            print(f"  {ckpt:{w}s} {r['task']:28s} {r['pert']:12s} "
+                  f"{'YES' if sig else 'no':9s}   {','.join(sig)}")
         n_sep = sum(1 for r in cell_rows
                     if any(r["p" + m + "_holm"] < args.alpha for m in ("SR", "TP", "RF")))
         print(f"  -> {n_sep} of {len(cell_rows)} cells separable at alpha={args.alpha} "
@@ -307,35 +405,6 @@ def main():
             w.writerows(rows)
         print(f"wrote {args.csv}")
 
-    print("""
-HOW TO READ THIS
-----------------
-dSR / dRF are in percentage points, B minus A. dTP is on TP's own 0-1 scale. Negative dSR means
-B did worse. p-values are two-sided.
-
-The per-cell table is underpowered by construction. At n=25 the Clopper-Pearson half-width is
-about 20pp, so a cell needs roughly a 30pp difference before one cell alone can show it. A "no"
-in the separable column therefore means "not resolvable at n=25", NOT "these are the same".
-Absence of separability is absence of evidence.
-
-The POOLED task-stratified rows are the ones with power. Read them first. They average the
-per-task differences instead of pooling rollouts across strata, which is what stops a task with
-an extreme rate from dominating.
-
-  pooled p < alpha   -> the benchmark distinguishes these two arms. The size that matters is d.
-  pooled p > alpha   -> the benchmark CANNOT distinguish them at this sample size. That is a
-                        statement about power, not a finding of equivalence.
-
-Three failure modes this script is built to stop:
-  * a cell counted when one arm is short or its run_ids do not line up -- excluded and listed,
-    never silently truncated, because a half-populated cell reads as a real result;
-  * multiplicity -- scanning cells and quoting the nominal hits is how this project has
-    previously "found" effects that were chance, so every reported cell is Holm-corrected;
-  * unpaired comparison -- REALM reuses one RNG stream per run_id, so pairing is free power and
-    the unpaired version can miss a real effect (one real pair: pooled p=0.104, paired p=0.049).
-
-RF is a DISPROVEN selection surrogate (rho = -0.554 with SR). Report it, never select on it.
-""")
 
 
 if __name__ == "__main__":
