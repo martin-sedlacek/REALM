@@ -19,6 +19,8 @@ COPY realm/misc/simulator_initqueue_og391.patch /opt/simulator_initqueue_og391.p
 COPY realm/misc/material_prim_preset_og391.patch /opt/material_prim_preset_og391.patch
 COPY realm/misc/xform_prim_rootlink_og391.patch /opt/xform_prim_rootlink_og391.patch
 COPY realm/misc/entity_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch
+COPY realm/misc/light_normalize_macros_og391.patch /opt/light_normalize_macros_og391.patch
+COPY realm/misc/light_normalize_dataset_object_og391.patch /opt/light_normalize_dataset_object_og391.patch
 COPY packages/openpi-client /opt/openpi-client
 
 # Relax the OmniGibson kinematic-tree assertions that reject our custom robot USDs, and fix
@@ -29,6 +31,15 @@ COPY packages/openpi-client /opt/openpi-client
 # ever showed it. Taken from the OG-lite fork (ef7442b); it is the ONLY part of that fork the
 # perturbations need, the rest being performance.
 #
+# The two light_normalize patches are OPT-IN and inert unless a run sets REALM_LIGHT_FIX=1, so
+# baking them in changes no existing behaviour. They undo the pair of 3.9.1 changes that cancel each
+# other and leave a PER-SCENE lighting error: FORCE_LIGHT_INTENSITY went 150000 -> 10000 while
+# dataset_object.py started also writing inputs:normalize = True, which divides emission by light
+# AREA. The two cancel EXACTLY at area = 1/15 m^2, so scenes whose lights sit near that already
+# match 1.1.1 (push_switch x1.03) and scenes with smaller lights are too bright (rotate_mug x1.56).
+# ONE change in two files: 150000 WITH normalize=True is ~35x too bright, so the two grep guards
+# below are checked separately -- half of this fix is worse than none of it.
+#
 # Fails the build loudly if a patch no longer applies to this OmniGibson version, and the greps
 # below fail it if a patch silently applied nothing.
 RUN patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch && \
@@ -38,9 +49,12 @@ RUN patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch && \
     patch -p1 -d /behavior-src/OmniGibson < /opt/material_prim_preset_og391.patch && \
     patch -p1 -d /behavior-src/OmniGibson < /opt/xform_prim_rootlink_og391.patch && \
     patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_rootlink_og391.patch && \
+    patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_macros_og391.patch && \
+    patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_dataset_object_og391.patch && \
     rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch \
        /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch \
-       /opt/xform_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch && \
+       /opt/xform_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch \
+       /opt/light_normalize_macros_og391.patch /opt/light_normalize_dataset_object_og391.patch && \
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py && \
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/objects/usd_object.py && \
     grep -q "Re-apply the object poses now that the scene prim is at its final position" \
@@ -50,7 +64,9 @@ RUN patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch && \
     grep -q "current_orientation = XFormPrim.get_position_orientation(self)" \
         /behavior-src/OmniGibson/omnigibson/prims/xform_prim.py && \
     grep -q "root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))" \
-        /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py
+        /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py && \
+    grep -q "gm.REALM_LIGHT_FIX = " /behavior-src/OmniGibson/omnigibson/macros.py && \
+    grep -q "if not light_fix:" /behavior-src/OmniGibson/omnigibson/objects/dataset_object.py
 
 # Keep OmniGibson's own pins (numpy<2, torch 2.7, pydantic) intact.
 COPY .docker/og391-constraints.txt /opt/og391-constraints.txt

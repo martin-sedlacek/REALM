@@ -358,6 +358,52 @@ def main():
         flush()
         return 3
 
+    # ---------- what the lights ACTUALLY carry, read off the live stage ----------
+    # The decisive check on REALM_LIGHT_FIX, and independent of any luminance number: with the flag
+    # off every DatasetObject light must read intensity=10000 / normalize=True, and with it on
+    # 150000 / normalize as authored in the USD. A luma ratio can move for a dozen reasons; these two
+    # attributes can only move because the patched code path ran.
+    #
+    # Reads only -- no editing_usd() needed, and it is wrapped so a USD API change can never cost a
+    # boot. Instance proxies must be traversed explicitly: OmniGibson instances almost every object,
+    # and a plain Traverse() misses every light inside one (see light_inventory.py).
+    try:
+        light_state, n_light = {}, 0
+        try:
+            pred = lazy.pxr.Usd.TraverseInstanceProxies(lazy.pxr.Usd.PrimAllPrimsPredicate)
+            it, how = og.sim.stage.Traverse(pred), "TraverseInstanceProxies"
+        except Exception as e:
+            it, how = og.sim.stage.Traverse(), f"Traverse (no proxies: {type(e).__name__})"
+        for prim in it:
+            if "Light" not in prim.GetPrimTypeInfo().GetTypeName():
+                continue
+            n_light += 1
+
+            def rd(name):
+                a = prim.GetAttribute(name)
+                if not a or not a.IsValid():
+                    return "<absent>"
+                return f"{a.Get()}{'' if a.IsAuthored() else ' (unauthored)'}"
+
+            key = f"intensity={rd('inputs:intensity')} normalize={rd('inputs:normalize')}"
+            light_state[key] = light_state.get(key, 0) + 1
+        report["light_state"] = {
+            "env_REALM_LIGHT_FIX": os.environ.get("REALM_LIGHT_FIX", "<unset>"),
+            "gm_REALM_LIGHT_FIX": getattr(gm, "REALM_LIGHT_FIX", "<absent: unpatched macros.py>"),
+            "gm_FORCE_LIGHT_INTENSITY": gm.FORCE_LIGHT_INTENSITY,
+            "n_lights": n_light, "traversal": how, "combos": light_state,
+        }
+        print(f"[lights] {n_light} light prim(s) via {how}; env REALM_LIGHT_FIX="
+              f"{os.environ.get('REALM_LIGHT_FIX', '<unset>')} gm.REALM_LIGHT_FIX="
+              f"{getattr(gm, 'REALM_LIGHT_FIX', '<absent>')} "
+              f"gm.FORCE_LIGHT_INTENSITY={gm.FORCE_LIGHT_INTENSITY}")
+        for k, v in sorted(light_state.items(), key=lambda kv: -kv[1]):
+            print(f"         {v:4d} x  {k}")
+    except Exception as e:
+        report["light_state"] = {"error": f"{type(e).__name__}: {e}"}
+        print(f"[lights] readback failed (non-fatal): {type(e).__name__}: {e}")
+    flush()
+
     cs = lazy.carb.settings.get_settings()
 
     # ---------- typed carb access ----------
