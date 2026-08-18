@@ -31,12 +31,17 @@ COPY packages/openpi-client /opt/openpi-client
 # ever showed it. Taken from the OG-lite fork (ef7442b); it is the ONLY part of that fork the
 # perturbations need, the rest being performance.
 #
-# The two light_normalize patches are OPT-IN and inert unless a run sets REALM_LIGHT_FIX=1, so
-# baking them in changes no existing behaviour. They undo the pair of 3.9.1 changes that cancel each
-# other and leave a PER-SCENE lighting error: FORCE_LIGHT_INTENSITY went 150000 -> 10000 while
-# dataset_object.py started also writing inputs:normalize = True, which divides emission by light
-# AREA. The two cancel EXACTLY at area = 1/15 m^2, so scenes whose lights sit near that already
-# match 1.1.1 (push_switch x1.03) and scenes with smaller lights are too bright (rotate_mug x1.56).
+# The two light_normalize patches default ON as of 2026-08-18: AN IMAGE BUILT FROM THIS RECIPE IS
+# 1.1.1-LIT UNLESS A RUN SETS REALM_LIGHT_FIX=0. This comment used to call them opt-in and say baking
+# them in "changes no existing behaviour" -- untrue since the default flipped, and precisely the
+# sentence that would let a rebuild move every recorded number without anyone noticing.
+#
+# They undo the pair of 3.9.1 changes that cancel each other and leave a PER-SCENE lighting error:
+# FORCE_LIGHT_INTENSITY went 150000 -> 10000 while dataset_object.py started also writing
+# inputs:normalize = True, which divides emission by light AREA. The two cancel EXACTLY at
+# area = 1/15 m^2, so scenes whose lights sit near that already match 1.1.1 (push_switch x1.03) and
+# scenes with smaller lights are too bright (rotate_mug x1.56); the flag tightens the per-task spread
+# from 0.596 to 0.276 over the 7 comparable tasks rather than matching 1.1.1 outright.
 # ONE change in two files: 150000 WITH normalize=True is ~35x too bright, so the two grep guards
 # below are checked separately -- half of this fix is worse than none of it.
 #

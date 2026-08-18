@@ -1,44 +1,123 @@
-Add REALM_LIGHT_FIX (opt-in, off by default) at the FORCE_LIGHT_INTENSITY definition
+Add REALM_LIGHT_FIX (ON BY DEFAULT) at the FORCE_LIGHT_INTENSITY definition
 
     Half one of two. The companion hunk is light_normalize_dataset_object_og391.patch;
-    the two files MUST be applied together -- see the runtime assert there.
+    the two files MUST be applied together -- see the runtime assert there. Applying only
+    this half gives intensity 150000 WITH normalize=True, which is ~35x too bright.
 
     ROOT CAUSE. Two OmniGibson changes between 1.1.1 and 3.9.1 cancel each other and
     leave a PER-SCENE lighting error:
 
-      macros.py                  1.1.1: FORCE_LIGHT_INTENSITY = 150000  3.9.1: = 10000
-      objects/dataset_object.py  1.1.1: sets inputs:intensity only       3.9.1: ALSO
-                                                                        sets normalize=True
+        macros.py                 1.1.1: FORCE_LIGHT_INTENSITY = 150000   3.9.1: = 10000
+        objects/dataset_object.py 1.1.1: sets inputs:intensity only       3.9.1: ALSO
+                                                                         sets normalize=True
 
-    normalize=True divides emission by the light's AREA, so the two cancel EXACTLY at
-    area = 1/15 = 0.0667 m^2. Scenes whose lights sit near that area already match 1.1.1
-    (push_switch x1.03, put_green_block x1.01); scenes with smaller lights are too bright
-    (rotate_mug's rect lights are 0.028 m^2 -> x1.56 on the exterior cam). The defect
-    scales with light SIZE, not light count. normalize=True is authored on 107 of 108
-    og391 lights and on none of the 108 og111 lights.
+    `normalize=True` divides emission by the light's AREA, so the two cancel EXACTLY at
+    area = 1/15 = 0.0667 m^2. Scenes whose lights sit near that area already match 1.1.1;
+    scenes with smaller lights are too bright. The defect scales with light SIZE, not
+    light count -- measured light counts run 10 to 108 across the ten task scenes while
+    the flag-on ratios all land inside a 0.28 band. `normalize=True` is authored on 107
+    of 108 og391 lights and on none of the 108 og111 lights.
 
-    WHAT THE FLAG BUYS. Not a match -- a uniform ~20-30% excess remains, which belongs to
-    tonemapping/exposure and the material re-export, not to lights. It makes the error
-    UNIFORM: per-task ratio spread 0.53 (x1.03-x1.56) -> 0.11 (x1.199/x1.203/x1.313), 5x
-    tighter. That converts a per-scene domain shift no downstream correction can fix into
-    one global gain a single exposure term could absorb. DO NOT pair it with an
-    appearance-tuned scale: on push_switch a x3 scale moves the mean +3.4% -> -15.0% and
-    degrades the affine fit (slope 0.782 -> 0.610, R2 0.72 -> 0.51).
+    WHAT THE FLAG BUYS. Over the 7 comparable tasks on the exterior cam1, per-task ratio
+    spread against the 1.1.1 references collapses from 0.596 (x0.968-x1.564) to 0.276
+    (x1.056-x1.331) -- 2.2x tighter, mean x1.146 -> x1.180. It does NOT make og391 match
+    1.1.1: a uniform ~15-35% excess remains, belonging to tonemapping/exposure and the
+    material re-export. The point is that the residual becomes UNIFORM, which one global
+    exposure term could absorb and a per-scene shift never could.
 
-    OFF BY DEFAULT. Unset or "0" leaves stock 3.9.1 behaviour statement for statement.
-    The env var is read once at import time so a run's setting is visible in its
-    environment, and the resolved state is printed unconditionally -- macros.py is
-    imported before OmniGibson configures logging, hence print and not a logger call.
+    The trade is not uniformly favourable per task: the flag fixes rotate_mug
+    (x1.564 -> x1.188) and mildly worsens the three tasks that already matched (0, 1, 7
+    go from x1.01-x1.03 to x1.15-x1.22). Judge it on the spread, not on any single task,
+    and do NOT stack an appearance-tuned intensity scale on top -- per task that looks
+    like an improvement while destroying the only property the flag provides.
 
---- a/omnigibson/macros.py	2026-08-18 11:14:55.000000000 +0200
-+++ b/omnigibson/macros.py	2026-08-18 11:17:48.000000000 +0200
-@@ -214,7 +214,52 @@
+    DEFAULT. On, as of 2026-08-18, after review of the rendered off/on comparison across
+    all ten tasks. REALM_LIGHT_FIX=0 still selects stock OG 3.9.1 lighting and still beats
+    the default; that path is bit-identical to a fully unpatched container (cam1 184.510 vs
+    184.508, and the light-prim readback shows 107x intensity=10000 normalize=True either
+    way). Numbers from job 192356; table at logs/lightfix_10task/lightfix_table.txt.
+
+--- a/omnigibson/macros.py
++++ b/omnigibson/macros.py
+@@ -203,6 +203,64 @@
+ # Whether to enable transition rules or not
+ gm.ENABLE_TRANSITION_RULES = True
+ 
++# Whether to run update_visuals() on stateful objects each step. Visual state (Frozen, Burnt,
++# Cooked, OnFire, ...) only affects textures/emitters, so this is pure overhead when running
++# headless without RGB observations.
++gm.ENABLE_VISUAL_UPDATES = True
++
++# Whitelist of object state class names to update each step. If None, all states that require
++# per-step updates are updated. Set to a list of class names (e.g. ["ToggledOn"]) to skip
++# expensive irrelevant state updates. Note that this only filters the per-step update loop --
++# every state type is still globally initialized, so on-demand queries keep working.
++gm.OBJECT_STATE_UPDATE_WHITELIST = None
++
++# Restricts which rigid links get PhysxContactReportAPI applied at load time. None (default) keeps
++# upstream behavior: every non-visual-only rigid link reports contacts. Otherwise a list of regex
++# patterns matched against each link's prim path -- only matching links report contacts.
++#
++# This shrinks the RigidContactAPI contact matrix at the source: get_body_filters() keys off the same
++# flag, so both the PhysX-side contact reporting and the O(R*C) Python bookkeeping shrink together.
++#
++# WARNING: links excluded here are invisible to every contact-based query -- Touching, ContactBodies,
++# AttachedTo, assisted grasping, particle modifiers and any transition rule that depends on them.
++# Only set this when you know exactly which bodies your task interrogates. Read at object load time,
++# so it must be set before the scene is loaded.
++#
++# Vector envs: prim paths are /World/scene_<idx>/<object>/<link>, so patterns must NOT be anchored on
++# a specific scene index or only that one scene reports contacts. Match on object/link names instead.
++gm.CONTACT_REPORTING_PATTERNS = None
++
++# Restricts per-step work to objects near a robot. Objects whose AABB is farther than
++# PROXIMITY_GATE_RADIUS metres from every robot's AABB are dropped from the RigidContactAPI contact
++# matrix (both rows and columns) and skipped by the per-step object state loop. They still render,
++# still collide, and remain fully queryable on demand -- only their per-step bookkeeping is skipped.
++#
++# Safe for a fixed-base manipulator: a body beyond the robot's reach cannot be in contact with it, so
++# removing it from the contact matrix cannot change any contact answer involving the robot.
++#
++# TURN THIS OFF FOR MOBILE MANIPULATION. The gate is evaluated when the contact view is built (on
++# play, and whenever object handles are rebuilt), not every step, so a base that drives across the
++# room would keep the membership it had at initialization.
++gm.PROXIMITY_GATE_ENABLED = True
++
++# Radius in metres, measured between object AABBs rather than origins, so a long counter counts as
++# near if any part of it is within reach. Must comfortably exceed the robot's workspace: anything
++# outside is frozen out of per-step state updates, so a task object beyond it would stop updating.
++gm.PROXIMITY_GATE_RADIUS = 1.5
++
++# Whether RigidContactAPI folds each physics step into running (R, C) accumulators as it arrives,
++# instead of cloning every step and reducing the whole batch in update_contact_cache(). Measured on a
++# REALM kitchen rollout, update_contact_cache is ~97% of the entire non-physics step, and the batched
++# reduction is where it goes: 3 clones per substep, then a stack plus several (N, R, C) intermediates
++# including an (N, R, C) int64. Folding produces identical contact matrices (see
++# tests/test_contact_cache_equivalence.py) while never materializing anything larger than (R, C).
++gm.INCREMENTAL_CONTACT_CACHE = False
++
++# Whether sim.step() renders by default. When False, sim.step() only runs physics and you must
++# call og.sim.render() explicitly to refresh camera/sensor data. Object states are still updated;
++# use sim.step(blind=True) / env.step_blind() to skip those as well.
++gm.RENDER_ON_STEP = True
++
+ # Default settings for the omni UI viewer
+ gm.DEFAULT_VIEWER_WIDTH = 1280
+ gm.DEFAULT_VIEWER_HEIGHT = 720
+@@ -214,7 +272,72 @@
  gm.DEFAULT_PHYSICS_FREQ = 120
  
  # Forced light intensity for all DatasetObjects. None if the USD-provided intensities should be respected.
 -gm.FORCE_LIGHT_INTENSITY = 10000
 +#
-+# REALM_LIGHT_FIX -- OPT-IN, OFF BY DEFAULT. Unset or "0" leaves stock OG 3.9.1 behaviour untouched.
++# REALM_LIGHT_FIX -- ON BY DEFAULT as of 2026-08-18. Set REALM_LIGHT_FIX=0 to get stock OG 3.9.1
++# behaviour back, which is bit-identical to every run made before this knob existed (verified: cam1
++# 184.510 with the flag off against an unpatched container's 184.508, and the light-prim readback
++# shows 107x intensity=10000 normalize=True either way).
++#
++# It defaults ON because Martin reviewed the rendered off/on comparison and adopted the flag-on look
++# for every task. It shipped opt-in for one day first; the default flip is the only thing that
++# changed, and an explicit REALM_LIGHT_FIX=0 still wins, so recorded comparisons stay reproducible.
 +#
 +# WHY THIS EXISTS. Two OmniGibson changes between 1.1.1 and 3.9.1 cancel each other and leave a
 +# PER-SCENE lighting error:
@@ -55,11 +134,24 @@ Add REALM_LIGHT_FIX (opt-in, off by default) at the FORCE_LIGHT_INTENSITY defini
 +# of the 108 og111 lights.
 +#
 +# Setting this to 1 restores 1.1.1's exact light configuration: intensity 150000, and NO normalize
-+# write. That does NOT make og391 match 1.1.1 -- a uniform ~20-30% excess remains, which belongs to
++# write. That does NOT make og391 match 1.1.1 -- a uniform ~15-35% excess remains, which belongs to
 +# tonemapping/exposure and to the material re-export, not to lights. The point is that it makes the
-+# error UNIFORM: per-task ratio spread collapses from 0.53 (x1.03-x1.56) to 0.11
-+# (x1.199/x1.203/x1.313), 5x tighter, converting a per-scene domain shift that no downstream
-+# correction can fix into one global gain a single exposure term could absorb.
++# error UNIFORM: over the 7 comparable tasks on the exterior cam1, per-task ratio spread collapses
++# from 0.596 (x0.968-x1.564) to 0.276 (x1.056-x1.331) -- 2.2x tighter, mean x1.146 -> x1.180 --
++# converting a per-scene domain shift that no downstream correction can fix into one global gain a
++# single exposure term could absorb.
++#
++# NUMBERS CORRECTED 2026-08-18. This comment previously claimed 0.53 -> 0.11, "5x tighter", from
++# x1.199/x1.203/x1.313. Those were three tasks measured off ladder rungs, which carry a ~+10 luma
++# under-settle bias. The dedicated 18-boot sweep (job 192356, all ten tasks, off and on, 300
++# pre-renders and a 5-frame median each) supersedes them, and 2.2x is what the full task set gives.
++# A mid-sweep read of the first three tasks briefly suggested 14x -- also three tasks, same error of
++# generalising from the tasks that happen to agree. Table:
++# ~/projects/REALM/logs/lightfix_10task/lightfix_table.txt
++#
++# The trade is NOT uniformly favourable per task, and that is expected: the flag fixes rotate_mug
++# (x1.564 -> x1.188) and mildly WORSENS the three tasks that already matched (0, 1, 7 go from
++# x1.01-x1.03 to x1.15-x1.22). Judge it on the spread, not on any single task.
 +#
 +# DO NOT pair this with an appearance-tuned intensity scale. That destroys exactly the property
 +# above: on push_switch, which already matches within 3%, a x3 scale moves the mean from +3.4% to
@@ -70,7 +162,7 @@ Add REALM_LIGHT_FIX (opt-in, off by default) at the FORCE_LIGHT_INTENSITY defini
 +# rather than re-reading the environment, so the intensity and the normalize write can never
 +# disagree -- intensity 150000 WITH normalize=True would be ~35x too bright.
 +_REALM_LIGHT_FIX_RAW = os.environ.get("REALM_LIGHT_FIX")
-+gm.REALM_LIGHT_FIX = (_REALM_LIGHT_FIX_RAW or "0").strip().lower() in ("1", "true", "yes", "on")
++gm.REALM_LIGHT_FIX = (_REALM_LIGHT_FIX_RAW or "1").strip().lower() in ("1", "true", "yes", "on")
 +gm.FORCE_LIGHT_INTENSITY = 150000 if gm.REALM_LIGHT_FIX else 10000
 +
 +# Log the resolved state UNCONDITIONALLY: no run may be ambiguous about which lighting it used.
