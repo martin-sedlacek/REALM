@@ -61,6 +61,15 @@ def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:
 
 
 def b_hobj(env: "RealmEnvironmentDynamic") -> None:
+    """Scale the main object's mass and joint properties from their pristine baselines.
+
+    KNOWN ISSUE, deliberately not fixed in the behaviour-preserving cleanup pass: of the six
+    log-uniform factors drawn below, only s_meff / s_stif / s_damp are applied. Mass is scaled by
+    the UNRELATED uniform draw `s`, and s_mass / s_mvel / s_fric are discarded -- max velocity and
+    friction are never perturbed at all. Fixing this changes what B-HOBJ measures, so it is gated
+    with the other number-moving fixes. Until then the draws must stay exactly as they are: they
+    advance the shared RNG stream, and removing one would shift every draw after it.
+    """
     s = np.random.uniform(0.25, 3)
     s_mass, s_mvel, s_meff, s_stif, s_damp, s_fric = np.exp(np.random.uniform(-1, 1, size=(6,)))
     for obj in env.main_objects:

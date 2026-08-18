@@ -1,11 +1,11 @@
 """Pure pose/rotation math shared across REALM.
 
-Deliberately free of OmniGibson, OpenCV and YAML imports so the transform helpers can be
-exercised without booting a simulator. Poses are (x, y, z, roll, pitch, yaw) unless a name
-says otherwise; quaternions are xyzw to match scipy and OmniGibson.
+Deliberately free of OmniGibson, OpenCV, torch and YAML imports so the transform helpers can be
+exercised without booting a simulator. Poses are (x, y, z, roll, pitch, yaw) unless a name says
+otherwise; quaternions are xyzw to match scipy and OmniGibson. Two functions take quaternions
+without saying so in their name: `compute_rot_diff_magnitude` and `add_rotation_noise`.
 """
 import numpy as np
-import torch
 from scipy.spatial.transform import Rotation
 
 
@@ -49,14 +49,8 @@ def get_xyz_quaternion_from_homogeneous_transform(T_matrix):
     return translation_xyz, quaternion_xyzw
 
 
-### Subtractions ###
-# ------------------------------- pose differences and composition -------------------------------
-# Poses are 6-vectors (xyz + rpy); `delta` composes onto `source` in the source's own frame.
-def quat_diff(target, source):
-    result = Rotation.from_quat(target) * Rotation.from_quat(source).inv()
-    return result.as_quat()
-
-
+# ------------------------------- pose differences -------------------------------
+# Poses are 6-vectors (xyz + rpy).
 def angle_diff(target, source, degrees=False):
     target_rot = Rotation.from_euler("xyz", target, degrees=degrees)
     source_rot = Rotation.from_euler("xyz", source, degrees=degrees)
@@ -68,26 +62,6 @@ def pose_diff(target, source, degrees=False):
     lin_diff = np.array(target[:3]) - np.array(source[:3])
     rot_diff = angle_diff(target[3:6], source[3:6], degrees=degrees)
     result = np.concatenate([lin_diff, rot_diff])
-    return result
-
-
-### Additions ###
-def add_quats(delta, source):
-    result = Rotation.from_quat(delta) * Rotation.from_quat(source)
-    return result.as_quat()
-
-
-def add_angles(delta, source, degrees=False):
-    delta_rot = Rotation.from_euler("xyz", delta, degrees=degrees)
-    source_rot = Rotation.from_euler("xyz", source, degrees=degrees)
-    new_rot = delta_rot * source_rot
-    return new_rot.as_euler("xyz", degrees=degrees)
-
-
-def add_poses(delta, source, degrees=False):
-    lin_sum = np.array(delta[:3]) + np.array(source[:3])
-    rot_sum = add_angles(delta[3:6], source[3:6], degrees=degrees)
-    result = np.concatenate([lin_sum, rot_sum])
     return result
 
 
@@ -134,14 +108,24 @@ def axisangle_to_rpy(action):
 
 
 def flip_pose_pointing_down(rpy_vec):
+    """@rpy_vec composed with a half-turn about x, i.e. the same pose pointing down.
+
+    Currently unused, but named by the EE-control TODOs in realm/inference/client.py -- DROID EE
+    poses are expected to need this before being stepped.
+    """
     r_old = Rotation.from_euler('xyz', rpy_vec)
-    flip = Rotation.from_euler('xyz', [torch.pi, 0, 0])
+    flip = Rotation.from_euler('xyz', [np.pi, 0, 0])
     r_new = r_old * flip
     return r_new.as_euler('xyz')
 
 
 # --------------------------- rotation noise and camera pose composition ---------------------------
-def compute_rot_diff_magnitude(initial_quat,final_quat):
+def compute_rot_diff_magnitude(initial_quat, final_quat):
+    """Signed z (yaw) component of the rotation vector taking @initial_quat to @final_quat.
+
+    Both quaternions are xyzw. A rotation about a non-z axis contributes only its z projection,
+    which is what makes this a yaw-only progress measure for the rotate tasks.
+    """
     r_initial = Rotation.from_quat(initial_quat)
     r_final = Rotation.from_quat(final_quat)
     r_diff = r_final * r_initial.inv()
@@ -150,6 +134,13 @@ def compute_rot_diff_magnitude(initial_quat,final_quat):
 
 
 def add_rotation_noise(current_orientation_quat, noise_std_dev_rad_xyz, min_xyz=None, max_xyz=None, noise_mean=(0,0,0)):
+    """@current_orientation_quat (xyzw) with per-axis normal noise added in euler-xyz space.
+
+    Noise is drawn N(@noise_mean, @noise_std_dev_rad_xyz) per axis, in radians, and added to the
+    current euler angles. When BOTH bounds are given, the resulting ABSOLUTE angles (not the noise)
+    are clipped to [@min_xyz, @max_xyz] -- an axis with std 0 still obeys its clip, which callers
+    use to pin roll/pitch while noising yaw. Returns an xyzw quaternion.
+    """
     current_rot = Rotation.from_quat(current_orientation_quat)
     current_euler_xyz = current_rot.as_euler('xyz', degrees=False)
     noise_euler_xyz = np.random.normal(loc=noise_mean, scale=noise_std_dev_rad_xyz)
@@ -163,26 +154,20 @@ def add_rotation_noise(current_orientation_quat, noise_std_dev_rad_xyz, min_xyz=
 def calculate_new_camera_pose_mixed_rotations(
     camera_relative_to_base_xyz, camera_relative_to_base_quat_xyzw,
     new_base_pose_xyz, new_base_pose_rpy_rad):
+    """Compose a camera-in-base pose onto a base-in-world pose; returns the camera in world.
 
-    # 1. Create the camera's relative transformation matrix (T_base_camera) from XYZ and Quaternion
+    "Mixed rotations" = the two inputs carry their rotation in different encodings, matching their
+    sources: the camera extrinsics YAML gives an xyzw quaternion, scenes.yaml's robot pose gives
+    rpy (radians here -- the caller converts from degrees). Returns (xyz list, xyzw quat list).
+    """
     T_base_camera = create_homogeneous_transform_from_quaternion(
         camera_relative_to_base_xyz,
         camera_relative_to_base_quat_xyzw
     )
-
-    # 2. Create the new robot base's absolute transformation matrix (T_world_new_base) from XYZ and RPY
     T_world_new_base = create_homogeneous_transform_from_rpy(
         new_base_pose_xyz,
         new_base_pose_rpy_rad,
-        order='xyz' # Assuming RPY rotation order for your robot base
+        order='xyz'
     )
-
-    # 3. Calculate the new absolute camera transformation matrix (T_world_new_camera)
     T_world_new_camera = T_world_new_base.dot(T_base_camera)
-
-    # 4. Extract the new camera's XYZ and Quaternion
-    new_camera_xyz, new_camera_quat_xyzw = get_xyz_quaternion_from_homogeneous_transform(
-        T_world_new_camera
-    )
-
-    return new_camera_xyz, new_camera_quat_xyzw
+    return get_xyz_quaternion_from_homogeneous_transform(T_world_new_camera)

@@ -9,10 +9,22 @@ import omnigibson.lazy as lazy
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
+#: Intensity draw (lux): spans dim indoor lighting to studio-bright.
+LIGHT_INTENSITY_RANGE = (20000, 750000)
+
+#: Color noise: per-channel normal around a warm white (8-bit RGB), then normalised to [0, 1].
+LIGHT_COLOR_MEAN = (255, 214, 170)
+LIGHT_COLOR_STD = 15
+
 
 def v_light(env: "RealmEnvironmentDynamic", intensity=None) -> None:
+    """Set every scene light to one shared random intensity and a slightly noised warm color.
+
+    Mutates only the scene's light prims (via USD writes); nothing on @env changes. Raises if the
+    scene exposes no light prims, rather than silently leaving the scene unperturbed.
+    """
     if intensity is None:
-        intensity = np.random.uniform(20000, 750000)
+        intensity = np.random.uniform(*LIGHT_INTENSITY_RANGE)
 
     def find_lights_recursive(obj): # TODO: move the search to new scene instantiation, pointless to call it everytime unless we are swapping scene
         lights = []
@@ -29,9 +41,7 @@ def v_light(env: "RealmEnvironmentDynamic", intensity=None) -> None:
     for obj in env.omnigibson_env.scene.objects:
         all_lights.extend(find_lights_recursive(obj))
 
-    col_mean = np.array([255, 214, 170])
-    col_std = 15
-    color = np.random.normal(loc=col_mean, scale=col_std, size=(3,))
+    color = np.random.normal(loc=np.array(LIGHT_COLOR_MEAN), scale=LIGHT_COLOR_STD, size=(3,))
     color = np.clip(color, 0, 255).astype(float) / 255.0
 
     # Collect the actual light prims under each candidate link.

@@ -91,3 +91,69 @@ def settle(env: "RealmEnvironmentDynamic", steps: int = SETTLE_STEPS) -> None:
     with og.sim.render_on_step(False):
         for _ in range(steps):
             env.omnigibson_env.step(settle_action(env))
+
+
+def backfill_object_cfgs(scene_objects, cfgs) -> None:
+    """Fill in "position" and "bounding_box" on @cfgs from the live objects, where missing.
+
+    Task YAMLs may omit both; the placement pass needs them. The frames matter: "position" is
+    written in the SCENE frame, because it feeds `realm.placement`'s placement pass, which rewrites
+    it from the scene-relative spawn_bbox -- and the caller then writes it back with frame="scene".
+    Reading it in world frame agrees only for scene 0, whose origin IS the world origin, so a
+    world-frame read is invisible single-env and silently wrong for every other member of a vector
+    env (vb_pose._place has the measured failure). "bounding_box" is an EXTENT (a size), matching
+    what the task YAMLs write.
+
+    Mutates @cfgs in place; only entries whose "name" matches one of @scene_objects are touched.
+    """
+    for scene_obj in scene_objects:
+        for cfg in cfgs:
+            if cfg["name"] == scene_obj.name:
+                if "position" not in cfg:
+                    cfg["position"] = scene_obj.get_position_orientation(frame="scene")[0].tolist()
+                if "bounding_box" not in cfg:
+                    cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
+
+
+def set_scene_positions(env: "RealmEnvironmentDynamic", cfgs) -> None:
+    """Write each cfg's "position" onto its live object, in the scene frame.
+
+    frame="scene" because the positions come from the scene-relative spawn_bbox (see
+    backfill_object_cfgs). The old set_position() call this replaced was deprecated AND
+    world-frame-only, with no way to express the right frame.
+    """
+    for cfg in cfgs:
+        env.omnigibson_env.scene.object_registry("name", cfg["name"]).set_position_orientation(
+            position=cfg["position"], frame="scene")
+
+
+def rebase_after_play(env: "RealmEnvironmentDynamic", vec_only_rebase: bool, extra=None) -> None:
+    """Step once, rebase the scene's reset baseline, and re-run the joint reset -- after play.
+
+    Every perturbation that adds, removes or replaces an object must do this. Without the
+    update_initial_file() rebase, the next scene.reset() has to undo the object changes, and
+    og.sim.dump_state() walks EVERY scene -- so in a vector env one member's half-restored scene
+    makes a sibling's reset assert "Object must be initialized before dumping state!". (The related
+    init-queue eviction bug is fixed in environments/vec_init_queue.py; see its docstring.)
+
+    @vec_only_rebase=True skips the rebase in a single env. V-SC and SB-VRB have never rebased
+    single-env and work, so rebasing there would be an unverified change to a working path;
+    VSB-NOBJ and VB-MOBJ have always rebased unconditionally. The flag preserves each
+    perturbation's historical behaviour rather than expressing a rule.
+
+    @extra runs LAST, still inside the deferred block. Code that touches state which only exists
+    once the sim is playing (e.g. a ToggledOn visual_marker) must go here, not after this call --
+    in a vector env everything after this call still runs on a STOPPED sim.
+
+    Runs inline in a single env; in a vector env the whole block is deferred until the shared
+    og.sim.play() (see after_play).
+    """
+    def _post_play():
+        og.sim.step()
+        if not vec_only_rebase or env.in_vec_env:
+            env.omnigibson_env.scene.update_initial_file()
+        env.reset_joints()
+        if extra is not None:
+            extra()
+
+    after_play(env, _post_play)

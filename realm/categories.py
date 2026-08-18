@@ -28,25 +28,18 @@ def get_droid_categories_by_theme():
     return copy.deepcopy(_get_categories_data()["droid_categories_by_theme"])
 
 
-def find_and_remove_category(categories_dict, obj_category):
-    for theme, sub_categories in categories_dict.items():
-        for category, obj_list in sub_categories.items():
-            if obj_category in obj_list:
-                return theme
-    return None
+def droid_categories_excluding_theme(obj_category):
+    """Every DROID category name, minus ALL categories sharing @obj_category's theme.
 
-
-def process_droid_categories(original_dict, obj_category):
-    processed_dict = original_dict.copy()
-
-    theme_to_pop = find_and_remove_category(processed_dict, obj_category)
-
-    if theme_to_pop:
-        processed_dict.pop(theme_to_pop)
-
-    flattened_list = []
-    for sub_categories in processed_dict.values():
-        for obj_list in sub_categories.values():
-            flattened_list.extend(obj_list)
-
-    return flattened_list
+    Used to draw a replacement object that is not a lookalike of the one it replaces: excluding
+    the whole theme (e.g. all drinkware, not just "mug") is what makes the swap visually
+    meaningful. An @obj_category that appears in no theme excludes nothing.
+    """
+    categories_by_theme = get_droid_categories_by_theme()
+    theme = next((theme for theme, subcategories in categories_by_theme.items()
+                  if any(obj_category in obj_list for obj_list in subcategories.values())),
+                 None)
+    if theme is not None:
+        categories_by_theme.pop(theme)
+    return [obj for subcategories in categories_by_theme.values()
+            for obj_list in subcategories.values() for obj in obj_list]

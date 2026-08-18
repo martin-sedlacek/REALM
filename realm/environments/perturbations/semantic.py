@@ -1,3 +1,4 @@
+"""S-*: language-only perturbations -- they swap the instruction and touch nothing in the scene."""
 from __future__ import annotations
 
 import numpy as np
@@ -47,7 +48,6 @@ def s_lang(env: "RealmEnvironmentDynamic") -> None:
     instruction = orig_instruction.lower()
     instruction_words = instruction.split()
 
-    synonyms: dict[str, list[str]] = env.cfg["synonyms"]
     number_words_which_can_be_replaced = len(synonyms)
     # Picking with 50% which words to replace with synonyms
     word_idx_to_replace = np.random.randint(2, size=number_words_which_can_be_replaced)

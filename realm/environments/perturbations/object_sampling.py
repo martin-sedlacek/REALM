@@ -46,7 +46,13 @@ DRAWER_CABINET_MODELS = [
 
 
 def sample_objects(num_objects=3, included_categories=None, excluded_categories=None):
-    """@num_objects object configs drawn without replacement from the installed models."""
+    """@num_objects object configs drawn without replacement from the installed models.
+
+    May return FEWER than requested -- including [] -- when not enough installed models match the
+    category filter; a warning is logged but nothing raises, so callers that index the result must
+    guard for empty. At most one of @included_categories / @excluded_categories may be given; both
+    filter against the non-DROID catalogue's category names.
+    """
     assert not (included_categories is not None and excluded_categories is not None)
 
     # TODO: this can be pre-computed once, no need to parse the whole thing every call
@@ -91,6 +97,26 @@ def sample_objects(num_objects=3, included_categories=None, excluded_categories=
     return sampled_objects
 
 
+def rescale_to_max_dim(obj, cfg, maximum_dim):
+    """Shrink @obj so its largest bbox dimension is at most @maximum_dim, recording the extent.
+
+    Writes cfg["bounding_box"] as the (possibly shrunk) base-aligned bbox EXTENT -- a size, which
+    is what every consumer of that key expects: the task YAMLs write sizes, and the placement pass
+    reads element/2 as a half-width. Feeding it get_base_aligned_bbox's CENTER instead was measured
+    to break vector-env placement -- the center is world-frame, ~25 m per scene tile, so the
+    "half-width" came out ~12.5 m and nothing could ever be placed. An object already small enough
+    is left alone.
+    """
+    _, _, bbox_extent, _ = obj.get_base_aligned_bbox()
+    cfg["bounding_box"] = bbox_extent
+
+    max_dim = np.max(bbox_extent.numpy())
+    new_scale_factor = maximum_dim / max_dim
+    if new_scale_factor < 1.0:
+        obj.scale = new_scale_factor
+        cfg["bounding_box"] = cfg["bounding_box"] * new_scale_factor
+
+
 def replace_obj(env: "RealmEnvironmentDynamic", obj: DatasetObject, included_categories=None, maximum_dim=0.2, fixed_base=False, preserve_ori=True):
     """Swap @obj for a freshly sampled one at the same name, prim path and initial pose.
 
@@ -110,7 +136,12 @@ def replace_obj(env: "RealmEnvironmentDynamic", obj: DatasetObject, included_cat
             "model": DRAWER_CABINET_MODELS[sampled_idx],
         }
     else:
-        nobj_cfg = sample_objects(num_objects=1, included_categories=included_categories)[0]
+        sampled = sample_objects(num_objects=1, included_categories=included_categories)
+        if not sampled:
+            raise RuntimeError(
+                f"replace_obj could not sample a replacement for '{obj_name}': no installed "
+                f"object model matches included_categories={included_categories}")
+        nobj_cfg = sampled[0]
 
     new_obj = DatasetObject(
         name=obj_name,
@@ -128,26 +159,7 @@ def replace_obj(env: "RealmEnvironmentDynamic", obj: DatasetObject, included_cat
         new_obj.set_bbox_center_position_orientation(torch.tensor(env.init_poses[new_obj._relative_prim_path]["pos"]),
                                                      torch.tensor([0, 0, 0, 1]))
 
-    bbox_center, bbox_orn, bbox_extent, bbox_center_in_frame = new_obj.get_base_aligned_bbox()
-    # EXTENT, not centre. "bounding_box" is a SIZE everywhere it is consumed -- the task YAMLs write
-    # [0.20, 0.20, 0.07] and get_non_colliding_positions_for_objects reads cfg["bounding_box"][0] / 2
-    # as a half-width -- while get_base_aligned_bbox returns the centre in WORLD frame. The scale
-    # multiply just below, which shrinks the value along with the object, only makes sense for a size.
-    #
-    # LATENT rather than live: no caller reads this key today (v_sc.py discards the cfg, vsb_nobj.py
-    # and sb_vrb.py read only "category"/"model"), and the dict is freshly built by sample_objects()
-    # or by the literal above, so it is never aliased into env.cfg["objects"] either. Fixed rather
-    # than merely flagged because the identical line in sb_vrb.py DID feed placement and was
-    # measured: a world-frame centre reads ~0 in scene 0, whose origin is the world origin, but
-    # ~25 m per tile in every other member of a vector env, so the "half-width" came out ~12.5 m, no
-    # candidate position could clear it, and the receiver was dropped ~12 m off the table.
-    nobj_cfg["bounding_box"] = bbox_extent
-
-    max_dim = np.max(bbox_extent.numpy())
-    new_scale_factor = maximum_dim / max_dim
-    if new_scale_factor < 1.0:
-        new_obj.scale = new_scale_factor
-        nobj_cfg["bounding_box"] = nobj_cfg["bounding_box"] * new_scale_factor
+    rescale_to_max_dim(new_obj, nobj_cfg, maximum_dim)
     nobj_cfg["fixed_base"] = fixed_base
 
     return new_obj, nobj_cfg

@@ -1,14 +1,41 @@
+"""VB-POSE: perturb the pose of the task objects at reset.
+
+Push tasks get a switch-specific nudge (`_perturb_switch`); everything else gets a full
+re-placement of the movable objects plus rotation noise on the main objects (`_perturb_tabletop`).
+
+What one call mutates on @env: ``cfg["objects"]`` positions (tabletop branch -- the placement pass
+writes them in place), the live objects' poses, and -- push branch only, see the KNOWN ISSUE
+inside -- ``init_poses``.
+"""
 from __future__ import annotations
 
 import numpy as np
 from typing import TYPE_CHECKING
 
-from realm.environments.perturbations._helpers import settle
+from realm.environments.perturbations._helpers import backfill_object_cfgs, settle
 from realm.geometry import add_rotation_noise
-from realm.placement import get_non_colliding_positions_for_objects
+from realm.placement import place_within
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
+
+
+#: Push-task switch nudge (metres): the switch slides across the wall plane.
+SWITCH_DZ_RANGE = 0.15
+SWITCH_DXY_RANGE = 0.075
+
+#: Drawer rotation noise (radians): a yaw-only draw from N(mean 0.25, std 0.12), clipped to
+#: [0, 0.57]. The roll/pitch entries have std 0, so their +/-3.14 clips are inert.
+DRAWER_YAW_NOISE_STD = (0, 0, 0.12)
+DRAWER_YAW_NOISE_MEAN = (0, 0, 0.25)
+DRAWER_YAW_CLIP_MIN = [-3.14, -3.14, 0]
+DRAWER_YAW_CLIP_MAX = [3.14, 3.14, 0.57]
+
+#: Free yaw noise (radians, std of a normal draw) for every non-drawer main object.
+TABLETOP_YAW_NOISE_STD = (0, 0, 3.14)
+
+#: Drawers are re-placed this far below the sampled tabletop height (metres).
+DRAWER_Z_OFFSET = 0.3
 
 
 def _place(obj, position=None, orientation=None, frame="scene"):
@@ -49,76 +76,81 @@ def _place(obj, position=None, orientation=None, frame="scene"):
 
 
 def vb_pose(env: "RealmEnvironmentDynamic") -> None:
-    # --------------- Translation ---------------
     if env.task_type == "push":
-        delta_z = np.random.uniform(-0.15, 0.15)
-        delta_xy = np.random.uniform(-0.075, 0.075)
-        for obj_cfg in env.cfg["objects"]:
-            if obj_cfg["name"] == "electric_switch":
-                obj = env.omnigibson_env.scene.object_registry("name", obj_cfg["name"])
-                init_pos = env.init_poses[obj._relative_prim_path]["pos"]
-                init_pos[2] += delta_z
-                init_pos[0] += delta_xy # TODO: this is only for pomaria light switch, elsewhere it might be y axis on the wall...
-                # world frame here: env.init_poses is captured with get_position_orientation()'s
-                # default (world), so this branch reads and writes the same frame throughout.
-                _place(obj, position=init_pos, frame="world")
+        _perturb_switch(env)
     else:
-        for scene_obj in env.main_objects + env.distractors + env.target_objects:
-            for cfg in env.cfg["objects"]:
-                if cfg["name"] == scene_obj.name:
-                    if "position" not in cfg:
-                        # Scene frame: this backfills the same cfg["position"] field that
-                        # get_non_colliding_positions_for_objects rewrites from the scene-relative
-                        # spawn_bbox, so it has to be in that frame too. Reading it in world frame
-                        # mixed the two and only agreed for scene 0.
-                        cfg["position"] = scene_obj.get_position_orientation(frame="scene")[0].tolist()
-                    if "bounding_box" not in cfg:
-                        cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
+        _perturb_tabletop(env)
 
-        env.cfg["objects"] = get_non_colliding_positions_for_objects(
-            xmin=env.spawn_bbox[0],
-            xmax=env.spawn_bbox[1],
-            ymin=env.spawn_bbox[2],
-            ymax=env.spawn_bbox[3],
-            z=env.spawn_bbox[4],
-            obj_cfg=env.cfg["objects"],
-            objects_to_skip=[obj.name for obj in env.distractors + env.target_objects],
-            main_object_names=[],
-            max_attempts_per_object=25000 # TODO: this must be successful, careful what we do here...
-        )
-
-        for obj_cfg in env.cfg["objects"]:
-            if env.task_type in ["open_drawer", "close_drawer"] and obj_cfg["name"] == "drawer":
-                obj_cfg["position"][-1] -= 0.3
-            _place(env.omnigibson_env.scene.object_registry("name", obj_cfg["name"]),
-                   position=obj_cfg["position"])
-
-        # --------------- Rotation ---------------
-        # Reads the orientation set by the loop above, which wrote position only -- so this still
-        # sees the pre-perturbation orientation, exactly as it did when both loops ran stopped.
-        for o in env.main_objects:
-            if env.task_type in ["open_drawer", "close_drawer"]:
-                for obj_cfg in env.cfg["objects"]:
-                    if obj_cfg["name"] == "drawer":
-                        tmp_obj_cfg = obj_cfg
-                tmp = tmp_obj_cfg["orientation"] if "orientation" in tmp_obj_cfg else [0, 0, 0, 1]
-                new_rot = add_rotation_noise(tmp, (0, 0, 0.12), [-3.14, -3.14, 0], [3.14, 3.14, 0.57], (0, 0, 0.25))
-                _place(o, orientation=new_rot)
-            else:
-                # Scene frame to match the write below. Scene prims are placed with an identity
-                # orientation, so world and scene orientations coincide today and this is not a
-                # behaviour change -- it is written explicitly so the read and the write cannot
-                # drift apart if a scene is ever placed rotated.
-                tmp = o.get_position_orientation(frame="scene")[1] # TODO: also from orig rot?
-                _place(o, orientation=add_rotation_noise(tmp, (0, 0, 3.14)))
-        # Kept from the stop/play version: reset() already ran this before the perturbation, and the
-        # robot is no longer disturbed now that nothing stops the sim, so it is a no-op here. Left in
-        # so this function's post-state is identical to what it was.
-        env.reset_joints()
-
-    # Settle the teleported objects onto the surface. This used to also drive the robot back to its
-    # pose after og.sim.stop() reset it; with the stop gone the robot never moves, so these steps now
-    # do only the settling. In a vector env this is a no-op and RealmVectorEnvironment.reset() runs
-    # the equivalent loop once for every member -- og.sim.step() is global, so doing it per member
-    # stepped the shared sim 30*N times while feeding N-1 members no action.
+    # Settle the teleported objects onto the surface. In a vector env this is a no-op and
+    # RealmVectorEnvironment.reset() runs the equivalent loop once for every member -- og.sim.step()
+    # is global, so doing it per member would step the shared sim 30*N times while feeding N-1
+    # members no action.
     settle(env)
+
+
+def _perturb_switch(env: "RealmEnvironmentDynamic") -> None:
+    """Nudge the light switch across its wall plane."""
+    delta_z = np.random.uniform(-SWITCH_DZ_RANGE, SWITCH_DZ_RANGE)
+    delta_xy = np.random.uniform(-SWITCH_DXY_RANGE, SWITCH_DXY_RANGE)
+    for obj_cfg in env.cfg["objects"]:
+        if obj_cfg["name"] == "electric_switch":
+            obj = env.omnigibson_env.scene.object_registry("name", obj_cfg["name"])
+            # KNOWN ISSUE, deliberately not fixed in the behaviour-preserving cleanup pass:
+            # init_pos ALIASES env.init_poses[...]["pos"], so the += below mutates the stored
+            # reference and the offsets COMPOUND across resets -- the switch drifts further every
+            # reset. Fixing it changes what VB-POSE has historically measured on push tasks, so it
+            # is gated with the other number-moving fixes rather than slipped into a refactor.
+            init_pos = env.init_poses[obj._relative_prim_path]["pos"]
+            init_pos[2] += delta_z
+            init_pos[0] += delta_xy # TODO: this is only for pomaria light switch, elsewhere it might be y axis on the wall...
+            # world frame here: env.init_poses is captured with get_position_orientation()'s
+            # default (world), so this branch reads and writes the same frame throughout.
+            _place(obj, position=init_pos, frame="world")
+
+
+def _perturb_tabletop(env: "RealmEnvironmentDynamic") -> None:
+    """Re-place the movable objects collision-free, then add rotation noise to the main objects."""
+    # --------------- Translation ---------------
+    backfill_object_cfgs(env.main_objects + env.distractors + env.target_objects,
+                         env.cfg["objects"])
+
+    env.cfg["objects"] = place_within(
+        env.spawn_bbox,
+        env.cfg["objects"],
+        objects_to_skip=[obj.name for obj in env.distractors + env.target_objects],
+        main_object_names=[],
+        max_attempts_per_object=25000 # TODO: this must be successful, careful what we do here...
+    )
+
+    for obj_cfg in env.cfg["objects"]:
+        if env.task_type in ["open_drawer", "close_drawer"] and obj_cfg["name"] == "drawer":
+            obj_cfg["position"][-1] -= DRAWER_Z_OFFSET
+        _place(env.omnigibson_env.scene.object_registry("name", obj_cfg["name"]),
+               position=obj_cfg["position"])
+
+    # --------------- Rotation ---------------
+    # Reads the orientation set by the loop above, which wrote position only -- so this still
+    # sees the pre-perturbation orientation, exactly as it did when both loops ran stopped.
+    for o in env.main_objects:
+        if env.task_type in ["open_drawer", "close_drawer"]:
+            drawer_cfg = next((c for c in env.cfg["objects"] if c["name"] == "drawer"), None)
+            if drawer_cfg is None:
+                raise RuntimeError(
+                    "VB-POSE on a drawer task found no 'drawer' entry in cfg['objects']")
+            current = drawer_cfg["orientation"] if "orientation" in drawer_cfg else [0, 0, 0, 1]
+            new_rot = add_rotation_noise(current, DRAWER_YAW_NOISE_STD,
+                                         DRAWER_YAW_CLIP_MIN, DRAWER_YAW_CLIP_MAX,
+                                         DRAWER_YAW_NOISE_MEAN)
+            _place(o, orientation=new_rot)
+        else:
+            # Scene frame to match the write below. Scene prims are placed with an identity
+            # orientation, so world and scene orientations coincide today and this is not a
+            # behaviour change -- it is written explicitly so the read and the write cannot
+            # drift apart if a scene is ever placed rotated.
+            current = o.get_position_orientation(frame="scene")[1] # TODO: also from orig rot?
+            _place(o, orientation=add_rotation_noise(current, TABLETOP_YAW_NOISE_STD))
+
+    # Kept from the stop/play version: reset() already ran this before the perturbation, and the
+    # robot is no longer disturbed now that nothing stops the sim, so it is a no-op here. Left in
+    # so this function's post-state is identical to what it was.
+    env.reset_joints()

@@ -83,6 +83,13 @@ def get_openable_joints(cabinet: DatasetObject) -> list[JointPrim]:
 
 
 def get_target_drawer_joint(cabinet: DatasetObject, target_drawer_loc: str) -> JointPrim:
+    """The prismatic joint of @cabinet's top / middle / bottom drawer, by drawer height.
+
+    Only the top three drawers (by height) are considered. With exactly two drawers, "middle"
+    historically meant the LOWER of the two (kept as-is), and "bottom" is refused as ambiguous --
+    it used to crash with UnboundLocalError. With one drawer, "top" and "bottom" both name it and
+    "middle" fails.
+    """
     assert target_drawer_loc in ("top", "middle", "bottom"), f"{target_drawer_loc=}"
 
     links: list[RigidPrim] = list(cabinet.links.values())
@@ -96,7 +103,7 @@ def get_target_drawer_joint(cabinet: DatasetObject, target_drawer_loc: str) -> J
         link = path2link[drawer_link_path]
         z = link.aabb_center[-1].item()
         drawer_heights.append((j, z))
-    drawer_heights = sorted(drawer_heights, key=lambda x: x[1], reverse=True)[:3]  # take top 3 drawers by height
+
     if len(drawer_heights) == 0:
         all_joint_types = [(j.joint_name, j.joint_type) for j in joints]
         raise ValueError(
@@ -104,20 +111,20 @@ def get_target_drawer_joint(cabinet: DatasetObject, target_drawer_loc: str) -> J
             f"Available joints: {all_joint_types}. "
             f"Check that the asset has drawer joints (not just revolute/door joints)."
         )
-    if  len(drawer_heights) == 2:
-        if target_drawer_loc == "top":
-            target_joint = max(drawer_heights, key=lambda x: x[1])[0]
-        elif target_drawer_loc == "middle":
-            sorted_drawers = sorted(drawer_heights, key=lambda x: x[1])
-            target_joint = sorted_drawers[0][0]
-    else:
-        if target_drawer_loc == "top":
-            target_joint = max(drawer_heights, key=lambda x: x[1])[0]
-        elif target_drawer_loc == "bottom":
-            target_joint = min(drawer_heights, key=lambda x: x[1])[0]
-        elif target_drawer_loc == "middle":
-            assert len(drawer_heights) == 3, f"{len(drawer_heights)=}"
-            sorted_drawers = sorted(drawer_heights, key=lambda x: x[1])
-            target_joint = sorted_drawers[1][0]
 
-    return target_joint
+    by_height = sorted(drawer_heights, key=lambda x: x[1], reverse=True)[:3]  # highest first
+    n = len(by_height)
+
+    if target_drawer_loc == "top":
+        return by_height[0][0]
+    if target_drawer_loc == "bottom":
+        if n == 2:
+            raise ValueError(
+                f"cabinet '{cabinet.name}' has exactly 2 drawer joints, so 'bottom' is ambiguous "
+                f"with 'middle' -- use 'top' or 'middle' for this asset")
+        return by_height[-1][0]
+    # middle
+    if n == 2:
+        return by_height[-1][0]  # the lower of the two, matching historical behaviour
+    assert n == 3, f"{n=}"
+    return by_height[1][0]

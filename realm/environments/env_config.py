@@ -27,7 +27,7 @@ from realm.environments.constants import (
     DROID_DEFAULT_DOF,
 )
 from realm.environments.perturbations.object_sampling import sample_objects
-from realm.placement import get_non_colliding_positions_for_objects
+from realm.placement import place_within
 
 
 def build_environment_config(env):
@@ -189,13 +189,9 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
                 excluded_categories.append(obj["category"])
         distractors = sample_objects(num_objects=num_distractors, excluded_categories=excluded_categories)
 
-        cfg["objects"] = get_non_colliding_positions_for_objects(
-            xmin=env.spawn_bbox[0],
-            xmax=env.spawn_bbox[1],
-            ymin=env.spawn_bbox[2],
-            ymax=env.spawn_bbox[3],
-            z=env.spawn_bbox[4],
-            obj_cfg=obj_list + distractors,
+        cfg["objects"] = place_within(
+            env.spawn_bbox,
+            obj_list + distractors,
             max_attempts_per_object=25000,
             main_object_names=[o["name"] for o in obj_list],
         )
