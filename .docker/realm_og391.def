@@ -71,16 +71,21 @@ From: stanfordvl/behavior:3.9.1
     patch -p1 -d /behavior-src/OmniGibson < /opt/xform_prim_rootlink_og391.patch
     patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_rootlink_og391.patch
 
-    # REALM_LIGHT_FIX -- OPT-IN, OFF BY DEFAULT, so baking these in changes nothing until a run sets
-    # REALM_LIGHT_FIX=1. Two 3.9.1 changes cancel each other and leave a PER-SCENE lighting error:
+    # REALM_LIGHT_FIX -- ON BY DEFAULT as of 2026-08-18. AN IMAGE BUILT FROM THIS RECIPE IS
+    # 1.1.1-LIT UNLESS A RUN SETS REALM_LIGHT_FIX=0. This comment used to say the patches were
+    # opt-in and baking them in "changes nothing"; that stopped being true when the default flipped,
+    # and it is exactly the sentence that would let a rebuild change every recorded number silently.
+    #
+    # Two 3.9.1 changes cancel each other and leave a PER-SCENE lighting error:
     # FORCE_LIGHT_INTENSITY went 150000 -> 10000 while dataset_object.py started also writing
     # inputs:normalize = True, which divides emission by light AREA. The two cancel EXACTLY at
     # area = 1/15 m^2, so scenes whose lights sit near that already match 1.1.1 (push_switch x1.03)
     # and scenes with smaller lights are too bright (rotate_mug x1.56). Setting the flag restores
-    # 1.1.1's exact configuration; that does not MATCH 1.1.1 (a uniform ~20-30% excess remains) but
-    # it collapses the per-task spread from 0.53 to 0.11, turning a per-scene domain shift into one
-    # global gain. ONE change in two files -- 150000 WITH normalize=True is ~35x too bright, so they
-    # must never be applied separately; dataset_object.py asserts macros.py carries its half.
+    # 1.1.1's exact configuration; that does not MATCH 1.1.1 (a uniform ~15-35% excess remains) but
+    # it tightens the per-task spread from 0.596 to 0.276 over the 7 comparable tasks, turning a
+    # per-scene domain shift into one global gain. ONE change in two files -- 150000 WITH
+    # normalize=True is ~35x too bright, so they must never be applied separately;
+    # dataset_object.py asserts macros.py carries its half.
     patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_macros_og391.patch
     patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_dataset_object_og391.patch
 
