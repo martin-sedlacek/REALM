@@ -3,8 +3,9 @@
 #
 # Two tiers. The boundary is "does this need Isaac, the ~13 GB container and a GPU".
 #
-#   TIER 1 -- static. No container, no GPU, no dataset. Runs in GitHub Actions on every push and
-#             pull request (.github/workflows/static-checks.yml), and locally in ~1 s.
+#   TIER 1 -- static. No container, no GPU, no dataset. Runs locally in ~1 s. (No CI workflow
+#             invokes it yet -- .github/workflows/ holds only release.yml; wiring tier 1 into a
+#             push-time workflow is an open task.)
 #
 #               make lint          ruff, with .ruff.toml's deliberately narrow ruleset
 #               make test-static   the container-free tests
@@ -12,8 +13,8 @@
 #
 #   TIER 2 -- GPU. Needs the image, the dataset and a card. Runs by hand on Clara against a held
 #             Slurm allocation, and is written so a self-hosted GitHub runner could invoke the
-#             SAME entry point unchanged (.github/workflows/gpu-suite.yml -- see its header; no
-#             such runner is registered yet, that is a decision for Martin).
+#             SAME entry point unchanged (no such runner is registered yet, and no workflow file
+#             exists for it -- that is a decision for Martin).
 #
 #               ALLOC=<jobid> make test-smoke    ~12 min   the cheap gate
 #               ALLOC=<jobid> make test-suite    ~1.7 h    the gate before trusting a change
@@ -35,18 +36,18 @@
 #     ended PASS or SKIP".
 #   * `--junit-xml` writes a JUnit report ONCE, after the last test. Its ABSENCE means the driver
 #     itself died -- an OOM, a walltime kill, a node failure -- which no exit code can tell you.
-#     This is upstream BEHAVIOR-1K's gate (.github/workflows/tests.yml) and both workflows use it.
+#     This is upstream BEHAVIOR-1K's gate (their .github/workflows/tests.yml); adopt the same
+#     grep-the-XML pattern in any future CI workflow here.
 #
-# REALM HAS NO PYTEST SUITE. Every file in tests/ is named test_*.py, but none defines a
-# collectable test. `pytest tests/` collects ZERO items -- and collects them by IMPORTING each
-# module, which for five of the eight boots a full Isaac instance to find nothing. Do not use it.
+# ONE PYTEST FILE, OTHERWISE SCRIPTS. tests/test_perturbation_task_types.py is a real pytest
+# module (and host-safe: it delays its omnigibson import into fixtures) -- run it directly with
+# `pytest tests/test_perturbation_task_types.py`. Every OTHER test_*.py is a standalone script
+# with a printed verdict, driven by run_suite.py. Do NOT run `pytest tests/`: collection imports
+# every module, and several boot a full Isaac instance at import time just to be collected.
 #
-# EXPECT `make test-static` TO REPORT A FAILURE, and `make lint` to report 25 findings. Both are
-# the repository's real state, not a broken install:
-#   * tests/test_task_progression_rubrics was committed red on purpose (6835628): the `pour` rubric
-#     names a POUR stage success_conditions has no key for, and check_pour does not take `obs`.
-#     Both latent -- no shipped task declares `pour` -- both real.
-#   * ruff's 25 F401/F811 findings sit in realm/ (3), scripts/ (19) and tests/ (3).
+# `make test-static` and `make lint` are both expected GREEN (re-measured 2026-08-18: lint is at
+# zero findings, and the rubrics test passes since the POUR key/signature repair). A finding in
+# either is a real regression, not "the repository's known state".
 #
 # AND EXPECT `make test-smoke` / `make test-suite` TO REPORT A FAILURE AT THE DEFAULT MODE=stock.
 # test_scene_object_placement is MODE-sensitive BY DESIGN: it is the only test that looks at the
@@ -110,9 +111,9 @@ lint: ## ruff, using .ruff.toml (F401/F811 only -- see that file before widening
 	  echo "CI installs it per-run; nothing in REALM imports it."; exit 1; }
 	$(RUFF) check realm examples tests scripts
 
-test: ## Tier 1 only (1 of the suite's 12 entries), then print what it skipped
+test: ## Tier 1 only (the suite's 2 container-free entries), then print what it skipped
 	@echo "======================================================================================"
-	@echo " make test runs TIER 1 ONLY: 1 of the suite's 12 entries (which cover 8 test files)."
+	@echo " make test runs TIER 1 ONLY: 2 of the suite's 14 entries."
 	@echo ""
 	@echo " NOT RUN -- needs a GPU, the ~13 GB image and the ~36 GB dataset:"
 	@echo "   test_joint_reset_batching        joint-reset scheduling, in-container"
@@ -193,6 +194,7 @@ get_logs_karolina:
 		--exclude slurm-* \
 		--exclude *.npy \
 		--exclude *.png \
+		--exclude 'appdata/' \
 	 	sedlam@karolina.it4i.cz:/scratch/project/open-34-32/sedlam/projects/REALM/logs/ ./logs/
 
 run_interactive_karolina:
@@ -259,7 +261,8 @@ get_clara: ## Get source from remote source
 get_logs_clara:
 	rsync -av \
 		--exclude slurm-* \
-		--exclude *.png \
+		--exclude *.log \
+		--exclude 'appdata/' \
 	 	sedlam56@login01.clara.ciirc.cvut.cz:/home/sedlam56/projects/REALM/logs/ ./logs/
 
 #		--exclude *.npy \

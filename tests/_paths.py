@@ -14,40 +14,18 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 def scratch_log_root(name):
     """Absolute path for a test's throwaway log tree.
 
-    NOT `PROJECT_ROOT/logs/<name>`, which is what these tests used to use and which cannot work
-    inside the container. In this checkout `logs` is a SYMLINK to an absolute host path
-    (.../projects/REALM/logs); scripts/clara/interactive/rr binds the checkout at /app and the log
-    tree at /logs, and does NOT bind the symlink's target -- so `/app/logs` resolves to nothing and
-    the very first `os.makedirs()` dies with
-
-        FileNotFoundError: [Errno 2] No such file or directory: '/app/logs/<name>'
-
-    before a single task is evaluated. Measured 2026-08-16 on this branch. The symlink arrived with
-    the OG 3.9.1 port; under the retired `scripts/run_docker.sh` (`-v $(pwd):/app`) `logs` was a
-    real directory inside the checkout and `/app/logs` worked, which is why the tests were written
-    this way.
-
     Order: an explicit REALM_TEST_LOG_DIR wins, then the container's bound log tree at /logs, then
-    PROJECT_ROOT/logs for a plain host checkout that has a real logs directory.
+    PROJECT_ROOT/logs for a plain host checkout. NOT `/app/logs`: in this checkout `logs` is a
+    symlink whose target the clara `rr` binds do not mount, so `/app/logs` dangles in the
+    container and the first makedirs dies (measured; see docs/code_archaeology.md).
 
-    TWO SUITE RUNS CANNOT SHARE THIS PATH. The name is fixed per test -- there is no tree, pid or
-    invocation discriminator -- so two `tests/run_suite.py` invocations running at the same time,
-    typically one per allocation to compare two checkouts, write into the SAME
-    `/logs/<name>` tree. The parquets are appended to (`realm_logging.append_trajectory` reads the
-    existing file and concats), so the run that finishes second sees both runs' rows and
-    `check_artifacts` reports `FAIL_ROWS(2!=1)`.
-
-    Measured 2026-08-16: a before/after comparison run concurrently on 191494 and 191495 had its
-    `test_single_task_drawer` cell PASS on the tree that finished first (11:09:06) and FAIL on the
-    tree that finished second (11:10:18), with identical code on that path. It reads exactly like a
-    regression in the second tree and is not one.
-
-    So: **set REALM_TEST_LOG_DIR to a distinct path per concurrent invocation, or serialize the
-    runs.** The same hazard applies to tests/test_vector_integrity.py, which has no env override --
-    it writes to `<log_dir>/<experiment_name>/debug/t<task>_<pert>` and needs a distinct
-    `--experiment_name` instead. Do not "fix" this by relaxing the row count: the exact-rows check
-    is what made the collision visible at all, and it is the same check that stops a half-finished
-    sweep reading as complete.
+    TWO SUITE RUNS CANNOT SHARE THIS PATH: the name has no per-invocation discriminator, and the
+    parquets are appended to, so a concurrent run makes whichever finishes second report
+    FAIL_ROWS(2!=1) -- which reads exactly like a regression and is not one (measured on jobs
+    191494/191495; details in docs/code_archaeology.md). Set REALM_TEST_LOG_DIR to a distinct path
+    per concurrent invocation, or serialize; test_vector_integrity has no override and needs a
+    distinct --experiment_name instead. Do not "fix" this by relaxing the exact-rows check -- it
+    is what made the collision visible, and what stops a half-finished sweep reading as complete.
     """
     override = os.environ.get("REALM_TEST_LOG_DIR")
     if override:

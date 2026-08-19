@@ -170,26 +170,13 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
     def _finger_closure_threshold(self):
         """Finger joint value below which the gripper counts as "closing" on something.
 
-        The original test compared a bare literal 0.45 against the raw finger joint value, with no
-        units and no normalisation by joint range, so what it meant depended entirely on the asset.
-        On droid.usd the finger joints are PRISMATIC in metres over [0, 0.05], where 0.45 is 9x the
-        entire travel and the test is VACUOUSLY TRUE. On the robolab 2F-85 the same proprio indices
-        are REVOLUTE in radians over [0, 0.7854], where 0.45 lands mid-range and the test becomes
-        "less than ~57% closed" -- which a real grasp violates. Measured 2026-08-11 (job 189066):
-        with both pads on the block and the block lifted, finger_joint sits at 0.507-0.528, so this
-        rejected 78/78 genuine grasp steps and the asset could never score a GRASP. Because
-        recompute_task_progression breaks at the first unmet stage, that also froze LIFT/MOVE/PLACE
-        on rollouts that visibly completed the task.
-
-        Scaling by the robot's own open->closed range instead reproduces 0.45 EXACTLY for droid.usd
-        (9 * 0.05), so every historical result is bit-identical; for robolab it becomes 7.07 rad and
-        the test is vacuous there too, matching the behaviour the stock asset has always had.
-
-        NOTE: 0.45 is very likely a typo for 0.045, i.e. "the fingers stopped short of full closure,
-        so an object is between them" (90% of droid.usd's travel), which is a meaningful test rather
-        than a no-op. Deliberately NOT adopted here: it would make the guard bite on droid.usd for
-        the first time and could move every historical REALM number. Decide that separately, with a
-        measurement.
+        The 9.0x range scaling reproduces the historical bare literal 0.45 EXACTLY on droid.usd
+        (9 * 0.05 m of travel), where the test has always been vacuously true, while making the
+        robolab 2F-85 -- whose same proprio indices are radians, not metres -- equally vacuous
+        instead of grasp-rejecting (measured: 78/78 genuine grasp steps rejected, freezing every
+        later stage). 0.45 is very likely a typo for 0.045, which would make this a REAL test --
+        deliberately not adopted, since it could move every historical number. Full evidence and
+        the asset-by-asset numbers: docs/code_archaeology.md, "The finger-closure threshold".
         """
         profile = get_robot_obs_profile(self.robot.name)
         open_q, closed_q = profile["gripper_open_qpos"], profile["gripper_closed_qpos"]
