@@ -11,17 +11,29 @@ import torch
 # package, so the environment side does not pull in the inference client's transport deps.
 from realm.inference.utils import wrist_camera_obs_key
 
+#: THE canonical V-AUG draw ranges -- sigma for the Gaussian blur (0 = no blur), alpha for the
+#: contrast multiplier. Defined once here and imported by env_dynamic.py's per-reset draw.
+#:
+#: Canonicalised 2026-08-19 in the versioned number-moving batch (VERSION 1.0.0). Three sites used
+#: to disagree: env_dynamic's construction-time draw said (0-3.0, 0.5-2.0), its per-reset draw said
+#: (0-2.5, 0.25-1.5), and this module's None-fallback said (0-3.0, 0.25-1.5). The per-reset range
+#: wins because it is the only one that ever reached a rendered observation: the construction-time
+#: values were always overwritten by the per-reset draw before the first distortion, and the
+#: fallback only fires when this function is called standalone. So the canonical range is exactly
+#: what every recorded V-AUG rollout was actually produced with -- but the construction-time draw
+#: itself is now REMOVED, which shifts the shared RNG stream for V-AUG-active runs: V-AUG numbers
+#: recorded before 1.0.0 are not comparable. See CHANGE_LEDGER.md.
+SIGMA_RANGE = (0.0, 2.5)
+ALPHA_RANGE = (0.25, 1.5)
+
 
 def apply_blur_and_contrast(obs, sigma=None, alpha=None, robot_name='DROID'):
-    # 1. Random Gaussian Blur
-    # Sigma for Gaussian blur: 0 (no blur) to 3.0 (moderate blur)
+    # Standalone-call fallback: env_dynamic always passes the values it drew at reset from the
+    # same canonical ranges.
     if sigma is None:
-        sigma = np.random.uniform(0.0, 3.0)
-
-    # 2. Random Contrast Change
-    # Contrast factor (alpha): 0.25 (lower contrast) to 1.5 (higher contrast)
+        sigma = np.random.uniform(*SIGMA_RANGE)
     if alpha is None:
-        alpha = np.random.uniform(0.25, 1.5)
+        alpha = np.random.uniform(*ALPHA_RANGE)
 
     def apply_random_image_augmentations(image_float):
         # ksize (kernel size) should be positive and odd. If 0, it's computed from sigma.

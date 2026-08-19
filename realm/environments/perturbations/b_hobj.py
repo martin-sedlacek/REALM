@@ -52,8 +52,10 @@ def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:
     if base is None or set(base["mass"]) != set(obj._links) or set(base["joints"]) != set(obj.joints):
         base = {
             "mass": {name: float(link.mass) for name, link in obj._links.items()},
-            # (max_effort, stiffness, damping) per joint.
-            "joints": {name: (float(j.max_effort), float(j.stiffness), float(j.damping))
+            # (max_velocity, max_effort, stiffness, damping, friction) per joint -- the five
+            # JointPrim properties b_hobj scales, snapshot in the order it applies them.
+            "joints": {name: (float(j.max_velocity), float(j.max_effort), float(j.stiffness),
+                              float(j.damping), float(j.friction))
                        for name, j in obj.joints.items()},
         }
         env.b_hobj_baselines[key] = base
@@ -63,33 +65,36 @@ def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:
 def b_hobj(env: "RealmEnvironmentDynamic") -> None:
     """Scale the main object's mass and joint properties from their pristine baselines.
 
-    KNOWN ISSUE, deliberately not fixed in the behaviour-preserving cleanup pass: of the six
-    log-uniform factors drawn below, only s_meff / s_stif / s_damp are applied. Mass is scaled by
-    the UNRELATED uniform draw `s`, and s_mass / s_mvel / s_fric are discarded -- max velocity and
-    friction are never perturbed at all. Fixing this changes what B-HOBJ measures, so it is gated
-    with the other number-moving fixes. Until then the draws must stay exactly as they are: they
-    advance the shared RNG stream, and removing one would shift every draw after it.
+    Six independent log-uniform factors, e^U(-1,1) i.e. ~[0.37, 2.72], scale mass and the five
+    JointPrim properties (max velocity, max effort, stiffness, damping, friction). Mass is clipped
+    at MASS_CLIP_KG. All six setters exist and write through the articulation view in OmniGibson
+    3.9.1 (prims/joint_prim.py).
+
+    FIXED 2026-08-19 in the versioned number-moving batch (VERSION 1.0.0, owner call: recompute
+    rather than preserve): previously only s_meff / s_stif / s_damp were applied -- mass was scaled
+    by an UNRELATED U(0.25, 3) draw and s_mass / s_mvel / s_fric were discarded, so max velocity
+    and friction were never perturbed at all. That extra uniform draw is now REMOVED, which shifts
+    the shared RNG stream: B-HOBJ numbers recorded before 1.0.0 are not comparable and must be
+    recomputed. See CHANGE_LEDGER.md.
     """
-    s = np.random.uniform(0.25, 3)
     s_mass, s_mvel, s_meff, s_stif, s_damp, s_fric = np.exp(np.random.uniform(-1, 1, size=(6,)))
     for obj in env.main_objects:
         base = _baselines(env, obj)
 
         for name, link in obj._links.items():
-            link.mass = min(base["mass"][name] * s, MASS_CLIP_KG)  # clip at 2.0kg payload
+            link.mass = min(base["mass"][name] * s_mass, MASS_CLIP_KG)  # clip at 2.0kg payload
 
         for name, joint in obj.joints.items():
             joint: JointPrim
-            base_effort, base_stiffness, base_damping = base["joints"][name]
+            base_mvel, base_meff, base_stif, base_damp, base_fric = base["joints"][name]
             # float() rather than leaving the numpy scalar in: the setters build the tensor
             # themselves, and a np.float64 would make it a float64 tensor where the articulation
             # view expects float32.
             #
-            # The setters ARE the writes -- JointPrim.max_effort/stiffness/damping call
-            # set_max_efforts/set_gains on the articulation view. This used to repeat all three
-            # calls by hand immediately afterwards with the same values; that was a no-op (each
-            # write is an unconditional assignment, so applying the group twice lands in the same
-            # place) and only obscured which line was doing the work.
-            joint.max_effort = float(base_effort * s_meff)
-            joint.stiffness = float(base_stiffness * s_stif)
-            joint.damping = float(base_damping * s_damp)
+            # The setters ARE the writes -- JointPrim's property setters call set_max_velocities /
+            # set_max_efforts / set_gains / set_friction_coefficients on the articulation view.
+            joint.max_velocity = float(base_mvel * s_mvel)
+            joint.max_effort = float(base_meff * s_meff)
+            joint.stiffness = float(base_stif * s_stif)
+            joint.damping = float(base_damp * s_damp)
+            joint.friction = float(base_fric * s_fric)

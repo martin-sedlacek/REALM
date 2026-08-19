@@ -8,6 +8,30 @@ Session range: REALM `ecff61f..ab8d31d` (123 commits), OG-lite `e30899f..83b21d5
 
 ---
 
+## 1.0.0 — first major release: the restructure + the number-moving batch (2026-08-19)
+
+1.0.0 is the release boundary for the whole 2026-08-18/19 body of work, owner's call: everything
+from `b9a6fb3` onward falls under it. The bulk is **behaviour-preserving by construction** and
+verified with old-vs-new equivalence harnesses (bit-identical outputs incl. RNG stream state):
+the perturbations decomposition, Phase-0 dead-code deletion, robots fail-fast + IK documentation,
+inference-client adapters, logging dedup, `realm/paths.py`, the upstream drawer-fix merge, the
+test-driver dedup, and the CLAUDE.md/wiki realignment. None of that moves a number.
+
+**The three fixes below DO CHANGE BENCHMARK SCORES**, and they are why the major version turns.
+They had been flagged `KNOWN ISSUE` in place and gated since the behaviour-preserving cleanup
+passes; the owner's call on 2026-08-19 was to fix them and recompute rather than preserve. Every
+B-HOBJ cell, every push-task VB-POSE cell, and every V-AUG cell recorded before 1.0.0 is **not
+comparable** to a 1.0.0+ run and must be recomputed. All three ship in one commit under this
+VERSION so "which semantics produced this number" is answerable from the tag alone.
+
+| where | what changed | blast radius | revert |
+| --- | --- | --- | --- |
+| `b_hobj.py` | The six log-uniform factors are now all APPLIED: mass is scaled by `s_mass` (was: an unrelated `U(0.25, 3)` draw), and the previously discarded `s_mvel` / `s_fric` now scale `joint.max_velocity` / `joint.friction` (setters verified present in OmniGibson 3.9.1 `prims/joint_prim.py`). The unrelated uniform draw is REMOVED, shifting the shared RNG stream. Baselines snapshot all five joint properties. | every B-HOBJ cell: different mass distribution (log-uniform ~[0.37, 2.72] vs uniform [0.25, 3]), joints now also vary max-velocity and friction, and every RNG draw after b_hobj's shifts | revert the 1.0.0 commit |
+| `vb_pose.py::_perturb_switch` | The nudge no longer aliases `env.init_poses[...]["pos"]` — it offsets a `clone()` — so the switch offset no longer COMPOUNDS across resets: repeat N perturbs from the authored pose, not from wherever repeat N-1 left it. `init_poses` is no longer mutated by VB-POSE. | push-task (task 7) VB-POSE cells only; repeat 1 unchanged, repeats 2+ see smaller (non-accumulated) offsets | revert the 1.0.0 commit |
+| `v_aug.py` + `env_dynamic.py` | One canonical draw range, `SIGMA_RANGE=(0, 2.5)` / `ALPHA_RANGE=(0.25, 1.5)` in `v_aug.py`, imported by the per-reset draw. Chosen because it is the only range that ever reached a rendered observation — the construction-time draw (`0-3.0` / `0.5-2.0`) was always overwritten before the first distortion. That dead construction-time draw is REMOVED, shifting the shared RNG stream for V-AUG-active runs. | every V-AUG cell: identical distortion distribution, but different concrete draws (stream shift) | revert the 1.0.0 commit |
+
+---
+
 ## 1. OG-lite — the risky ones, because they are engine-wide
 
 OG-lite is bound over the image's OmniGibson only when `MODE=oglite`. `rr` defaults to `MODE=stock`,

@@ -4,8 +4,8 @@ Push tasks get a switch-specific nudge (`_perturb_switch`); everything else gets
 re-placement of the movable objects plus rotation noise on the main objects (`_perturb_tabletop`).
 
 What one call mutates on @env: ``cfg["objects"]`` positions (tabletop branch -- the placement pass
-writes them in place), the live objects' poses, and -- push branch only, see the KNOWN ISSUE
-inside -- ``init_poses``.
+writes them in place) and the live objects' poses. ``init_poses`` is read but never mutated (the
+push branch used to alias into it and compound across resets; fixed in the 1.0.0 batch).
 """
 from __future__ import annotations
 
@@ -95,17 +95,18 @@ def _perturb_switch(env: "RealmEnvironmentDynamic") -> None:
     for obj_cfg in env.cfg["objects"]:
         if obj_cfg["name"] == "electric_switch":
             obj = env.omnigibson_env.scene.object_registry("name", obj_cfg["name"])
-            # KNOWN ISSUE, deliberately not fixed in the behaviour-preserving cleanup pass:
-            # init_pos ALIASES env.init_poses[...]["pos"], so the += below mutates the stored
-            # reference and the offsets COMPOUND across resets -- the switch drifts further every
-            # reset. Fixing it changes what VB-POSE has historically measured on push tasks, so it
-            # is gated with the other number-moving fixes rather than slipped into a refactor.
-            init_pos = env.init_poses[obj._relative_prim_path]["pos"]
-            init_pos[2] += delta_z
-            init_pos[0] += delta_xy # TODO: this is only for pomaria light switch, elsewhere it might be y axis on the wall...
+            # clone() is load-bearing. FIXED 2026-08-19 in the versioned number-moving batch
+            # (VERSION 1.0.0, owner call: recompute rather than preserve): this used to alias the
+            # stored tensor and += into it, so the offsets COMPOUNDED across resets -- repeat N
+            # nudged the switch from wherever repeat N-1 left it, not from its authored pose.
+            # Every reset now offsets from the same pristine init pose, and env.init_poses is no
+            # longer mutated. Push-task VB-POSE numbers recorded before 1.0.0 are not comparable.
+            new_pos = env.init_poses[obj._relative_prim_path]["pos"].clone()
+            new_pos[2] += delta_z
+            new_pos[0] += delta_xy # TODO: this is only for pomaria light switch, elsewhere it might be y axis on the wall...
             # world frame here: env.init_poses is captured with get_position_orientation()'s
             # default (world), so this branch reads and writes the same frame throughout.
-            _place(obj, position=init_pos, frame="world")
+            _place(obj, position=new_pos, frame="world")
 
 
 def _perturb_tabletop(env: "RealmEnvironmentDynamic") -> None:

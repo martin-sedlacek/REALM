@@ -1,8 +1,10 @@
 """Do B-HOBJ's physical-property perturbations COMPOUND across resets?
 
-B-HOBJ (realm/environments/perturbations/b_hobj.py) rescales the payload's mass, joint stiffness,
-joint damping and joint max-effort by a fresh random factor on every reset. Every one of those
-writes used to READ THE CURRENT VALUE and multiply it:
+B-HOBJ (realm/environments/perturbations/b_hobj.py) rescales the payload's mass and its joints'
+max-velocity, max-effort, stiffness, damping and friction by a fresh random factor on every reset
+(max-velocity and friction since the 1.0.0 number-moving batch; before it those two draws were
+discarded and mass used an unrelated uniform draw). Every one of those writes used to READ THE
+CURRENT VALUE and multiply it:
 
     link.mass       = min(link.mass * s, 2.0)
     joint.stiffness = joint.stiffness * s_stif      # and damping, and max_effort
@@ -25,8 +27,8 @@ which separates the two questions that matter:
   1. DOES RESET RESTORE?  pre[r] vs post[r-1]. Equal => reset restores nothing, so a read-current-
      and-multiply perturbation necessarily compounds. This is the premise being tested, not assumed.
   2. DOES IT COMPOUND?    post[r]/baseline must stay inside the range of ONE draw:
-        joints: exp(U(-1, 1))  = [1/e, e]
-        mass:   U(0.25, 3), then clipped to 2.0 kg
+        joints AND mass: exp(U(-1, 1)) = [1/e, e]  (mass additionally clipped to 2.0 kg)
+     (Before 1.0.0 mass was U(0.25, 3); the --legacy path still is, and is expected to fail.)
      A ratio outside that band is proof of compounding, and its size says how bad it is.
   3. IS IT STILL A PERTURBATION?  the ratios must VARY across resets. A "fix" that scales from the
      baseline but always by the same factor -- or that stops writing at all -- would satisfy (2)
@@ -55,12 +57,13 @@ from realm.sim_config import set_sim_config
 # Bounds of a SINGLE b_hobj draw. Kept here rather than imported so the probe still fails if a
 # future edit widens the distribution in b_hobj without anyone thinking about the consequences.
 JOINT_LO, JOINT_HI = math.exp(-1.0), math.exp(1.0)   # exp(U(-1, 1))
-MASS_LO, MASS_HI = 0.25, 3.0                          # U(0.25, 3)
+# Since 1.0.0, mass draws from the same log-uniform as the joints (it used to be U(0.25, 3)).
+MASS_LO, MASS_HI = JOINT_LO, JOINT_HI
 MASS_CLIP = 2.0                                       # b_hobj clips the payload at 2 kg
 TOL = 1e-3          # float32 round-trip through the articulation view
 VARY_TOL = 1e-6     # below this two ratios are "the same value", i.e. the property is frozen
 
-JOINT_PROPS = ("max_effort", "stiffness", "damping")
+JOINT_PROPS = ("max_velocity", "max_effort", "stiffness", "damping", "friction")
 
 
 def legacy_b_hobj(env):

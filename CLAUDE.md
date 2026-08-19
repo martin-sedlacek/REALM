@@ -18,10 +18,12 @@ here is pip-installable — code runs with the repo on `PYTHONPATH`.
 wrong.** Concretely:
 - Refactors must preserve behavior bit-for-bit, including **RNG draw order** — removing or
   reordering a single `np.random`/`random` call shifts every draw after it. Dead draws are kept
-  and commented (see `b_hobj.py`) rather than deleted.
+  and commented rather than deleted.
 - Known number-moving bugs are flagged `KNOWN ISSUE` in place and fixed only in a gated batch
-  behind a `VERSION` bump (current gated set: `b_hobj`'s discarded scale factors, `vb_pose`'s
-  compounding `init_poses` drift, the V-AUG range disagreement).
+  behind a `VERSION` bump. The 1.0.0 batch (2026-08-19, see CHANGE_LEDGER.md) shipped the last
+  gated set — `b_hobj`'s discarded scale factors, `vb_pose`'s compounding `init_poses` drift, the
+  V-AUG range disagreement — so B-HOBJ / push-task VB-POSE / V-AUG numbers recorded before 1.0.0
+  are not comparable and are being recomputed.
 - Repeats deliberately share one seed stream (`sim_config.set_sim_config`, seed 1234); they are
   not reseeded per rollout.
 

@@ -105,6 +105,30 @@ Expect a normal debug rollout (the debug adapter returns a fixed EE pose). An
 `AssertionError: Unsupported ik mode ...` here would mean a config names a mode I mis-classified
 — paste the config name and the assert text.
 
+## 5b. The 1.0.0 number-moving batch — first live run (~20 min)
+
+Owner call 2026-08-19: the three gated fixes shipped (VERSION 1.0.0, see CHANGE_LEDGER.md).
+**These deliberately change scores** — B-HOBJ, push-task VB-POSE and V-AUG numbers recorded
+before 1.0.0 must be recomputed, so a diff against an old run is EXPECTED here, not a finding.
+What to verify is the new behavior itself:
+
+```bash
+# B-HOBJ: mass now log-uniform from baseline; max_velocity + friction now perturbed too.
+# The probe's bounds and JOINT_PROPS are already updated for 1.0.0.
+./run python -u scripts/clara/interactive/t10_bhobj_props.py --resets 6 --task_id 0
+./run python -u scripts/clara/interactive/t10_bhobj_props.py --resets 4 --task_id 8   # joint path
+# expect: PASSED (no compounding, nothing frozen). If max_velocity/friction error on WRITE,
+# paste the traceback -- the setters were verified against OmniGibson 3.9.1 source, not live.
+
+# VB-POSE push task: the switch offset must NOT accumulate across repeats.
+sbatch scripts/clara/run_debug_single.sh --task_id 7 --perturbation_id 13 --model_type debug \
+    --repeats 3 --experiment_name vbpose_push_100
+# check the log: each reset's switch position within +/-0.075/+/-0.15 m of the SAME base pose.
+
+# V-AUG: covered by the pert-integrity smoke (item 3) -- same distortion distribution,
+# different concrete draws. Nothing V-AUG-specific to eyeball.
+```
+
 ## 6. Optional — direct A/B number-neutrality proof (~30 min)
 
 Only if you want belt-and-braces on top of the offline equivalence: same seed, same task, debug
@@ -116,7 +140,10 @@ git worktree add ../REALM_pre 643d7c9        # last commit before the refactor c
 #   python examples/02_evaluate.py --task_id 0 --perturbation_id 13 --repeats 2 --max_steps 100 \
 #       --model_type debug --model_name debug --port 1 --experiment_name ab_check --log_dir <distinct dirs>
 diff <old>/reports/put_green_block_into_bowl_VB-POSE.csv <new>/reports/put_green_block_into_bowl_VB-POSE.csv
-# expect: identical rows. VB-POSE/V-SC/SB-VRB are the perturbations worth A/B-ing (placement RNG).
+# expect: identical rows. VB-POSE(tabletop)/V-SC/SB-VRB are the perturbations worth A/B-ing
+# (placement RNG). CAVEAT since 1.0.0: run the NEW side at the commit *before* the 1.0.0 batch,
+# or skip B-HOBJ, push-task VB-POSE and V-AUG -- those three now differ BY DESIGN (see
+# CHANGE_LEDGER.md), so a diff there is expected and proves nothing about the refactor.
 git worktree remove ../REALM_pre
 ```
 

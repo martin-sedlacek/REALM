@@ -26,7 +26,7 @@ from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIG
 from realm.environments.env_base import RealmEnvironmentBase
 from realm.environments.env_config import build_environment_config
 from realm.environments.perturbations.registry import PERTURBATION_FNS
-from realm.environments.perturbations.v_aug import apply_blur_and_contrast
+from realm.environments.perturbations.v_aug import ALPHA_RANGE, SIGMA_RANGE, apply_blur_and_contrast
 from realm.environments.scene_setup import SceneSetupMixin
 from realm.geometry import (
     calculate_new_camera_pose_mixed_rotations,
@@ -157,9 +157,13 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         if "VSB-NOBJ" in self.active_perturbations and self.task_type in ["open_drawer", "close_drawer"]:
             self.init_poses[self.main_objects[0]._relative_prim_path]["pos"][-1] += 0.3
 
-        if "V-AUG" in self.active_perturbations:
-            self.v_aug_sigma = np.random.uniform(0.0, 3.0)
-            self.v_aug_alpha = np.random.uniform(0.5, 2.0)
+        # No draw here. The construction-time V-AUG draw that used to live at this point was dead
+        # values, live draws: apply_perturbations() redraws sigma/alpha on every reset BEFORE the
+        # first distortion, so these values never reached an observation -- the draw only advanced
+        # the shared RNG stream (and from a range that disagreed with the per-reset one). Removed
+        # in the 1.0.0 number-moving batch; the canonical ranges live in v_aug.py.
+        self.v_aug_sigma = None
+        self.v_aug_alpha = None
 
         self.update_robot_physics()
         # Ordered before apply_scene_fixes_from_cfg() / rebase_initial_file(), so the restored
@@ -232,8 +236,8 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         for p in self.active_perturbations:
             self.supported_pertrubations[p]()
         if "V-AUG" in self.active_perturbations:
-            self.v_aug_sigma = np.random.uniform(0.0, 2.5)
-            self.v_aug_alpha = np.random.uniform(0.25, 1.5)
+            self.v_aug_sigma = np.random.uniform(*SIGMA_RANGE)
+            self.v_aug_alpha = np.random.uniform(*ALPHA_RANGE)
         obs = self._distort_if_v_aug(obs)
 
         # LAST, once every perturbation has run: SB-NOUN, VSB-NOBJ and VB-MOBJ all re-point
