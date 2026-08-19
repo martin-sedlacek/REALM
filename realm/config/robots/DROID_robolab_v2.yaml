@@ -16,33 +16,44 @@ robots:
     # puts it ~0.86 m up. env_config.py:111 adds DROID_BASE_HEIGHT (0.86244) to the spawn point when
     # this is false, because a REALM_DROID10 task's scene position is the *bottom of the column*.
     #
-    # DO NOT point this model at droid_robolab_v2_mounted.usd. Tried on 2026-08-19 and REVERTED the
-    # same day: it breaks the vectorized eval path for EVERY task with
+    # DO NOT point this model at droid_robolab_v2_mounted.usd without re-testing on the VECTOR path.
+    # Tried on 2026-08-19 and reverted the same day, because on Clara the vectorized path failed with
     #
     #     ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
     #
-    # i.e. the robot's articulation does not contain the arm joints at all. Measured: 2:Default and
-    # 6:Default both CRASH (logs/tasks26_0819), while task 0 through the single-env path passed --
-    # so an 02_evaluate.py check is NOT sufficient to clear an asset swap.
+    # i.e. the robot's articulation did not contain the arm joints at all. Scope of that observation,
+    # stated exactly: TWO cells (2:Default, 6:Default) at num_envs=2. NOT "every task" -- task 0 passed
+    # on the single-env path with the same asset, so an 02_evaluate.py check cannot clear an asset swap
+    # for the vector path, and the reverse is also true: this failure has not been reproduced anywhere
+    # except num_envs=2 on this machine.
     #
-    # ROOT CAUSE, from entity_prim.py:220-241. OmniGibson infers the root link as the one link that is
-    # no joint's child, and it only counts a joint's child IF THAT JOINT HAS A body0 TARGET (a joint
-    # with empty body0 is read as a world attachment and skipped). When that inference does not yield
-    # exactly one candidate it falls back to the LITERAL NAME "base_link":
+    # ROOT CAUSE: STILL UNKNOWN. An earlier version of this comment blamed the root-link fallback at
+    # entity_prim.py:241 ("base_link" when the inference does not yield exactly one candidate) and told
+    # the next reader to re-author panda_table_joint with an explicit body0. THAT WAS WRONG and is
+    # retracted -- it was an inference from the exception text, never measured. Measured afterwards, by
+    # replicating OmniGibson's own inference on the stage (logs/mountedasset/rootlink.log):
     #
-    #     self._root_link_name = valid_root_links[0] if len(valid_root_links) == 1 else "base_link"
+    #   droid_robolab_v2.usd          parentless: ['panda_link0']   -> root_link_name 'panda_link0'
+    #   droid_robolab_v2_mounted.usd  parentless: ['table']         -> root_link_name 'table'
+    #   droid_mounted.usd (stock)     parentless: 3 links           -> FALLBACK -> 'base_link'
     #
-    # In this asset `base_link` is the GRIPPER base (see the definition's joint-topology comment), not
-    # a mount. So any mounted variant that leaves two parentless links -- e.g. `table` and
-    # `panda_link0`, if `panda_table_joint` is authored without a body0 -- roots the articulation at
-    # the GRIPPER, and every arm joint disappears from robot.joints.
+    # So the mounted asset resolves to ONE clean root and every joint in it has both body0 and body1.
+    # The fallback does not fire for it. Note the stock mounted asset is the one that DOES rely on the
+    # fallback, and works -- so the fallback is not the problem either.
     #
-    # WHAT WOULD MAKE IT WORK: author `panda_table_joint` as a real link-to-link fixed joint with
-    # body0 = the mount link and body1 = panda_link0, so the mount is the unique parentless link. Then
-    # `valid_root_links == ["table"]` and the fallback never fires. (Stock droid_mounted.usd gets this
-    # right and loads fine.) Naming the mount `base_link` would also work but collides with the
-    # gripper base here.
+    # What IS established, by measurement:
+    #   * mounted asset, vector path, num_envs=2: 2:Default and 6:Default CRASH (logs/tasks26_0819)
+    #   * bare asset, same cells, same configs:   both PASS            (logs/bare_recheck_0819)
+    #     -> the asset is the difference; the task configs are fine.
+    #   * mounted asset, SINGLE-env path (02_evaluate.py), task 0: PASSES (t4_default_check.sh)
+    #   * Martin reports tasks 2 and 6 running fine locally with the mounted asset, in the container.
+    #     -> whatever this is, it is not the asset ALONE. Suspect the vector path (in_vec_env=True),
+    #        which is where every crash came from, but that is not yet isolated.
     #
+    # The unexplained part is why robot.joints lacks the arm joints at all -- root_link_name 'table' is
+    # not a link any config names (arm_link_names lists panda_link0..7), so the next thing to check is
+    # whether ArticulationView(f"{prim_path}/table") (entity_prim.py:141) resolves to the same
+    # articulation that PhysicsArticulationRootAPI is authored on.
     # Measured heights, kept because they are the numbers any retry needs
     # (logs/mountedasset/probe.log):
     #
