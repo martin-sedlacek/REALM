@@ -362,8 +362,22 @@ def run_one(name, spec, args, outdir):
     }
 
 
-def print_table(results, out, blob):
-    """The pass/fail table. Exit codes are shown because they are recorded, not because they gate."""
+def print_table(results, out, blob, ran=None):
+    """The pass/fail table. Exit codes are shown because they are recorded, not because they gate.
+
+    `ran` is the set of test names THIS invocation actually executed; anything else in `results` was
+    merged in from an earlier invocation against the same --out and is marked `*`, with the counts
+    split. Pass None (--report) to mark nothing, since then nothing was run.
+
+    WHY THE MARK EXISTS. Gating was always correct -- `mine` decides the exit status and the JUnit XML
+    -- but the TABLE printed merged rows indistinguishably and the `PASS=n` line counted them. So
+    `make check`, which runs two container-free tests, printed a 9-row table ending `PASS=9` including
+    `test_perturbations_integrity PASS 48 cells` from a stale earlier run. On 2026-08-19 that stale row
+    directly contradicted a FAIL measured against the same tree twenty minutes earlier (the B-HOBJ
+    dtype crash), and it read as fresh evidence that the GPU tier was green.
+    In a suite whose first rule is that verdicts come from printed lines and never from exit codes, a
+    printed line that silently mixes this run with an old one is the wrong failure mode.
+    """
     if blob:
         print(f"generated {blob.get('generated')}  jobid={blob.get('jobid')}")
     # MODE is per RESULT, never a header field: this file accumulates across invocations and the
@@ -374,13 +388,28 @@ def print_table(results, out, blob):
           f"timed_out")
     print("-" * 116)
     for r in results:
-        print(f"{r['name']:<40}{r['status']:<22}{r.get('mode', '?'):<8}{r['seconds']:>9}  "
+        stale = ran is not None and r["name"] not in ran
+        print(f"{('* ' if stale else '  ') + r['name']:<40}{r['status']:<22}"
+              f"{r.get('mode', '?'):<8}{r['seconds']:>9}  "
               f"{r['exit_code']:>5}  {len(r.get('cells', [])):>6}  {r['timed_out']}")
     print("=" * 116)
-    counts = {}
-    for r in results:
-        counts[r["status"]] = counts.get(r["status"], 0) + 1
-    print("  ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+
+    def _counts(rows):
+        c = {}
+        for r in rows:
+            c[r["status"]] = c.get(r["status"], 0) + 1
+        return "  ".join(f"{k}={v}" for k, v in sorted(c.items())) or "none"
+
+    if ran is None:
+        print(_counts(results))
+    else:
+        fresh = [r for r in results if r["name"] in ran]
+        merged = [r for r in results if r["name"] not in ran]
+        print(f"this run: {_counts(fresh)}")
+        if merged:
+            # Spelled out rather than just marked: the whole point is that a reader skimming for
+            # "PASS=n" does not silently credit this run with an older tier's result.
+            print(f"* merged from earlier runs against this --out, NOT run now: {_counts(merged)}")
     print(f"results: {out}")
 
 
@@ -572,7 +601,7 @@ def main():
     # failure in this run's CI report.
     mine = [r for r in results if r["name"] in names]
 
-    print_table(results, out, None)
+    print_table(results, out, None, ran=set(names))
     if args.junit_xml:
         write_junit(mine, args.junit_xml)
     return verdict_status(mine, args.strict)

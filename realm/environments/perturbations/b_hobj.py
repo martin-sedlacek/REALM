@@ -82,7 +82,21 @@ def b_hobj(env: "RealmEnvironmentDynamic") -> None:
         base = _baselines(env, obj)
 
         for name, link in obj._links.items():
-            link.mass = min(base["mass"][name] * s_mass, MASS_CLIP_KG)  # clip at 2.0kg payload
+            # float() for the same reason as the joint setters below -- and it is NOT redundant here
+            # even though min() looks like it returns a plain float. `base["mass"][name] * s_mass` is
+            # an np.float64 (s_mass comes from np.random), and min() returns whichever OPERAND is
+            # smaller, keeping its type: below the clip it hands back the np.float64, at the clip it
+            # hands back the Python MASS_CLIP_KG. So the dtype of what gets written depends on the
+            # DRAW, and only the under-clip branch is wrong.
+            #
+            # Uncast, that branch reaches RigidDynamicPrim.mass -> th.tensor([np.float64]) -> a float64
+            # tensor -> set_masses' `dst[indices] = src` against a float32 destination:
+            #   RuntimeError: Index put requires the source and destination dtypes match,
+            #                 got Float for the destination and Double for the source.
+            # then a SIGSEGV at teardown. Measured 2026-08-19, first live B-HOBJ run after the 1.0.0
+            # batch (logs/todo_clara/item3_logs); object masses here sit well under 2 kg, so the bad
+            # branch is the usual one. No number moves: Isaac stores masses as float32 either way.
+            link.mass = float(min(base["mass"][name] * s_mass, MASS_CLIP_KG))  # clip at 2.0kg payload
 
         for name, joint in obj.joints.items():
             joint: JointPrim
