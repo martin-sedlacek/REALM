@@ -8,10 +8,10 @@ DEFAULT_RESET_JOINTPOS = np.array([0, -1 / 5 * np.pi, 0, -4 / 5 * np.pi, 0, 3 / 
 # bottom of the column (has_base_column: false) must be raised by this much on base-mounted tasks,
 # and it is added when converting between robot- and world-frame poses.
 #
-# THIS CONSTANT IS NOT EXACT FOR ANY ASSET, and that is a deliberate 2026-08-19 decision, not an
-# oversight. Measured panda_link0 heights (logs/mountedasset/probe.log):
+# THIS CONSTANT IS NOT EXACT FOR THE ASSET IT WAS FITTED TO, and leaving it that way is a deliberate
+# 2026-08-19 decision, not an oversight. Measured panda_link0 heights (logs/mountedasset/probe.log):
 #
-#     droid_robolab_v2_mounted.usd   0.863891   <- what DROID_robolab_v2 loads since ef9810b
+#     droid_robolab_v2_mounted.usd   0.863891   <- NOT loaded; the switch to it was reverted in bda06da
 #     droid_mounted.usd (stock)      0.862880   <- what this constant was fitted to
 #     this constant                  0.86244
 #
