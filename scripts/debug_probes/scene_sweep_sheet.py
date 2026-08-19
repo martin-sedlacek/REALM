@@ -52,11 +52,27 @@ FLAGS = {
 #                           before the frame is taken
 #
 # So task 9 stays CONFOUNDED -- the two stacks genuinely are not photographing the same content --
-# but the START STATE is not the reason and must not be cited as one. Why og391's exterior camera
-# does not show a cabinet that is measurably present, upright, at the config pose and holding an
-# open drawer is UNEXPLAINED; the open lead is that og391 logs a material fallback on exactly this
-# asset ("Material prim at .../drawer/Materials/Material_Cabinet_{Body,Drawer} ... does not have a
-# known shader file associated with it"). Do not turn that lead into a cause without measuring it.
+# but the START STATE is not the reason and must not be cited as one.
+#
+# NO LONGER UNEXPLAINED, 2026-08-19. This block used to end "Why og391's exterior camera does not
+# show a cabinet that is measurably present, upright, at the config pose and holding an open drawer
+# is UNEXPLAINED", with a material fallback on Material_Cabinet_{Body,Drawer} as the open lead. That
+# lead was MEASURED AND RULED OUT (it is MaterialPrim.get_material() failing to pick a subclass, not
+# a binding failure: 0 meshes have a missing or dangling material). The cause is `8598e59`:
+# OmniGibson sets purpose = "guide" on collision geoms, this asset's render meshes ARE its collision
+# geoms, and all 56 came out `guide` -- the default+render purpose world bound was EMPTY and the
+# cabinet contributed 0 px on all three cameras. Fixed REALM-side by
+# restore_double_duty_render_purpose() in scene_setup.py.
+#
+# TWO CONSEQUENCES THIS FILE DOES NOT YET ACT ON, deliberately -- changing either would silently
+# restate published numbers, so they are decisions, not cleanups:
+#   1. Task 8's flag above, "1.1.1 has one extra object", is this same bug misread. The extra object
+#      IS the cabinet; og391 was not drawing it. On the evidence task 8 belongs in CONFOUNDED and is
+#      not in it, so the "comparable tasks" set below includes a task where og391 is missing a whole
+#      object from frame.
+#   2. Every task-8 and task-9 SCORE ever recorded is invalid for the same reason -- the policy was
+#      scored on a scene with the manipulation target absent from all of its inputs. Not failed:
+#      invalid. See CHANGE_LEDGER.md section 3.
 CONFOUNDED = (2, 6, 9)
 
 # The three tasks measured in the previous session, and the label each stack wrote there.

@@ -43,8 +43,18 @@ REF_PREFIX = {0: "og111_post_t0__baseline__", 3: "og111_rt_clean__baseline__",
 # layout and not tone. Carried over from scene_sweep_sheet.py, which established each one from the
 # frames. Still reported; never counted as a lighting result.
 # Task 9's flag was "og391: drawer not open at reset" and that is MEASURED FALSE -- see the
-# retraction at scene_sweep_sheet.py's FLAGS, which carries the numbers. It stays confounded, but
-# for an unexplained reason, not for its start state.
+# retraction at scene_sweep_sheet.py's FLAGS, which carries the numbers. It stays confounded, and
+# as of 2026-08-19 the reason is known rather than unexplained: `8598e59`, OmniGibson guiding the
+# cabinet's double-duty geometry, so all 56 geoms rendered as purpose="guide" and the asset
+# contributed 0 px to every camera. The material-fallback lead this file used to point at was
+# measured and ruled out.
+#
+# NOT ACTED ON HERE, because it would restate published numbers rather than fix a comment: task 8's
+# flag below is the same bug misread ("the extra object" IS the cabinet), so on the evidence task 8
+# is confounded too and is absent from CONFOUNDED -- which means the "comparable tasks" set that
+# `comparable` builds below, and every quotation of the spread that comes off it, includes a task
+# where og391 is missing an entire object from frame. Re-deriving that number is a measurement
+# decision. See scene_sweep_sheet.py's FLAGS block.
 CONFOUNDED = (2, 6, 9)
 FLAGS = {2: "og391: objects off the surface", 6: "og391: objects off the surface",
          8: "1.1.1 has one extra object",

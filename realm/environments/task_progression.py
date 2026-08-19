@@ -130,8 +130,15 @@ class TaskProgressionMixin:
         branch returns ``is_touching(obs, mo)``, which is exactly ``check_touch_condition``'s body
         -- so the branch drops the two centre-distance disjuncts and keeps the touch term. Any
         drawer rollout that scored REACH on touch still does; one that scored it purely on being
-        within 10 cm of the cabinet's origin no longer does. Drawer ``task_progression`` numbers
-        recorded before this date are therefore an upper bound on what this code now reports.
+        within 10 cm of the cabinet's origin no longer does.
+
+        Do NOT reach for the obvious next sentence, that pre-2026-08-16 drawer
+        ``task_progression`` numbers are an upper bound on what this code now reports. They are not
+        a bound on anything. The `impact_drawer` cabinet carried ``purpose = "guide"`` on all 56 of
+        its geoms until `8598e59`, so it contributed 0 px to every camera including the wrist: every
+        drawer rollout on record was scored on a scene where the object to be manipulated was absent
+        from the policy's inputs. Those cells are INVALID, not failed, and rescoring them under any
+        rubric -- this one or the old one -- does not recover a measurement.
         """
         mo = self.main_objects[0]
 
