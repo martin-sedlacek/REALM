@@ -30,7 +30,7 @@ default_controllers:
   arm_0: CustomJointController
   gripper_0: CustomGripperController
 
-usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_v2.usd"
+usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_v2_mounted.usd"
 
 # Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
 # Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the
@@ -106,7 +106,7 @@ manipulation:
   # is enough -- and listing followers here would have the controller fight its own linkage.
   # NOTE: this joint is inverted relative to OmniGibson's convention (0 rad = open, upper limit =
   # closed), so the gripper controller needs explicit open_qpos/closed_qpos; see
-  # realm/config/robots/DROID_robolab.yaml.
+  # realm/config/robots/DROID_robolab_v2.yaml (DROID_robolab.yaml was deleted 2026-08-19).
   finger_joint_names:
     "0": ["finger_joint"]
   teleop_rotation_offset:

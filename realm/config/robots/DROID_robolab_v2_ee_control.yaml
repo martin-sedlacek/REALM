@@ -15,16 +15,18 @@ robots:
     model: "droid_robolab_v2"
     # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
     dof: 13
-    # The robolab asset is the bare arm: panda_link0 sits at z=0, whereas droid_mounted.usd includes
-    # the base column and puts panda_link0 at z=0.8629. On a REALM_DROID10 task the scene position is
-    # the *bottom of the column*, so spawning this asset there buries the arm in the table and the
-    # contact forces NaN the sim within a few steps. env_dynamic raises the spawn point by
-    # DROID_BASE_HEIGHT when this is false, which lands the arm origin exactly where the mounted
-    # variant's would be -- so all the robot<->world frame maths stays unchanged.
-    has_base_column: false
+    # TRUE as of 2026-08-19, in step with DROID_robolab_v2.yaml: the definition now points at
+    # droid_robolab_v2_MOUNTED.usd, whose panda_link0 sits at z=0.863891 (measured -- see the long
+    # comment in DROID_robolab_v2.yaml). env_config.py:111 adds DROID_BASE_HEIGHT only when this is
+    # false, so leaving it false with a mounted asset spawns the arm 0.86 m in the air.
+    #
+    # MUST TRACK THE OTHER FILE. Both configs name the same `model: droid_robolab_v2`, hence the same
+    # usd_path, so a flag that disagrees between them means one entry point silently spawns the arm at
+    # the wrong height. If you change one, change both.
+    has_base_column: true
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
-    # Drop the dead second wrist camera, exactly as DROID_robolab.yaml does -- read the long comment
+    # Drop the dead second wrist camera, exactly as DROID_robolab_v2.yaml does -- read the long comment
     # there for why it is an include and not an exclude, and why the camera index in
     # ROBOT_OBS_PROFILES has to move with it. v2 comes out of the same converter
     # (scripts/convert_robolab_gripper_usd.py) as v1 and is described as differing only in geometry,
