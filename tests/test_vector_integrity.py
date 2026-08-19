@@ -113,9 +113,81 @@ CRASH_MARKERS = re.compile(
 TEARDOWN_NOISE = re.compile(r"Fatal Python error: Segmentation fault|"
                             r"srun: error:.*Segmentation fault|core dumped")
 
+# Cells where a NotImplementedError is the DESIGNED answer, not a defect. Without this table those
+# four cells report CRASH, identically to a cell that broke -- which is how the header comment above
+# came to note in passing that "8:VB-MOBJ raises an intentional NotImplementedError" while the table
+# still counted it as one of the matrix's failures. A refusal and a breakage are different results
+# and the summary has to be able to say which it saw.
+#
+# Every entry must name the raise site, so a reader can check the claim instead of trusting this dict.
+EXPECTED_NOT_IMPLEMENTED = {
+    "8:VB-MOBJ": "vb_mobj.py:71 -- the resize branch only handles DatasetObject; both drawer tasks' "
+                 "main object is a USDObject (custom_assets/impact_drawer/usd/cabinet.usd)",
+    "9:VB-MOBJ": "vb_mobj.py:71 -- same USDObject branch",
+    "8:SB-VRB": "sb_vrb.py:99 -- deliberate refusal, the drawer configs' empty target_objects sends "
+                "SB-VRB down the add-a-receiver branch and it rains an unplaceable object",
+    "9:SB-VRB": "sb_vrb.py:99 -- same refusal",
+}
+# A traceback whose LAST exception line is this and which carries no other error type. Both spellings
+# matter: sb_vrb raises with a message ("NotImplementedError: SB-VRB does not support..."), vb_mobj
+# raises bare ("NotImplementedError" with no colon at all).
+#
+# The anchor is load-bearing and must stay. A traceback ALSO echoes the source line that did the
+# raising -- "    raise NotImplementedError(" -- and an unanchored search would accept that as proof
+# the exception propagated, when it is only proof that the line was compiled. Anchoring at
+# line-start-after-prefix is what separates "this exception ended the process" from "this text appears
+# in the file".
+NOT_IMPL_LINE = re.compile(r"^(?:\w+\.)*NotImplementedError(?::|\s*$)")
+TRACEBACK_LINE = re.compile(r"Traceback \(most recent call last\)")
+# Isaac does not let Python's traceback reach the log untouched: omni.kit routes stderr through its
+# own logger, which stamps every line with a timestamp, an uptime, a level and a channel --
+#
+#   2026-08-19T11:08:58Z [524,717ms] [Error] [omni.kit.app._impl] [py stderr]: NotImplementedError: ...
+#
+# -- so an anchored pattern matches nothing. MEASURED, not guessed: the first drawerpert_0819 run
+# classified 8:SB-VRB and 9:SB-VRB as CRASH while their logs carried the refusal at line 912, because
+# the anchor was applied to the raw line. The tests that were supposed to cover this passed, because I
+# wrote their fixtures in the format I ASSUMED Python would produce rather than the format Isaac
+# actually emits -- which is why test_cell_classification.py now builds its fixtures from lines
+# captured verbatim out of that run.
+LOG_PREFIX = re.compile(r"^\S+ \[[\d,]+ms\] \[\w+\] \[[\w.]+\] \[py std(?:err|out)\]: ")
+
 
 def cell_id(task_id, pert):
     return f"{task_id}:{pert}"
+
+
+def classify_log(text, cid, returncode):
+    """Crash verdict for one cell's log. Returns (status, detail), or None if the log looks clean.
+
+    Split out of run_cell so it can be exercised on the login node against synthetic logs --
+    tests/test_cell_classification.py. run_cell itself needs a GPU, an Isaac boot and ~7 minutes per
+    cell, so the branch that decides refusal-vs-breakage would otherwise only ever be validated by
+    the very runs whose verdicts depend on it.
+    """
+    # Drop teardown noise before looking for crashes, or every cell "fails".
+    crash_lines = [ln for ln in text.splitlines()
+                   if CRASH_MARKERS.search(ln) and not TEARDOWN_NOISE.search(ln)]
+    if not crash_lines:
+        return None
+
+    # Separate an intentional refusal from a breakage before calling anything CRASH. Deliberately
+    # narrow: the ONLY crash signatures allowed to be present are the "Traceback" header lines
+    # themselves, so a NotImplementedError that arrives alongside a KeyError or an AssertionError
+    # still reports CRASH -- otherwise a real failure in a declared-refusal cell would be laundered
+    # into an expected result, which is worse than the conflation this fixes.
+    other = [ln for ln in crash_lines if not TRACEBACK_LINE.search(ln)]
+    not_impl = [s for s in (LOG_PREFIX.sub("", ln) for ln in text.splitlines())
+                if NOT_IMPL_LINE.match(s)]
+    if not_impl and not other:
+        msg = not_impl[-1].strip()[:150]
+        if cid in EXPECTED_NOT_IMPLEMENTED:
+            return "NOT_IMPL", msg
+        # A refusal nobody declared. Reported as a failure on purpose: either the perturbation grew a
+        # branch it should not refuse, or EXPECTED_NOT_IMPLEMENTED needs the entry and the reason
+        # written down.
+        return "UNDECLARED_NOT_IMPL", msg
+    return "CRASH", f"exit={returncode} :: {crash_lines[0].strip()[:150]}"
 
 
 def run_cell(task_id, pert, args, log_root):
@@ -144,10 +216,8 @@ def run_cell(task_id, pert, args, log_root):
         proc = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT,
                               cwd=str(PROJECT_ROOT), text=True)
 
-    text = log_path.read_text(errors="replace")
-    # Drop teardown noise before looking for crashes, or every cell "fails".
-    crash_lines = [ln for ln in text.splitlines()
-                   if CRASH_MARKERS.search(ln) and not TEARDOWN_NOISE.search(ln)]
+    crash_verdict = classify_log(log_path.read_text(errors="replace"),
+                                 cell_id(task_id, pert), proc.returncode)
 
     results_dir = Path(args.log_dir) / args.experiment_name / "debug" / run_id
     report = results_dir / "reports" / f"{task}_{pert}.csv"
@@ -164,8 +234,8 @@ def run_cell(task_id, pert, args, log_root):
         with open(report) as fh:
             n_rows = sum(1 for _ in csv.DictReader(fh))
 
-    if crash_lines:
-        return "CRASH", f"exit={proc.returncode} :: {crash_lines[0].strip()[:150]}"
+    if crash_verdict:
+        return crash_verdict
     if missing:
         return "NO_ARTIFACTS", f"exit={proc.returncode} missing={','.join(missing)}"
     if n_rows != args.repeats:
@@ -239,6 +309,13 @@ def main():
         status, detail = run_cell(task_id, pert, args, log_root)
         if status != "PASS" and task_id in KNOWN_BROKEN_TASKS:
             status, detail = "KNOWN_BROKEN", KNOWN_BROKEN_TASKS[task_id]
+        elif status == "PASS" and cid in EXPECTED_NOT_IMPLEMENTED:
+            # The declaration went stale: this cell was supposed to refuse and it ran. Good news, but
+            # it must not pass silently, or EXPECTED_NOT_IMPLEMENTED rots into a list of cells nobody
+            # measures -- the same way KNOWN_BROKEN_TASKS would have, had it not been emptied.
+            status, detail = "REFUSAL_GONE", (
+                f"ran and produced artifacts, but is declared a refusal: {EXPECTED_NOT_IMPLEMENTED[cid]}"
+                " -- if that is now implemented, delete the entry")
         results[cid] = (status, detail)
         run_ids.append(f"t{task_id}_{pert.replace('-', '')}")
         print(f"  -> {status}: {detail}", flush=True)
@@ -253,9 +330,17 @@ def main():
         print(f"{cid:<22}{status:<15}{detail}")
     print("=" * 78)
 
-    bad = {c: r for c, r in results.items() if r[0] not in ("PASS", "KNOWN_BROKEN")}
+    # NOT_IMPL is an expected result, so it is not a failure. REFUSAL_GONE and UNDECLARED_NOT_IMPL
+    # both ARE, because both mean EXPECTED_NOT_IMPLEMENTED and the code disagree about which cells
+    # refuse -- and that disagreement is precisely what this classification exists to surface.
+    ok = ("PASS", "KNOWN_BROKEN", "NOT_IMPL")
+    bad = {c: r for c, r in results.items() if r[0] not in ok}
     n_known = sum(1 for r in results.values() if r[0] == "KNOWN_BROKEN")
-    print(f"{len(results) - len(bad) - n_known} passed, {n_known} known-broken, {len(bad)} failed")
+    n_refused = sum(1 for r in results.values() if r[0] == "NOT_IMPL")
+    print(f"{len(results) - len(bad) - n_known - n_refused} passed, {n_refused} refused "
+          f"(intentional NotImplementedError), {n_known} known-broken, {len(bad)} failed")
+    if bad:
+        print("failed: " + ", ".join(f"{c} [{r[0]}]" for c, r in bad.items()))
     return 1 if bad else 0
 
 

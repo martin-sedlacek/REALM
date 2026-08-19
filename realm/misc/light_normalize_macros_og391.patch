@@ -18,12 +18,20 @@ Add REALM_LIGHT_FIX (ON BY DEFAULT) at the FORCE_LIGHT_INTENSITY definition
     the flag-on ratios all land inside a 0.28 band. `normalize=True` is authored on 107
     of 108 og391 lights and on none of the 108 og111 lights.
 
-    WHAT THE FLAG BUYS. Over the 7 comparable tasks on the exterior cam1, per-task ratio
-    spread against the 1.1.1 references collapses from 0.596 (x0.968-x1.564) to 0.276
-    (x1.056-x1.331) -- 2.2x tighter, mean x1.146 -> x1.180. It does NOT make og391 match
-    1.1.1: a uniform ~15-35% excess remains, belonging to tonemapping/exposure and the
+    WHAT THE FLAG BUYS. Over the 6 comparable tasks on the exterior cam1, per-task ratio
+    spread against the 1.1.1 references collapses from 0.551 (x1.013-x1.564) to 0.201
+    (x1.130-x1.331) -- 2.74x tighter, mean x1.176 -> x1.201. It does NOT make og391 match
+    1.1.1: a uniform ~13-33% excess remains, belonging to tonemapping/exposure and the
     material re-export. The point is that the residual becomes UNIFORM, which one global
     exposure term could absorb and a per-scene shift never could.
+
+    SIX tasks, not seven, corrected 2026-08-19. The published 7-task set included
+    open_drawer, whose row measures nothing about lighting: the impact_drawer cabinet was
+    purpose="guide" on all 56 geoms and reached no camera until 8598e59, which landed 90
+    minutes AFTER the table was written. Dropping it is a pure recompute -- 2.16x -> 2.74x
+    -- and it flatters the flag, because open_drawer supplied the MIN of the flag-on range.
+    See the FORCE_LIGHT_INTENSITY comment in the hunk below for both corrections in full;
+    every wrong figure this flag has carried came from a task subset.
 
     The trade is not uniformly favourable per task: the flag fixes rotate_mug
     (x1.564 -> x1.188) and mildly worsens the three tasks that already matched (0, 1, 7
@@ -104,7 +112,7 @@ Add REALM_LIGHT_FIX (ON BY DEFAULT) at the FORCE_LIGHT_INTENSITY definition
  # Default settings for the omni UI viewer
  gm.DEFAULT_VIEWER_WIDTH = 1280
  gm.DEFAULT_VIEWER_HEIGHT = 720
-@@ -214,7 +272,72 @@
+@@ -214,7 +272,89 @@
  gm.DEFAULT_PHYSICS_FREQ = 120
  
  # Forced light intensity for all DatasetObjects. None if the USD-provided intensities should be respected.
@@ -134,20 +142,37 @@ Add REALM_LIGHT_FIX (ON BY DEFAULT) at the FORCE_LIGHT_INTENSITY definition
 +# of the 108 og111 lights.
 +#
 +# Setting this to 1 restores 1.1.1's exact light configuration: intensity 150000, and NO normalize
-+# write. That does NOT make og391 match 1.1.1 -- a uniform ~15-35% excess remains, which belongs to
++# write. That does NOT make og391 match 1.1.1 -- a uniform ~13-33% excess remains, which belongs to
 +# tonemapping/exposure and to the material re-export, not to lights. The point is that it makes the
-+# error UNIFORM: over the 7 comparable tasks on the exterior cam1, per-task ratio spread collapses
-+# from 0.596 (x0.968-x1.564) to 0.276 (x1.056-x1.331) -- 2.2x tighter, mean x1.146 -> x1.180 --
++# error UNIFORM: over the 6 comparable tasks on the exterior cam1, per-task ratio spread collapses
++# from 0.551 (x1.013-x1.564) to 0.201 (x1.130-x1.331) -- 2.74x tighter, mean x1.176 -> x1.201 --
 +# converting a per-scene domain shift that no downstream correction can fix into one global gain a
 +# single exposure term could absorb.
 +#
-+# NUMBERS CORRECTED 2026-08-18. This comment previously claimed 0.53 -> 0.11, "5x tighter", from
-+# x1.199/x1.203/x1.313. Those were three tasks measured off ladder rungs, which carry a ~+10 luma
-+# under-settle bias. The dedicated 18-boot sweep (job 192356, all ten tasks, off and on, 300
-+# pre-renders and a 5-frame median each) supersedes them, and 2.2x is what the full task set gives.
-+# A mid-sweep read of the first three tasks briefly suggested 14x -- also three tasks, same error of
-+# generalising from the tasks that happen to agree. Table:
-+# ~/projects/REALM/logs/lightfix_10task/lightfix_table.txt
++# NUMBERS CORRECTED TWICE; this is the second correction. Read both, because the first one is the
++# reason to distrust any figure here that came from a task subset.
++#
++# (1) 2026-08-18. This comment claimed 0.53 -> 0.11, "5x tighter", from x1.199/x1.203/x1.313 -- three
++#     tasks measured off ladder rungs, which carry a ~+10 luma under-settle bias. A mid-sweep read of
++#     the first three tasks then briefly suggested 14x: same error, same three tasks. The dedicated
++#     18-boot sweep (job 192356, all ten tasks, off and on, 300 pre-renders and a 5-frame median each)
++#     superseded both and gave 2.2x over 7 tasks.
++#
++# (2) 2026-08-19. That 7-task set INCLUDED open_drawer, whose row is not a measurement of lighting at
++#     all: the impact_drawer cabinet carried purpose="guide" on all 56 of its geoms and contributed
++#     0 px to every camera, fixed only in 8598e59. The table was written 2026-08-18 15:15 and that fix
++#     landed 16:45 the same day, so open_drawer's frames had no cabinet in them. The sheet's own
++#     CONFOUNDED list caught rotate_marker, stack_cubes and close_drawer but missed it.
++#
++#     Dropping that one row: 0.5959 -> 0.5507 off, 0.2755 -> 0.2013 on, i.e. 2.16x -> 2.74x. A pure
++#     recompute over rows already in the table, no re-render. Note it makes the flag look BETTER,
++#     which is the direction that should invite suspicion -- open_drawer supplied the MIN of the
++#     flag-on range (x1.0556), so dropping it lifts the floor to x1.1298 and narrows the band.
++#
++# Table: ~/projects/REALM/logs/lightfix_10task/lightfix_table.{txt,json}. Recompute with:
++#     python -c "import json,statistics as st; d=json.load(open('lightfix_table.json'))['spread_summary']
++#     [print(s, (lambda v:(min(v),max(v),max(v)-min(v),st.fmean(v)))([r for k,r in
++#     d[s]['ratios'].items() if k!='open_drawer'])) for s in ('off','on')]"
 +#
 +# The trade is NOT uniformly favourable per task, and that is expected: the flag fixes rotate_mug
 +# (x1.564 -> x1.188) and mildly WORSENS the three tasks that already matched (0, 1, 7 go from

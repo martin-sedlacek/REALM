@@ -41,7 +41,9 @@ COPY packages/openpi-client /opt/openpi-client
 # inputs:normalize = True, which divides emission by light AREA. The two cancel EXACTLY at
 # area = 1/15 m^2, so scenes whose lights sit near that already match 1.1.1 (push_switch x1.03) and
 # scenes with smaller lights are too bright (rotate_mug x1.56); the flag tightens the per-task spread
-# from 0.596 to 0.276 over the 7 comparable tasks rather than matching 1.1.1 outright.
+# from 0.551 to 0.201 over the 6 comparable tasks -- 2.74x -- rather than matching 1.1.1 outright.
+# (SIX, corrected 2026-08-19: the published 7-task 2.2x included open_drawer, whose cabinet reached no
+# camera until 8598e59. Both corrections at the FORCE_LIGHT_INTENSITY definition in macros.py.)
 # ONE change in two files: 150000 WITH normalize=True is ~35x too bright, so the two grep guards
 # below are checked separately -- half of this fix is worse than none of it.
 #

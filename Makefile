@@ -189,11 +189,17 @@ put_karolina: ## Put source to remote source
 	    --exclude /isaac-sim \
 		. sedlam@karolina.it4i.cz:/scratch/project/open-34-32/sedlam/projects/REALM
 
+# QUOTE EVERY GLOB. Unquoted, make's shell expands `--exclude *.npy` against the LOCAL directory the
+# moment a matching file exists there, turning one exclude into `--exclude a.npy b.npy c.npy ...` --
+# and rsync reads those extra words as additional SOURCES. Mixed with a remote source that fails as
+# "rsync: remote file in list of local sources", which reads like a connection or path problem and is
+# neither. It also breaks only once a matching file appears locally, so it looks like a sudden
+# regression on the cluster side. Reported on the equivalent target in the 1.1.1 tree, 2026-08-19.
 get_logs_karolina:
 	rsync -av \
-		--exclude slurm-* \
-		--exclude *.npy \
-		--exclude *.png \
+		--exclude 'slurm-*' \
+		--exclude '*.npy' \
+		--exclude '*.png' \
 		--exclude 'appdata/' \
 	 	sedlam@karolina.it4i.cz:/scratch/project/open-34-32/sedlam/projects/REALM/logs/ ./logs/
 
@@ -262,6 +268,7 @@ get_logs_clara:
 	rsync -av \
 		--exclude 'slurm-*' \
 		--exclude '*.log' \
+		--exclude '*.png' \
 		--exclude 'appdata/' \
 	 	sedlam56@login01.clara.ciirc.cvut.cz:/home/sedlam56/projects/REALM/logs/ ./logs/
 

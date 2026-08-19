@@ -12,22 +12,82 @@ robots:
     model: "droid_robolab_v2"
     # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
     dof: 13
-    # The robolab asset is the bare arm: panda_link0 sits at z=0, whereas droid_mounted.usd includes
-    # the base column and puts panda_link0 at z=0.8629. On a REALM_DROID10 task the scene position is
-    # the *bottom of the column*, so spawning this asset there buries the arm in the table and the
-    # contact forces NaN the sim within a few steps. env_dynamic raises the spawn point by
-    # DROID_BASE_HEIGHT when this is false, which lands the arm origin exactly where the mounted
-    # variant's would be -- so all the robot<->world frame maths stays unchanged.
-    has_base_column: false
+    # TRUE: this model loads droid_robolab_v2_MOUNTED.usd, which carries its own base, so
+    # env_config.py:111 must NOT add DROID_BASE_HEIGHT to the spawn point (a REALM_DROID10 task's scene
+    # position is the bottom of the column, which the asset now fills itself). Measured panda_link0
+    # heights, logs/mountedasset/probe.log:
+    #
+    #   droid_robolab_v2_mounted.usd  0.863891   loaded here
+    #   droid_robolab_v2.usd (bare)   0.000000   loaded by model droid_robolab_v2_bare
+    #   droid_mounted.usd (stock)     0.862880   reference; DROID_BASE_HEIGHT is 0.86244
+    #
+    # Getting this flag wrong is not a load-time error: false with a mounted asset floats the arm
+    # ~0.86 m; true with the bare arm buries it in the table and NaNs a few steps in.
+    # tests/test_robot_base_column.py pins the flag against the `_mounted` USD naming convention.
+    #
+    # KNOWN 1.45 mm: 0.863891 is 1.451 mm above DROID_BASE_HEIGHT, which _robot2world / _world2robot /
+    # construct_ext_cam_pose_by_name still use to reach the arm origin. Deliberately left; see the note
+    # at DROID_BASE_HEIGHT in realm/environments/constants.py.
+    #
+    # ===================================================================================================
+    # KNOWN FAILURE, MEASURED, SHIPPED ANYWAY BY DECISION: the VECTOR path rejects this asset.
+    #
+    #     ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
+    #
+    # i.e. the articulation comes up without its arm joints. Measured on Clara 2026-08-19:
+    #   examples/02_evaluate.py   (VEC=0, single env)   -> PASSES     (t4_default_check.sh, task 0)
+    #   examples/04_vector_evaluate.py (VEC>=1)         -> CRASHES    at num_envs=1 AND num_envs=2
+    #                                                                (logs/mnt_n1_0819, mnt_n2_0819)
+    #   the same cells on the BARE arm                  -> PASS       (logs/bare_recheck_0819)
+    # Martin runs this asset locally without trouble, which is consistent: that is the single-env path.
+    #
+    # SO: fine for VEC=0 runs; every VEC>=1 run and tests/test_vector_integrity.py will crash until the
+    # articulation problem is fixed. TO SWITCH AWAY, no edit needed -- pass the bare arm by name:
+    #
+    #     --robot DROID_robolab_v2_bare        (model droid_robolab_v2_bare, has_base_column: false)
+    #
+    # NOT the cause, so do not spend time there: the root-link fallback at entity_prim.py:241. Measured
+    # (logs/mountedasset/rootlink.log) -- the mounted asset yields ONE clean root, `table`, and every
+    # joint in it has both body0 and body1; the fallback never fires for it. The one asset that DOES
+    # rely on that fallback is stock droid_mounted.usd, and it works. Next thing to check is whether
+    # ArticulationView(f"{prim_path}/table") (entity_prim.py:141) resolves to the articulation that
+    # PhysicsArticulationRootAPI is authored on -- `table` is a root link no config names.
+    # ===================================================================================================
+    has_base_column: true
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
-    # Drop the dead second wrist camera, exactly as DROID_robolab.yaml does -- read the long comment
-    # there for why it is an include and not an exclude, and why the camera index in
-    # ROBOT_OBS_PROFILES has to move with it. v2 comes out of the same converter
-    # (scripts/convert_robolab_gripper_usd.py) as v1 and is described as differing only in geometry,
-    # so it is ASSUMED to name its cameras the same way; that assumption is not silent, because
-    # assert_wrist_camera() hard-fails at build time if this filter leaves the robot without the
-    # `wrist_camera_flipped` prim its profile names.
+    # Drop the dead second wrist camera. This comment used to say "read the long comment in
+    # DROID_robolab.yaml"; that file was deleted on 2026-08-19, so the reasoning is reproduced here
+    # rather than left as a pointer into nothing. Recovered verbatim from 7e0eb55.
+    #
+    # The asset mounts TWO cameras on the gripper's base_link and only one is ever consumed:
+    # `wrist_camera_flipped`, whose extrinsics match droid.usd's `gripper_link_camera` to the
+    # millimetre. The other, `wrist_camera`, is yawed 180 deg and frames the floor and the wall
+    # behind the table; nothing reads it, but OmniGibson still gave it a full 1280x720 RTX render
+    # product and re-rendered and read it back every step.
+    #
+    # Dropping it is not (only) about the render cost. Render products are what the RTX descriptor
+    # and parameter-block pools are sized for, and those pools -- not VRAM -- cap a vectorized run:
+    # at num_envs=16 the pool ran dry while loading scene 10 and the process segfaulted with
+    # "Unable to allocate descriptor sets" / "Failed to allocate ParameterBlock resources", with only
+    # ~17 of 46 GB of VRAM in use. This takes one env from 3 render products to 2.
+    #
+    # It MUST be an include, not an exclude. Robot._load_sensors matches by SUBSTRING
+    # (`name in prim_path`), and "wrist_camera" is a substring of "wrist_camera_flipped", so
+    # `exclude_sensor_names: ["wrist_camera"]` would silently remove BOTH cameras and leave the
+    # policy with a black wrist image.
+    #
+    # AND IT DOES NOT TRAVEL ALONE: OmniGibson numbers a link's cameras by creation order and never
+    # counts the ones it filtered out, so the survivor here is `Camera:0`, not `Camera:1`.
+    # ROBOT_OBS_PROFILES in realm/inference/utils.py carries the matching wrist_camera_idx=0 plus the
+    # prim name it has to resolve to, and assert_wrist_camera() (called from
+    # RealmEnvironmentDynamic.bind_scene_handles) fails the build if the two ever drift apart. Left
+    # unpaired, the stale index would just make extract_from_obs fall back to "the first camera on
+    # the robot" with a printed warning and a clean exit code.
+    #
+    # v2 comes out of the same converter (scripts/convert_robolab_gripper_usd.py) as v1 and differs
+    # only in geometry, so it is ASSUMED to name its cameras the same way; assert_wrist_camera()
+    # is what keeps that assumption from being silent.
     include_sensor_names: ["wrist_camera_flipped"]
     control_freq: 15
     action_normalize: False

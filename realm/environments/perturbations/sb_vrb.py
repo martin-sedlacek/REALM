@@ -87,7 +87,43 @@ VERB_PHRASE = {
 RECEIVER_MAX_DIM = 0.185
 
 
+# task_types SB-VRB deliberately refuses. Module level so a test can assert against the same set the
+# perturbation raises on, and so the refusal is greppable rather than buried in a function body.
+# Keep these as populated COMPATIBILITY_MATRIX keys too: an absent key means "table and configs
+# disagree" and raises KeyError, which is a different and much less informative failure.
+UNSUPPORTED_TASK_TYPES = {"open_drawer", "close_drawer"}
+
+
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
+    # SB-VRB does not apply to the drawer tasks, and this is a DELIBERATE refusal rather than a gap
+    # to be filled -- Martin's call, 2026-08-19.
+    #
+    # WHY. Both drawer configs declare `target_objects: []`, which sends this perturbation down its
+    # receiver-adding branch below. That branch samples a new object and asks
+    # get_non_colliding_positions_for_objects to place it, and in the drawer scenes there is nowhere
+    # for it to go: `t8_SBVRB.log` carries two copies of
+    #     Failed to place object 'receiver' after 2500 attempts. Dropping it from the air.
+    # against zero in `t8_Default.log` and zero in `t6_SBVRB.log`. So on a drawer task the
+    # perturbation was "swap the verb AND drop a random object out of the sky" -- neither a crash nor
+    # a no-op, which is why nothing caught it: the cells were recorded PASS.
+    #
+    # The verb swap itself works (8:SB-VRB produced "close the top drawer", 9:SB-VRB "open the top
+    # drawer"), so this refusal DOES discard working behaviour. That is the intended trade: a
+    # perturbation that also rains furniture is not measuring what its name says, and half-fixing it
+    # by suppressing the receiver would leave SB-VRB meaning something different on these two tasks
+    # than on the other eight.
+    #
+    # Raising, not returning: an intentional refusal must be visible in the results as a refusal.
+    # A silent no-op here is exactly the failure mode that made 8:SB-VRB and 9:SB-VRB read as fixed
+    # for a day while they measured nothing -- see the COMPATIBILITY_MATRIX comment above.
+    if env.task_type in UNSUPPORTED_TASK_TYPES:
+        raise NotImplementedError(
+            f"SB-VRB does not support task_type {env.task_type!r}: the drawer configs declare "
+            f"target_objects: [], so the perturbation would inject a 'receiver' object that has no "
+            f"placeable position in these scenes and gets dropped from the air. Deliberate refusal, "
+            f"not an unimplemented branch -- do not 'fix' this by making it a no-op."
+        )
+
     # An ABSENT key and a key with an EMPTY list mean different things, and collapsing them with
     # .get(task_type, []) is exactly what hid the drawer-namespace bug:
     #   - empty list -> DELIBERATE opt-out. "push" is commented out above rather than deleted. No-op,

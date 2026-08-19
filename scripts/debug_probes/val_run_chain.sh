@@ -82,10 +82,10 @@ vis)
   CP=$(latch) || exit 1
   say "CAM_POSE = $CP"
   run val_xflat_b /app/scripts/debug_probes/curl_press_direction.py \
-      --robot DROID_robolab_xflat --tag val_xflat_b --cam-pose "$CP" \
+      --robot DROID_robolab_xflat --tag val_xflat_b --cam-pose="$CP" \
       --rungs "nf1000a=1000/0.05" "${COMMON[@]}"
   run val_v2_a /app/scripts/debug_probes/curl_press_direction.py \
-      --robot DROID_robolab_v2 --tag val_v2_a --cam-pose "$CP" \
+      --robot DROID_robolab_v2 --tag val_v2_a --cam-pose="$CP" \
       --rungs "nf1000a=1000/0.05,nf1000b=1000/0.05" "${COMMON[@]}"
   ;;
 
@@ -104,7 +104,7 @@ deep)
   DEEP=(--load tip --states open --tip-fingers both
         --hold-steps 3 --traverse-steps 0 --rest-steps 8 --retract-steps 8
         --tip-gap 0.020 --tip-dz 0.0005 --tip-past 400 --tip-steps 500
-        --video 1 --raw-stills 1 --still-every 20 --cam-dist 0.13 --cam-pose "$CP")
+        --video 1 --raw-stills 1 --still-every 20 --cam-dist 0.13 --cam-pose="$CP")
   run val_xflat_deep /app/scripts/debug_probes/curl_press_direction.py \
       --robot DROID_robolab_xflat --tag val_xflat_deep --rungs "nf1000a=1000/0.05" "${DEEP[@]}"
   run val_v2_deep /app/scripts/debug_probes/curl_press_direction.py \
