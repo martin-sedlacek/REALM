@@ -76,6 +76,7 @@ says so rather than composing the rotation a second time.
     python scripts/fix_drawer_base_link_frame.py --in X --out Y
 """
 import argparse
+import math
 import os
 import shutil
 import sys
@@ -88,6 +89,10 @@ TOL = 1e-9
 # The float32 floor: localRot0/1 and the mesh orient are authored Quatf, so a rewritten frame
 # cannot round-trip tighter than this. 1e-6 is still a hundredth of a micron on a unit-scale frame.
 TOL_F32 = 1e-6
+# Angular tolerance for the slide-axis assertion below. The float32 floor on a Quatf-authored frame
+# is ~7e-6 deg (1.2e-7 rad), so 1e-4 leaves two orders of margin and still rejects anything a human
+# would call a tilt. Measured on this asset the worst is 3.2e-6 deg.
+AXIS_TOL_DEG = 1e-4
 
 
 # --------------------------------------------------------------------------------------------------
@@ -171,6 +176,50 @@ def snapshot(stage):
             # The anchor in cabinet space: joint frame, then the body it is attached to.
             snap[f"joint{idx}:{prim.GetPath()}"] = frame * rel_to_cabinet(stage, body)
     return snap
+
+
+def slide_axes(stage):
+    """The DRIVE AXIS of every prismatic joint, as a unit vector in /cabinet space.
+
+    Deliberately separate from snapshot(). snapshot() stores each joint frame as a full 4x4 relative
+    to /cabinet, so it does already pin the axis -- an axis is three entries of a rotation it holds
+    to 1e-6. But it pins it IMPLICITLY, and the one question this edit has to answer out loud is
+    "did the drawer's slide direction move relative to its slot?". After the 2026-08-19 pre-fix
+    control, the reading on the table was that a consistent small rotation of the whole joint frame
+    set could satisfy the anchor invariants while still tilting the drive axis. It cannot -- the
+    anchors are held in the SAME cabinet space for body0 and body1, so their relative orientation is
+    pinned too -- but "you can derive it from the other check" is not what a reader wants to be told
+    about a 0.9 deg suspicion. So the axis gets its own assertion, reported in degrees.
+    """
+    out = {}
+    for prim in sorted(stage.Traverse(), key=lambda p: str(p.GetPath())):
+        if not prim.IsA(UsdPhysics.PrismaticJoint):
+            continue
+        j = UsdPhysics.PrismaticJoint(prim)
+        targets = j.GetBody0Rel().GetTargets()
+        if not targets:
+            continue
+        body = stage.GetPrimAtPath(targets[0])
+        frame = matrix_from_pos_quat(j.GetLocalPos0Attr().Get(), j.GetLocalRot0Attr().Get())
+        m = frame * rel_to_cabinet(stage, body)
+        basis = {"X": Gf.Vec3d(1, 0, 0), "Y": Gf.Vec3d(0, 1, 0), "Z": Gf.Vec3d(0, 0, 1)}
+        axis = basis[str(j.GetAxisAttr().Get())]
+        out[str(prim.GetPath())] = m.TransformDir(axis).GetNormalized()
+    return out
+
+
+def compare_axes(before, after):
+    """Angle each slide axis moved, in degrees. Returns (offenders, worst)."""
+    bad, worst = [], 0.0
+    for k in sorted(set(before) | set(after)):
+        if k not in before or k not in after:
+            bad.append((k, "present in only one snapshot"))
+            continue
+        ang = math.degrees(math.acos(max(-1.0, min(1.0, Gf.Dot(before[k], after[k])))))
+        worst = max(worst, ang)
+        if ang > AXIS_TOL_DEG:
+            bad.append((k, f"slide axis rotated {ang:.6f} deg > tol {AXIS_TOL_DEG:g}"))
+    return bad, worst
 
 
 def compare(before, after, rewritten):
@@ -355,9 +404,11 @@ def main():
     print(f"asset: {a.src}")
     stage = Usd.Stage.Open(a.src)
     before = snapshot(stage)
+    axes_before = slide_axes(stage)
     print(f"snapshot: {len(before)} invariants recorded "
           f"({sum(1 for k in before if k.startswith('xform:'))} xformable, "
-          f"{sum(1 for k in before if k.startswith('joint'))} joint frames)")
+          f"{sum(1 for k in before if k.startswith('joint'))} joint frames) "
+          f"+ {len(axes_before)} prismatic slide axes")
 
     changed, L, rewritten = apply_fix(stage, verbose=True)
     if not changed:
@@ -374,6 +425,19 @@ def main():
         print("Nothing written.")
         return 1
     print("  PASSED -- every prim pose and joint anchor relative to /cabinet is unchanged")
+
+    # The slide axis, asserted by name rather than left to be derived from the anchors above.
+    axes_after = slide_axes(stage)
+    bad_ax, worst_ax = compare_axes(axes_before, axes_after)
+    print(f"\nslide axes: {len(axes_after)} prismatic joint(s) re-checked "
+          f"(tol {AXIS_TOL_DEG:g} deg); worst {worst_ax:.3e} deg")
+    if bad_ax:
+        print(f"FAILED -- {len(bad_ax)} slide axis/axes moved:")
+        for k, why in bad_ax[:20]:
+            print(f"    {k}: {why}")
+        print("Nothing written.")
+        return 1
+    print("  PASSED -- every drawer's slide direction relative to /cabinet is unchanged")
 
     # The one intended change, checked exactly rather than exempted and forgotten.
     base_local = local_matrix(stage.GetPrimAtPath(BASE_LINK))
