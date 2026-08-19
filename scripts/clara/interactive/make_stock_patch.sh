@@ -36,7 +36,16 @@ REALM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 # selected the wrong container and the failure looked like "the patch no longer applies" rather
 # than "wrong image". Same trap as $REALM_ROOT, which points at the pre-port checkout. Override
 # with REALM_SIF_OG391= if you really need a different image.
-REALM_SIF=${REALM_SIF_OG391:-/mnt/home_lustre/sedlam56/projects/REALM/realm_og391.sif}
+#
+# The candidate order MATCHES scripts/clara/lib/paths.sh: v2 first, v1 as fallback. It used to
+# hardcode v1 while paths.sh preferred v2, so `MODE=stockfix` bound a tree extracted from the Aug 7
+# image over the Aug 14 image's OmniGibson -- and those two images genuinely differ in 5 of the 7
+# files this script patches, because v2 already has those five baked in. Same variable name as
+# paths.sh (REALM_SIF_OG391) so one override steers both.
+_sp_pick() { for c in "$@"; do [ -f "$c" ] && { echo "$c"; return; }; done; echo "$1"; }
+REALM_SIF=${REALM_SIF_OG391:-$(_sp_pick \
+  /mnt/home_lustre/sedlam56/projects/REALM/realm_og391_v2.sif \
+  /mnt/home_lustre/sedlam56/projects/REALM/realm_og391.sif)}
 OUT_DIR=${OUT_DIR:-/mnt/home_lustre/sedlam56/projects/REALM/stock_patch}
 # Every OmniGibson patch the vectorized eval path needs, as "<patch stem>:<file it patches>".
 # scene_base is the only one required for CORRECTNESS of scene loading, but the others matter:
@@ -83,9 +92,28 @@ mkdir -p "$OUT_DIR"
 # fails to parse under srun here ("reached EOF without closing quote") and leaves /behavior-src
 # unreachable. exec skips it. Nothing below needs the conda env -- only cp and patch.
 #
+# A PATCH ALREADY PRESENT IN THE IMAGE IS NOT AN ERROR. Measured 2026-08-19: realm_og391_v2.sif
+# (Aug 14) already carries FIVE of the seven -- scene_base_zoffset, simulator_initqueue,
+# material_prim_preset, xform_prim_rootlink, entity_prim_rootlink -- and lacks only the two
+# light_normalize halves, which postdate it (Aug 18). realm_og391.sif (v1, Aug 7) carries none. That
+# is the whole of the "v1 and v2 differ in 5 of the 7 patched files" finding from logs/sbvrb89.
+#
+# Before this, the loop ran plain `patch` and died on the first already-applied hunk with
+# "Reversed (or previously applied) patch detected! ... Skipping patch", so the script could not run
+# against v2 AT ALL -- which is the image scripts/clara/lib/paths.sh actually picks. It aborted before
+# writing anything (verified: all seven output mtimes unchanged), so the failure was clean, but the
+# tree stayed stale.
+#
+# Three outcomes per patch, and the third still fails the build:
+#   forward dry-run OK  -> apply it
+#   reverse dry-run OK  -> already in this image; take the image's copy unchanged, say so
+#   neither            -> hard fail. The patch does not describe this file, so the tree would be wrong.
+# Either of the first two leaves the file PATCHED, which is all the marker greps below assert -- they
+# check the result, not the route, so they remain the real gate.
+#
 # ONE LINE on purpose: a multi-line `bash -c '...'` through srun gets its newlines collapsed.
-# Documented in rr's header.
-srun --jobid="$ALLOC" --overlap -n1 apptainer exec --userns --pwd /app --bind "$REALM_ROOT":/app --bind "$OUT_DIR":/out "$REALM_SIF" bash -c 'set -e; rm -rf /tmp/w; for spec in '"${PATCHES[*]}"'; do stem=${spec%%:*}; rel=${spec##*:}; mkdir -p /tmp/w/$(dirname "$rel"); cp /behavior-src/OmniGibson/"$rel" /tmp/w/"$rel"; (cd /tmp/w && patch -p1 < /app/realm/misc/${stem}_og391.patch); mkdir -p /out/$(dirname "$rel"); cp /tmp/w/"$rel" /out/"$rel"; done' || { echo "patching failed -- wrong image, or a patch no longer applies. SIF=$REALM_SIF" >&2; exit 1; }
+# Documented in rr's header. No single quotes in the body, for the same reason.
+srun --jobid="$ALLOC" --overlap -n1 apptainer exec --userns --pwd /app --bind "$REALM_ROOT":/app --bind "$OUT_DIR":/out "$REALM_SIF" bash -c 'set -e; rm -rf /tmp/w; for spec in '"${PATCHES[*]}"'; do stem=${spec%%:*}; rel=${spec##*:}; p=/app/realm/misc/${stem}_og391.patch; mkdir -p /tmp/w/$(dirname "$rel"); cp /behavior-src/OmniGibson/"$rel" /tmp/w/"$rel"; if (cd /tmp/w && patch -p1 --forward --dry-run < $p >/dev/null 2>&1); then (cd /tmp/w && patch -p1 --forward < $p >/dev/null); echo "  APPLIED           $stem"; elif (cd /tmp/w && patch -p1 -R --dry-run < $p >/dev/null 2>&1); then echo "  ALREADY-IN-IMAGE  $stem (image copy taken unchanged)"; else echo "  FAILED            $stem -- patch does not describe this image file" >&2; exit 1; fi; mkdir -p /out/$(dirname "$rel"); cp /tmp/w/"$rel" /out/"$rel"; done' || { echo "patching failed -- wrong image, or a patch no longer applies. SIF=$REALM_SIF" >&2; exit 1; }
 
 grep -q "Re-apply the object poses now that the scene prim is at its final position" \
   "$OUT_DIR/omnigibson/scenes/scene_base.py" || { echo "z-offset marker missing" >&2; exit 1; }
