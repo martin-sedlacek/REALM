@@ -30,7 +30,7 @@ default_controllers:
   arm_0: CustomJointController
   gripper_0: CustomGripperController
 
-usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_v2_mounted.usd"
+usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_v2.usd"
 
 # Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
 # Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the

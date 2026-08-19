@@ -12,17 +12,19 @@
 # v2 profile resolves; assert_wrist_camera() fails the build if it ever does not.
 robots:
   - name: "DROID_robolab_v2"
-    model: "droid_robolab_v2"
+    model: "droid_robolab_v2_bare"
     # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
     dof: 13
-    # FALSE: this model loads the BARE arm (panda_link0 at z=0), so env_config.py:111 raises the spawn
-    # by DROID_BASE_HEIGHT on base-mounted tasks. Briefly set true on 2026-08-19 for
-    # droid_robolab_v2_mounted.usd and REVERTED the same day -- see DROID_robolab_v2.yaml for why the
-    # mounted asset cannot be loaded through this model yet.
+    # FALSE, and this config deliberately stays on the BARE arm (`model: droid_robolab_v2_bare`) while
+    # DROID_robolab_v2.yaml moved to the mounted one on 2026-08-19.
     #
-    # MUST TRACK THE OTHER FILE. Both configs name the same `model: droid_robolab_v2`, hence the same
-    # usd_path, so a flag that disagrees between them means one entry point silently spawns the arm at
-    # the wrong height. If you change one, change both -- tests/test_robot_base_column.py enforces it.
+    # WHY IT DID NOT FOLLOW: `height_offset` below must equal the arm base's height above the robot
+    # prim, which is a property of the ASSET. It is 0.0 here BECAUSE the arm is bare and env_config
+    # raises the spawn instead -- measured, job 190727. On the mounted asset the robot prim sits at the
+    # bottom of the base and panda_link0 is 0.863891 above it, so 0.0 would be 0.86 m of error and the
+    # controller would diverge exactly as the note on height_offset describes. Moving this config to the
+    # mounted asset therefore means re-deriving AND re-measuring height_offset; until someone does that,
+    # bare + 0.0 is the pair that is known to converge (error 0.090 -> 0.005 m).
     has_base_column: false
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
