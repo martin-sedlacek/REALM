@@ -34,7 +34,47 @@ import test_vector_integrity as tvi  # noqa: E402
 TRACEBACK = "Traceback (most recent call last):"
 FRAME = '  File "/app/realm/environments/perturbations/sb_vrb.py", line 99, in sb_vrb'
 
+# THE FORMAT ISAAC ACTUALLY EMITS, captured verbatim from
+# logs/drawerpert_0819/_runlogs/t8_SBVRB.log lines 905-912 (2026-08-19). omni.kit routes Python's
+# stderr through its own logger, so every traceback line arrives stamped with a timestamp, an uptime,
+# a level and a channel.
+#
+# This is the whole reason the fixture looks like this. The first version of these tests hand-wrote
+# the tracebacks in the shape *Python* produces, all 24 passed, and the classifier still called both
+# refusal cells CRASH on the real run -- the anchored pattern was being applied to a line beginning
+# "2026-08-19T11:08:58Z". A fixture invented to match the code proves the code matches the fixture and
+# nothing else. Do NOT "simplify" these strings back into bare Python tracebacks.
+PFX = "2026-08-19T11:08:58Z [524,717ms] [Error] [omni.kit.app._impl] [py stderr]: "
+
+
+def isaac(*lines):
+    """Wrap plain traceback lines in the omni.kit stderr prefix, as the real logs carry them."""
+    return "\n".join(PFX + ln for ln in lines)
+
+
 SB_VRB_REFUSAL = "\n".join([
+    "[0m[00:02:18.326] [INFO] [omnigibson.simulator] -------- Welcome to OmniGibson! --------[0m",
+    isaac(
+        TRACEBACK,
+        '  File "/app/realm/environments/env_vector.py", line 130, in <listcomp>',
+        "    obss = [env.apply_perturbations(res[0]) for env, res in zip(self.envs, results)]",
+        "             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        '  File "/app/realm/environments/env_dynamic.py", line 233, in apply_perturbations',
+        "    self.supported_pertrubations[p]()",
+        FRAME,
+        "    raise NotImplementedError(",
+        "NotImplementedError: SB-VRB does not support task_type 'open_drawer': the drawer configs "
+        "declare target_objects: [], so the perturbation would inject a 'receiver' object that has no "
+        "placeable position in these scenes and gets dropped from the air. Deliberate refusal, not an "
+        "unimplemented branch -- do not 'fix' this by making it a no-op.",
+    ),
+    "2026-08-19T11:08:59Z [524,977ms] [Warning] [omni.graph.core.plugin] Could not find category "
+    "'Replicator:Annotators' for removal",
+])
+
+# The same refusal WITHOUT the Isaac prefix. Kept as its own case because the classifier has to handle
+# both: a cell that dies before omni.kit takes over stderr writes a plain Python traceback.
+SB_VRB_REFUSAL_UNPREFIXED = "\n".join([
     "[INFO] [omnigibson] Loading scene",
     TRACEBACK,
     FRAME,
@@ -45,12 +85,12 @@ SB_VRB_REFUSAL = "\n".join([
 
 # vb_mobj.py:71 raises bare `NotImplementedError()`, which Python renders with NO colon and no
 # message. The two spellings are why NOT_IMPL_LINE has to accept an end-of-line as well as a colon.
-VB_MOBJ_REFUSAL = "\n".join([
+VB_MOBJ_REFUSAL = isaac(
     TRACEBACK,
     '  File "/app/realm/environments/perturbations/vb_mobj.py", line 71, in vb_mobj',
     "    raise NotImplementedError()",
     "NotImplementedError",
-])
+)
 
 CLEAN = "\n".join([
     "[INFO] [omnigibson] Loading scene",
@@ -72,6 +112,7 @@ def test_teardown_segfault_alone_is_not_a_crash():
 @pytest.mark.parametrize("cid,log", [
     ("8:SB-VRB", SB_VRB_REFUSAL),
     ("9:SB-VRB", SB_VRB_REFUSAL),
+    ("8:SB-VRB", SB_VRB_REFUSAL_UNPREFIXED),
     ("8:VB-MOBJ", VB_MOBJ_REFUSAL),
     ("9:VB-MOBJ", VB_MOBJ_REFUSAL),
 ])
@@ -80,6 +121,35 @@ def test_declared_refusals_report_not_impl(cid, log):
     assert status == "NOT_IMPL", f"{cid} should read as an intentional refusal, got {status}: {detail}"
     assert detail.startswith("NotImplementedError"), (
         f"the detail must carry the exception line so a reader can see WHICH refusal fired: {detail!r}")
+
+
+def test_omni_kit_prefixed_traceback_is_recognised():
+    """REGRESSION, drawerpert_0819. The refusal was at line 912 of t8_SBVRB.log and the cell was
+    reported CRASH, because NOT_IMPL_LINE was anchored against a line that starts with a timestamp.
+    Asserted on the exact prefix rather than via the helper, so a change to LOG_PREFIX that stops
+    covering the real format fails here."""
+    line = PFX + "NotImplementedError: SB-VRB does not support task_type 'open_drawer'"
+    assert tvi.LOG_PREFIX.sub("", line).startswith("NotImplementedError:"), (
+        "LOG_PREFIX no longer strips the omni.kit stderr stamp, so the anchored NOT_IMPL_LINE will "
+        "match nothing and every intentional refusal will report CRASH again")
+    status, _ = tvi.classify_log("\n".join([TRACEBACK, line]), "8:SB-VRB", -11)
+    assert status == "NOT_IMPL"
+
+
+def test_raise_echo_alone_is_not_proof_the_exception_propagated():
+    """A traceback echoes the source line that raised -- "    raise NotImplementedError(" -- and that
+    echo must NOT satisfy the classifier on its own. This is what the ^ anchor buys, and why the fix
+    for the prefix bug strips the prefix rather than switching match() for search()."""
+    log = isaac(
+        TRACEBACK,
+        '  File "/app/realm/environments/perturbations/sb_vrb.py", line 99, in sb_vrb',
+        "    raise NotImplementedError(",
+        "KeyError: 'close_drawer'",     # what ACTUALLY ended the process
+    )
+    status, detail = tvi.classify_log(log, "9:SB-VRB", 1)
+    assert status == "CRASH", (
+        f"only the raise ECHO is present and a KeyError ended the run; calling that an intentional "
+        f"refusal would hide a real failure: {status} {detail}")
 
 
 def test_bare_not_implemented_is_recognised():
@@ -115,6 +185,22 @@ def test_ordinary_tracebacks_still_crash(err):
     log = "\n".join([TRACEBACK, '  File "/app/x.py", line 1, in f', err])
     status, _ = tvi.classify_log(log, "9:Default", 1)
     assert status == "CRASH"
+
+
+REAL_LOG = Path("/mnt/home_lustre/sedlam56/projects/REALM/logs/drawerpert_0819/_runlogs/t8_SBVRB.log")
+
+
+@pytest.mark.skipif(not REAL_LOG.is_file(), reason=f"{REAL_LOG} not on this machine")
+def test_against_the_real_captured_log():
+    """The one case no fixture can fake: classify the actual 8:SB-VRB log off disk.
+
+    Every other test here uses a string I wrote, and a string I wrote is exactly what let the prefix
+    bug through. This one reads the 1000-line log Isaac really produced -- Kit banners, teardown
+    warnings, the -11 exit and all -- and is the reason to keep drawerpert_0819 around."""
+    status, detail = tvi.classify_log(REAL_LOG.read_text(errors="replace"), "8:SB-VRB", -11)
+    assert status == "NOT_IMPL", f"real log misclassified as {status}: {detail}"
+    assert "does not support task_type 'open_drawer'" in detail, (
+        f"classified correctly but reported the wrong line: {detail!r}")
 
 
 def test_expected_not_implemented_keys_are_real_cells():

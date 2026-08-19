@@ -131,8 +131,26 @@ EXPECTED_NOT_IMPLEMENTED = {
 # A traceback whose LAST exception line is this and which carries no other error type. Both spellings
 # matter: sb_vrb raises with a message ("NotImplementedError: SB-VRB does not support..."), vb_mobj
 # raises bare ("NotImplementedError" with no colon at all).
+#
+# The anchor is load-bearing and must stay. A traceback ALSO echoes the source line that did the
+# raising -- "    raise NotImplementedError(" -- and an unanchored search would accept that as proof
+# the exception propagated, when it is only proof that the line was compiled. Anchoring at
+# line-start-after-prefix is what separates "this exception ended the process" from "this text appears
+# in the file".
 NOT_IMPL_LINE = re.compile(r"^(?:\w+\.)*NotImplementedError(?::|\s*$)")
 TRACEBACK_LINE = re.compile(r"Traceback \(most recent call last\)")
+# Isaac does not let Python's traceback reach the log untouched: omni.kit routes stderr through its
+# own logger, which stamps every line with a timestamp, an uptime, a level and a channel --
+#
+#   2026-08-19T11:08:58Z [524,717ms] [Error] [omni.kit.app._impl] [py stderr]: NotImplementedError: ...
+#
+# -- so an anchored pattern matches nothing. MEASURED, not guessed: the first drawerpert_0819 run
+# classified 8:SB-VRB and 9:SB-VRB as CRASH while their logs carried the refusal at line 912, because
+# the anchor was applied to the raw line. The tests that were supposed to cover this passed, because I
+# wrote their fixtures in the format I ASSUMED Python would produce rather than the format Isaac
+# actually emits -- which is why test_cell_classification.py now builds its fixtures from lines
+# captured verbatim out of that run.
+LOG_PREFIX = re.compile(r"^\S+ \[[\d,]+ms\] \[\w+\] \[[\w.]+\] \[py std(?:err|out)\]: ")
 
 
 def cell_id(task_id, pert):
@@ -159,7 +177,8 @@ def classify_log(text, cid, returncode):
     # still reports CRASH -- otherwise a real failure in a declared-refusal cell would be laundered
     # into an expected result, which is worse than the conflation this fixes.
     other = [ln for ln in crash_lines if not TRACEBACK_LINE.search(ln)]
-    not_impl = [ln for ln in text.splitlines() if NOT_IMPL_LINE.match(ln)]
+    not_impl = [s for s in (LOG_PREFIX.sub("", ln) for ln in text.splitlines())
+                if NOT_IMPL_LINE.match(s)]
     if not_impl and not other:
         msg = not_impl[-1].strip()[:150]
         if cid in EXPECTED_NOT_IMPLEMENTED:
