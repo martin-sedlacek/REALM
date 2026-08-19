@@ -2,17 +2,20 @@
 
 WHY THIS EXISTS, AND WHY IT IS NOT PYTEST
 -----------------------------------------
-With one exception, the files in tests/ are standalone scripts -- a `if __name__ == "__main__":`
-block, printed verdict lines, `sys.exit(1)` on failure -- and that is how this driver runs them:
+Most files in tests/ are standalone scripts -- a `if __name__ == "__main__":` block, printed
+verdict lines, `sys.exit(1)` on failure -- and that is how this driver runs them:
 `python -u tests/<file>.py`, one process each. `pytest tests/` must NOT be used as the suite:
 collection imports every module, and several boot a full Isaac instance at module scope
 (test_joint_reset_batching and test_scene_object_placement import omnigibson directly;
 test_integrity, test_single_task and test_perturbations_integrity reach it through realm.eval).
 (pytest IS installed in the container, at
 /opt/conda/envs/behavior/lib/python3.11/site-packages; it is absent from the login python. So
-"pytest is missing" is not the reason.) The exception: test_perturbation_task_types.py is a real
-pytest module, host-safe by design (its omnigibson import is delayed into fixtures) -- run it
-directly with `pytest tests/test_perturbation_task_types.py`, not through this driver.
+"pytest is missing" is not the reason.) The exceptions: four real pytest modules, host-safe by
+design (they read code/configs as text with ast/yaml rather than importing anything heavy) -- run
+them directly, not through this driver:
+
+    pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
+           tests/test_robot_base_column.py tests/test_robot_definition_parity.py
 
 WHY THE EXIT CODE IS RECORDED BUT NEVER GATED ON
 ------------------------------------------------

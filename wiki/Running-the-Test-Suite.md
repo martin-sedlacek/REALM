@@ -3,19 +3,27 @@
 REALM's tests are not a pytest suite, and running them the way the filenames suggest gets you
 nothing. This page is how to actually run them.
 
-## `pytest tests/` collects zero tests. Do not use it.
+## `pytest tests/` boots Isaac just to collect. Do not use it.
 
-Every file in `tests/` is named `test_*.py`, and **none of them defines a collectable test** — no
-`def test_*`, no `class Test*`, no `import pytest`. They are standalone scripts with an
-`if __name__ == "__main__":` block that `sys.exit(1)` on failure.
+Most files in `tests/` are standalone scripts — an `if __name__ == "__main__":` block with printed
+verdict lines that `sys.exit(1)` on failure — and pytest cannot run those. The exceptions are
+**four real pytest modules**, all host-safe by design (they read code and configs as text with
+`ast`/`yaml` instead of importing omnigibson):
 
-So `pytest tests/` collects nothing — and it collects nothing *expensively*, because collection
-works by **importing** each module, and **five of the eight** pull in `omnigibson` at module scope:
-`test_joint_reset_batching` and `test_scene_object_placement` import it directly, and
+```sh
+pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
+       tests/test_robot_base_column.py tests/test_robot_definition_parity.py
+```
+
+Run them **by filename, exactly as above** — never as `pytest tests/`. Collection works by
+**importing** each module, and five of the script-style files pull in `omnigibson` at module
+scope: `test_joint_reset_batching` and `test_scene_object_placement` import it directly, and
 `test_integrity`, `test_single_task` and `test_perturbations_integrity` reach it through
-`realm.eval`. That is a full Isaac boot, about a minute, to discover zero tests.
+`realm.eval`. That is a full Isaac boot, about a minute, before a single test runs.
 
-(pytest is not missing. It is installed in the container. It is simply the wrong tool here.)
+(pytest is not missing. It is installed in the container — though not in the login-node python —
+it is simply the wrong tool for the script-style files. `make check` runs the four pytest modules
+automatically wherever pytest is importable, and prints a loud skip where it is not.)
 
 The driver is **`tests/run_suite.py`**, wrapped by `make`.
 
@@ -28,11 +36,11 @@ The pipeline has **two tiers**, split on "does this need Isaac, the container an
 ```sh
 make check         # lint + the container-free tests — tier 1 in full
 make lint          # ruff, with .ruff.toml's deliberately narrow ruleset
-make test-static   # the container-free tests
+make test-static   # the container-free tests (incl. the 4 host pytest modules, where pytest exists)
 ```
 
-Runs in GitHub Actions on every push and pull request
-(`.github/workflows/static-checks.yml`).
+There is no CI workflow for this yet (`.github/workflows/` holds only `release.yml`, which tags
+releases); tier 1 is run by hand, and `make check` is the command a future workflow should run.
 
 ### Tier 2 — GPU. Needs the image, the dataset and a card.
 

@@ -177,6 +177,8 @@ realm-container.skill
 
 # Session scratch (logs, probe scripts, extracted frames)
 tmp/
+# run_suite.py's default --out lands in the cwd when invoked without make (make routes it to tmp/)
+suite_results.json
 
 # Robot assets awaiting proper integration (owner decision 2026-08-18: keep local, do not commit).
 # r1lite has no config/definition yet; the live WidowX path uses OmniGibson's stock VX300S, not

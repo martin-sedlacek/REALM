@@ -6,10 +6,11 @@ off and delete them as they pass; a failure is worth pasting back verbatim (the 
 plus the first traceback), not summarising.
 
 Covers commits `b9a6fb3..HEAD` on `port-to-og391`: perturbations refactor, Phase-0 cleanup,
-robots fail-fast + IK docs, inference-client adapters, logging dedup, paths consolidation. All of
-it was verified offline with old-vs-new equivalence harnesses (bit-identical outputs incl. RNG
-stream state), so the runs below are confirmation sweeps, not first contact — anything red is a
-real finding.
+robots fail-fast + IK docs, inference-client adapters, logging dedup, paths consolidation, and
+the merge of origin's drawer-fix series (`3bc4c75` — SB-VRB now deliberately refuses the drawer
+tasks; the refusal block merged cleanly into the decomposed sb_vrb.py). All of it was verified
+offline with old-vs-new equivalence harnesses (bit-identical outputs incl. RNG stream state), so
+the runs below are confirmation sweeps, not first contact — anything red is a real finding.
 
 Sync first: `make put_clara`.
 
@@ -19,8 +20,11 @@ Sync first: `make put_clara`.
 python3 tests/test_task_type_literals.py          # expect: PASSED
 python3 tests/test_task_progression_rubrics.py    # expect: PASSED (was committed-red; now green)
 python3 tests/run_suite.py --only local --strict  # expect: both entries PASS
-# pytest is absent from the login python; run the task-types test wherever pytest exists:
-pytest tests/test_perturbation_task_types.py -q   # expect: 7 passed
+# pytest is absent from the login python; run the 4 host pytest modules wherever pytest exists
+# (`make check` does this automatically when pytest is importable):
+pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
+       tests/test_robot_base_column.py tests/test_robot_definition_parity.py -q
+# expect: 36 passed, 1 skipped -- already confirmed on the laptop post-merge, 2026-08-19
 ```
 
 ## 2. Container, CPU is fine — the new IK/gains unit test (~1 min)
@@ -51,20 +55,24 @@ refactored wholesale (sb_vrb/v_sc/vb_pose/placement decomposed, helpers extracte
 preserved — a placement or instruction that differs from a pre-refactor run on the same seed
 would falsify the offline equivalence and is a stop-the-line finding.
 
-## 4. SB-VRB on the drawer tasks — NEW BEHAVIOR, eyeball it (~15 min)
+## 4. SB-VRB on the drawer tasks — confirm the refusal survived the merge (~15 min, optional)
 
-Upstream fix `74f19b0` (merged into the refactor) makes SB-VRB actually fire on tasks 8/9 for the
-first time — before it, the matrix keys never matched and the cells silently no-op'd. So this is
-not a regression check; it is the first look at live behavior:
+The policy REVERSED upstream while the refactor was in flight: `eef7f14` makes SB-VRB refuse the
+drawer tasks outright (NotImplementedError before any env mutation — the receiver it would inject
+has nowhere to go and was being dropped from the sky), and `e622b72`/`fa28d94` teach the matrix
+harness that this refusal is not a crash. Upstream already exercised these cells live; what the
+merge added is my decomposed sb_vrb.py carrying the refusal block, so the only question is
+whether the merged file still raises FIRST — statically it does (the guard is the first statement
+of `sb_vrb()`), and `pytest tests/test_perturbation_task_types.py` pins the UNSUPPORTED set.
+Only if you want a live confirmation:
 
 ```bash
-sbatch scripts/clara/run_debug_single.sh --task_id 8 --perturbation_id 12 --model_type debug --experiment_name sbvrb_drawer_probe
-sbatch scripts/clara/run_debug_single.sh --task_id 9 --perturbation_id 12 --model_type debug --experiment_name sbvrb_drawer_probe
+sbatch scripts/clara/run_debug_single.sh --task_id 8 --perturbation_id 12 --model_type debug --experiment_name sbvrb_drawer_refusal
 ```
 
-Check the log for: `task_type` flipping open_drawer<->close_drawer, a "New instruction: open/close
-the ..." line (must NOT read "open drawer the ..."), no KeyError from the COMPATIBILITY_MATRIX
-guard, and the rollout scoring against the flipped rubric.
+Check the log for the loud `NotImplementedError: SB-VRB does not support task_type 'open_drawer'`
+(with the "do not 'fix' this by making it a no-op" text), raised BEFORE any placement/instruction
+lines — and no `Failed to place object 'receiver'` anywhere.
 
 ## 5. EE-control smoke — the fail-fast must not reject a valid config (~15 min)
 

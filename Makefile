@@ -39,11 +39,13 @@
 #     This is upstream BEHAVIOR-1K's gate (their .github/workflows/tests.yml); adopt the same
 #     grep-the-XML pattern in any future CI workflow here.
 #
-# ONE PYTEST FILE, OTHERWISE SCRIPTS. tests/test_perturbation_task_types.py is a real pytest
-# module (and host-safe: it delays its omnigibson import into fixtures) -- run it directly with
-# `pytest tests/test_perturbation_task_types.py`. Every OTHER test_*.py is a standalone script
-# with a printed verdict, driven by run_suite.py. Do NOT run `pytest tests/`: collection imports
-# every module, and several boot a full Isaac instance at import time just to be collected.
+# FOUR PYTEST FILES, OTHERWISE SCRIPTS. test_perturbation_task_types, test_cell_classification,
+# test_robot_base_column and test_robot_definition_parity are real pytest modules, host-safe by
+# design (they read code and configs as text with ast/yaml instead of importing omnigibson) --
+# `make test-static` runs them when pytest is importable and says so when it is not (the login
+# python has no pytest). Every OTHER test_*.py is a standalone script with a printed verdict,
+# driven by run_suite.py. Do NOT run `pytest tests/`: collection imports every module, and several
+# boot a full Isaac instance at import time just to be collected.
 #
 # `make test-static` and `make lint` are both expected GREEN (re-measured 2026-08-18: lint is at
 # zero findings, and the rubrics test passes since the POUR key/signature repair). A finding in
@@ -93,9 +95,10 @@ check: ## Tier 1 in full: lint + the container-free tests. Runs BOTH, then fails
 	 echo ""; \
 	 if [ $$rc -ne 0 ]; then \
 	   echo "make check: one or more tier-1 checks failed (see above)."; \
-	   echo "  On this branch BOTH are expected to: 25 ruff findings (baseline in .ruff.toml),"; \
-	   echo "  and 2 real defects reported by test_task_progression_rubrics. Neither is your"; \
-	   echo "  install. See the wiki's Test coverage page."; \
+	   echo "  Tier 1 is kept GREEN (lint at zero since 2026-08-18, rubrics test passing since"; \
+	   echo "  the POUR repair) -- a finding here is a real regression, not the repo's known"; \
+	   echo "  state. A missing-tool message (ruff/pytest) means PATH, not REALM: pass"; \
+	   echo "  PYTHON=/path/to/python RUFF=/path/to/ruff to point at an env that has them."; \
 	 else \
 	   echo "make check: tier 1 clean."; \
 	 fi; \
@@ -131,9 +134,21 @@ test: ## Tier 1 only (the suite's 2 container-free entries), then print what it 
 	@echo ""
 	@$(MAKE) --no-print-directory test-static
 
+# The four pytest modules named in HOST_PYTESTS are as container-free as the local tier, but need
+# pytest itself, which the login python lacks -- so their absence is a loud skip, not a failure.
+HOST_PYTESTS = tests/test_perturbation_task_types.py tests/test_cell_classification.py \
+               tests/test_robot_base_column.py tests/test_robot_definition_parity.py
+
 test-static: ## The container-free tests (no GPU, no allocation, no container)
 	$(PYTHON) $(SUITE) --only local --strict \
 	    --out $(SUITE_OUT) --junit-xml $(SUITE_XML) $(SUITE_ARGS)
+	@if $(PYTHON) -c "import pytest" 2>/dev/null; then \
+	   $(PYTHON) -m pytest -q $(HOST_PYTESTS); \
+	 else \
+	   echo "test-static: pytest is not importable by '$(PYTHON)' -- SKIPPED the 4 host pytest"; \
+	   echo "             modules ($(HOST_PYTESTS))."; \
+	   echo "             Run them wherever pytest exists (the container has it)."; \
+	 fi
 
 # --- tier 2 ---------------------------------------------------------------------------------------
 

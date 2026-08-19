@@ -131,7 +131,9 @@ Two tiers (see the Makefile header): tier 1 is container-free (`make check` = li
 static tests, expected GREEN); tier 2 needs the container/GPU and is driven by
 `tests/run_suite.py` (`make test-smoke` / `test-suite` against a Slurm allocation). The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
-one real pytest module, `test_perturbation_task_types.py`, is run directly. Exit codes are never
+four real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
+`test_robot_base_column`, `test_robot_definition_parity` — all host-safe, ast/yaml based) are run
+directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
 Changes made off-cluster (this machine has no GPU; OmniGibson cannot run locally) get their
