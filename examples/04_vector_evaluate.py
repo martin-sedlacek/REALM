@@ -14,6 +14,7 @@ import argparse
 
 import omnigibson as og
 
+from realm.paths import run_log_dir
 from realm.vector_eval import evaluate_vectorized
 
 if __name__ == "__main__":
@@ -45,8 +46,7 @@ if __name__ == "__main__":
     p.add_argument("--max_render_interval", type=int, default=8)
     a = p.parse_args()
 
-    run_id = a.run_id or "vec"
-    log_dir = f"{a.log_dir}/{a.experiment_name}/{a.model_name}/{run_id}"
+    log_dir = run_log_dir(a.log_dir, a.experiment_name, a.model_name, a.run_id or "vec")
 
     evaluate_vectorized(
         num_envs=a.num_envs, task_id=a.task_id, perturbation_id=a.perturbation_id,

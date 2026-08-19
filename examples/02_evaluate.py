@@ -1,5 +1,6 @@
 import argparse
 from realm.eval import evaluate
+from realm.paths import run_log_dir
 import sys
 
 import omnigibson as og
@@ -40,10 +41,11 @@ if __name__ == "__main__":
     assert args.experiment_name is not None
     #assert not (args.task_cfg_path and args.task_id), f"Either task --task_cfg_path or --task_id should be specified, but not both."
 
-    log_dir = args.log_dir if args.log_dir is not None else "/app/logs"
-    log_dir += f"/{args.experiment_name}"
-    log_dir += f"/{args.model_name}"
-    log_dir += f"/{args.run_id}" if args.run_id is not None else ""
+    # The /app/logs default only works when the container binds a real directory there. Under the
+    # clara `rr` binds it is a DANGLING SYMLINK and the first makedirs dies -- cluster scripts pass
+    # --log_dir explicitly; see tests/_paths.scratch_log_root for the measured failure.
+    log_root = args.log_dir if args.log_dir is not None else "/app/logs"
+    log_dir = run_log_dir(log_root, args.experiment_name, args.model_name, args.run_id)
 
     evaluate(
         task_id=args.task_id,
