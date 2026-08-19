@@ -280,9 +280,17 @@ the tensor PhysX actually realises for the pad. Do not trust them.
 
 ## 3. Results that should NOT be compared across this work
 
-- **Task 8 `open_drawer` before the upAxis fix.** The cabinet was placed lying on its back, so
-  `init_openness_fraction` started at 0.62 instead of 0. Two rubric stages are *absolute*
-  (`> 0.125`, `> 0.65`), so they scored partly for free. Any pre-fix task-8 number is inflated.
+- **Every task 8 / task 9 score on record — INVALID, not failed.** The `impact_drawer` cabinet was
+  authored with `purpose = "guide"` on all 56 of its geoms, so it never reached the colour pass and
+  contributed **0 px to every camera, wrist included**, on every run made before `8598e59`. The
+  policy was asked to open an object absent from all of its inputs, so task 8's `SR 0.000` was never
+  a policy result and no task-8/9 number measures anything. Do not quote them as outcomes, and do
+  not read them as a floor either — an invalid cell bounds nothing.
+- **Task 8 `open_drawer` before the upAxis fix — a *second*, independent defect.** The cabinet was
+  placed lying on its back, so `init_openness_fraction` started at 0.62 instead of 0. Two rubric
+  stages are *absolute* (`> 0.125`, `> 0.65`), so they scored partly for free, which inflates the
+  pre-fix numbers. Recorded for completeness only: it is not why those numbers are unusable, and
+  fixing the upAxis did not make the post-fix ones usable — the render defect spans both sides.
 - **Anything measured on the closed-jaw press.** The probe closed the jaw before descending
   (`GRIP_CLOSE = 1.0`), which loads the pads along the linkage's stiff axis. Different experiment.
 - **Anything using `d_tip_sep` / `d_base_sep`.** Hull-derived tip positions are invalid on this asset
