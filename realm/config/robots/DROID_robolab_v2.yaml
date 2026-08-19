@@ -12,29 +12,47 @@ robots:
     model: "droid_robolab_v2"
     # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
     dof: 13
-    # TRUE as of 2026-08-19: usd_path moved to droid_robolab_v2_MOUNTED.usd, which carries its own
-    # base. MEASURED on the stage, not inferred (logs/mountedasset/probe.log):
+    # FALSE, because this model loads the BARE arm: panda_link0 sits at z=0, whereas a mounted asset
+    # puts it ~0.86 m up. env_config.py:111 adds DROID_BASE_HEIGHT (0.86244) to the spawn point when
+    # this is false, because a REALM_DROID10 task's scene position is the *bottom of the column*.
     #
-    #   droid_robolab_v2.usd          panda_link0 world z = 0.000000   bare arm
-    #   droid_robolab_v2_mounted.usd  panda_link0 world z = 0.863891   has a base
+    # DO NOT point this model at droid_robolab_v2_mounted.usd. Tried on 2026-08-19 and REVERTED the
+    # same day: it breaks the vectorized eval path for EVERY task with
+    #
+    #     ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
+    #
+    # i.e. the robot's articulation does not contain the arm joints at all. Measured: 2:Default and
+    # 6:Default both CRASH (logs/tasks26_0819), while task 0 through the single-env path passed --
+    # so an 02_evaluate.py check is NOT sufficient to clear an asset swap.
+    #
+    # ROOT CAUSE, from entity_prim.py:220-241. OmniGibson infers the root link as the one link that is
+    # no joint's child, and it only counts a joint's child IF THAT JOINT HAS A body0 TARGET (a joint
+    # with empty body0 is read as a world attachment and skipped). When that inference does not yield
+    # exactly one candidate it falls back to the LITERAL NAME "base_link":
+    #
+    #     self._root_link_name = valid_root_links[0] if len(valid_root_links) == 1 else "base_link"
+    #
+    # In this asset `base_link` is the GRIPPER base (see the definition's joint-topology comment), not
+    # a mount. So any mounted variant that leaves two parentless links -- e.g. `table` and
+    # `panda_link0`, if `panda_table_joint` is authored without a body0 -- roots the articulation at
+    # the GRIPPER, and every arm joint disappears from robot.joints.
+    #
+    # WHAT WOULD MAKE IT WORK: author `panda_table_joint` as a real link-to-link fixed joint with
+    # body0 = the mount link and body1 = panda_link0, so the mount is the unique parentless link. Then
+    # `valid_root_links == ["table"]` and the fallback never fires. (Stock droid_mounted.usd gets this
+    # right and loads fine.) Naming the mount `base_link` would also work but collides with the
+    # gripper base here.
+    #
+    # Measured heights, kept because they are the numbers any retry needs
+    # (logs/mountedasset/probe.log):
+    #
+    #   droid_robolab_v2.usd          panda_link0 world z = 0.000000   bare arm, what we load
+    #   droid_robolab_v2_mounted.usd  panda_link0 world z = 0.863891   +1.45 mm vs DROID_BASE_HEIGHT
     #   droid_mounted.usd (stock)     panda_link0 world z = 0.862880   reference
     #
-    # Why the flag has to move with the asset: env_config.py:111 adds DROID_BASE_HEIGHT (0.86244) to
-    # the spawn point when this is FALSE, because a REALM_DROID10 task's scene position is the *bottom
-    # of the column*. Leaving it false with an asset that already contains the column would raise the
-    # arm TWICE and spawn it 0.86 m in the air. Conversely, setting it true with the bare arm buries
-    # the arm in the table and the contact forces NaN the sim within a few steps.
-    #
-    # KNOWN 1.45 mm SHIFT, not silent. 0.863891 is 1.451 mm above DROID_BASE_HEIGHT and 1.011 mm above
-    # stock droid_mounted, so the arm base now sits ~1.5 mm higher than the bare-arm-plus-offset path
-    # put it. Every arm-height-dependent quantity moves by that much relative to earlier runs. Too
-    # small to matter for task success (the drawer rubric's tightest threshold is 15 mm of travel), but
-    # it is a real difference and belongs in the record rather than in nobody's head.
-    #
-    # The switch adds ONE link (`table`) and ONE joint (`panda_table_joint`) and changes NOTHING else:
-    # authored masses IDENTICAL, authored joint drives IDENTICAL, both wrist cameras present under the
-    # same prim paths. Verified by the same probe.
-    has_base_column: true
+    # The mounted asset is otherwise a clean superset: authored masses IDENTICAL, authored joint drives
+    # IDENTICAL, both wrist cameras at the same prim paths, adding one link (`table`) and one joint.
+    has_base_column: false
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
     # Drop the dead second wrist camera. This comment used to say "read the long comment in
