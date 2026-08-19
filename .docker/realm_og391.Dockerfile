@@ -12,56 +12,58 @@ ENV PYTHONPATH=/app \
 SHELL ["/bin/bash", "-c"]
 ENV CONDA_PIP="/opt/conda/envs/behavior/bin/pip"
 
-COPY realm/misc/entity_prim_og391.patch /opt/entity_prim_og391.patch
-COPY realm/misc/usd_object_og391.patch /opt/usd_object_og391.patch
-COPY realm/misc/scene_base_zoffset_og391.patch /opt/scene_base_zoffset_og391.patch
-COPY realm/misc/simulator_initqueue_og391.patch /opt/simulator_initqueue_og391.patch
-COPY realm/misc/material_prim_preset_og391.patch /opt/material_prim_preset_og391.patch
-COPY realm/misc/xform_prim_rootlink_og391.patch /opt/xform_prim_rootlink_og391.patch
-COPY realm/misc/entity_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch
-COPY realm/misc/light_normalize_macros_og391.patch /opt/light_normalize_macros_og391.patch
-COPY realm/misc/light_normalize_dataset_object_og391.patch /opt/light_normalize_dataset_object_og391.patch
+# The OG-lite fork's omnigibson package, staged into the build context by
+# scripts/stage_oglite_for_build.sh. RUN IT FIRST -- this path does not exist otherwise, and a
+# docker build cannot COPY from outside its context, which is why the fork is vendored rather than
+# referenced at ../OG-lite_og391.
+COPY .docker/vendor/omnigibson /opt/oglite/omnigibson
+COPY .docker/vendor/OGLITE_PROVENANCE /opt/oglite/OGLITE_PROVENANCE
+# Kept as documentation of the correctness-critical subset, not applied (the fork has all nine).
+COPY realm/misc /opt/realm_misc_patches
 COPY packages/openpi-client /opt/openpi-client
 
-# Relax the OmniGibson kinematic-tree assertions that reject our custom robot USDs, and fix
-# scene-file objects loading ~100 m too high in every scene except index 0 -- without that third
-# patch the vectorized eval path is unusable, because the task object has nothing to rest on and
-# falls to z=0.015 in scenes 1..N. Measured on this image at num_envs=2 for both Default and V-SC;
-# scene 0 passed every check because its origin IS the world origin, which is why no single-env run
-# ever showed it. Taken from the OG-lite fork (ef7442b); it is the ONLY part of that fork the
-# perturbations need, the rest being performance.
+# INSTALL THE OG-LITE FORK WHOLESALE. THIS IMAGE NEEDS NO RUNTIME BIND.
 #
-# The two light_normalize patches default ON as of 2026-08-18: AN IMAGE BUILT FROM THIS RECIPE IS
-# 1.1.1-LIT UNLESS A RUN SETS REALM_LIGHT_FIX=0. This comment used to call them opt-in and say baking
-# them in "changes no existing behaviour" -- untrue since the default flipped, and precisely the
-# sentence that would let a rebuild move every recorded number without anyone noticing.
+# Was: nine `patch -p1` invocations. The fork already contains all nine (verified 2026-08-20 -- every
+# grep guard below is present in it) AND carries work the patch set never covered: the incremental
+# contact cache, proximity gate, descriptor-pool raise and render-on-demand plumbing, in
+# envs/env_base.py, envs/vec_env_base.py, prims/rigid_prim.py, utils/usd_utils.py. Measured
+# fork-vs-image delta: 8 files, 691 changed lines.
 #
-# They undo the pair of 3.9.1 changes that cancel each other and leave a PER-SCENE lighting error:
-# FORCE_LIGHT_INTENSITY went 150000 -> 10000 while dataset_object.py started also writing
-# inputs:normalize = True, which divides emission by light AREA. The two cancel EXACTLY at
-# area = 1/15 m^2, so scenes whose lights sit near that already match 1.1.1 (push_switch x1.03) and
-# scenes with smaller lights are too bright (rotate_mug x1.56); the flag tightens the per-task spread
-# from 0.551 to 0.201 over the 6 comparable tasks -- 2.74x -- rather than matching 1.1.1 outright.
-# (SIX, corrected 2026-08-19: the published 7-task 2.2x included open_drawer, whose cabinet reached no
-# camera until 8598e59. Both corrections at the FORCE_LIGHT_INTENSITY definition in macros.py.)
-# ONE change in two files: 150000 WITH normalize=True is ~35x too bright, so the two grep guards
-# below are checked separately -- half of this fix is worse than none of it.
+# Wholesale rather than more patches because `MODE=oglite` bind-mounts this same directory over the
+# image's copy, so installing it reproduces that runtime BIT-FOR-BIT BY CONSTRUCTION; a patch set could
+# only approximate it, and a generated patch tree has drifted from this fork twice already. There is no
+# pristine 3.9.1 locally to diff against either: realm_og391.sif already carries two of the nine,
+# realm_og391_v2.sif seven.
 #
-# Fails the build loudly if a patch no longer applies to this OmniGibson version, and the greps
-# below fail it if a patch silently applied nothing.
-RUN patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/usd_object_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/scene_base_zoffset_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/simulator_initqueue_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/material_prim_preset_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/xform_prim_rootlink_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/entity_prim_rootlink_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_macros_og391.patch && \
-    patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_dataset_object_og391.patch && \
-    rm /opt/entity_prim_og391.patch /opt/usd_object_og391.patch /opt/scene_base_zoffset_og391.patch \
-       /opt/simulator_initqueue_og391.patch /opt/material_prim_preset_og391.patch \
-       /opt/xform_prim_rootlink_og391.patch /opt/entity_prim_rootlink_og391.patch \
-       /opt/light_normalize_macros_og391.patch /opt/light_normalize_dataset_object_og391.patch && \
+# COST, so it can be reversed knowingly: the image no longer documents its delta from stock, and a
+# future base image's upstream fixes to those eight files would be silently overwritten. The nine grep
+# guards are the mitigation, with the fork commit recorded in OGLITE_PROVENANCE.
+#
+# WHAT THE NINE ARE: relaxed kinematic-tree assertions (entity_prim, usd_object); scene-file objects
+# loading ~100 m too high in scenes idx != 0, which makes the vector path unusable; the object-init
+# queue pruned by NAME so one member's removal evicted a sibling's uninitialised object;
+# OmniSurfaceMaterialPrim requiring preset_name positionally; articulations placed by whichever prim was
+# read rather than by their ROOT LINK (impact_drawer's base_link is at Ry(180) + 4 cm, so the drawer
+# tasks could not load); and REALM_LIGHT_FIX, ON BY DEFAULT -- 3.9.1 took FORCE_LIGHT_INTENSITY
+# 150000 -> 10000 while also writing inputs:normalize=True, which cancel exactly at area 1/15 m^2 and
+# leave a PER-SCENE error; the flag restores 1.1.1's configuration, tightening the per-task spread
+# 0.551 -> 0.201 over the 6 comparable tasks (2.74x). AN IMAGE BUILT FROM THIS RECIPE IS 1.1.1-LIT
+# UNLESS A RUN SETS REALM_LIGHT_FIX=0.
+#
+# rm -rf then cp -a, never a merge: a file the fork DELETED must not survive from the stock tree.
+# The greps then fail the build if any semantic change did not survive the stage.
+# EXISTING IMAGES STILL NEED THE BIND: realm_og391.sif / _v2.sif came from the old patch-based recipe
+# (2 and 7 of the nine, none of the perf work), so MODE=oglite stays REQUIRED against them. rr's modes
+# are deliberately unchanged -- flipping the default would silently change what every run loads against
+# images that lack this. With an image built from THIS recipe, MODE=stock suffices.
+RUN test -d /opt/oglite/omnigibson || { echo "OG-lite not staged; run scripts/stage_oglite_for_build.sh" >&2; exit 1; } && \
+    rm -rf /behavior-src/OmniGibson/omnigibson && \
+    cp -a /opt/oglite/omnigibson /behavior-src/OmniGibson/omnigibson && \
+    cp -a /opt/oglite/OGLITE_PROVENANCE /behavior-src/OmniGibson/OGLITE_PROVENANCE && \
+    find /behavior-src/OmniGibson/omnigibson -name '__pycache__' -type d -prune -exec rm -rf {} + ; \
+    rm -rf /opt/oglite/omnigibson && \
+    cat /behavior-src/OmniGibson/OGLITE_PROVENANCE && \
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py && \
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/objects/usd_object.py && \
     grep -q "Re-apply the object poses now that the scene prim is at its final position" \

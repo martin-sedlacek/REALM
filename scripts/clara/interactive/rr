@@ -96,10 +96,26 @@ esac
 # The default is :-1 to match macros.py: now that the flag is on by default, UNSET is a request for
 # 1.1.1 lighting, so unset under MODE=stock is the silent-mismatch case this guard exists to catch.
 if [ "${REALM_LIGHT_FIX:-1}" != 0 ] && [ "$MODE" = stock ]; then
-  echo "rr: REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-1 (default)} needs MODE=oglite or MODE=stockfix -- the" >&2
-  echo "    image's own OmniGibson 3.9.1 has no code that reads it, so this run would silently be" >&2
-  echo "    stock-lit. Pass REALM_LIGHT_FIX=0 if stock lighting is what you actually want." >&2
-  exit 1
+  # ASK THE IMAGE instead of assuming. As of 2026-08-20 both recipes install the OG-lite fork
+  # wholesale, so an image built from them DOES read the flag under MODE=stock and needs no bind --
+  # refusing it would make the self-sufficient image unusable in the very mode it was built for.
+  # The older images (realm_og391.sif, _v2.sif) genuinely lack the light patches, so the guard has to
+  # stay for them; the discriminator is the provenance file the new recipes write.
+  #
+  # The probe costs one short container start and runs ONLY on this path -- the one that would
+  # otherwise be refused outright. MODE=oglite and MODE=stockfix never reach it.
+  if apptainer exec --userns "$REALM_SIF" test -f /behavior-src/OmniGibson/OGLITE_PROVENANCE 2>/dev/null; then
+    echo "rr: MODE=stock on an image that has OG-lite baked in ($(basename "$REALM_SIF")) -- no bind" >&2
+    echo "    needed; REALM_LIGHT_FIX is honoured by the image's own OmniGibson." >&2
+  else
+    echo "rr: REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-1 (default)} needs MODE=oglite or MODE=stockfix -- the" >&2
+    echo "    image's own OmniGibson 3.9.1 has no code that reads it, so this run would silently be" >&2
+    echo "    stock-lit. Pass REALM_LIGHT_FIX=0 if stock lighting is what you actually want." >&2
+    echo "    ($(basename "$REALM_SIF") has no /behavior-src/OmniGibson/OGLITE_PROVENANCE, i.e. it was" >&2
+    echo "     built from the old patch-based recipe. Rebuild it to drop this restriction:" >&2
+    echo "     ./scripts/stage_oglite_for_build.sh && apptainer build <sif> .docker/realm_og391.def)" >&2
+    exit 1
+  fi
 fi
 
 mkdir -p "$TMPROOT" "$REALM_APPDATA/appdata"

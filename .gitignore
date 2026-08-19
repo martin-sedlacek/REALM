@@ -193,3 +193,7 @@ uv.lock
 # the assets deliberately.
 realm/robots/r1lite/
 realm/robots/widowx/
+
+# Staged OG-lite package for image builds (scripts/stage_oglite_for_build.sh). A copy of a
+# separate repo -- never committed; regenerate it before building.
+.docker/vendor/
