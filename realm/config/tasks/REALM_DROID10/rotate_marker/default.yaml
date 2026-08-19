@@ -28,8 +28,8 @@ main_objects:
       category: "marker"
       model: "rsxbso"
       orientation: [ -0.7071068, 0, 0, 0.7071068 ]
-      bounding_box: [ 0.02, 0.02, 0.17] #[ 0.17, 0.02, 0.02]
-      relative_bbox_position: [0.05, 0.3, 0] #[0.225, 0.3, 0]
+      bounding_box: [ 0.17, 0.02, 0.02] #[ 0.02, 0.02, 0.17]
+      relative_bbox_position: [0.05, 0.3, 0]
 
 target_objects: []
 
