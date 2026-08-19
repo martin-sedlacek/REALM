@@ -95,17 +95,19 @@ POLICY_CONFIG=${POLICY_CONFIG:-pi05_full_droid_finetune}
 #
 # It exists because 3.9.1's two lighting changes (intensity /15, emission x1/area via
 # normalize=True) cancel only at light area 1/15 m^2, which leaves a PER-SCENE error rather than a
-# global one. Measured over the 7 comparable tasks on exterior cam1 (job 192356, ten tasks off and
-# on): as shipped the per-task brightness ratio against the 1.1.1 references spans x0.968-x1.564
-# (spread 0.596), and with the flag on it tightens to x1.056-x1.331 (spread 0.276) -- 2.2x tighter,
-# mean x1.146 -> x1.180. It does NOT match 1.1.1 -- a uniform ~15-35% excess remains -- it makes the
+# global one. Measured over the 6 comparable tasks on exterior cam1 (job 192356, ten tasks off and
+# on): as shipped the per-task brightness ratio against the 1.1.1 references spans x1.013-x1.564
+# (spread 0.551), and with the flag on it tightens to x1.130-x1.331 (spread 0.201) -- 2.74x tighter,
+# mean x1.176 -> x1.201. It does NOT match 1.1.1 -- a uniform ~13-33% excess remains -- it makes the
 # residual uniform, which is what a single exposure term could absorb and a per-scene shift never
 # could. Do not pair it with an appearance-tuned intensity scale; that undoes exactly that property.
 #
-# NUMBERS CORRECTED 2026-08-18: this previously claimed 0.53 -> 0.11 from x1.199-x1.313, measured off
-# ladder rungs that carry a ~+10 luma under-settle bias and only three tasks wide. Full rationale and
-# the retraction sit at the FORCE_LIGHT_INTENSITY definition in omnigibson/macros.py; the table is
-# ~/projects/REALM/logs/lightfix_10task/lightfix_table.txt.
+# NUMBERS CORRECTED TWICE. (1) 2026-08-18: the original 0.53 -> 0.11 from x1.199-x1.313 was three
+# tasks wide and measured off ladder rungs carrying a ~+10 luma under-settle bias. (2) 2026-08-19: the
+# 7-task replacement, 2.2x, included open_drawer -- whose cabinet was purpose="guide" and reached no
+# camera until 8598e59, 90 min after the table was written -- so the comparable set is SIX and the
+# figure is 2.74x. Both retractions in full at the FORCE_LIGHT_INTENSITY definition in
+# omnigibson/macros.py; the table is ~/projects/REALM/logs/lightfix_10task/lightfix_table.{txt,json}.
 #
 # This script always binds OG-lite over the image's package (see --bind below), so the flag is live
 # here in both states. Every run prints one "[REALM_LIGHT_FIX] ..." line at startup, and the value is

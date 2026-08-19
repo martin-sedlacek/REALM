@@ -81,9 +81,12 @@ From: stanfordvl/behavior:3.9.1
     # inputs:normalize = True, which divides emission by light AREA. The two cancel EXACTLY at
     # area = 1/15 m^2, so scenes whose lights sit near that already match 1.1.1 (push_switch x1.03)
     # and scenes with smaller lights are too bright (rotate_mug x1.56). Setting the flag restores
-    # 1.1.1's exact configuration; that does not MATCH 1.1.1 (a uniform ~15-35% excess remains) but
-    # it tightens the per-task spread from 0.596 to 0.276 over the 7 comparable tasks, turning a
-    # per-scene domain shift into one global gain. ONE change in two files -- 150000 WITH
+    # 1.1.1's exact configuration; that does not MATCH 1.1.1 (a uniform ~13-33% excess remains) but
+    # it tightens the per-task spread from 0.551 to 0.201 over the 6 comparable tasks -- 2.74x --
+    # turning a per-scene domain shift into one global gain. (SIX tasks, corrected 2026-08-19: the
+    # published 7-task figure of 2.2x included open_drawer, whose cabinet reached no camera until
+    # 8598e59, which landed 90 min AFTER the table was written. Both corrections in full at the
+    # FORCE_LIGHT_INTENSITY definition in omnigibson/macros.py.) ONE change in two files -- 150000 WITH
     # normalize=True is ~35x too bright, so they must never be applied separately;
     # dataset_object.py asserts macros.py carries its half.
     patch -p1 -d /behavior-src/OmniGibson < /opt/light_normalize_macros_og391.patch
