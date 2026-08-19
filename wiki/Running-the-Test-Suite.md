@@ -16,10 +16,13 @@ pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
 ```
 
 Run them **by filename, exactly as above** — never as `pytest tests/`. Collection works by
-**importing** each module, and five of the script-style files pull in `omnigibson` at module
+**importing** each module, and three of the script-style files pull in `omnigibson` at module
 scope: `test_joint_reset_batching` and `test_scene_object_placement` import it directly, and
-`test_integrity`, `test_single_task` and `test_perturbations_integrity` reach it through
-`realm.eval`. That is a full Isaac boot, about a minute, before a single test runs.
+`test_rollout_camera_selection` reaches it through `realm.rollout`. That is a full Isaac boot,
+about a minute, before a single test runs. (The eval drivers — `test_integrity`,
+`test_single_task`, `test_perturbations_integrity`, `test_vector_integrity` — used to boot Isaac
+at import too; they now `ast`-parse the task/perturbation lists instead and boot it only in
+their child processes.)
 
 (pytest is not missing. It is installed in the container — though not in the login-node python —
 it is simply the wrong tool for the script-style files. `make check` runs the four pytest modules

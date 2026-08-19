@@ -49,16 +49,17 @@ that a task works.
 import argparse
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 sys.path.append(str(PROJECT_ROOT))
 
-from tests._paths import check_artifacts, crash_lines, scratch_log_root, summarize
+from tests._paths import eval_const_list, run_eval_cell, scratch_log_root, summarize
 
-from realm.eval import SUPPORTED_TASKS
+# ast-parsed, not imported: `from realm.eval import SUPPORTED_TASKS` boots Isaac in this DRIVER,
+# on top of the one each child boots. See eval_const_list.
+SUPPORTED_TASKS = eval_const_list("SUPPORTED_TASKS")
 
 REPEATS = 1
 MAX_STEPS = 1
@@ -94,49 +95,13 @@ def run_test(robot=DEFAULT_ROBOT):
     for task_id in range(10):
         task_name = SUPPORTED_TASKS[task_id]
         print(f"\n--- Testing Task {task_id}: {task_name} ---", flush=True)
-
-        cmd = [
-            sys.executable, "-u", str(PROJECT_ROOT / "examples/02_evaluate.py"),
-            "--task_id", str(task_id),
-            "--perturbation_id", "0",
-            "--repeats", str(REPEATS),
-            "--max_steps", str(MAX_STEPS),
-            "--model_name", model_name,
-            "--model_type", model_type,
-            "--port", str(port),
-            "--experiment_name", experiment_name,
-            "--run_id", run_id,
-            "--log_dir", base_log_dir,
-            "--robot", robot,
-            "--no_render"
-        ]
-
-        # NOT check=True. Isaac tears down with a segfault after all work is done, on passing runs
-        # as much as on failing ones, so a non-zero status here is the NORM and gating on it marked
-        # every task EXECUTION_FAILED regardless of what it produced. The child's own output is
-        # what decides: a real traceback, or artifacts that are missing / the wrong length.
-        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
-        child_log = os.path.join(base_log_dir, f"{task_name}.log")
-        with open(child_log, "w") as fh:
-            fh.write(proc.stdout or "")
-            fh.write(proc.stderr or "")
-
-        crashes = crash_lines((proc.stdout or "") + (proc.stderr or ""))
-        if crashes:
-            print(f"CRASHED during evaluation for {task_name} (exit={proc.returncode})")
-            print(f"  first crash line: {crashes[0].strip()[:200]}")
-            print(f"  full child log: {child_log}")
-            results[task_name] = "EXECUTION_FAILED"
-            continue
-        print(f"Ran evaluation for {task_name} (exit={proc.returncode}, no crash signature)")
-
-        task_log_dir = os.path.join(base_log_dir, experiment_name, model_name, run_id)
-        task_results = check_artifacts(task_log_dir, task_name, "Default", REPEATS)
-        for key, status in task_results.items():
-            print(f"  {key}: {status}")
-        if any(v != "PASS" for v in task_results.values()):
-            print(f"  full child log: {child_log}")
-        results[task_name] = task_results
+        results[task_name] = run_eval_cell(
+            task_name, base_log_dir,
+            task_id=task_id, pert_id=0, task_name=task_name, pert_name="Default",
+            repeats=REPEATS, max_steps=MAX_STEPS,
+            experiment_name=experiment_name, robot=robot, no_render=True,
+            run_id=run_id, model_name=model_name, model_type=model_type, port=port,
+        )
 
     # Summary
     print("\n" + "=" * 50)

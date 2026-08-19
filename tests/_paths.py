@@ -1,14 +1,51 @@
 """Where a test's scratch artifacts go, and how a test decides a child eval really ran.
 
-Shared by the four script-style tests that drive examples/02_evaluate.py in a subprocess
-(test_integrity, test_perturbations_integrity, test_single_task, test_pi0_integration) so the two
-rules below are stated once instead of four times, and cannot drift apart.
+Shared by the script-style tests that drive an eval example in a subprocess (test_integrity,
+test_perturbations_integrity, test_single_task, test_pi0_integration, test_vector_integrity) so
+the rules below are stated once instead of five times, and cannot drift apart. run_eval_cell is
+the whole single-env cell -- launch, log, crash-classify, artifact-check -- because the three
+single-env drivers used to carry three copies of it and the copies had already drifted (their
+progress-line phrasing disagreed, which run_suite.py's `cells` regexes then had to track
+per-file).
+
+Import-light on purpose: nothing here imports omnigibson (pandas is deferred into
+check_artifacts), so the DRIVERS stay host-importable and boot no Isaac -- only their child
+processes need the container. eval_const_list is what makes that possible for the drivers'
+SUPPORTED_TASKS / SUPPORTED_PERTURBATIONS needs.
 """
 import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+sys.path.append(str(PROJECT_ROOT))
+
+from realm.paths import run_log_dir  # noqa: E402  (import-light: realm/__init__.py is empty)
+
+#: The script every single-env cell drives. A module constant so a test harness can substitute a
+#: stub (the real one cannot run outside the container), and so the choice is stated once.
+EVALUATE_SCRIPT = PROJECT_ROOT / "examples" / "02_evaluate.py"
+
+
+def eval_const_list(name):
+    """Read a top-level list literal out of realm/eval.py WITHOUT importing it.
+
+    `from realm.eval import SUPPORTED_TASKS` looks harmless but realm/eval.py imports omnigibson
+    at module scope, which boots a full Isaac instance -- in the DRIVER, purely to read a list of
+    strings, while every cell then boots another one in its child process. Two Isaac instances in
+    one process tree is a needless risk on top of the wasted minute per invocation. Parsing the
+    literal keeps the drivers dependency-free; it is a plain list of string constants, and
+    ast.parse fails loudly if that ever stops being true.
+    """
+    import ast
+    tree = ast.parse((PROJECT_ROOT / "realm" / "eval.py").read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                getattr(t, "id", None) == name for t in node.targets):
+            return [ast.literal_eval(e) for e in node.value.elts]
+    raise RuntimeError(f"{name} not found as a top-level list in realm/eval.py")
 
 
 def scratch_log_root(name):
@@ -112,3 +149,61 @@ def summarize(cell_results):
     """(all_passed, one-line detail) for a dict of {artifact: status}."""
     ok = all(v == "PASS" for v in cell_results.values())
     return ok, ", ".join(f"{k}: {v}" for k, v in cell_results.items())
+
+
+def run_eval_cell(label, base_log_dir, *, task_id, pert_id, task_name, pert_name,
+                  repeats, max_steps, experiment_name, robot, no_render,
+                  run_id="test_run", model_name="debug", model_type="debug", port=8000):
+    """Run one (task, perturbation) cell through EVALUATE_SCRIPT and check what it produced.
+
+    The shared body of test_integrity (sweeps tasks), test_perturbations_integrity (sweeps
+    perturbations) and test_single_task (one cell): launch the child, save its combined output to
+    ``<base_log_dir>/<label>.log``, decide crash-vs-ran from the output (NOT the exit status --
+    Isaac tears down with a segfault after all work is done, on passing runs as much as failing
+    ones, so gating on returncode marked every cell failed regardless of what it produced), then
+    row-count the four artifacts with check_artifacts.
+
+    Returns "EXECUTION_FAILED" or check_artifacts' {artifact: status} dict.
+
+    The progress lines printed here are extracted by run_suite.py's `cells` regexes for its detail
+    column ("CRASHED during evaluation for ...", "Ran evaluation for ...", "  <artifact>: <status>")
+    -- change them together.
+    """
+    cmd = [
+        sys.executable, "-u", str(EVALUATE_SCRIPT),
+        "--task_id", str(task_id),
+        "--perturbation_id", str(pert_id),
+        "--repeats", str(repeats),
+        "--max_steps", str(max_steps),
+        "--model_name", model_name,
+        "--model_type", model_type,
+        "--port", str(port),
+        "--experiment_name", experiment_name,
+        "--run_id", run_id,
+        "--log_dir", base_log_dir,
+        "--robot", robot,
+    ]
+    if no_render:
+        cmd.append("--no_render")
+
+    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
+    child_log = os.path.join(base_log_dir, f"{label}.log")
+    with open(child_log, "w") as fh:
+        fh.write(proc.stdout or "")
+        fh.write(proc.stderr or "")
+
+    crashes = crash_lines((proc.stdout or "") + (proc.stderr or ""))
+    if crashes:
+        print(f"CRASHED during evaluation for {label} (exit={proc.returncode})")
+        print(f"  first crash line: {crashes[0].strip()[:200]}")
+        print(f"  full child log: {child_log}")
+        return "EXECUTION_FAILED"
+    print(f"Ran evaluation for {label} (exit={proc.returncode}, no crash signature)")
+
+    task_log_dir = run_log_dir(base_log_dir, experiment_name, model_name, run_id)
+    cell_results = check_artifacts(task_log_dir, task_name, pert_name, repeats)
+    for key, status in cell_results.items():
+        print(f"  {key}: {status}")
+    if any(v != "PASS" for v in cell_results.values()):
+        print(f"  full child log: {child_log}")
+    return cell_results

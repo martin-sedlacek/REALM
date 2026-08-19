@@ -55,6 +55,22 @@ refactored wholesale (sb_vrb/v_sc/vb_pose/placement decomposed, helpers extracte
 preserved — a placement or instruction that differs from a pre-refactor run on the same seed
 would falsify the offline equivalence and is a stop-the-line finding.
 
+These runs ALSO validate the 2026-08-19 test-driver dedup (the three single-env drivers now share
+`tests/_paths.run_eval_cell`, and none of the eval drivers boots Isaac in the driver process any
+more — `eval_const_list` ast-parses the task/pert lists instead). That refactor was exercised end
+to end on the host against a stub evaluate script (25/25 checks: PASS path, crash path,
+short-rows, missing artifact, and every run_suite verdict/cells regex against real driver
+output), so treat it as low-risk here. Three behavior notes for reading the results:
+  - `test_single_task`'s crash line now reads "CRASHED during evaluation for ..." (was
+    "Evaluation failed for ..."); run_suite's verdict regex was updated in lockstep.
+  - run_suite's four `test_vector_integrity_*` entries had DEAD verdict regexes since the
+    "N refused (...)" count was added to the summary line — they matched nothing, so those
+    entries reported no verdict. Fixed; a vector suite run reports verdicts again.
+  - `test_vector_integrity`'s artifact check is STRONGER now (parquet rows counted per
+    perturbation, same as the single-env drivers, via `artifact_verdict`). A vector cell that
+    used to PASS on "file exists and is non-empty" while under-writing parquet rows will now
+    read PARTIAL — that is the check working, not a regression of the test.
+
 ## 4. SB-VRB on the drawer tasks — confirm the refusal survived the merge (~15 min, optional)
 
 The policy REVERSED upstream while the refactor was in flight: `eef7f14` makes SB-VRB refuse the

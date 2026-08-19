@@ -5,9 +5,12 @@ WHY THIS EXISTS, AND WHY IT IS NOT PYTEST
 Most files in tests/ are standalone scripts -- a `if __name__ == "__main__":` block, printed
 verdict lines, `sys.exit(1)` on failure -- and that is how this driver runs them:
 `python -u tests/<file>.py`, one process each. `pytest tests/` must NOT be used as the suite:
-collection imports every module, and several boot a full Isaac instance at module scope
+collection imports every module, and three boot a full Isaac instance at module scope
 (test_joint_reset_batching and test_scene_object_placement import omnigibson directly;
-test_integrity, test_single_task and test_perturbations_integrity reach it through realm.eval).
+test_rollout_camera_selection reaches it through realm.rollout). The eval DRIVERS
+(test_integrity, test_single_task, test_perturbations_integrity, test_vector_integrity) used to
+as well, through realm.eval; they now ast-parse the two lists they need (tests/_paths.py
+eval_const_list) and boot Isaac only in their child processes.
 (pytest IS installed in the container, at
 /opt/conda/envs/behavior/lib/python3.11/site-packages; it is absent from the login python. So
 "pytest is missing" is not the reason.) The exceptions: four real pytest modules, host-safe by
@@ -112,7 +115,7 @@ SUITE = {
         argv=["tests/test_single_task.py", "--task_id", "0"],
         needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
         verdict=[(r"^Task \d+ \(.*\) FAILED!", "FAIL"),
-                 (r"^Evaluation failed for ", "FAIL"),
+                 (r"^CRASHED during evaluation for ", "FAIL"),
                  (r"^Task \d+ \(.*\) PASSED!", "PASS")],
         cells=r"^  \w+_(?:csv|parquet): \w+",
         note="one task, 1 step, 1 repeat, --no_render.",
@@ -125,7 +128,7 @@ SUITE = {
         argv=["tests/test_single_task.py", "--task_id", "8"],
         needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
         verdict=[(r"^Task \d+ \(.*\) FAILED!", "FAIL"),
-                 (r"^Evaluation failed for ", "FAIL"),
+                 (r"^CRASHED during evaluation for ", "FAIL"),
                  (r"^Task \d+ \(.*\) PASSED!", "PASS")],
         cells=r"^  \w+_(?:csv|parquet): \w+",
         note="task 8 open_drawer -- the mode-dependence control for the stock preset_name gap.",
@@ -158,10 +161,18 @@ SUITE = {
     "test_vector_integrity_tasks": dict(
         argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
-        verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
-                 (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
-        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
-              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
+        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
+        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
+        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
+        # cells and then reported no verdict at all.
+        verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
+                 (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, 0 failed", "PASS")],
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE)\b.*)$",
         note="10 tasks under Default through the vector path, num_envs=2, rendering ON.",
     ),
     "test_vector_integrity_tasks_shard0of2": dict(
@@ -173,10 +184,18 @@ SUITE = {
         argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2",
               "--shard", "0/2"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
-        verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
-                 (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
-        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
-              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
+        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
+        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
+        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
+        # cells and then reported no verdict at all.
+        verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
+                 (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, 0 failed", "PASS")],
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE)\b.*)$",
         note="tasks 0,2,4,6,8 under Default through the vector path, num_envs=2, rendering ON.",
     ),
     "test_vector_integrity_drawers": dict(
@@ -186,19 +205,35 @@ SUITE = {
         # only task types that reach run_joint_resets(), and the batching only exists at num_envs>1.
         argv=["tests/test_vector_integrity.py", "--cells", "8:Default,9:Default", "--num_envs", "2"],
         needs_gpu=True, needs_server=False, timeout=5400, tier="slow",
-        verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
-                 (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
-        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
-              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
+        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
+        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
+        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
+        # cells and then reported no verdict at all.
+        verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
+                 (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, 0 failed", "PASS")],
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE)\b.*)$",
         note="open_drawer + close_drawer through the vector path -- the run_joint_resets cells.",
     ),
     "test_vector_integrity_perturbations": dict(
         argv=["tests/test_vector_integrity.py", "--matrix", "perturbations", "--num_envs", "2"],
         needs_gpu=True, needs_server=False, timeout=21600, tier="slow",
-        verdict=[(r"^\d+ passed, \d+ known-broken, [1-9]\d* failed", "FAIL"),
-                 (r"^\d+ passed, \d+ known-broken, 0 failed", "PASS")],
-        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN):.*|"
-              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN)\b.*)$",
+        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
+        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
+        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
+        # cells and then reported no verdict at all.
+        verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
+                 (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
+                  r"\d+ known-broken, 0 failed", "PASS")],
+        cells=r"^(?:--- \d+:\S+ .*|  -> (?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE):.*|"
+              r"\d+:\S+\s+(?:PASS|CRASH|PARTIAL|NO_ARTIFACTS|KNOWN_BROKEN|"
+              r"NOT_IMPL|UNDECLARED_NOT_IMPL|REFUSAL_GONE)\b.*)$",
         note="16 perturbations on task 0 through the vector path, num_envs=2.",
     ),
     "test_pi0_integration": dict(
