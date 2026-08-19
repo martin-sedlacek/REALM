@@ -15,8 +15,12 @@ perturbation reads at runtime -- the task YAMLs and task_progressions.yaml -- so
 drift from them by holding its own copy of the answer.
 
 A GPU cell run cannot replace this: a silent no-op passes a crash test.
+
+RUNS ON THE HOST, and that is now true rather than aspirational. The two dicts are read out of
+sb_vrb.py with `ast`, because importing it drags in omnigibson -- see module_level_dict below.
 """
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -25,6 +29,30 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TASK_CONFIG_GLOB = "realm/config/tasks/**/*.yaml"
 PROGRESSIONS = PROJECT_ROOT / "realm/config/tasks/task_progressions.yaml"
+SB_VRB = PROJECT_ROOT / "realm/environments/perturbations/sb_vrb.py"
+
+
+def module_level_dict(path, name):
+    """Read a module-level literal dict out of `path` WITHOUT importing the module.
+
+    sb_vrb.py does `import omnigibson as og` at module scope, so any import of it -- including one
+    deferred into a fixture -- needs the container. Deferring only moves the ModuleNotFoundError
+    from collection time to fixture-setup time; it does not make the test host-runnable, and this
+    file's whole reason to exist is being runnable without a GPU or a container. Measured
+    2026-08-19: every test here ERROR'd on the host with `No module named 'omnigibson'`.
+
+    Parsing is not a second copy of the answer -- it reads the SAME file the perturbation is loaded
+    from, so it cannot drift from what runs. ast.literal_eval, not eval: it accepts only literals,
+    so a non-literal definition raises here rather than executing anything.
+    """
+    tree = ast.parse(path.read_text(), filename=str(path))
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == name:
+                return ast.literal_eval(node.value)
+    raise AssertionError(f"no module-level `{name} = ...` literal in {path}")
 
 
 def declared_task_types():
@@ -49,19 +77,12 @@ def progression_task_types():
 
 @pytest.fixture(scope="module")
 def matrix():
-    # Imported inside a fixture, not at module scope: sb_vrb pulls in omnigibson, so a collection-time
-    # import would make this whole file unrunnable outside the container -- which would defeat the
-    # point of a host-side test.
-    from realm.environments.perturbations.sb_vrb import COMPATIBILITY_MATRIX
-
-    return COMPATIBILITY_MATRIX
+    return module_level_dict(SB_VRB, "COMPATIBILITY_MATRIX")
 
 
 @pytest.fixture(scope="module")
 def verb_phrase():
-    from realm.environments.perturbations.sb_vrb import VERB_PHRASE
-
-    return VERB_PHRASE
+    return module_level_dict(SB_VRB, "VERB_PHRASE")
 
 
 def test_every_declared_task_type_is_a_matrix_key(matrix):
