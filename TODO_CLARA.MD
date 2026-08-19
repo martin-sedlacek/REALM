@@ -5,155 +5,103 @@ laptop). Items are ordered so the cheap checks run first and gate the expensive 
 off and delete them as they pass; a failure is worth pasting back verbatim (the verdict lines
 plus the first traceback), not summarising.
 
-Covers commits `b9a6fb3..HEAD` on `port-to-og391`: perturbations refactor, Phase-0 cleanup,
-robots fail-fast + IK docs, inference-client adapters, logging dedup, paths consolidation, and
-the merge of origin's drawer-fix series (`3bc4c75` — SB-VRB now deliberately refuses the drawer
-tasks; the refusal block merged cleanly into the decomposed sb_vrb.py). All of it was verified
-offline with old-vs-new equivalence harnesses (bit-identical outputs incl. RNG stream state), so
-the runs below are confirmation sweeps, not first contact — anything red is a real finding.
-
 Sync first: `make put_clara`.
 
-## 1. Login node — no GPU, no container (~5 s total)
+---
 
-```bash
-python3 tests/test_task_type_literals.py          # expect: PASSED
-python3 tests/test_task_progression_rubrics.py    # expect: PASSED (was committed-red; now green)
-python3 tests/run_suite.py --only local --strict  # expect: both entries PASS
-# pytest is absent from the login python; run the 4 host pytest modules wherever pytest exists
-# (`make check` does this automatically when pytest is importable):
-pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-       tests/test_robot_base_column.py tests/test_robot_definition_parity.py -q
-# expect: 36 passed, 1 skipped -- already confirmed on the laptop post-merge, 2026-08-19
+## SWEEP OF 2026-08-19/20 IS DONE — all of items 1–5b passed
+
+Covered `b9a6fb3..HEAD`: perturbations refactor, Phase-0 cleanup, robots fail-fast + IK docs,
+inference-client adapters, logging dedup, paths consolidation, the drawer-fix merge, and the 1.0.0
+number-moving batch. Run on allocation 193102 (**h200-02**, not l40s — l40s had all 5 usable nodes at
+8/8 GPUs, `l40s-06` draining and 240 jobs queued), `MODE=oglite` throughout.
+
+| item | what | result |
+|---|---|---|
+| 1 | login node: task-type literals, rubrics, `run_suite --only local`, 4 host pytest modules | PASS (37 pytest passed — 37 not 36+skip, because `test_against_the_real_captured_log`'s log exists here) |
+| 2 | `tests/test_robot_ik_units.py` in-container, first-ever run | PASS, 13 checks incl. `RobotArm.name` |
+| 3 | `test_integrity` (10 tasks, 30 cells) | PASS |
+| 3 | `test_perturbations_integrity` (16 perturbations, 48 cells) | FAIL on B-HOBJ → fixed in `db3a4bc` → **re-run PASS, 48/48** |
+| 5 | EE-control fail-fast, `--robot DROID_ee_control` | PASS — `absolute_pose` constructs, effector prefix is `franka` not a bound method |
+| 5b | `t10_bhobj_props` task 0 (6 resets) + task 8 joint path (4 resets) | PASS both — no compounding, not frozen |
+| 5b | VB-POSE push non-accumulation | PASS — `init_poses` drift exactly 0.0 across 4 resets |
+
+Item 4 (SB-VRB drawer refusal) was left unrun: it is statically pinned by
+`tests/test_perturbation_task_types.py` and upstream already exercised the cells live. Item 6 (A/B
+number-neutrality) was left unrun: superseded by the offline equivalence harness, and B-HOBJ /
+push-VB-POSE / V-AUG now differ by design since 1.0.0 so a diff there proves nothing.
+
+**One bug found, fixed and re-verified (`db3a4bc`):** `b_hobj.py` wrote the scaled mass without a
+`float()` cast. `min(np.float64, MASS_CLIP_KG)` returns whichever OPERAND is smaller keeping its type,
+so below the 2 kg clip an np.float64 reached `set_masses` and raised
+`RuntimeError: Index put requires the source and destination dtypes match` then SIGSEGV — i.e. the
+dtype of the write depended on the draw. The joint setters three lines below already had the cast with
+a comment naming the hazard. No number moves (Isaac stores masses float32 either way). Only reachable
+against a live Isaac, so no host-side check could have caught it.
+
+**Lesson worth keeping:** `run_suite`'s table used to print merged rows from earlier invocations
+against the same `--out` indistinguishably, under a bare `PASS=n`. `make check` (2 container-free
+tests) therefore printed `PASS=9` including a stale `test_perturbations_integrity PASS` that
+contradicted a FAIL measured on the same tree 20 minutes earlier. Gating was never wrong (`mine`
+decides status and the XML); the *printed* line was. Merged rows are now marked `*` with split counts.
+
+---
+
+## 1. BLOCKER — `--robot DROID_robolab_v2` cannot construct a robot
+
+Found 2026-08-19 while running item 5b. **This is not the vector-path issue previously recorded; that
+attribution was wrong.**
+
+```
+ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
 ```
 
-## 2. Container, CPU is fine — the new IK/gains unit test (~1 min)
+The robot's articulation comes up without its arm joints. `DROID_robolab_v2` resolves to
+`model: droid_robolab_v2` → `droid_robolab_v2_mounted.usd`, and that asset fails on the **single-env**
+path too — measured with `t10_bhobj_props.py`, which builds a plain `RealmEnvironmentDynamic` with no
+vector env and defaults to this robot.
 
-New file, first-ever run — if it fails, suspect the TEST before the solver, and paste the
-full output back so it can be iterated.
+Why it looked vector-specific before: every run cited as evidence that single-env was fine
+(`t4_default_check.sh`, and all 78 cells of item 3) silently used `--robot DROID`, the **stock** robot,
+because that is the default in `examples/02_evaluate.py` and in `DEFAULT_ROBOT` in all three integrity
+drivers. So `in_vec_env=True` was never the discriminator.
 
-```bash
-# inside the container (rr, or apptainer_eval on an allocation):
-python -u tests/test_robot_ik_units.py
-# expect: "PASSED -- IK conversion algebra and gain preparation behave as pinned"
-```
+Practically: `sbatch_eval_pi05.sh` and the interactive probes default to `--robot DROID_robolab_v2`,
+which currently cannot build. **`--robot DROID_robolab_v2_bare` works** and is the escape hatch.
 
-This pins the solver's conversion algebra BEFORE the planned controller base-class extraction.
-Once it passes on the cluster, say so — the robots dedup is parked on exactly this.
+Ruled OUT by measurement (`logs/mountedasset/rootlink.log`) — do not re-tread:
+`entity_prim.py:241`'s `else "base_link"` root-link fallback. The mounted asset yields ONE clean
+candidate (`table`) and every joint in it has both `body0` and `body1`, so the fallback never fires for
+it. The asset that DOES depend on that fallback is stock `droid_mounted.usd`, and it works.
 
-## 3. GPU smoke — the perturbations refactor (the main event, ~30–60 min)
+Next check: does `ArticulationView(f"{prim_path}/table")` (`entity_prim.py:141`) resolve to the
+articulation `PhysicsArticulationRootAPI` is authored on? `table` is a root link no config names
+(`arm_link_names` lists `panda_link0..7`).
 
-```bash
-sbatch scripts/clara/tests/run_pert_integrity_test.sh   # all 16 perturbations on task 0
-sbatch scripts/clara/tests/run_integrity_test.sh        # tasks 0–7 under Default
-# or equivalently, against a held allocation:
-ALLOC=<jobid> make test-smoke
-```
+Owner decision also open: whether `droid_robolab_v2` should keep pointing at the mounted asset while it
+cannot build, or the two model names should swap so the default is the one that works.
 
-Expected: every cell PASS with the exact-row artifact checks. The perturbation modules were
-refactored wholesale (sb_vrb/v_sc/vb_pose/placement decomposed, helpers extracted) with RNG order
-preserved — a placement or instruction that differs from a pre-refactor run on the same seed
-would falsify the offline equivalence and is a stop-the-line finding.
+## 2. Backlog (not this sweep)
 
-These runs ALSO validate the 2026-08-19 test-driver dedup (the three single-env drivers now share
-`tests/_paths.run_eval_cell`, and none of the eval drivers boots Isaac in the driver process any
-more — `eval_const_list` ast-parses the task/pert lists instead). That refactor was exercised end
-to end on the host against a stub evaluate script (25/25 checks: PASS path, crash path,
-short-rows, missing artifact, and every run_suite verdict/cells regex against real driver
-output), so treat it as low-risk here. Three behavior notes for reading the results:
-  - `test_single_task`'s crash line now reads "CRASHED during evaluation for ..." (was
-    "Evaluation failed for ..."); run_suite's verdict regex was updated in lockstep.
-  - run_suite's four `test_vector_integrity_*` entries had DEAD verdict regexes since the
-    "N refused (...)" count was added to the summary line — they matched nothing, so those
-    entries reported no verdict. Fixed; a vector suite run reports verdicts again.
-  - `test_vector_integrity`'s artifact check is STRONGER now (parquet rows counted per
-    perturbation, same as the single-env drivers, via `artifact_verdict`). A vector cell that
-    used to PASS on "file exists and is non-empty" while under-writing parquet rows will now
-    read PARTIAL — that is the check working, not a regression of the test.
-
-## 4. SB-VRB on the drawer tasks — confirm the refusal survived the merge (~15 min, optional)
-
-The policy REVERSED upstream while the refactor was in flight: `eef7f14` makes SB-VRB refuse the
-drawer tasks outright (NotImplementedError before any env mutation — the receiver it would inject
-has nowhere to go and was being dropped from the sky), and `e622b72`/`fa28d94` teach the matrix
-harness that this refusal is not a crash. Upstream already exercised these cells live; what the
-merge added is my decomposed sb_vrb.py carrying the refusal block, so the only question is
-whether the merged file still raises FIRST — statically it does (the guard is the first statement
-of `sb_vrb()`), and `pytest tests/test_perturbation_task_types.py` pins the UNSUPPORTED set.
-Only if you want a live confirmation:
-
-```bash
-sbatch scripts/clara/run_debug_single.sh --task_id 8 --perturbation_id 12 --model_type debug --experiment_name sbvrb_drawer_refusal
-```
-
-Check the log for the loud `NotImplementedError: SB-VRB does not support task_type 'open_drawer'`
-(with the "do not 'fix' this by making it a no-op" text), raised BEFORE any placement/instruction
-lines — and no `Failed to place object 'receiver'` anywhere.
-
-## 5. EE-control smoke — the fail-fast must not reject a valid config (~15 min)
-
-Construction now rejects the four broken IK modes; `absolute_pose` and `pose_delta_ori` must
-still construct and run. Also confirms the `RobotArm.name` property fix (effector prefixes were
-`<bound method ...>` strings before — cosmetic, but this is the first run with it corrected).
-
-```bash
-sbatch scripts/clara/run_debug_single.sh --task_id 0 --perturbation_id 0 --model_type debug \
-    --robot DROID_ee_control --experiment_name ee_failfast_probe
-```
-
-Expect a normal debug rollout (the debug adapter returns a fixed EE pose). An
-`AssertionError: Unsupported ik mode ...` here would mean a config names a mode I mis-classified
-— paste the config name and the assert text.
-
-## 5b. The 1.0.0 number-moving batch — first live run (~20 min)
-
-Owner call 2026-08-19: the three gated fixes shipped (VERSION 1.0.0, see CHANGE_LEDGER.md).
-**These deliberately change scores** — B-HOBJ, push-task VB-POSE and V-AUG numbers recorded
-before 1.0.0 must be recomputed, so a diff against an old run is EXPECTED here, not a finding.
-What to verify is the new behavior itself:
-
-```bash
-# B-HOBJ: mass now log-uniform from baseline; max_velocity + friction now perturbed too.
-# The probe's bounds and JOINT_PROPS are already updated for 1.0.0.
-./run python -u scripts/clara/interactive/t10_bhobj_props.py --resets 6 --task_id 0
-./run python -u scripts/clara/interactive/t10_bhobj_props.py --resets 4 --task_id 8   # joint path
-# expect: PASSED (no compounding, nothing frozen). If max_velocity/friction error on WRITE,
-# paste the traceback -- the setters were verified against OmniGibson 3.9.1 source, not live.
-
-# VB-POSE push task: the switch offset must NOT accumulate across repeats.
-sbatch scripts/clara/run_debug_single.sh --task_id 7 --perturbation_id 13 --model_type debug \
-    --repeats 3 --experiment_name vbpose_push_100
-# check the log: each reset's switch position within +/-0.075/+/-0.15 m of the SAME base pose.
-
-# V-AUG: covered by the pert-integrity smoke (item 3) -- same distortion distribution,
-# different concrete draws. Nothing V-AUG-specific to eyeball.
-```
-
-## 6. Optional — direct A/B number-neutrality proof (~30 min)
-
-Only if you want belt-and-braces on top of the offline equivalence: same seed, same task, debug
-model, pre- vs post-refactor, diff the reports.
-
-```bash
-git worktree add ../REALM_pre 643d7c9        # last commit before the refactor commits
-# run the SAME command in both checkouts (debug model, 2 repeats, any task/pert pair you like):
-#   python examples/02_evaluate.py --task_id 0 --perturbation_id 13 --repeats 2 --max_steps 100 \
-#       --model_type debug --model_name debug --port 1 --experiment_name ab_check --log_dir <distinct dirs>
-diff <old>/reports/put_green_block_into_bowl_VB-POSE.csv <new>/reports/put_green_block_into_bowl_VB-POSE.csv
-# expect: identical rows. VB-POSE(tabletop)/V-SC/SB-VRB are the perturbations worth A/B-ing
-# (placement RNG). CAVEAT since 1.0.0: run the NEW side at the commit *before* the 1.0.0 batch,
-# or skip B-HOBJ, push-task VB-POSE and V-AUG -- those three now differ BY DESIGN (see
-# CHANGE_LEDGER.md), so a diff there is expected and proves nothing about the refactor.
-git worktree remove ../REALM_pre
-```
-
-## 7. Backlog (not this sweep)
-
-- **Vectorized SB-VRB remains UNVERIFIED end to end** (adds a "receiver" other members' scenes
-  lack — a case V-SC never exercises). When vector work resumes:
-  `python tests/test_vector_integrity.py` perturbations entry, or the t9 interactive probe with
-  `--perturbation SB-VRB`.
-- **Controller base-class extraction** starts only after item 2 passes on the cluster, and wants
-  a same-alloc `test-smoke` before/after when it lands.
+- **Controller base-class extraction** is now UNBLOCKED — item 2 passed on the cluster. Wants a
+  same-allocation `test-smoke` before and after when it lands.
+- **Vectorized SB-VRB remains UNVERIFIED end to end** (adds a "receiver" other members' scenes lack —
+  a case V-SC never exercises). `python tests/test_vector_integrity.py` perturbations entry, or the t9
+  interactive probe with `--perturbation SB-VRB`.
 - The 2-drawer + `target_drawer_loc="bottom"` case now raises a clear ValueError instead of
   UnboundLocalError — only relevant if a 2-drawer cabinet asset ever enters the drawer tasks.
+
+## 3. Gotchas for whoever runs this next
+
+- **VB-POSE logs nothing** — no `print`, no `og.log`. The old instruction "check the log: each reset's
+  switch position within ±0.075/±0.15 m of the same base pose" cannot be followed. Use
+  `logs/todo_clara/vbpose_switch_probe.py`, which asserts the invariant the 1.0.0 `.clone()` fix
+  actually changed (`env.init_poses` bit-identical across resets) plus a variance check so it cannot
+  pass vacuously on a frozen offset.
+- **`rc=139` means nothing.** Isaac segfaults at teardown after passing work. Both t10 probes exited
+  139 having printed `PASSED`. Read the verdict lines, never the exit code — that is why
+  `run_suite` records `exit_code` but never gates on it.
+- **`ruff` is in neither the login python nor the container.** It lives in the `mlspaces` and
+  `molmoact_dev` conda envs:
+  `make check RUFF=/home/sedlam56/miniconda3/envs/mlspaces/bin/ruff PYTHON=/home/sedlam56/miniconda3/envs/behavior/bin/python`
+- **`--out` accumulates across invocations.** Point `--out` somewhere per-sweep, or read the `*` marks.
