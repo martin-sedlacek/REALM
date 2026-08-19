@@ -260,8 +260,8 @@ get_clara: ## Get source from remote source
 
 get_logs_clara:
 	rsync -av \
-		--exclude slurm-* \
-		--exclude *.log \
+		--exclude 'slurm-*' \
+		--exclude '*.log' \
 		--exclude 'appdata/' \
 	 	sedlam56@login01.clara.ciirc.cvut.cz:/home/sedlam56/projects/REALM/logs/ ./logs/
 
