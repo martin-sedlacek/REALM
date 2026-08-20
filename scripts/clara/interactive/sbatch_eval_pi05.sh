@@ -138,7 +138,28 @@ SERVER_WAIT=${SERVER_WAIT:-300}
 # tyro would error, but the pairing is easy to get wrong and cheap to assert.
 grep -q "name=\"$POLICY_CONFIG\"" "$OPENPI_ROOT/src/openpi/training/config.py" \
   || { echo "ERROR: POLICY_CONFIG=$POLICY_CONFIG is not defined in $OPENPI_ROOT/src/openpi/training/config.py" >&2; exit 1; }
-[ -d "$REALM_OGLITE_ROOT/omnigibson" ]  || { echo "ERROR: no OG-lite" >&2; exit 1; }
+# OGLITE_BIND=0 runs against an image that has OG-lite BAKED IN (built from .docker/realm_og391.def
+# since 2026-08-20), so no bind is needed and /behavior-src is the image's own installed fork.
+#
+# Guarded, not just permitted: turning the bind off against an OLD image would silently run stock,
+# unpatched OmniGibson with stock lighting -- the drawer tasks would not even load and every number
+# would be wrong without anything failing. The provenance file only exists in images built from the
+# new recipe, so it is the discriminator. Same check rr makes, for the same reason.
+OGLITE_BIND=${OGLITE_BIND:-1}
+if [ "$OGLITE_BIND" = 0 ]; then
+  apptainer exec --userns "$REALM_SIF" test -f /behavior-src/OmniGibson/OGLITE_PROVENANCE 2>/dev/null \
+    || { echo "ERROR: OGLITE_BIND=0 but $(basename "$REALM_SIF") has no baked-in OG-lite" >&2
+         echo "       (no /behavior-src/OmniGibson/OGLITE_PROVENANCE -- it is an old patch-based image)." >&2
+         echo "       Either drop OGLITE_BIND=0, or point REALM_SIF_OG391 at an image built from" >&2
+         echo "       .docker/realm_og391.def after running scripts/stage_oglite_for_build.sh." >&2
+         exit 1; }
+  OGLITE_BIND_ARGS=()
+  echo "OG-lite: BAKED INTO THE IMAGE, no bind ($(basename "$REALM_SIF"))"
+else
+  [ -d "$REALM_OGLITE_ROOT/omnigibson" ]  || { echo "ERROR: no OG-lite" >&2; exit 1; }
+  OGLITE_BIND_ARGS=(--bind "$REALM_OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson)
+  echo "OG-lite: BOUND from $REALM_OGLITE_ROOT"
+fi
 mkdir -p "$REALM_ROOT/tmp/$JOB" "$REALM_APPDATA/appdata" "$REALM_LOGS/$EXPERIMENT"
 
 echo "=================================================================="
@@ -202,7 +223,7 @@ apptainer run --userns --nv --writable-tmpfs --pwd /app \
   --bind "$REALM_APPDATA":/cache \
   --bind "$REALM_LOGS":/logs \
   --bind "$REALM_ROOT/tmp/$JOB":/tmp \
-  --bind "$REALM_OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson \
+  "${OGLITE_BIND_ARGS[@]}" \
   --env TMPDIR=/tmp \
   --env OMNIGIBSON_HEADLESS=1 \
   --env NVIDIA_DRIVER_CAPABILITIES=all \
