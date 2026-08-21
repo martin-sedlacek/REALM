@@ -32,6 +32,15 @@ def _perturb_camera_pose(cam_pos: list[float], cam_orientation: list[float]) -> 
     return cam_pos, cam_orientation
 
 
+def _opposite_side_keys(
+    keys: list[str],
+    extrinsics: dict[str, dict[str, list[float]]],
+    first_camera_y: float,
+) -> list[str]:
+    """Return poses whose robot-base-frame Y is strictly opposite @first_camera_y."""
+    return [key for key in keys if extrinsics[key]["pos"][1] * first_camera_y < 0]
+
+
 def v_view(env: "RealmEnvironmentDynamic") -> None:
     """Re-draw both external cameras' poses from the extrinsics catalogue, plus jitter.
 
@@ -48,10 +57,15 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
     # stopped sim: these are external VisionSensor prims, i.e. XForms rather than rigid bodies, so a
     # pose write is a USD transform update that applies whether or not physics is running, and there
     # is no velocity to zero afterwards (contrast vb_pose._place, which must keep_still()).
-    for i in range(len(env.omnigibson_env.external_sensors)):
-        robot_pos = env.cfg["robots"][0]["position"]
-        robot_rot = env.cfg["robots"][0]["orientation"]
-        robot_rot = omnigibson_transform_utils.quat2euler(torch.tensor(robot_rot, dtype=torch.float32)).tolist()
+    sensor_count = len(env.omnigibson_env.external_sensors)
+    robot_pos = env.cfg["robots"][0]["position"]
+    robot_rot = env.cfg["robots"][0]["orientation"]
+    robot_rot = omnigibson_transform_utils.quat2euler(
+        torch.tensor(robot_rot, dtype=torch.float32)
+    ).tolist()
+    first_camera_y = None
+
+    for i in range(sensor_count):
 
         cam_pose_keys = list(env.cfg_camera_extrinsics.keys())
         filtered_cam_pose_keys = [
@@ -59,13 +73,24 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
             if (
                     not key.startswith('CP') and
                     not (i == 0 and 'cam2' in key) and
-                    not (i == 1 and 'cam1' in key)
+                    not (i == 1 and 'cam1' in key) and
+                    not (sensor_count > 1 and i == 0 and env.cfg_camera_extrinsics[key]["pos"][1] == 0)
             )
         ]
         if env.task_type in ["open_drawer", "close_drawer"]:
             cam_pose_name = "ep_001042_cam1" if i == 0 else "ep_001042_cam2" # TODO: scene specific, just get the extrinsic key dynamically
         else:
+            if i == 1:
+                filtered_cam_pose_keys = _opposite_side_keys(
+                    filtered_cam_pose_keys,
+                    env.cfg_camera_extrinsics,
+                    first_camera_y,
+                )
+                if not filtered_cam_pose_keys:
+                    raise ValueError("V-VIEW has no camera extrinsic on the opposite side of the robot")
             cam_pose_name = np.random.choice(filtered_cam_pose_keys)
+        if i == 0:
+            first_camera_y = env.cfg_camera_extrinsics[cam_pose_name]["pos"][1]
         cam_pos, cam_orientation = env.construct_ext_cam_pose_by_name(cam_pose_name, robot_pos, robot_rot)
         new_cam_pos, new_cam_orientation = _perturb_camera_pose(cam_pos, cam_orientation)
         base_cam_config = env.cfg["env"]["external_sensors"][i]

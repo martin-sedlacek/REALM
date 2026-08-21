@@ -188,9 +188,14 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return build_environment_config(self)
 
     def construct_ext_cam_pose_by_name(self, pose_name, robot_pos, robot_rot):
-        assert pose_name in self.cfg_camera_extrinsics
-        base_cam_pos = self.cfg_camera_extrinsics[pose_name]["pos"]
-        base_cam_rot = self.cfg_camera_extrinsics[pose_name]["rot"]
+        if isinstance(pose_name, dict):
+            assert set(pose_name) >= {"pos", "rot"}
+            base_cam_pos = pose_name["pos"]
+            base_cam_rot = pose_name["rot"]
+        else:
+            assert pose_name in self.cfg_camera_extrinsics
+            base_cam_pos = self.cfg_camera_extrinsics[pose_name]["pos"]
+            base_cam_rot = self.cfg_camera_extrinsics[pose_name]["rot"]
         base_cam_pos, base_cam_rot = calculate_new_camera_pose_mixed_rotations(
             base_cam_pos, base_cam_rot,
             robot_pos, robot_rot
