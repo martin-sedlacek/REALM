@@ -190,6 +190,14 @@ because on the development machine the shell profile exports those names pointin
 1.1.1 tree and image**. Overrides use `_OG391`-suffixed names. If a path surprises you, run
 `realm_paths_show` — see [Installation](Installation).
 
+### `VB-POSE` logs nothing at all
+
+No `print`, no `og.log`. Instructions of the form "check the log: each reset's switch position is
+within ±0.075/±0.15 m of the same base pose" cannot be followed, because there is no such log line to
+check. Verify it by asserting on state instead — `env.init_poses` bit-identical across resets is the
+invariant the 1.0.0 `.clone()` fix actually changed — and pair that with a variance check, or the
+assertion passes vacuously on a frozen offset.
+
 ### Startup dominates short runs
 
 Roughly **64% of wall time** on a small evaluation is startup, not rollout. Comparing wall-clock time

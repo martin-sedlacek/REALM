@@ -78,3 +78,66 @@ and does not bind the symlink's target -- so `/app/logs` resolves to nothing and
 `os.makedirs()` dies with FileNotFoundError before a single task is evaluated (measured
 2026-08-16). Under the retired `scripts/run_docker.sh` (`-v $(pwd):/app`), `logs` was a real
 directory and `/app/logs` worked, which is why older code used it.
+
+## The mounted robolab_v2 asset's dangling joint (`scripts/debug_probes/inspect_articulation_roots.py`)
+
+`--robot DROID_robolab_v2` died during construction for weeks:
+
+```
+robot.py:2816  list(self.joints.keys()).index(name)
+ValueError: 'panda_joint1' is not in list
+```
+
+reached via `_default_arm_ik_controller_configs` -> `arm_control_idx`. The articulation OmniGibson
+enumerated did not contain the arm joints. Cause, in `droid_robolab_v2_mounted.usd`:
+
+```
+/panda/table/panda_table_joint   (PhysicsFixedJoint)
+    physics:body0 -> /panda/droid_mounted/droid_mounted/base_link    MISSING
+    physics:body1 -> /panda/droid_mounted/panda_link0                MISSING
+```
+
+No `/panda/droid_mounted` prim exists — both targets were leftovers from an earlier hierarchy, so the
+joint bolted nothing to nothing and `table` floated free.
+
+The failure is entirely in how a dangling target is *consumed*. `entity_prim.py:229` derives a link
+name from `body1` with `pathString.split("/")[-1]` — a **basename**. The dangling path still ends in
+`panda_link0`, so the arm's real root was added to `joint_children` as if the joint were valid;
+`valid_root_links = links - joint_children` left only `table`; and `ArticulationView("/panda/table")`
+was built on a free-floating body with no arm joints beneath it.
+
+Two edits, both required — cumulative diff **2 changed prim specs out of 1031**, no attribute, mass or
+pose touched:
+
+- `bf1e416` — removed a duplicate `PhysicsArticulationRootAPI`/`PhysxArticulationAPI` from
+  `/panda/table`. On its own this fixed nothing (smoke 193698 failed identically), but with the joint
+  repaired it would have re-split the table into its own articulation.
+- `b90febe` — repointed the joint: `body0 -> /panda/table`, `body1 -> /panda/panda_link0`.
+
+Verified 2026-08-21: smoke 193774 constructs and runs; then the 30-job VB-POSE benchmark
+(193796–193825) ran on the mounted asset with task 0 at SR 0.800 / 0.800 / 0.680 (pi0 / pi0-FAST /
+pi0.5), so the asset is sound under load. Pristine copy is in git at `6154f19`.
+
+**Two wrong turns, both instructive.** The first was a USD-topology theory: the asset has two
+`ArticulationRootAPI` prims (`/panda` and `/panda/table`), which looks like the classic nested-root
+bug and is a real defect, but was not this one. The second was mistrusting a correct note — an earlier
+record said "the mounted asset yields ONE clean candidate (`table`)", which is TRUE and is a statement
+about root-*link* candidates; conflating it with the `ArticulationRootAPI` count produced a retraction
+of a line that had been right all along.
+
+The trap was subtler than either: "every joint has both `body0` and `body1`" was also true. Both
+relationships were **present**. Nobody checked whether their targets **resolve**. Presence is not
+validity, and a dangling relationship is invisible to any check that only asks whether an attribute
+exists.
+
+**Method that works, use it first next time:** replicate the consuming code's inference
+(`entity_prim.py:203-241`) offline with pxr on a login node — no Isaac, no GPU, seconds per asset. It
+prints `valid_root_links`, `root_link_name`, dangling targets and link reachability directly, instead
+of inferring them from USD topology. That is what `inspect_articulation_roots.py` does; the two repair
+scripts beside it are `fix_mounted_articulation_root.py` and `fix_mounted_table_joint.py`. A host
+`usd-core` is enough — the container is not needed. Three cluster runs went into two topology theories
+that one offline replication settled immediately.
+
+**Open, cheap, unrelated to the fix:** `/panda/table` carries `physics:mass=0.0` alongside
+`PhysicsRigidBodyAPI`. Pre-existing, untouched, and it did not stop the benchmark — but a zero-mass
+dynamic rigid body is odd, and is the first suspect if the table ever behaves strangely.

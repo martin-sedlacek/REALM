@@ -10,6 +10,11 @@ reached via _default_arm_ik_controller_configs -> arm_control_idx. That says the
 OmniGibson enumerated does not contain the arm joints. This script answers the prior question --
 what does the asset actually declare -- by reading the USD directly.
 
+RESOLVED 2026-08-21 -- it was a dangling fixed joint whose body targets no longer existed, and whose
+BASENAME still matched the arm's real root link. Full account, including the two wrong turns and why a
+present-but-dangling relationship defeats existence checks: docs/code_archaeology.md, "The mounted
+robolab_v2 asset's dangling joint". This script stays as the diagnostic, not as a one-off.
+
 pxr ONLY, no omnigibson import: `omnigibson.lazy` is a LazyImporter that CACHES NEGATIVE LOOKUPS, so
 touching lazy.pxr before og.launch() poisons it for the rest of the process. Importing pxr straight
 from Isaac's python sidesteps that entirely and needs no GPU, so this runs on a login node.
