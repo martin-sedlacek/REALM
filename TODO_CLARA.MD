@@ -47,39 +47,62 @@ decides status and the XML); the *printed* line was. Merged rows are now marked 
 
 ---
 
-## 1. BLOCKER — `--robot DROID_robolab_v2` cannot construct a robot
+## 1. RESOLVED 2026-08-21 — `--robot DROID_robolab_v2` was a DANGLING JOINT in the asset
 
-Found 2026-08-19 while running item 5b. **This is not the vector-path issue previously recorded; that
-attribution was wrong.**
+`ValueError: 'panda_joint1' is not in list` (robot.py:2816, arm_control_idx). Cause, in
+`droid_robolab_v2_mounted.usd`:
 
 ```
-ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
+/panda/table/panda_table_joint   (PhysicsFixedJoint)
+    physics:body0 -> /panda/droid_mounted/droid_mounted/base_link    MISSING
+    physics:body1 -> /panda/droid_mounted/panda_link0                MISSING
 ```
 
-The robot's articulation comes up without its arm joints. `DROID_robolab_v2` resolves to
-`model: droid_robolab_v2` → `droid_robolab_v2_mounted.usd`, and that asset fails on the **single-env**
-path too — measured with `t10_bhobj_props.py`, which builds a plain `RealmEnvironmentDynamic` with no
-vector env and defaults to this robot.
+No `/panda/droid_mounted` prim exists — both targets are leftovers from an earlier hierarchy, so the
+joint bolted nothing to nothing and `table` floated free. `entity_prim.py:229` then derives a link name
+from body1 with `pathString.split("/")[-1]`, a **basename**: the dangling path still ends in
+`panda_link0`, so the arm's real root entered `joint_children` anyway, `valid_root_links = links -
+joint_children` left only `table`, and `ArticulationView("/panda/table")` was built on a free-floating
+body with no arm joints beneath it.
 
-Why it looked vector-specific before: every run cited as evidence that single-env was fine
-(`t4_default_check.sh`, and all 78 cells of item 3) silently used `--robot DROID`, the **stock** robot,
-because that is the default in `examples/02_evaluate.py` and in `DEFAULT_ROBOT` in all three integrity
-drivers. So `in_vec_env=True` was never the discriminator.
+Two edits, BOTH required:
+- `bf1e416` — removed a duplicate `PhysicsArticulationRootAPI`/`PhysxArticulationAPI` from
+  `/panda/table` (with the joint repaired this would re-split the table into its own articulation).
+- `b90febe` — repointed the joint: `body0 -> /panda/table`, `body1 -> /panda/panda_link0`.
 
-Practically: `sbatch_eval_pi05.sh` and the interactive probes default to `--robot DROID_robolab_v2`,
-which currently cannot build. **`--robot DROID_robolab_v2_bare` works** and is the escape hatch.
+Cumulative diff vs the pristine asset: **2 changed prim specs out of 1031**. No attribute, mass or pose
+touched. Pristine copy is in git at `6154f19`.
 
-Ruled OUT by measurement (`logs/mountedasset/rootlink.log`) — do not re-tread:
-`entity_prim.py:241`'s `else "base_link"` root-link fallback. The mounted asset yields ONE clean
-candidate (`table`) and every joint in it has both `body0` and `body1`, so the fallback never fires for
-it. The asset that DOES depend on that fallback is stock `droid_mounted.usd`, and it works.
+Verified: smoke 193774, `--robot DROID_robolab_v2` (the default, no override), task 0 / VB-POSE / pi0.5
+/ vec 4 → `DONE 2 rollouts in 731.5s -- SR=0.000 TP=0.100`, no construction error. Then the full
+VB-POSE benchmark (193796-193825, 30 jobs) ran on the mounted asset; task 0 gives SR=0.800 (pi0),
+0.800 (pi0-FAST), 0.680 (pi0.5), so the asset is sound under load.
 
-Next check: does `ArticulationView(f"{prim_path}/table")` (`entity_prim.py:141`) resolve to the
-articulation `PhysicsArticulationRootAPI` is authored on? `table` is a root link no config names
-(`arm_link_names` lists `panda_link0..7`).
+The owner decision is closed too: `droid_robolab_v2` keeps pointing at the mounted asset, which now
+builds. `DROID_robolab_v2_bare` remains available.
 
-Owner decision also open: whether `droid_robolab_v2` should keep pointing at the mounted asset while it
-cannot build, or the two model names should swap so the default is the one that works.
+### Correcting the record on this item
+
+The old entry's "Ruled OUT" paragraph was **accurate but aimed at the wrong quantity**, and that is why
+it sent the investigation the wrong way for three cluster runs. "The mounted asset yields ONE clean
+candidate (`table`)" is TRUE — `valid_root_links == ['table']`, measured again 2026-08-21. It is a
+statement about root-LINK candidates. The `ArticulationRootAPI` count is a *different* quantity (the
+asset had two: `/panda` and `/panda/table`), and on 2026-08-21 I briefly "retracted" the old line by
+conflating the two. That retraction was itself wrong; the line was right.
+
+"Every joint has both `body0` and `body1`" was also true — and was the trap. Both relationships were
+*present*; nobody checked whether their targets **resolve**. Presence is not validity.
+
+**Method that actually worked, use it first next time:** replicate the consuming code's inference
+(`entity_prim.py:203-241`) offline with pxr on a login node — no Isaac, no GPU, seconds per asset. It
+prints `valid_root_links`, `root_link_name`, dangling targets and link reachability directly, instead of
+inferring them from USD topology. Kept as `scripts/debug_probes/inspect_articulation_roots.py`;
+the two repair scripts are `fix_mounted_articulation_root.py` and `fix_mounted_table_joint.py`.
+A host `usd-core` (`pip install usd-core`) is enough — the container is not needed.
+
+Worth a cheap follow-up: `/panda/table` has `physics:mass=0.0` alongside `PhysicsRigidBodyAPI`.
+Pre-existing, untouched by the fix, and it did not stop the benchmark — but a zero-mass dynamic rigid
+body is odd and is the first suspect if the table ever behaves strangely.
 
 ## 2. Backlog (not this sweep)
 
@@ -104,4 +127,7 @@ cannot build, or the two model names should swap so the default is the one that 
 - **`ruff` is in neither the login python nor the container.** It lives in the `mlspaces` and
   `molmoact_dev` conda envs:
   `make check RUFF=/home/sedlam56/miniconda3/envs/mlspaces/bin/ruff PYTHON=/home/sedlam56/miniconda3/envs/behavior/bin/python`
+  Confirmed still true 2026-08-21, and that invocation gives `tier 1 clean` (lint PASS + 37 pytest).
+  Plain `make check` reports ruff/pytest missing and exits 1 — that is PATH, not a regression. Read this
+  bullet before concluding "no ruff available on this machine".
 - **`--out` accumulates across invocations.** Point `--out` somewhere per-sweep, or read the `*` marks.
