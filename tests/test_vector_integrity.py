@@ -39,6 +39,7 @@ build they share.
 """
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -196,6 +197,22 @@ def run_cell(task_id, pert, args, log_root):
     task = SUPPORTED_TASKS[task_id]
     run_id = f"t{task_id}_{pert.replace('-', '')}"
     log_path = Path(log_root) / f"{run_id}.log"
+
+    # Clear THIS cell's tree before writing it. The parquets are appended to and nothing else ever
+    # removed them, so re-running a cell under an experiment name that had been used before left the
+    # old rows in place and artifact_verdict reported FAIL_ROWS(8!=2) -- a stale-data artifact that
+    # reads exactly like a regression (measured 2026-08-21 on the suite's drawer entry, which had
+    # accumulated rows from 2026-08-16). Deleting is correct here and only here: this is a scratch
+    # tree written by the debug model, and the exact-rows check is what makes a short write visible,
+    # so it must not be relaxed instead.
+    results_dir = Path(args.log_dir) / args.experiment_name / "debug" / run_id
+    # Guards, because this is an rmtree: refuse anything that is not the specific 4-deep scratch path
+    # this function is about to write. An empty --experiment_name would otherwise aim it at
+    # <log_dir>/debug, and a stray "/" or ".." at something much worse.
+    parts = (args.experiment_name, "debug", run_id)
+    if (all(parts) and not any("/" in x or x in (".", "..") for x in parts)
+            and results_dir.is_dir() and len(results_dir.parts) > 4):
+        shutil.rmtree(results_dir)
 
     cmd = [
         sys.executable, "-u", str(PROJECT_ROOT / "examples/04_vector_evaluate.py"),

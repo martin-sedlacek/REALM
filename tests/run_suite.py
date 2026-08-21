@@ -159,7 +159,15 @@ SUITE = {
         note="16 perturbations on task 0, 3 repeats x 1 step, rendering ON.",
     ),
     "test_vector_integrity_tasks": dict(
-        argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2"],
+        argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2",
+              # DISTINCT PER ENTRY. Every vector entry used to default to --experiment_name
+              # "vector_integrity", so they shared ONE /logs tree with no discriminator while the
+              # parquets append. Two consequences, both measured on the 2026-08-21 baseline:
+              # this entry writes t8/t9:Default and so does _drawers, so _drawers reported
+              # FAIL_ROWS in EVERY suite run where both ran; and rows survived across sweeps, so
+              # a fresh run saw 8 where it wanted 2. tests/_paths.py::scratch_log_root documents
+              # the hazard and says this test needs a distinct --experiment_name -- it now has one.
+              "--experiment_name", "suite_vector_tasks"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
         # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
@@ -182,7 +190,11 @@ SUITE = {
         # it covers a PrimitiveObject main object (0), a rotate task (2), a DatasetObject pick (4),
         # a stack (6) and open_drawer (8) -- the one that could not load at all until 2026-08-14.
         argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2",
-              "--shard", "0/2"],
+              "--shard", "0/2",
+              # Distinct from suite_vector_tasks even though it is a SUBSET of the same matrix: the
+              # shard writes the same cell names, so sharing the tree would make whichever ran
+              # second report FAIL_ROWS against rows the other legitimately wrote.
+              "--experiment_name", "suite_vector_tasks_shard0of2"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
         # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
@@ -203,7 +215,8 @@ SUITE = {
         # material_prim.py's missing preset_name default; this is that cell, re-run against the
         # rebuilt image. Vector rather than single-env because open_drawer/close_drawer are the
         # only task types that reach run_joint_resets(), and the batching only exists at num_envs>1.
-        argv=["tests/test_vector_integrity.py", "--cells", "8:Default,9:Default", "--num_envs", "2"],
+        argv=["tests/test_vector_integrity.py", "--cells", "8:Default,9:Default", "--num_envs", "2",
+              "--experiment_name", "suite_vector_drawers"],
         needs_gpu=True, needs_server=False, timeout=5400, tier="slow",
         # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
         # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
@@ -220,7 +233,8 @@ SUITE = {
         note="open_drawer + close_drawer through the vector path -- the run_joint_resets cells.",
     ),
     "test_vector_integrity_perturbations": dict(
-        argv=["tests/test_vector_integrity.py", "--matrix", "perturbations", "--num_envs", "2"],
+        argv=["tests/test_vector_integrity.py", "--matrix", "perturbations", "--num_envs", "2",
+              "--experiment_name", "suite_vector_perturbations"],
         needs_gpu=True, needs_server=False, timeout=21600, tier="slow",
         # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
         # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched

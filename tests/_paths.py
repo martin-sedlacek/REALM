@@ -61,7 +61,11 @@ def scratch_log_root(name):
     FAIL_ROWS(2!=1) -- which reads exactly like a regression and is not one (measured on jobs
     191494/191495; details in docs/code_archaeology.md). Set REALM_TEST_LOG_DIR to a distinct path
     per concurrent invocation, or serialize; test_vector_integrity has no override and needs a
-    distinct --experiment_name instead. Do not "fix" this by relaxing the exact-rows check -- it
+    distinct --experiment_name instead -- run_suite's four vector entries now each pass one
+    (`suite_vector_*`), because they previously all defaulted to "vector_integrity" and the _tasks
+    matrix and _drawers entry write the SAME t8/t9:Default cells, so _drawers reported FAIL_ROWS in
+    every suite run where both ran. test_vector_integrity also clears each cell's own tree before
+    writing it now, which is what stops rows surviving from one sweep into the next. Do not "fix" this by relaxing the exact-rows check -- it
     is what made the collision visible, and what stops a half-finished sweep reading as complete.
     """
     override = os.environ.get("REALM_TEST_LOG_DIR")
