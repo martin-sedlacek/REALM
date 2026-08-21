@@ -108,9 +108,16 @@ body is odd and is the first suspect if the table ever behaves strangely.
 
 - **Controller base-class extraction** is now UNBLOCKED — item 2 passed on the cluster. Wants a
   same-allocation `test-smoke` before and after when it lands.
-- **Vectorized SB-VRB remains UNVERIFIED end to end** (adds a "receiver" other members' scenes lack —
-  a case V-SC never exercises). `python tests/test_vector_integrity.py` perturbations entry, or the t9
-  interactive probe with `--perturbation SB-VRB`.
+- ~~**Vectorized SB-VRB remains UNVERIFIED end to end**~~ **VERIFIED 2026-08-21, 5/5 PASS.**
+  `tests/test_vector_integrity.py --cells 0,2,4,6,7 :SB-VRB --num_envs 2 --repeats 2 --max_steps 5
+  --robot DROID_robolab_v2`, on held alloc 193981 (l40s-03): put_green_block_into_bowl, rotate_marker,
+  pick_spoon, stack_cubes, push_switch all `PASS: 2 rollouts, all artifacts present`; `0 refused,
+  0 known-broken, 0 failed`. Log: `logs/todo_clara/sbvrb_vector.log`.
+  Those five cells are one per distinct `task_type` SB-VRB reaches (put/rotate/pick/stack/push).
+  `num_envs=2` is the cheapest count that can see the bug this item was about: scene 0's origin IS the
+  world origin, so a scene-frame/world-frame confusion in the added receiver is invisible with 1 env.
+  Tasks 8/9 excluded on purpose — SB-VRB is declared not-implemented there
+  (`EXPECTED_NOT_IMPLEMENTED`), so refusal is correct and is statically pinned already.
 - The 2-drawer + `target_drawer_loc="bottom"` case now raises a clear ValueError instead of
   UnboundLocalError — only relevant if a 2-drawer cabinet asset ever enters the drawer tasks.
 
