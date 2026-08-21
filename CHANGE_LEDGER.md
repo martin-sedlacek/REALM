@@ -53,6 +53,7 @@ image as a patch.
 | `59af7c0` | prune the object-init queue by **identity**, not name | multi-scene runs only; strictly narrower than the old test | `git revert 59af7c0` |
 | `0eba7e7` | empty contact index tensors, report unqueryable bodies, larger descriptor pool | contact queries generally | `git revert 0eba7e7` |
 | `ef7442b` | scene-file objects loading 100 m too high in scenes `idx != 0` | multi-scene runs only | `git revert ef7442b` |
+| `bf1e416` + `b90febe` | `droid_robolab_v2_mounted.usd`: drop a duplicate articulation root on `/panda/table`, repoint `panda_table_joint` off two dangling body targets | **that asset only** — 2 changed prim specs of 1031, no attribute/mass/pose touched; it did not construct at all before | `git checkout 6154f19 -- realm/robots/panda_robotiq/droid_robolab_v2_mounted.usd` |
 
 ### `83b21d5` over-reached, and has been narrowed — `6d04cc9`, `0fed598`
 

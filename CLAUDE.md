@@ -76,7 +76,6 @@ docs/       code_archaeology.md (long-form evidence behind terse docstrings), CH
             (root), vector_env/, perf/, evaluation_paths.md
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Robots-and-Configs,
             Running-the-Test-Suite, Cluster-and-Parallel-Runs, Known-Issues-and-Gotchas
-TODO_CLARA.MD  cluster-side verification queue for changes made off-cluster
 ```
 
 ## Evaluation pipeline
@@ -138,8 +137,14 @@ four real pytest modules (`test_perturbation_task_types`, `test_cell_classificat
 directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
-Changes made off-cluster (this machine has no GPU; OmniGibson cannot run locally) get their
-container-side verification steps queued in **TODO_CLARA.MD** — keep it current.
+Changes made off-cluster (this machine has no GPU; OmniGibson cannot run locally) need their
+container-side verification steps written down somewhere before they are forgotten. There was a
+`TODO_CLARA.MD` at the root for this; it was deleted 2026-08-21 once its queue was empty (the
+2026-08-19/20 sweep passed, the `DROID_robolab_v2` blocker was fixed and verified, and vectorized
+SB-VRB came back 5/5). Recreate it, or start a fresh queue, when off-cluster work next accumulates —
+an empty checklist in the tree is worse than none, because it reads as "nothing to verify". Durable
+findings do NOT belong in that queue: they go to `docs/code_archaeology.md` (evidence),
+`CHANGE_LEDGER.md` (a change and its revert), or `wiki/Known-Issues-and-Gotchas.md` (traps).
 
 ## Clusters
 
