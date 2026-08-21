@@ -213,10 +213,14 @@ def load_experiment(root):
         cdir = os.path.join(root, ckpt)
         if not os.path.isdir(cdir):
             continue
-        for run in sorted(os.listdir(cdir)):
-            rep = os.path.join(cdir, run, "reports")
-            if not os.path.isdir(rep):
-                continue
+        # `run_id=None` (eval.py's sequential path, e.g. og111 which has no vector env) writes
+        # reports/ directly under cdir; the vector path writes them under a run_id subdir (e.g.
+        # "vec"). Both are checked so a sequential arm and a vector arm can still be paired.
+        rep_dirs = [cdir] if os.path.isdir(os.path.join(cdir, "reports")) else []
+        rep_dirs += [os.path.join(cdir, run) for run in sorted(os.listdir(cdir))
+                     if os.path.isdir(os.path.join(cdir, run, "reports"))]
+        for rdir in rep_dirs:
+            rep = os.path.join(rdir, "reports")
             for fn in sorted(os.listdir(rep)):
                 if not fn.endswith(".csv"):
                     continue

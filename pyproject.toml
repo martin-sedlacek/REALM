@@ -3,7 +3,14 @@ name = "realm-host-tools"
 version = "0.0.0"
 description = "Host-only quality tools for REALM; simulation runs in Docker or Apptainer"
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "matplotlib>=3.7.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "plotly>=5.0.0",
+    "scipy>=1.10.0",
+    "streamlit>=1.40.0",
+]
 
 [dependency-groups]
 dev = [
