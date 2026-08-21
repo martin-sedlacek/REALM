@@ -99,33 +99,21 @@ rendering on and is the one to use for that.
 
 | Covered | |
 |---|---|
-| Python byte-compiles | `examples/`, `realm/`, `scripts/`, `tests/` |
-| Shell parses | every `scripts/**/*.sh`, plus `rr` and `go` |
-| YAML parses | every file under `realm/config/` |
-| Suite wiring resolves | every `SUITE` entry's script, every `LEVELS` member, `rr`'s path |
 | Rubric ↔ checker cross-reference | `test_task_progression_rubrics` |
+| Task-type literal/config consistency | `test_task_type_literals` |
+| Perturbation, cell and robot-definition contracts | four host pytest modules |
 | Lint | ruff `F401`/`F811` only — see `.ruff.toml` |
 
 | **Not covered** | |
 |---|---|
 | The simulator | entirely. No scene, no rollout, no artifact |
-| 11 of the suite's 12 entries | everything needing the container |
+| GPU-tier suite entries | everything needing the container |
 | Semantics of any config | that a YAML *parses* is not that its keys are read |
 | Types, style, complexity | the ruleset is two dead-code rules and nothing else |
 
-**Two tier-1 checks are known red.** Neither is flaky; both are the repository's real state:
-
-- **`make lint` — 25 findings** (`F401`/`F811`), in `realm/` (3), `scripts/` (19), `tests/` (3).
-  All `--fix`-able. Baseline recorded in `.ruff.toml`.
-- **`make test-static` — `FAILED -- 2 problem(s)`.** `test_task_progression_rubrics` was committed
-  red on purpose (`6835628`): the `pour` rubric names a `POUR` stage `success_conditions` has no key
-  for — and `get_task_progression()` **calls** the `None` it gets back, so that is a `TypeError`
-  mid-rollout, not a skipped stage — and `check_pour` does not accept `obs`. Both are latent (no
-  shipped task declares `pour`) and both are real.
-
-Separately, and outside `.ruff.toml`'s ruleset, `ruff check --select E9,F63,F7,F82` finds **3 ×
-`F821` "Undefined name `np`"** in `scripts/clara/interactive/t10_bhobj_props.py:73-74`. That file
-uses `np` without importing numpy. It is a real bug in a debug probe, reported and not fixed here.
+Tier 1 is expected green. Reproduce its locked tool environment with `uv sync --locked`, then run
+`uv run make check`. Its narrow lint scope and static contracts are useful gates, not broad proof of
+runtime correctness.
 
 ### Tier 2 — the GPU suite (`make test-smoke` / `test-suite` / `test-matrix`)
 

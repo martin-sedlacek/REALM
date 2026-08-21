@@ -24,9 +24,9 @@ about a minute, before a single test runs. (The eval drivers — `test_integrity
 at import too; they now `ast`-parse the task/perturbation lists instead and boot it only in
 their child processes.)
 
-(pytest is not missing. It is installed in the container — though not in the login-node python —
-it is simply the wrong tool for the script-style files. `make check` runs the four pytest modules
-automatically wherever pytest is importable, and prints a loud skip where it is not.)
+The host-only uv environment supplies pytest, Ruff and PyYAML without attempting to reproduce the
+simulation runtime. `uv run make check` runs the four pytest modules plus the script-style static
+checks. Pytest remains the wrong tool for the other files.
 
 The driver is **`tests/run_suite.py`**, wrapped by `make`.
 
@@ -37,13 +37,13 @@ The pipeline has **two tiers**, split on "does this need Isaac, the container an
 ### Tier 1 — static. No container, no GPU, no dataset. ~1 s.
 
 ```sh
-make check         # lint + the container-free tests — tier 1 in full
-make lint          # ruff, with .ruff.toml's deliberately narrow ruleset
-make test-static   # the container-free tests (incl. the 4 host pytest modules, where pytest exists)
+uv sync --locked   # create/update the host-only tool environment
+uv run make check  # lint + the container-free tests — tier 1 in full
+uv run make lint   # ruff, with .ruff.toml's deliberately narrow ruleset
 ```
 
-There is no CI workflow for this yet (`.github/workflows/` holds only `release.yml`, which tags
-releases); tier 1 is run by hand, and `make check` is the command a future workflow should run.
+`.github/workflows/static-checks.yml` runs this same locked command on every push and pull request.
+It does not build or run the simulation container.
 
 ### Tier 2 — GPU. Needs the image, the dataset and a card.
 
@@ -162,36 +162,11 @@ still leaves a complete account of the tests that finished. The XML is the **gat
 once. That difference is deliberate — writing the XML incrementally would destroy the signal it
 exists to carry.
 
-## Two tier-1 checks are expected to FAIL right now
+## Tier 1 is a green gate
 
-Do not treat either as a broken install. Both are the repository's real state.
-
-**`make lint` reports 25 findings** — `F401`/`F811`, in `realm/` (3), `scripts/` (19) and `tests/`
-(3), all `--fix`-able. `.ruff.toml` records the baseline and explains why the ruleset is two rules
-wide. (Separately, `ruff check --select E9,F63,F7,F82` finds 3 × `F821 Undefined name 'np'` in
-`scripts/clara/interactive/t10_bhobj_props.py` — a real bug, not a style finding.)
-
-**`make test-static` reports `FAILED -- 2 problem(s)`.**
-
-`tests/test_task_progression_rubrics.py` was committed red on purpose. It reports two real defects:
-
-1. the `pour` rubric in `realm/config/tasks/task_progressions.yaml` names a `POUR` stage that
-   `success_conditions` has no key for. `get_task_progression()` does
-   `checker_function = self.success_conditions.get(stage)` and then calls the result **anyway**, so
-   an unknown stage is not a skipped stage — it is `TypeError: 'NoneType' object is not callable`,
-   thrown mid rollout;
-2. `success_conditions["POURED"] -> check_pour` does not accept `obs`, though it is invoked as
-   `checker(obs)`.
-
-Both are **latent**: no shipped task config declares `pour`, so neither fires today. They are
-reported rather than the test being weakened to green. Expect:
-
-```
-FAILED -- 2 problem(s):
-```
-
-Everything else in the suite is expected to pass. If `make test-static` reports anything other than
-those two problems, that is new.
+`uv run make check` is expected to pass. It runs Ruff's deliberately narrow `F401`/`F811` rules,
+two standalone AST/YAML contract checks, and the four explicitly named host pytest modules. Missing
+tools are resolved by `uv sync --locked`; a failure after that is a regression, not a known baseline.
 
 ## Which `MODE` to run under, and why it changes the answer
 
@@ -223,34 +198,14 @@ ALLOC=<jobid> make test-suite                    # when "does it build and write
 rather than a header field, precisely because a results file accumulates across invocations that
 differ in exactly that.
 
-## Continuous integration: two workflows, one of which cannot run yet
+## Continuous integration
 
-**`static-checks.yml` — tier 1, GitHub-hosted, every push and PR.** Static-only by necessity: a
-GitHub-hosted runner has no NVIDIA device, the ~13 GB image is published nowhere and currently
-cannot even be rebuilt, and the dataset is ~36 GB behind an EULA. **No simulation is exercised** —
-no scene, no rollout, no artifact. Eleven of the suite's twelve entries cannot run there and do not.
+**`static-checks.yml` — tier 1, GitHub-hosted, every push and PR.** It installs the locked virtual
+uv project and runs `uv run --locked make check`, then uploads the JUnit report. It exercises no
+simulation, scene, rollout, Docker/SIF image, dataset, or GPU path.
 
-It checks: every Python file byte-compiles; every shell script under `scripts/` passes `bash -n`,
-including `rr`, `go` and `lib/paths.sh`; every YAML under `realm/config/` parses (the
-trailing-comma bug class — `use_cc_compensation: False,` → the truthy **string** `"False,"` — lives
-there); every `SUITE` entry and every `LEVELS` member still points at a file that exists; every
-tier-2 `make` target refuses without an allocation; and the `local` tier runs, non-blocking,
-because it is known red.
-
-It is called `static-checks` rather than `tests` or `CI` for that reason.
-
-**`gpu-suite.yml` — tier 2, self-hosted, `workflow_dispatch` only. It cannot run yet.** No
-self-hosted runner is registered for this repository. The file is committed because the *same
-entry point* runs both ways — its steps are `ALLOC=<jobid> make test-suite` with an
-allocation-shaped hole — and because it makes the runner question concrete rather than theoretical.
-Its `schedule:` block is commented out on purpose: a scheduled job with no matching runner queues
-until it times out and reports a failure that means nothing.
-
-Upstream BEHAVIOR-1K, which REALM forks, **does** run its GPU tests in CI on
-`[self-hosted, linux, gpu, dataset-enabled]`. So this is not impossible — it is a decision about
-whether Clara can host a runner. That decision is Martin's; `gpu-suite.yml`'s header sets out what
-it would take (outbound HTTPS, the labels, how the runner reaches a GPU on a Slurm cluster, and the
-fork-PR security constraint).
+There is no GPU workflow or self-hosted runner. Tier 2 remains an explicit manual gate through the
+same `tests/run_suite.py` entry point used by the Make targets.
 
 ### There is deliberately no badge in the README
 

@@ -180,12 +180,10 @@ tmp/
 # run_suite.py's default --out lands in the cwd when invoked without make (make routes it to tmp/)
 suite_results.json
 
-# Local env definitions (owner decision 2026-08-19: keep personal, do not commit). REALM is
-# deliberately not pip-installable -- the container is the environment and code runs off
-# PYTHONPATH -- so these describe a laptop convenience env, not the benchmark's.
-pyproject.toml
+# Personal runtime environments remain local. The committed pyproject.toml / uv.lock describe
+# host-only lint and static-test tools; REALM itself still runs from Docker / Apptainer via
+# PYTHONPATH and is not installed into that uv environment.
 environment.yml
-uv.lock
 
 # Robot assets awaiting proper integration (owner decision 2026-08-18: keep local, do not commit).
 # r1lite has no config/definition yet; the live WidowX path uses OmniGibson's stock VX300S, not

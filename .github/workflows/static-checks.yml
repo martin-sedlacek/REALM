@@ -1,0 +1,30 @@
+name: Static checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  host-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v9
+        with:
+          version: "0.12.5"
+          enable-cache: true
+      - name: Install host-only tools
+        run: uv sync --locked
+      - name: Run lint and static tests
+        run: uv run --locked make check
+      - name: Upload static-test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-test-junit
+          path: tmp/suite/results.xml
+          if-no-files-found: warn

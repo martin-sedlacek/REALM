@@ -1,9 +1,16 @@
 # Installation
 
-**REALM is not pip-installed.** There is no `pyproject.toml`, no `requirements.txt` and no setup step
-on the host. Every dependency — OmniGibson 3.9.1, Isaac Sim 5.1, PyTorch, the lot — is baked into a
-single Apptainer image, and the repo is bind-mounted into it at `/app`. Python finds REALM because
-the image sets `PYTHONPATH=/app`.
+**REALM is not pip-installed.** Every runtime dependency — OmniGibson 3.9.1, Isaac Sim 5.1,
+PyTorch, the lot — is baked into Docker or an Apptainer image, and the repo is mounted at `/app`.
+Python finds REALM because the image sets `PYTHONPATH=/app`. The root `pyproject.toml` is a virtual
+uv project containing only host-safe lint and static-test tools; it is not a runtime environment.
+
+To prepare that optional host-check environment:
+
+```sh
+uv sync --locked
+uv run make check
+```
 
 So "installing REALM" means three things:
 

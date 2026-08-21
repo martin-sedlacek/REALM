@@ -165,16 +165,23 @@ Tabular results for the tested VLA models:
 
 # Tests 🧪
 
-**Do not run `pytest tests/`.** Every file there is named `test_*.py`, but none of them defines a
-collectable test — they are standalone scripts with a `__main__` block. `pytest` collects zero
-items, and collects them by *importing* each module — five of the eight boot a full Isaac instance
-at module scope to find nothing. The driver is `tests/run_suite.py`, wrapped by `make`.
+REALM's runtime is the Docker or Apptainer/SIF image; it is not reproduced in a local Python
+environment. A small, separate uv environment provides only the host-safe lint and test tools:
+
+```bash
+uv sync --locked
+uv run make check
+```
+
+**Do not run `pytest tests/`.** Most files there are standalone Isaac scripts, and pytest collection
+can boot the simulator. The four host-safe pytest modules are named explicitly by `HOST_PYTESTS` in
+the `Makefile`; `make check` runs them along with the script-style static checks.
 
 The pipeline has two tiers, split on "does this need Isaac, the container and a GPU".
 
 ```bash
-# Tier 1 -- static. No container, no GPU, no dataset. ~1 s. Runs in CI on every push and PR.
-make check                          # lint + the container-free tests
+# Tier 1 -- static. No container, no GPU, no dataset. Runs in CI on every push and PR.
+uv run make check                   # lint + all container-free tests
 
 # Tier 2 -- GPU. Needs the ~13 GB image, the ~36 GB dataset and a card.
 ALLOC=<slurm jobid> make test-smoke  # ~11 min   the cheap gate
@@ -192,15 +199,13 @@ Three things to know before you read a result:
   each test's own printed verdict line. Two things *are* gateable: `--strict` makes the driver's
   status mean "everything I ran ended PASS or SKIP", and `--junit-xml` writes a report once at the
   end — its *absence* is how you detect that the driver itself died.
-- **Tier 1 is known red, deliberately.** `make lint` reports 25 `F401`/`F811` findings (baseline in
-  `.ruff.toml`), and `make test-static` reports `FAILED -- 2 problem(s)` because
-  `tests/test_task_progression_rubrics.py` was committed red on purpose: the `pour` rubric names a
-  `POUR` stage with no checker, and `check_pour` does not take `obs`. Both latent, both real.
+- **Tier 1 is kept green.** A failure in `uv run make check` is a regression. The uv environment is
+  host tooling only; passing it says nothing about the container, simulator, dataset, or GPU path.
 - **A green run is worth less than it looks.** Every test drives `--model_type debug`, whose
   constant action never closes the gripper, so **none of the 22 success conditions is ever
   evaluated** and every rollout the suite produces stops at `stage=REACH`.
 
-**There is deliberately no CI badge above.** CI (`static-checks`) exercises no simulation at all.
+CI (`static-checks`) exercises no simulation; Docker/SIF and GPU validation remain manual.
 
 - How to run each tier: **[Running the test suite](https://github.com/martin-sedlacek/REALM/wiki/Running-the-Test-Suite)**
 - What a pass does and does not establish: **[Test coverage](https://github.com/martin-sedlacek/REALM/wiki/Test-Coverage)**
@@ -217,6 +222,10 @@ Three things to know before you read a result:
 
 
 # Acknowledgments and Licensing
+REALM's own source-code license has not yet been selected. Until a `LICENSE` file is added, no
+open-source license should be inferred from repository visibility. Third-party simulator, dataset,
+and asset terms apply independently.
+
 We build on top of essential simulation tooling and the dataset from BEHAVIOR-1K and adhere to their licensing and terms of usage. 
 For more information, please see https://behavior.stanford.edu/.
 

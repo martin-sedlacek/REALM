@@ -1,0 +1,58 @@
+cff-version: 1.2.0
+message: "If you use REALM in your research, please cite this work."
+title: "REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation"
+type: software
+version: 1.0.0
+authors:
+  - family-names: Sedlacek
+    given-names: Martin
+  - family-names: Yefanov
+    given-names: Pavlo
+  - family-names: Ponimatkin
+    given-names: Georgy
+  - family-names: Bardhan
+    given-names: Jai
+  - family-names: Pilc
+    given-names: Simon
+  - family-names: Fourmy
+    given-names: Mederic
+  - family-names: Kazakos
+    given-names: Evangelos
+  - family-names: Snoek
+    given-names: Cees G. M.
+  - family-names: Sivic
+    given-names: Josef
+  - family-names: Petrik
+    given-names: Vladimir
+identifiers:
+  - type: doi
+    value: "10.48550/arXiv.2512.19562"
+    description: Preprint
+repository-code: "https://github.com/martin-sedlacek/REALM"
+url: "https://martin-sedlacek.com/realm"
+preferred-citation:
+  type: article
+  title: "REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation"
+  year: 2025
+  journal: "arXiv preprint arXiv:2512.19562"
+  authors:
+    - family-names: Sedlacek
+      given-names: Martin
+    - family-names: Yefanov
+      given-names: Pavlo
+    - family-names: Ponimatkin
+      given-names: Georgy
+    - family-names: Bardhan
+      given-names: Jai
+    - family-names: Pilc
+      given-names: Simon
+    - family-names: Fourmy
+      given-names: Mederic
+    - family-names: Kazakos
+      given-names: Evangelos
+    - family-names: Snoek
+      given-names: Cees G. M.
+    - family-names: Sivic
+      given-names: Josef
+    - family-names: Petrik
+      given-names: Vladimir

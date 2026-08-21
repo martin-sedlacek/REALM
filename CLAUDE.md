@@ -129,8 +129,8 @@ configs). Run both after touching task types.
 
 ## Testing
 
-Two tiers (see the Makefile header): tier 1 is container-free (`make check` = lint + the two
-static tests, expected GREEN); tier 2 needs the container/GPU and is driven by
+Two tiers (see the Makefile header): tier 1 is container-free (`uv sync --locked`, then
+`uv run make check`; expected GREEN); tier 2 needs the container/GPU and is driven by
 `tests/run_suite.py` (`make test-smoke` / `test-suite` against a Slurm allocation). The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
 four real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,

@@ -2,8 +2,8 @@
 #
 # Carried over VERBATIM from the pre-port 1.1.1 checkout's pyproject.toml ([tool.ruff]), which is
 # where this project's lint settings have always lived. It is `.ruff.toml` here rather than
-# `pyproject.toml` deliberately: REALM is not pip-installed, has no packaging metadata, and the
-# Installation page says so. A pyproject.toml would imply otherwise to every tool that looks.
+# The rules stay here because the committed pyproject.toml describes only a virtual uv environment
+# for host tools. REALM is still not built or installed; Docker / Apptainer remains the runtime.
 #
 # The ruleset is DELIBERATELY NARROW -- two rules, both of which flag dead code rather than style:
 #
