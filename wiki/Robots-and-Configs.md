@@ -38,7 +38,8 @@ REALM's definitions live in the repo, linked in by symlinks that are **not track
 failure, so the state is all-or-nothing. On a machine where it has not been run, **none** are
 registered.
 
-The user-facing `DROID` and explicit `DROID_robolab_v2` filenames now resolve to the same model.
+The user-facing `DROID` and explicit `DROID_robolab_v2` filenames resolve to the mounted model;
+`DROID_robolab_v2_bare` retains the same arm and gripper without the base column.
 
 ### Caveat: `DROID_no_wrist_cam` does not remove the wrist camera
 
@@ -70,11 +71,12 @@ on their own defaults. Do not treat them as available.
 ## Robot definitions and assets
 
 A **definition** is the YAML OmniGibson discovers; a **config** is what REALM passes `--robot`.
-REALM 1.0.0 has one DROID definition:
+REALM 1.0.0 has mounted and unmounted definitions of the same RoboLab v2 embodiment:
 
 | Definition | Used by |
 |---|---|
-| `droid_robolab_v2` | every `DROID*` robot config |
+| `droid_robolab_v2` | every default/mounted `DROID*` robot config |
+| `droid_robolab_v2_bare` | explicit `DROID_robolab_v2_bare` no-column variant |
 | `ur` | all three `UR5*` configs |
 
 USD assets live in `realm/robots/panda_robotiq/` and `realm/robots/ur5/` and are committed to the

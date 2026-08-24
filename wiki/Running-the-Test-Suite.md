@@ -7,12 +7,12 @@ nothing. This page is how to actually run them.
 
 Most files in `tests/` are standalone scripts — an `if __name__ == "__main__":` block with printed
 verdict lines that `sys.exit(1)` on failure — and pytest cannot run those. The exceptions are
-**three real pytest modules**, all host-safe by design (they read code and configs as text with
+**four real pytest modules**, all host-safe by design (they read code and configs as text with
 `ast`/`yaml` instead of importing omnigibson):
 
 ```sh
 pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-       tests/test_robot_base_column.py
+       tests/test_robot_base_column.py tests/test_robot_definition_parity.py
 ```
 
 Run them **by filename, exactly as above** — never as `pytest tests/`. Collection works by
@@ -25,7 +25,7 @@ at import too; they now `ast`-parse the task/perturbation lists instead and boot
 their child processes.)
 
 The host-only uv environment supplies pytest, Ruff and PyYAML without attempting to reproduce the
-simulation runtime. `uv run make check` runs the three pytest modules plus the script-style static
+simulation runtime. `uv run make check` runs the four pytest modules plus the script-style static
 checks. Pytest remains the wrong tool for the other files.
 
 The driver is **`tests/run_suite.py`**, wrapped by `make`.

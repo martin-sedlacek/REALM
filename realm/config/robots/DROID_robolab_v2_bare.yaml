@@ -1,0 +1,137 @@
+# DROID with the robolab Franka + Robotiq 2F-85 asset (compliant, mimic-joint gripper).
+#
+# Same arm and same controllers as DROID.yaml -- the only differences come from the gripper being a
+# single actuated revolute joint with five mimic followers instead of four independently driven
+# joints. See realm/robots/definitions/droid_robolab/droid_robolab.yaml for the asset details.
+#
+# `model` is set explicitly (rather than relying on the legacy `type`) so env_dynamic does not
+# rewrite it to the stock droid/droid_mounted definition.
+
+robots:
+  - name: "DROID_robolab_v2"
+    model: "droid_robolab_v2_bare"
+    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
+    dof: 13
+    # FALSE: this model loads the BARE arm (droid_robolab_v2.usd, panda_link0 at z=0), so
+    # env_config.py:111 raises the spawn by DROID_BASE_HEIGHT (0.86244) on base-mounted tasks.
+    #
+    # WHY THIS CONFIG EXISTS, two reasons:
+    #   1. Some scenes mount the arm on nothing, and a mounted asset would put a base where there
+    #      should not be one.
+    #   2. It is the escape hatch from the mounted asset's vector-path crash. DROID_robolab_v2 (the
+    #      default) loads the mounted asset, which fails under examples/04_vector_evaluate.py with
+    #      "ValueError: 'panda_joint1' is not in list" at any num_envs. This config is what a VEC>=1 run
+    #      or tests/test_vector_integrity.py should pass until that is fixed:
+    #          --robot DROID_robolab_v2_bare
+    #
+    # `name` stays "DROID_robolab_v2" on purpose -- see the header. Only `model` and this flag differ
+    # from DROID_robolab_v2.yaml. tests/test_robot_definition_parity.py pins the two definitions as
+    # identical apart from usd_path.
+    has_base_column: false
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    # Drop the dead second wrist camera. This comment used to say "read the long comment in
+    # DROID_robolab.yaml"; that file was deleted on 2026-08-19, so the reasoning is reproduced here
+    # rather than left as a pointer into nothing. Recovered verbatim from 7e0eb55.
+    #
+    # The asset mounts TWO cameras on the gripper's base_link and only one is ever consumed:
+    # `wrist_camera_flipped`, whose extrinsics match droid.usd's `gripper_link_camera` to the
+    # millimetre. The other, `wrist_camera`, is yawed 180 deg and frames the floor and the wall
+    # behind the table; nothing reads it, but OmniGibson still gave it a full 1280x720 RTX render
+    # product and re-rendered and read it back every step.
+    #
+    # Dropping it is not (only) about the render cost. Render products are what the RTX descriptor
+    # and parameter-block pools are sized for, and those pools -- not VRAM -- cap a vectorized run:
+    # at num_envs=16 the pool ran dry while loading scene 10 and the process segfaulted with
+    # "Unable to allocate descriptor sets" / "Failed to allocate ParameterBlock resources", with only
+    # ~17 of 46 GB of VRAM in use. This takes one env from 3 render products to 2.
+    #
+    # It MUST be an include, not an exclude. Robot._load_sensors matches by SUBSTRING
+    # (`name in prim_path`), and "wrist_camera" is a substring of "wrist_camera_flipped", so
+    # `exclude_sensor_names: ["wrist_camera"]` would silently remove BOTH cameras and leave the
+    # policy with a black wrist image.
+    #
+    # AND IT DOES NOT TRAVEL ALONE: OmniGibson numbers a link's cameras by creation order and never
+    # counts the ones it filtered out, so the survivor here is `Camera:0`, not `Camera:1`.
+    # ROBOT_OBS_PROFILES in realm/inference/utils.py carries the matching wrist_camera_idx=0 plus the
+    # prim name it has to resolve to, and assert_wrist_camera() (called from
+    # RealmEnvironmentDynamic.bind_scene_handles) fails the build if the two ever drift apart. Left
+    # unpaired, the stale index would just make extract_from_obs fall back to "the first camera on
+    # the robot" with a printed warning and a clean exit code.
+    #
+    # v2 was produced from the same vendor source as v1 and differs
+    # only in geometry, so it is ASSUMED to name its cameras the same way; assert_wrist_camera()
+    # is what keeps that assumption from being silent.
+    include_sensor_names: ["wrist_camera_flipped"]
+    control_freq: 15
+    action_normalize: False
+    action_type: "continuous"
+    friction: [ 0.05, 0.10, 0.05, 0.10, 0.75, 0.425, 0.20 ]
+    armature: [ 0.25, 0.50, 0.25, 0.50, 0.25, 0.150, 0.00 ]
+    controller_name: "CustomJointController"
+    controller_config:
+        arm_0:
+            name: "CustomJointController"
+            "motor_type": "position"
+            control_freq: 15
+            use_delta_commands: False
+            use_impedances: True
+            # REGRESSION FIX (2026-08-11): this said `False,` -- with a trailing comma, which YAML
+            # parses as the STRING "False," and bool("False,") is True. Harmless while the flag was
+            # ignored; dc7b6f8 implemented it in droid_joint_controller.py:176-213, which silently
+            # turned gravity compensation ON for every DROID variant. Measured on the stock asset:
+            # ON -> task_progression 0.000 with ee_z pinned at 1.493 (the arm never descends);
+            # OFF -> the arm reaches the block, ee_z_min 0.970. Keep this a real boolean.
+            use_gravity_compensation: false
+            # NOT corrected on purpose. The same trailing-comma typo makes this the truthy string
+            # "False,", so Coriolis/centrifugal compensation is effectively ON -- and has been for
+            # EVERY historical REALM result, including the 1.1.1 SR 0.88-1.00 runs and og391's
+            # SR 0.40 (job 187497); unlike gravity comp, cc was already applied pre-3.9.1. Making it
+            # a real `false` would change a control hyperparameter relative to every validated run.
+            # Measured indistinguishable from ON at n=1 (task_progression 0.200 either way). Needs a
+            # human decision, not a silent flip.
+            # NOTE: this reads `true`, and that is not a change in behaviour. It was written
+            # `False,` -- with a trailing comma, which YAML parses as the *string* "False,",
+            # which is truthy -- so Coriolis/centrifugal compensation has in fact been ON for
+            # every REALM result, including the 1.1.1 runs. (The controllers also default it
+            # to True.) Written explicitly so the file says what it does; flipping it to a
+            # real `false` would be a control-hyperparameter change, not a bug fix.
+            use_cc_compensation: true
+            Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
+            Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
+            Kx: [ 400, 400, 400, 15, 15, 15 ]
+            Kxd: [ 37, 37, 37, 2, 2, 2 ]
+            command_output_limits: null
+            command_input_limits: null
+            max_effort: [ 87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0 ]
+            min_effort: [ -87.0, -87.0, -87.0, -87.0, -12.0, -12.0, -12.0 ]
+        gripper_0:
+          name: "CustomGripperController"
+          mode: "binary"
+          # No open_qpos/closed_qpos override: finger_joint follows the standard Robotiq 2F-85
+          # convention -- 0 rad = OPEN, 0.7854 rad = CLOSED -- which is already what
+          # MultiFingerGripperController assumes (droid_gripper_controller.py:49-60 sends the
+          # target>=0 branch, i.e. REALM's CLOSE, to the joint's UPPER limit).
+          #
+          # Measured 2026-08-11 on l40s-02 (job 189066), pad separation between the re-origined
+          # left/right_inner_finger links, which sit on the pad centroids:
+          #     finger_joint 0.0    -> 116.2 mm  (jaws wide open, ~85 mm gap plus pad thickness)
+          #     finger_joint 0.7854 ->  33.0 mm  (jaws shut)
+          #
+          # WARNING, this is what makes the joint easy to get backwards: the gripper is a four-bar
+          # linkage, so the KNUCKLES swing apart as the PADS close. Measuring "pad separation"
+          # between anything other than the pads themselves reports the opposite of the truth. An
+          # override added on 2026-08-11 from exactly that mistake inverted the gripper for a full
+          # batch (og391_gravfix_robolab) before the videos showed the jaws clamped shut throughout.
+          # Only trust a separation measured between the two inner_finger links AFTER
+          # The shipped asset places their origins on the pads.
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          focal_length: 2.8
+          # As in DROID.yaml: OG >= 3.9.1 writes horizontalAperture at init (default 20.995) instead
+          # of honouring the camera prim, which would widen the wrist view to ~150 deg. The robolab
+          # cameras author the same 5.376 x 3.024 sensor as droid.usd.
+          horizontal_aperture: 5.376

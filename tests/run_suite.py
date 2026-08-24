@@ -18,7 +18,7 @@ design (they read code/configs as text with ast/yaml rather than importing anyth
 them directly, not through this driver:
 
     pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-           tests/test_robot_base_column.py
+           tests/test_robot_base_column.py tests/test_robot_definition_parity.py
 
 WHY THE EXIT CODE IS RECORDED BUT NEVER GATED ON
 ------------------------------------------------

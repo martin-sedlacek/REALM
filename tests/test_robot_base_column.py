@@ -102,22 +102,26 @@ def test_configs_sharing_a_model_agree_on_has_base_column():
     )
 
 
-def test_all_droid_profiles_use_mounted_robolab_v2():
-    """Prevent a generic profile from silently reintroducing a retired stock/bare asset."""
+def test_all_droid_profiles_use_robolab_v2():
+    """Prevent a generic profile from silently reintroducing a retired stock or v1 asset."""
     droid_configs = [path for path in ROBOT_CONFIGS if path.name.startswith("DROID")]
     assert droid_configs
     for path in droid_configs:
         robot = yaml.safe_load(path.read_text())["robots"][0]
-        assert robot.get("model") == "droid_robolab_v2", path
+        expected_model = (
+            "droid_robolab_v2_bare"
+            if path.name == "DROID_robolab_v2_bare.yaml"
+            else "droid_robolab_v2"
+        )
+        assert robot.get("model") == expected_model, path
         assert robot.get("name") == "DROID_robolab_v2", path
         assert robot.get("dof") == 13, path
-        assert robot.get("has_base_column") is True, path
+        assert robot.get("has_base_column") is (expected_model == "droid_robolab_v2"), path
 
     retired = (
         "droid.usd",
         "droid_mounted.usd",
         "droid_robolab.usd",
-        "droid_robolab_v2.usd",
     )
     asset_root = PROJECT_ROOT / "realm/robots/panda_robotiq"
     assert not [name for name in retired if (asset_root / name).exists()]
