@@ -20,10 +20,6 @@
 # finding is worth either fixing or explaining here. (packages/dm_robotics/ is vendored third-party
 # code and is not part of the lint scope; do not chase its findings.)
 #
-# SEPARATELY, and not covered by this ruleset: `ruff check --select E9,F63,F7,F82` finds
-# 3 x F821 "Undefined name `np`" in scripts/clara/interactive/t10_bhobj_props.py:73-74. That is a
-# real bug -- the file uses np without importing numpy -- not a style finding.
-
 exclude = [".claude"]
 
 [lint]

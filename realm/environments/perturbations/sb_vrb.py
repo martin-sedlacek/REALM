@@ -166,7 +166,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
     # initial file in a vector env; see rebase_after_play for the failure mode. vec-only because
     # single-env SB-VRB has never rebased and works.
     # STILL UNVERIFIED END TO END vectorized: only V-SC has actually been run that way
-    # (t9_vbpose_nostopplay.py --perturbation V-SC, 2 members x 3 resets). SB-VRB also ADDS a
+    # (historical V-SC probe, 2 members x 3 resets). SB-VRB also ADDS a
     # "receiver" that the other members' scenes do not have, which is a case V-SC never exercises,
     # so run it before trusting it.
     rebase_after_play(env, vec_only_rebase=True)

@@ -8,7 +8,7 @@
 # collapsed the newlines and produced a mangled single command that ran silently for a minute
 # before anyone noticed. Everything executable goes in a file now.
 #
-#   ./scripts/clara/interactive/go inc_on ./scripts/clara/interactive/t2_inc_on.sh
+#   ./scripts/clara/interactive/go eval ./scripts/clara/interactive/sbatch_eval_pi05.sh
 #
 # ALLOC is the job id of the interactive allocation.
 

@@ -35,11 +35,11 @@ main_objects:
 - type: DatasetObject
   name: cup
   category: mug
-  model: kitxam
+  model: jgethp
   bounding_box:
-  - 0.0640022
-  - 0.0858475
-  - 0.0646612
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
   orientation:
   - 0.0
   - 0.0
@@ -48,7 +48,7 @@ main_objects:
   relative_bbox_position:
   - 0.28
   - 0.28
-  - 0.0823306
+  - 0.0819912
 target_objects:
 - type: DatasetObject
   name: bowl
@@ -103,20 +103,20 @@ distractors:
   - 0.12
   - 0.0512499
 - type: DatasetObject
-  name: distractor_banana
-  category: banana
-  model: verqwv
+  name: distractor_chestnut
+  category: chestnut
+  model: fmomat
   bounding_box:
-  - 0.1
-  - 0.0313722
-  - 0.0157945
+  - 0.0199921
+  - 0.0153447
+  - 0.0153222
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.3
   - 0.2
-  - 0.0578973
+  - 0.3
+  - 0.0576611
 immutables: []

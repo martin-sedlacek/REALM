@@ -31,7 +31,7 @@ robots:
     # Drop the dead second wrist camera, exactly as DROID_robolab_v2.yaml does -- read the long comment
     # there for why it is an include and not an exclude, and why the camera index in
     # ROBOT_OBS_PROFILES has to move with it. v2 comes out of the same converter
-    # (scripts/convert_robolab_gripper_usd.py) as v1 and is described as differing only in geometry,
+    # as v1 and is described as differing only in geometry,
     # so it is ASSUMED to name its cameras the same way; that assumption is not silent, because
     # assert_wrist_camera() hard-fails at build time if this filter leaves the robot without the
     # `wrist_camera_flipped` prim its profile names.
@@ -112,7 +112,7 @@ robots:
           # override added on 2026-08-11 from exactly that mistake inverted the gripper for a full
           # batch (og391_gravfix_robolab) before the videos showed the jaws clamped shut throughout.
           # Only trust a separation measured between the two inner_finger links AFTER
-          # scripts/fix_robolab_link_origins.py has put their origins on the pads.
+          # The shipped asset places their origins on the pads.
     sensor_config:
       VisionSensor:
         sensor_kwargs:

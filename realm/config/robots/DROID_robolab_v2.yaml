@@ -35,7 +35,7 @@ robots:
     #     ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
     #
     # i.e. the articulation comes up without its arm joints. Measured on Clara 2026-08-19:
-    #   examples/02_evaluate.py   (VEC=0, single env)   -> PASSES     (t4_default_check.sh, task 0)
+    #   examples/02_evaluate.py   (VEC=0, single env)   -> PASSES     (task 0)
     #   examples/04_vector_evaluate.py (VEC>=1)         -> CRASHES    at num_envs=1 AND num_envs=2
     #                                                                (logs/mnt_n1_0819, mnt_n2_0819)
     #   the same cells on the BARE arm                  -> PASS       (logs/bare_recheck_0819)
@@ -85,7 +85,7 @@ robots:
     # unpaired, the stale index would just make extract_from_obs fall back to "the first camera on
     # the robot" with a printed warning and a clean exit code.
     #
-    # v2 comes out of the same converter (scripts/convert_robolab_gripper_usd.py) as v1 and differs
+    # v2 was produced from the same vendor source as v1 and differs
     # only in geometry, so it is ASSUMED to name its cameras the same way; assert_wrist_camera()
     # is what keeps that assumption from being silent.
     include_sensor_names: ["wrist_camera_flipped"]
@@ -150,7 +150,7 @@ robots:
           # override added on 2026-08-11 from exactly that mistake inverted the gripper for a full
           # batch (og391_gravfix_robolab) before the videos showed the jaws clamped shut throughout.
           # Only trust a separation measured between the two inner_finger links AFTER
-          # scripts/fix_robolab_link_origins.py has put their origins on the pads.
+          # The shipped asset places their origins on the pads.
     sensor_config:
       VisionSensor:
         sensor_kwargs:

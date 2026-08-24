@@ -20,7 +20,7 @@ this module finds nothing and prints nothing. KEPT ANYWAY, as a net rather than 
 the fix does not travel with the image -- ``scripts/clara/interactive/rr`` defaults to ``MODE=stock``
 and ``MODE=stockfix`` binds only ``scenes/scene_base.py``, so both still run the stock
 ``simulator.py``. The full account, that argument, and the measurement table
-(``t9_vbpose_nostopplay.py --num_envs 2 --resets 3``: 4 re-queue warnings per perturbation against
+(historical probe with 2 environments and 3 resets: 4 re-queue warnings per perturbation against
 stock, 0 against OG-lite, both PASS either way) are in ``docs/vector_env/PERTURBATIONS.md`` §2-3.
 
 Must run BEFORE the shared ``og.sim.play()``, never after: ``play()`` initializes the queue and THEN

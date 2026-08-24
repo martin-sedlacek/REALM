@@ -5,8 +5,7 @@ Clara has no Docker. These scripts are the replacement: **one image plus a bind*
 Slurm allocation so you iterate without paying `sbatch` queue time and Isaac cold starts.
 
 They live here, tracked, on purpose. The previous generation of this harness lived in `tmp/` and was
-lost with the machine (`docs/perf/og391_step_profile.md` still refers to the vanished
-`tmp/fork_ab_profile.py`). **Only artifacts belong in `tmp/`** -- `tmp/interactive/logs/` for run
+lost with the machine. **Only artifacts belong in `tmp/`** -- `tmp/interactive/logs/` for run
 logs, `tmp/interactive/prof/` for profiler JSON.
 
 ## Getting an allocation
@@ -29,7 +28,7 @@ what you want.
 
 ```bash
 MODE=oglite ./scripts/clara/interactive/rr python -u examples/02_evaluate.py --task_id 0 ...
-ALLOC=190155 ./scripts/clara/interactive/go inc_on ./scripts/clara/interactive/t2_inc_on.sh
+ALLOC=<ID> ./scripts/clara/interactive/go smoke ./scripts/clara/interactive/check_run.py --help
 ```
 
 ## Everything else
@@ -38,15 +37,6 @@ ALLOC=190155 ./scripts/clara/interactive/go inc_on ./scripts/clara/interactive/t
 | --- | --- |
 | `show_macros.py` | prove a flag actually reached `gm` **before** spending a run on it |
 | `check_run.py` | the REALM pass criteria; exit 0 alone is not one of them. `--repeats N` also demands the full rollout count and `--newer-than EPOCH` that the artifacts are *this* run's; `sbatch_eval_pi05.sh` gates on it and exits non-zero when it fails |
-| `t10_bhobj_props.py` | does B-HOBJ's mass / stiffness / damping / max-effort perturbation compound across resets? `--legacy` re-measures the pre-fix drift, `--add_articulated` reaches the joint half |
-| `t11_eval_gate.sh` | does `sbatch_eval_pi05.sh` still refuse to call a crashed run a success? Host-only, seconds, no allocation -- run it after touching either that script or `check_run.py` |
-| `t1_scene_probe.py` / `t1_probe.sh` | per-member scene dump for vector envs: names, z distribution, stage prims, state either side of the scene fixes |
-| `t1_frames.sh` | the 4-env first-frame montage |
-| `t2_inc_on.sh` | correctness gate for `gm.INCREMENTAL_CONTACT_CACHE` |
-| `t2_ab_contact.sh` / `analyze_ab.py` | interleaved A/B of the incremental contact cache under pi0.5 |
-| `profile_step.py` | contact-cache and `_non_physics_step` timing |
-| `profile_phases.py` | cold start / reset / step, **portable across OG 1.1.1 and 3.9.1** |
-| `sbatch_phase_ref_og{111,391}.sh` / `compare_phases.py` | pre-port vs ported reference benchmark |
 | `pi05_server.sh` | resident pi0.5 policy server on :8000 |
 
 ## Four traps these encode
@@ -55,8 +45,7 @@ ALLOC=190155 ./scripts/clara/interactive/go inc_on ./scripts/clara/interactive/t
    host `~/.bashrc`, prepends `~/miniconda3/bin` to PATH and shadows the conda env: you get host
    Python and `ModuleNotFoundError: No module named 'omnigibson'`. Use `bash -c`, or call `python`.
 2. **`atexit` never fires.** `og.shutdown()` -> `SimulationApp.close()` hard-exits, skipping `atexit`
-   and `finally`. Jobs complete, exit 0, and write nothing. Both profilers hook `og.shutdown` and
-   checkpoint every 400 samples.
+   and `finally`. Persist required artifacts before shutdown.
 3. **Set `--pwd /app`.** Otherwise the container inherits the submit directory and can import a
    different REALM checkout than the one it bound.
 4. **`gm` lies in the stock image**: undefined macros return a truthy `{'_read': set()}` rather than

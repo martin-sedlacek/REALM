@@ -86,7 +86,7 @@ KNOWN_BROKEN_TASKS = {}
 # re-run on examples/04_vector_evaluate.py: the only cell whose log carried a segfault or a
 # traceback was 8:VB-MOBJ, which raises an intentional NotImplementedError, and a control build
 # where nothing raises passed with zero segfaults. (The "every run" claim is true of
-# t9_vbpose_nostopplay.py, where it was first written, and was over-generalised to here.) So on
+# the original vector perturbation probe, where it was first written, and was over-generalised here.) So on
 # this path a segfault usually means an uncaught Python exception propagated out -- it correlates
 # with a real failure rather than being pure noise. Do not widen the filter: the CRASH verdict
 # comes from CRASH_MARKERS matching "Traceback", not from the exit code, so a cell reports CRASH

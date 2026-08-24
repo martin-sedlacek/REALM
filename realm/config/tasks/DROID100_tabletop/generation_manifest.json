@@ -308,7 +308,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 2,
@@ -387,7 +392,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 3,
@@ -481,7 +491,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 4,
@@ -575,7 +590,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 5,
@@ -663,6 +683,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -762,6 +787,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -846,6 +876,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -940,7 +975,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 9,
@@ -1035,7 +1075,12 @@
         ],
         "uniform_scale": 0.94585
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 10,
@@ -1119,6 +1164,11 @@
         "main": "marker",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -1207,6 +1257,11 @@
         "main": "marker",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -1295,6 +1350,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -1318,7 +1378,7 @@
       "distractor_categories": [
         "lemon",
         "tweezers",
-        "banana"
+        "chestnut"
       ],
       "camera_extrinsic_sources": {
         "cam1": "droid_realm_ep_059695_cam1",
@@ -1354,6 +1414,21 @@
       },
       "resized_assets": [
         {
+          "name": "cup",
+          "reason": "render_review_model_override",
+          "original_bbox": [
+            0.1127337,
+            0.1368154,
+            0.0639822
+          ],
+          "authored_bbox": [
+            0.1127337,
+            0.1368154,
+            0.0639822
+          ],
+          "scale": 1.0
+        },
+        {
           "name": "bowl",
           "original_bbox": [
             0.4920784,
@@ -1373,14 +1448,14 @@
         "margin": 1.15,
         "yaw_degrees": 90,
         "main_bbox_before_capacity_fit": [
-          0.0640022,
-          0.0858475,
-          0.0646612
+          0.1127337,
+          0.1368154,
+          0.0639822
         ],
         "main_bbox_after_capacity_fit": [
-          0.0640022,
-          0.0858475,
-          0.0646612
+          0.1127337,
+          0.1368154,
+          0.0639822
         ],
         "target_bbox": [
           0.17,
@@ -1389,7 +1464,14 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": {
+          "cup": "jgethp"
+        },
+        "positions": null
+      }
     },
     {
       "rank": 14,
@@ -1483,7 +1565,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 15,
@@ -1582,6 +1669,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -1661,7 +1753,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 17,
@@ -1755,7 +1852,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 18,
@@ -1834,7 +1936,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 19,
@@ -1922,6 +2029,11 @@
         "main": "marker",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -2025,6 +2137,11 @@
         "main": "marker",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -2113,6 +2230,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -2208,7 +2330,12 @@
         ],
         "uniform_scale": 0.94585
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 23,
@@ -2230,7 +2357,7 @@
       },
       "distractor_categories": [
         "pruner",
-        "chestnut",
+        "banana",
         "table_knife"
       ],
       "camera_extrinsic_sources": {
@@ -2287,7 +2414,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 24,
@@ -2381,7 +2513,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 25,
@@ -2475,7 +2612,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 26,
@@ -2563,6 +2705,11 @@
         "main": "marker",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -2642,7 +2789,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 28,
@@ -2726,6 +2878,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -2805,7 +2962,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 30,
@@ -2884,7 +3046,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 31,
@@ -2963,7 +3130,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 32,
@@ -3067,6 +3239,11 @@
         "main": "pen",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -3166,6 +3343,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -3250,6 +3432,11 @@
         "main": "marker",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -3344,7 +3531,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 36,
@@ -3448,6 +3640,11 @@
         "main": "pen",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -3542,7 +3739,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 38,
@@ -3630,6 +3832,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -3714,6 +3921,11 @@
         "main": "marker",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -3808,7 +4020,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 41,
@@ -3902,7 +4119,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 42,
@@ -3990,6 +4212,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -4094,6 +4321,11 @@
         "main": "pen",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -4173,7 +4405,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 45,
@@ -4267,7 +4504,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 46,
@@ -4362,7 +4604,12 @@
         ],
         "uniform_scale": 0.94585
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 47,
@@ -4461,6 +4708,24 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": {
+          "lid": [
+            0.28,
+            0.15
+          ],
+          "pot": [
+            0.28,
+            0.15
+          ],
+          "distractor_beefsteak_tomato": [
+            0.12,
+            0.15
+          ]
+        }
       }
     },
     {
@@ -4555,7 +4820,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 49,
@@ -4658,6 +4928,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -4737,7 +5012,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 51,
@@ -4816,7 +5096,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 52,
@@ -4910,7 +5195,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 53,
@@ -5004,7 +5294,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 54,
@@ -5108,6 +5403,11 @@
         "main": "pen",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -5211,6 +5511,11 @@
         "main": "marker",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -5290,7 +5595,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 57,
@@ -5393,6 +5703,11 @@
         "main": "can",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -5487,7 +5802,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 59,
@@ -5581,7 +5901,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 60,
@@ -5680,6 +6005,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -5774,7 +6104,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 62,
@@ -5877,6 +6212,11 @@
         "main": "marker",
         "source": "pot",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -5971,7 +6311,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 64,
@@ -6094,7 +6439,12 @@
         ],
         "uniform_scale": 0.92391
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 65,
@@ -6193,6 +6543,11 @@
         "main": "marker",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -6316,7 +6671,12 @@
         ],
         "uniform_scale": 0.92391
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 67,
@@ -6410,7 +6770,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 68,
@@ -6514,6 +6879,11 @@
         "main": "pen",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -6608,7 +6978,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 70,
@@ -6687,7 +7062,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 71,
@@ -6799,7 +7179,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 72,
@@ -6894,7 +7279,12 @@
         ],
         "uniform_scale": 0.94585
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 73,
@@ -6997,6 +7387,11 @@
         "main": "pen",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -7085,6 +7480,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -7188,6 +7588,11 @@
         "main": "marker",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -7286,7 +7691,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 77,
@@ -7365,7 +7775,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 78,
@@ -7482,6 +7897,11 @@
         "main": "cloth",
         "source": "plate",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -7580,7 +8000,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 80,
@@ -7659,7 +8084,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 81,
@@ -7753,7 +8183,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 82,
@@ -7779,34 +8214,34 @@
         "carving_knife"
       ],
       "camera_extrinsic_sources": {
-        "cam1": "droid_realm_ep_027132_cam1",
-        "cam2": "droid_realm_ep_027132_cam2"
+        "cam1": "droid_realm_ep_060817_cam1",
+        "cam2": "droid_realm_ep_060817_cam2"
       },
       "camera_extrinsics": {
         "cam1": {
           "pos": [
-            0.1321783,
-            -0.6007778,
-            0.5556953
+            0.2151455,
+            0.5815747,
+            0.4554901
           ],
           "rot": [
-            0.5895782,
-            0.2799506,
-            -0.6486812,
-            0.3914561
+            0.1986922,
+            -0.4822718,
+            -0.8000456,
+            0.2964159
           ]
         },
         "cam2": {
           "pos": [
-            0.1873037,
-            0.5590067,
-            0.3281699
+            0.1216571,
+            -0.4854241,
+            0.413944
           ],
           "rot": [
-            -0.277365,
-            -0.6175873,
-            -0.2854026,
-            0.6783804
+            0.4294711,
+            -0.1819678,
+            -0.2910132,
+            0.8353165
           ]
         }
       },
@@ -7847,7 +8282,15 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": [
+          "droid_realm_ep_060817_cam1",
+          "droid_realm_ep_060817_cam2"
+        ],
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 83,
@@ -7946,6 +8389,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -8045,6 +8493,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -8124,7 +8577,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 86,
@@ -8212,6 +8670,11 @@
         "main": "marker",
         "source": "cup",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -8316,6 +8779,11 @@
         "main": "pen",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -8395,7 +8863,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 89,
@@ -8507,7 +8980,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 90,
@@ -8586,7 +9064,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 91,
@@ -8665,7 +9148,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 92,
@@ -8768,6 +9256,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -8872,6 +9365,11 @@
         "main": "pen",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -8951,7 +9449,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 95,
@@ -9045,7 +9548,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 96,
@@ -9145,6 +9653,11 @@
         "main": "pen",
         "source": "mug",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -9248,6 +9761,11 @@
         "main": "marker",
         "source": "bowl",
         "clearance": null
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -9274,34 +9792,34 @@
         "screwdriver"
       ],
       "camera_extrinsic_sources": {
-        "cam1": "droid_realm_ep_012113_cam1",
-        "cam2": "droid_realm_ep_012113_cam2"
+        "cam1": "droid_realm_ep_044890_cam1",
+        "cam2": "droid_realm_ep_044890_cam2"
       },
       "camera_extrinsics": {
         "cam1": {
           "pos": [
-            0.3096869,
-            0.4987724,
-            0.2572133
+            -0.0160244,
+            -0.4004213,
+            0.2356631
           ],
           "rot": [
-            0.5101872,
-            -0.4797542,
-            -0.6653733,
-            0.2585022
+            0.5148336,
+            -0.2387908,
+            -0.3649718,
+            0.7380521
           ]
         },
         "cam2": {
           "pos": [
-            -0.0546644,
-            -0.5556831,
-            0.2723456
+            0.3019745,
+            0.4937814,
+            0.5780066
           ],
           "rot": [
-            0.7610307,
-            0.1051705,
-            -0.5098575,
-            0.3870617
+            0.1938215,
+            -0.3905798,
+            -0.8301216,
+            0.3475324
           ]
         }
       },
@@ -9342,7 +9860,15 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": [
+          "droid_realm_ep_044890_cam1",
+          "droid_realm_ep_044890_cam2"
+        ],
+        "model": null,
+        "positions": null
+      }
     },
     {
       "rank": 99,
@@ -9445,6 +9971,11 @@
         "main": "lid",
         "source": "pot",
         "clearance": 0.01
+      },
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
       }
     },
     {
@@ -9524,7 +10055,12 @@
         ],
         "uniform_scale": 1.0
       },
-      "initial_relation": null
+      "initial_relation": null,
+      "render_review_overrides": {
+        "camera_sources": null,
+        "model": null,
+        "positions": null
+      }
     }
   ]
 }

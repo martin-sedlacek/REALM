@@ -4,7 +4,7 @@
 stem** — `--robot DROID_robolab_v2` loads `DROID_robolab_v2.yaml`.
 
 **The default is `DROID`.** That default is set independently in the two eval entry points, the
-vectorized first-frame tool, the environment constructor, and both `evaluate` functions, and the
+environment constructor, and both `evaluate` functions, and the
 `scripts/eval.sh` wrapper does not override it. If you pass no `--robot`, you get `DROID`.
 
 > The `name:` **inside** the file is a separate thing: it is the key observations are built against,
@@ -94,7 +94,7 @@ definitions live in `realm/robots/definitions/`:
 
 USD assets live in `realm/robots/panda_robotiq/` and `realm/robots/ur5/` and are committed to the
 repo, not fetched. `robolab_franka_robotiq_2f_85_flattened.usd` is the **upstream source** that
-`scripts/convert_robolab_gripper_usd.py` converts into the `droid_robolab*` assets; do not point a
+The committed `droid_robolab*` assets were converted from the RoboLab vendor source; do not point a
 definition at it directly — the definitions say so explicitly.
 
 Definitions reference their USDs by absolute `/app/...` paths, which resolve only when the repo is

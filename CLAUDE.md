@@ -67,7 +67,7 @@ realm/
 │                              unit system — read robot_ik_solver.py's module docstring first)
 └── config/                    tasks (REALM_DROID10, IMPACT, other), scenes, robots, objects, env
 
-examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI), 03_vector_first_frames.py,
+examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
             04_vector_evaluate.py (vectorized CLI)
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),

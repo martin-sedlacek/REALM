@@ -233,24 +233,25 @@ cannot perturb existing results. Deleting the files is a complete revert.
 | --- | --- | --- |
 | `realm/environments/perturbations/*` | all 16 perturbations vectorized | single-env behaviour intended to be unchanged; that was the design constraint throughout |
 | `env_vector.py`, `env_base.py`, `env_dynamic.py` | phased vector reset, batched joint resets | as above |
-| `t9_vbpose_nostopplay.py` | `DRAWER_Z_MIN = 0.2` for drawer tasks; step budget allows one shared joint-reset loop | harness only; task 0 verified bit-identical |
+| historical vector perturbation probe | `DRAWER_Z_MIN = 0.2` for drawer tasks; step budget allows one shared joint-reset loop | harness only; task 0 verified bit-identical |
 | `realm/config/scenes/scenes.yaml`, three task YAMLs | scene/task config | check against 1.1.1 before trusting a comparison |
 | `DROID_robolab_v2.yaml` gripper block | **unchanged** — no gains were ever added here | the `isaac_kp`/`isaac_kd` work was all probe-side |
 
 **Arm physics was held byte-identical throughout and verified, not assumed** — `arm_0` controller
 block, top-level `friction`/`armature`, and the seven `panda_joint*` DOFs, across 133 authored
-attributes and 25 link prims (`CURLGRIP_ARM_IDENTICAL`, `SHIP_ARM_IDENTITY_OK`,
-`scripts/debug_probes/ship_arm_identity.py`).
+attributes and 25 link prims (`CURLGRIP_ARM_IDENTICAL`, `SHIP_ARM_IDENTITY_OK`). The one-off probe
+was later removed during release cleanup.
 
 ### Probe-only — no runtime effect
 
-Everything under `scripts/debug_probes/` and `scripts/clara/`. The paths refactor
-(`scripts/clara/lib/paths.sh` + 18 scripts) changes only how harness scripts resolve their own root.
+The temporary debug probes and Clara investigation harnesses had no runtime effect and were later
+removed during release cleanup. The retained `scripts/clara/lib/paths.sh` changes only how active
+cluster scripts resolve their own root.
 
-`make_mass_variant.py` (branch `mass-authored`) is in this class too: it writes a `.usda` into
+The `mass-authored` variant generator was in this class too: it wrote a `.usda` into
 `tmp/variants/` on demand and nothing loads it unless a run passes `--variant-usd`. It never writes
 to `droid_robolab_v2.usd` and touches nothing under `data/`. Verified per-variant by
-`verify_mass_variant.py`: 543 non-gripper prims / 2788 authored attributes identical to the shipped
+Its validation found 543 non-gripper prims / 2788 authored attributes identical to the shipped
 asset (523 of them arm prims), and all 22 collision + visual geoms unmoved to 0.0 nm.
 
 ---

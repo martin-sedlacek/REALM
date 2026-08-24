@@ -107,7 +107,7 @@ Neither path has a unit test. What exists:
   paths -- measured 2026-08-16, task 0 / `Default` / 2 repeats / 30 steps, `MODE=stock` single-env
   and `MODE=oglite` vector at `num_envs=2`. That makes a before/after artifact diff a real
   regression check for a refactor, which it would not be under a real policy: rollouts are
-  nondeterministic within a condition there (`docs/RESUME_HERE.md`).
+  nondeterministic within a condition in the original port investigation.
 - **mp4 bytes are NOT reproducible.** Two identical runs gave video payloads differing by 11% in
   size. Compare **frame counts** instead -- parse the `stsz` box, or count what the recorder was
   given. Frame counts are stable.

@@ -197,6 +197,6 @@ realm_paths_show() {
 
 # The canary every caller checks. Set LAST so it cannot be true while resolution above was skipped,
 # and deliberately NOT exported: an exported canary would be inherited by a child launcher (t*.sh ->
-# rr, t9_sweep.sh -> rr) and would then read as "sourced fine" in a child where the source failed.
+# Nested wrappers can otherwise read as "sourced fine" in a child where the source failed.
 # Unexported, it is visible to the script that sourced this file and to nothing else.
 REALM_PATHS_SH=1

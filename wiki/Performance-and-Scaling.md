@@ -94,6 +94,40 @@ time: the reference stack forced onto CPU retained 94% of its measured complianc
 
 So this is not a performance lever waiting to be pulled.
 
+## Running vectorized REALM 3.9.1 at full speed
+
+The supported high-throughput configuration is OG-lite on OmniGibson 3.9.1, CPU physics,
+real-time rendering, render-on-demand, the incremental contact cache, and the proximity gate.
+Both optimization flags currently default on in `realm/sim_config.py`, but set them explicitly in
+recorded runs so the configuration remains reproducible:
+
+```sh
+MODE=oglite \
+REALM_INCREMENTAL_CONTACT_CACHE=1 \
+REALM_PROXIMITY_GATE=1 \
+REALM_GPU_DYNAMICS=0 \
+srun --jobid=<ID> --overlap \
+  ./scripts/clara/interactive/rr \
+  python -u examples/04_vector_evaluate.py \
+    --num_envs 4 \
+    --task_id 0 --perturbation_id 0 \
+    --repeats 25 --max_steps 500 --horizon 8 \
+    --model_type openpi --model_name <checkpoint-name> \
+    --host 127.0.0.1 --port 8000 \
+    --robot DROID_robolab_v2 \
+    --experiment_name <experiment> --run_id <run-id> \
+    --log_dir /logs --rendering_mode rt \
+    --render_on_demand
+```
+
+The policy server must already be reachable at the supplied host and port. Start with
+`--num_envs 4`; eight has measured better throughput on suitable hardware, while sixteen has hit
+the renderer descriptor-pool ceiling during scene loading. Render-on-demand intentionally records
+roughly one frame per action chunk. Use `--no-render_on_demand` when complete videos matter, at a
+substantial throughput cost. Do not enable `REALM_GPU_DYNAMICS`: it is unsupported and has crashed
+at reset. Do not enable contact-report filtering patterns without a separately validated pattern,
+because omitted links silently disappear from task contact queries.
+
 ## Instrumentation notes
 
 - **Wrist cameras render at 1280×720.** An earlier profiling note claiming 128×128 was retracted;

@@ -4,7 +4,7 @@ State as of 2026-08-13. Companion to `README.md` (which covers how the vector en
 `SCALING.md` (throughput). This file covers what had to change for REALM's perturbations to be
 correct when N scenes share one simulator, and what is still open.
 
-Verify anything here with `scripts/clara/interactive/t9_vbpose_nostopplay.py`; `t9_sweep.sh` fans
+These findings were verified with a temporary vector perturbation probe; its sweep fanned
 several perturbations across several interactive allocations.
 
 ## Why perturbations were the hard part
@@ -102,7 +102,7 @@ view` out of `play()`) raised from an unrelated call site much later. It is two 
 reset that needs a stopped sim, and it announces itself loudly, so the presence or absence of its
 warning now also tells you which OmniGibson a run used.
 
-Measured, `t9_vbpose_nostopplay.py --num_envs 2 --resets 3`, one warmup reset + 3 perturbed resets:
+Measured with 2 environments, one warmup reset, and 3 perturbed resets:
 
 | | stock `simulator.py` | OG-lite identity match |
 | --- | --- | --- |
@@ -188,14 +188,14 @@ the lift `pos.z - mo_pos_orig.z` and the travel `‖pos - mo_pos_orig‖`, and `
 | VB-MOBJ | replaces it with a rescaled copy (`vb_mobj.py`) |
 
 Without a re-capture the reference described one object while the checks read another. Measured
-2026-08-13, SB-NOUN on task 0, 6 resets (`scripts/clara/interactive/t11_mopos_ref.py`): right after
+2026-08-13, SB-NOUN on task 0, 6 resets: right after
 `reset()` the reference sat 0.111–0.465 m (mean 0.285 m) from the object being scored, and
 LIFT_SLIGHT answered True **at rest** on 3 of 6 resets — progression that never happened.
 
 `RealmEnvironmentBase.capture_mo_reference()` re-takes both from the live object. It must be called
 **only at the end of a reset, never while stepping**: it records where the object *started*, and a
 reference that followed the object would drive both terms to zero and make every lift/distance check
-permanently False — silently deleting the stage instead of fixing it. `t11_mopos_ref.py`'s
+permanently False — silently deleting the stage instead of fixing it. The reference probe's
 `[FROZEN]` section tests that direction explicitly.
 
 It is one method rather than a line in each perturbation so that a future perturbation that swaps
@@ -244,7 +244,7 @@ Deleted rather than repaired, so there is only one copy to keep correct: the nex
 
 ## Testing: a pass is not evidence unless something asserts the effect
 
-`t9_vbpose_nostopplay.py` checks: the sim is cycled exactly the expected number of times (0 for
+The historical vector perturbation probe checked that the sim cycles exactly as expected (0 for
 pose-only, **exactly 1** for `NEEDS_STOPPED_SIM` — N is the original bug, 1 is the fix); each
 member's main object is a contact ROW of its **own** scene; the grasp path runs; nothing leaves the
 table; the instruction changes or does not; the scene is otherwise frozen; and — via `MOVES` — that
@@ -270,7 +270,7 @@ V-SC was briefly mapped to `objects`, which is a guaranteed false failure: it pa
 as `objects_to_skip` and re-randomises only distractors, so its main-object spread with a *working*
 V-SC is exactly `0.0000`.
 
-Two harness gotchas: **`t9_vbpose_nostopplay.py` exits 139 (SIGSEGV) whether it passes or fails** —
+Two harness gotchas: **the historical probe exited 139 (SIGSEGV) whether it passed or failed** —
 Isaac segfaults at teardown after the verdict prints, so grep `^PASSED`/`^FAILED` and never gate on
 exit code. This is **script-specific, not universal**, and this sentence used to claim otherwise:
 `examples/04_vector_evaluate.py` on this image does NOT segfault on a passing run. Measured over the
@@ -317,8 +317,8 @@ DatasetObject, so **a task-0 pass says nothing about its add/remove path** — i
   the whole reason one member differed from another. Fixed in OG-lite
   `USDObject._preapply_articulation_root` by making the exported asset layer's up axis agree with
   the stage's, leaving the assembler nothing to insert in any scene.
-  Probes: `scripts/clara/interactive/t13_drawer_stop.py` (outcome), `t14_drawer_pose_trace.py`
-  (which phase), `t15_drawer_xformops.py` (the op itself).
+  Temporary probes measured the stopped-drawer outcome, traced the pose phase, and identified the
+  extra transform op. These one-off probes were removed during release cleanup.
 - **Every vector reset does N global steps and 3N renders before any perturbation**, from
   `og.Environment.reset(get_obs=True)` per member. Measured harmless (<4e-5 m drift), but O(N).
   V-VIEW used to *double* that: it ended with a second per-member `og.Environment.reset()`, left
