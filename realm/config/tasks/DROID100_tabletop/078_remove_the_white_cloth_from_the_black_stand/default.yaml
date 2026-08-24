@@ -5,7 +5,7 @@ task:
 task_type: pick
 instruction: Remove the white cloth from the black stand
 instruction_obj_to_replace: cloth
-instruction_target_to_replace: ''
+instruction_target_to_replace: stand
 instruction_verb_to_replace: pick
 supported_scenes:
   Benevolence_1_int:
@@ -46,9 +46,9 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.088
-  - 0.0506296
+  - 0.11
+  - 0.11
+  - 0.0736963
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -102,4 +102,21 @@ distractors:
   - 0.304
   - 0.088
   - 0.0562801
-immutables: []
+immutables:
+- type: DatasetObject
+  name: stand
+  category: plate
+  model: itoeew
+  bounding_box:
+  - 0.22
+  - 0.22
+  - 0.0130667
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.11
+  - 0.0565334

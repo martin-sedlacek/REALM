@@ -46,6 +46,24 @@ target after considering both 0° and 90° yaw:
 If the check fails, first try a 90° main-object yaw. If it still fails, uniformly shrink the main
 object until the proxy passes. Never distort either object's proportions to force a match.
 
+## Instruction closure and initial predicates
+
+Every object required to make an instruction meaningful must be grounded in the scene, even when
+REALM's task type only requires one `main_object`. Treat prepositions as state constraints, not as
+disposable language:
+
+- `remove/take X from Y` requires both X and Y. X is the main object and Y is an immutable source.
+- `take X off Y` requires X to start supported by Y.
+- A lid removed from a pot or pan must start centered above that vessel, with its lower bbox face
+  10 mm above the vessel's upper bbox face. This avoids initial interpenetration while preserving a
+  short settling drop.
+- `take X from/out of Y` requires X to start at least partially inside Y. The source footprint must
+  first pass the same conservative capacity check as a `put` receiver.
+
+The generated-config audit records the inferred predicate, main object, source object, and applied
+clearance. A draft is semantically invalid if a required source is absent or its bbox relationship
+does not satisfy the inferred predicate.
+
 ## Final validation
 
 Bounding-box checks cannot prove mesh clearance, container interior volume, stability, reachability,

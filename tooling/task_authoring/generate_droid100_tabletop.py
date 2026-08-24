@@ -30,6 +30,7 @@ DEFAULT_CAMERA_EXTRINSICS = (
 DEFAULT_SEED = 100
 DISTRACTOR_CATEGORIES = ("teaspoon", "masking_tape", "marker", "pen", "can_of_soda", "half_apple")
 SUPPORT_CLEARANCE = 0.05
+RELATION_CLEARANCE = 0.01
 
 CATEGORY_BY_CONCEPT = {
     "marker": "marker",
@@ -48,10 +49,13 @@ CATEGORY_BY_CONCEPT = {
     "cloth": "microfiber_cloth",
     "spoon": "teaspoon",
     "tool": "screwdriver",
+    # Literal fixtures absent from the movable tabletop catalog use conservative proxies.
+    "sink": "bowl",
+    "stand": "plate",
 }
 CONCEPT_PATTERN = re.compile(
     r"\b(mug cup|glass lid|silver lid|masking tape|marker|pen|cup|mug|bowl|lid|pot|pan|"
-    r"block|blocks|cube|object|objects|cups|towel|box|tape|plate|can|cloth|spoon|tool)\b",
+    r"block|blocks|cube|object|objects|cups|towel|box|tape|plate|can|cloth|spoon|tool|sink|stand)\b",
     re.IGNORECASE,
 )
 COLORS = {
@@ -92,12 +96,28 @@ def sample_camera_pair(
 def instruction_terms(instruction: str, task_type: str) -> list[str]:
     """Extract literal ordered object phrases for semantic substitution fields."""
     found = [match.group(1).lower() for match in CONCEPT_PATTERN.finditer(instruction)]
-    required = 2 if task_type in {"put", "stack"} else 1
+    required = 2 if task_type in {"put", "stack"} or initial_relation_type(instruction, task_type) else 1
     if task_type == "stack" and len(found) == 1 and found[0] == "cups":
         found.append("cups")
     if len(found) < required:
         raise ValueError(f"could not resolve {required} object terms from {instruction!r}")
     return found[:required]
+
+
+def initial_relation_type(instruction: str, task_type: str) -> str | None:
+    """Return the initial spatial predicate implied by a pick instruction."""
+    if task_type != "pick":
+        return None
+    lowered = instruction.lower()
+    if not re.search(r"\b(?:from|out of|off(?: of)?)\b", lowered):
+        return None
+    if (
+        re.search(r"\boff(?: of)?\b", lowered)
+        or re.search(r"\blid\b.*\b(?:pot|pan)\b", lowered)
+        or re.search(r"\b(?:from|out of)\b[^,.]*\bstand\b", lowered)
+    ):
+        return "on_top"
+    return "inside"
 
 
 def concepts(instruction: str, task_type: str) -> list[str]:
@@ -217,6 +237,34 @@ def ensure_receiver_capacity(
     }
 
 
+def place_initial_relation(
+    main: dict[str, object],
+    source: dict[str, object],
+    relation: str,
+) -> dict[str, object]:
+    """Place a pick object in the source/support state required by its instruction."""
+    source_x, source_y, source_z = (float(value) for value in source["relative_bbox_position"])
+    main_height = float(main["bounding_box"][2])
+    source_height = float(source["bounding_box"][2])
+    if relation == "on_top":
+        z = source_z + source_height / 2 + main_height / 2 + RELATION_CLEARANCE
+    elif relation == "inside":
+        # Keep the upper half accessible while representing partial containment.
+        z = max(
+            main_height / 2 + SUPPORT_CLEARANCE,
+            source_z + source_height / 2 - main_height / 4,
+        )
+    else:
+        raise ValueError(f"unsupported initial relation {relation!r}")
+    main["relative_bbox_position"] = [source_x, source_y, round(z, 7)]
+    return {
+        "type": relation,
+        "main": main["name"],
+        "source": source["name"],
+        "clearance": RELATION_CLEARANCE if relation == "on_top" else None,
+    }
+
+
 def object_for(
     concept: str,
     instruction: str,
@@ -271,6 +319,7 @@ def generate(
             for key, value in sampled_cameras.items()
         }
         instruction, task_type = task["instruction"], task["task_type"]
+        initial_relation = initial_relation_type(instruction, task_type)
         terms = instruction_terms(instruction, task_type)
         resolved = concepts(instruction, task_type)
         configs, resize_audit, placed = [], [], []
@@ -285,7 +334,8 @@ def generate(
                 resize_audit.append(audit)
         receiver_capacity = None
         if len(configs) > 1:
-            receiver_capacity = ensure_receiver_capacity(configs[0], configs[1], task_type)
+            capacity_type = "stack" if initial_relation == "on_top" else "put" if initial_relation else task_type
+            receiver_capacity = ensure_receiver_capacity(configs[0], configs[1], capacity_type)
             if receiver_capacity["uniform_scale"] < 1:
                 resize_audit.append({
                     "name": configs[0]["name"],
@@ -294,8 +344,14 @@ def generate(
                     "authored_bbox": receiver_capacity["main_bbox_after_capacity_fit"],
                     "scale": receiver_capacity["uniform_scale"],
                 })
-        for config in configs:
-            place(config, placed, region["width"], region["depth"])
+        relation_audit = None
+        if initial_relation:
+            place(configs[1], placed, region["width"], region["depth"])
+            relation_audit = place_initial_relation(configs[0], configs[1], initial_relation)
+            placed.append(configs[0])
+        else:
+            for config in configs:
+                place(config, placed, region["width"], region["depth"])
         distractors = []
         for category in DISTRACTOR_CATEGORIES:
             if category in {config.get("category") for config in configs}:
@@ -324,9 +380,9 @@ def generate(
             "supported_scenes": {region["scene"]: [region["support"]]},
             "camera_extrinsics": cameras,
             "main_objects": [configs[0]],
-            "target_objects": [configs[1]] if len(configs) > 1 else [],
+            "target_objects": [configs[1]] if len(configs) > 1 and not initial_relation else [],
             "distractors": distractors,
-            "immutables": [],
+            "immutables": [configs[1]] if initial_relation else [],
         }
         directory_name = f"{task['rank']:03d}_{slug(instruction)[:72]}"
         task_directory = output / directory_name
@@ -350,6 +406,7 @@ def generate(
             "camera_extrinsics": cameras,
             "resized_assets": resize_audit,
             "receiver_capacity": receiver_capacity,
+            "initial_relation": relation_audit,
         })
     audit = {
         "family": "DROID100_tabletop",

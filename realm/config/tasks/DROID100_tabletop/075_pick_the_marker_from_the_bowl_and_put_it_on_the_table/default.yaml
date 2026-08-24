@@ -5,7 +5,7 @@ task:
 task_type: pick
 instruction: Pick the marker from the bowl and put it on the table
 instruction_obj_to_replace: marker
-instruction_target_to_replace: ''
+instruction_target_to_replace: bowl
 instruction_verb_to_replace: pick
 supported_scenes:
   Pomaria_1_int:
@@ -48,7 +48,7 @@ main_objects:
   relative_bbox_position:
   - 0.154
   - 0.176
-  - 0.056298
+  - 0.1091956
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -102,4 +102,21 @@ distractors:
   - 0.532
   - 0.176
   - 0.0539367
-immutables: []
+immutables:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.22
+  - 0.193924
+  - 0.0623446
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.154
+  - 0.176
+  - 0.0811723

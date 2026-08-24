@@ -23,7 +23,9 @@ from tooling.task_authoring.generate_droid100_tabletop import (
     concepts,
     ensure_receiver_capacity,
     fit_bbox,
+    initial_relation_type,
     place,
+    place_initial_relation,
     primitive,
 )
 
@@ -35,6 +37,25 @@ class AuthoringTest(unittest.TestCase):
         green = primitive("block", "Put the orange block on the green block", 1)
         self.assertEqual(orange["name"], "orange_block")
         self.assertEqual(green["name"], "green_block")
+
+    def test_pick_from_instruction_keeps_source_object(self):
+        instruction = "Remove the lid from the pot"
+        self.assertEqual(concepts(instruction, "pick"), ["lid", "pot"])
+        self.assertEqual(initial_relation_type(instruction, "pick"), "on_top")
+
+    def test_initial_on_top_relation_has_nonintersecting_clearance(self):
+        source = {
+            "name": "pot",
+            "bounding_box": [0.20, 0.20, 0.10],
+            "relative_bbox_position": [0.25, 0.30, 0.10],
+        }
+        main = {"name": "lid", "bounding_box": [0.15, 0.15, 0.02]}
+        audit = place_initial_relation(main, source, "on_top")
+        source_top = source["relative_bbox_position"][2] + source["bounding_box"][2] / 2
+        main_bottom = main["relative_bbox_position"][2] - main["bounding_box"][2] / 2
+        self.assertEqual(main["relative_bbox_position"][:2], source["relative_bbox_position"][:2])
+        self.assertGreater(main_bottom, source_top)
+        self.assertEqual(audit["source"], "pot")
 
     def test_batch_authoring_uniformly_fits_oversized_bboxes(self):
         fitted, scale = fit_bbox([0.4, 0.3, 0.2], (0.2, 0.2))

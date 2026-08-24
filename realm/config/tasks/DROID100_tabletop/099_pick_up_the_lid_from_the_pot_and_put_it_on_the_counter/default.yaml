@@ -5,7 +5,7 @@ task:
 task_type: pick
 instruction: Pick up the lid from the pot and put it on the counter
 instruction_obj_to_replace: lid
-instruction_target_to_replace: ''
+instruction_target_to_replace: pot
 instruction_verb_to_replace: pick
 supported_scenes:
   Pomaria_0_int:
@@ -47,8 +47,8 @@ main_objects:
   - 1.0
   relative_bbox_position:
   - 0.11
-  - 0.099
-  - 0.066524
+  - 0.11
+  - 0.1817066
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -102,4 +102,21 @@ distractors:
   - 0.38
   - 0.099
   - 0.0562801
-immutables: []
+immutables:
+- type: DatasetObject
+  name: pot
+  category: saucepot
+  model: ozrwwk
+  bounding_box:
+  - 0.1369473
+  - 0.22
+  - 0.1051826
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.11
+  - 0.1025913

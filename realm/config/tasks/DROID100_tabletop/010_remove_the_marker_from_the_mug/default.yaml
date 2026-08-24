@@ -5,7 +5,7 @@ task:
 task_type: pick
 instruction: Remove the marker from the mug
 instruction_obj_to_replace: marker
-instruction_target_to_replace: ''
+instruction_target_to_replace: mug
 instruction_verb_to_replace: pick
 supported_scenes:
   office_cubicles_left:
@@ -43,12 +43,12 @@ main_objects:
   orientation:
   - 0.0
   - 0.0
-  - 0.0
-  - 1.0
+  - 0.7071068
+  - 0.7071068
   relative_bbox_position:
   - 0.132
   - 0.11
-  - 0.056298
+  - 0.1108333
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -102,4 +102,21 @@ distractors:
   - 0.456
   - 0.11
   - 0.0539367
-immutables: []
+immutables:
+- type: DatasetObject
+  name: mug
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.132
+  - 0.11
+  - 0.0819912

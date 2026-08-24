@@ -5,7 +5,7 @@ task:
 task_type: pick
 instruction: Take the pen out of the cup and put it on the table
 instruction_obj_to_replace: pen
-instruction_target_to_replace: ''
+instruction_target_to_replace: cup
 instruction_verb_to_replace: pick
 supported_scenes:
   Wainscott_0_int:
@@ -37,18 +37,18 @@ main_objects:
   category: pen
   model: ubwjqa
   bounding_box:
-  - 0.1257811
-  - 0.0112061
-  - 0.0099033
+  - 0.1189699
+  - 0.0105993
+  - 0.009367
   orientation:
   - 0.0
   - 0.0
-  - 0.0
-  - 1.0
+  - 0.7071068
+  - 0.7071068
   relative_bbox_position:
   - 0.11
   - 0.132
-  - 0.0549517
+  - 0.1116406
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -102,4 +102,21 @@ distractors:
   - 0.38
   - 0.132
   - 0.0562801
-immutables: []
+immutables:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.132
+  - 0.0819912

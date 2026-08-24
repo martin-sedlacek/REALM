@@ -76,7 +76,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 2,
@@ -146,7 +147,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 3,
@@ -231,7 +233,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 4,
@@ -316,7 +319,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 5,
@@ -324,7 +328,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the cup and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -365,7 +370,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 6,
@@ -373,7 +404,8 @@
       "task_type": "pick",
       "instruction": "Remove the lid from the pot",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -413,8 +445,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 7,
@@ -422,7 +495,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the cup",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -463,7 +537,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 8,
@@ -548,7 +648,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 9,
@@ -634,7 +735,8 @@
           0.0639822
         ],
         "uniform_scale": 0.94585
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 10,
@@ -642,7 +744,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the mug",
       "concepts": [
-        "marker"
+        "marker",
+        "mug"
       ],
       "scene": {
         "name": "office_cubicles_left",
@@ -683,7 +786,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 11,
@@ -691,7 +820,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the mug cup and place it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -732,7 +862,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 12,
@@ -740,7 +896,8 @@
       "task_type": "pick",
       "instruction": "Pick the marker from the cup and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -781,7 +938,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 13,
@@ -866,7 +1049,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 14,
@@ -951,7 +1135,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 15,
@@ -959,7 +1144,8 @@
       "task_type": "pick",
       "instruction": "Remove the glass lid from the black pot.",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -999,8 +1185,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 16,
@@ -1070,7 +1297,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 17,
@@ -1155,7 +1383,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 18,
@@ -1225,7 +1454,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 19,
@@ -1233,7 +1463,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the mug and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -1274,7 +1505,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 20,
@@ -1282,7 +1539,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the bowl and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "bowl"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -1322,8 +1580,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "bowl",
+        "clearance": null
+      }
     },
     {
       "rank": 21,
@@ -1331,7 +1630,8 @@
       "task_type": "pick",
       "instruction": "Take the marker out of the cup and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_0_int",
@@ -1372,7 +1672,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 22,
@@ -1458,7 +1784,8 @@
           0.0639822
         ],
         "uniform_scale": 0.94585
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 23,
@@ -1528,7 +1855,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 24,
@@ -1613,7 +1941,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 25,
@@ -1698,7 +2027,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 26,
@@ -1706,7 +2036,8 @@
       "task_type": "pick",
       "instruction": "Take the marker out of the mug and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "mug"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -1747,7 +2078,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 27,
@@ -1817,7 +2174,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 28,
@@ -1825,7 +2183,8 @@
       "task_type": "pick",
       "instruction": "Take the marker out of the cup",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -1866,7 +2225,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 29,
@@ -1936,7 +2321,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 30,
@@ -2006,7 +2392,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 31,
@@ -2076,7 +2463,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 32,
@@ -2084,7 +2472,8 @@
       "task_type": "pick",
       "instruction": "Take the pen out of the cup and put it on the table",
       "concepts": [
-        "pen"
+        "pen",
+        "cup"
       ],
       "scene": {
         "name": "Wainscott_0_int",
@@ -2124,8 +2513,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 33,
@@ -2133,7 +2564,8 @@
       "task_type": "pick",
       "instruction": "Take the lid off of the pot",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -2173,8 +2605,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 34,
@@ -2182,7 +2655,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the mug cup",
       "concepts": [
-        "marker"
+        "marker",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -2223,7 +2697,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 35,
@@ -2308,7 +2808,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 36,
@@ -2316,7 +2817,8 @@
       "task_type": "pick",
       "instruction": "Remove the pen from the cup and put it on the table",
       "concepts": [
-        "pen"
+        "pen",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_0_int",
@@ -2356,8 +2858,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 37,
@@ -2442,7 +2986,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 38,
@@ -2450,7 +2995,8 @@
       "task_type": "pick",
       "instruction": "Pick up the marker from the cup and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -2491,7 +3037,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 39,
@@ -2499,7 +3071,8 @@
       "task_type": "pick",
       "instruction": "Take the marker out of the mug.",
       "concepts": [
-        "marker"
+        "marker",
+        "mug"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -2540,7 +3113,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 40,
@@ -2625,7 +3224,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 41,
@@ -2710,7 +3310,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 42,
@@ -2718,7 +3319,8 @@
       "task_type": "pick",
       "instruction": "Take the marker from the cup and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -2759,7 +3361,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 43,
@@ -2767,7 +3395,8 @@
       "task_type": "pick",
       "instruction": "Take the pen out of the mug and put it on the table",
       "concepts": [
-        "pen"
+        "pen",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -2807,8 +3436,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 44,
@@ -2878,7 +3549,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 45,
@@ -2963,7 +3635,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 46,
@@ -3049,7 +3722,8 @@
           0.0639822
         ],
         "uniform_scale": 0.94585
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 47,
@@ -3057,7 +3731,8 @@
       "task_type": "pick",
       "instruction": "Take the lid off the pot",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -3097,8 +3772,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 48,
@@ -3183,7 +3899,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 49,
@@ -3191,7 +3908,8 @@
       "task_type": "pick",
       "instruction": "Remove the lid from the pot and put it on the table",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -3231,8 +3949,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 50,
@@ -3302,7 +4061,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 51,
@@ -3372,7 +4132,8 @@
           0.05
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 52,
@@ -3457,7 +4218,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 53,
@@ -3542,7 +4304,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 54,
@@ -3550,7 +4313,8 @@
       "task_type": "pick",
       "instruction": "Remove the pen from the mug and put it on the table",
       "concepts": [
-        "pen"
+        "pen",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -3590,8 +4354,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 55,
@@ -3599,7 +4405,8 @@
       "task_type": "pick",
       "instruction": "Take the marker out of the bowl and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "bowl"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -3639,8 +4446,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "bowl",
+        "clearance": null
+      }
     },
     {
       "rank": 56,
@@ -3710,7 +4558,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 57,
@@ -3718,7 +4567,8 @@
       "task_type": "pick",
       "instruction": "Remove the can from the sink",
       "concepts": [
-        "can"
+        "can",
+        "sink"
       ],
       "scene": {
         "name": "Wainscott_0_int",
@@ -3758,8 +4608,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "sink",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1107923,
+          0.1107923,
+          0.1438354
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1107923,
+          0.1107923,
+          0.1438354
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "can",
+        "source": "sink",
+        "clearance": null
+      }
     },
     {
       "rank": 58,
@@ -3844,7 +4735,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 59,
@@ -3929,7 +4821,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 60,
@@ -3937,7 +4830,8 @@
       "task_type": "pick",
       "instruction": "Remove the lid from the black pot",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "office_cubicles_left",
@@ -3977,8 +4871,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 61,
@@ -4063,7 +4998,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 62,
@@ -4071,7 +5007,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the pot and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "pot"
       ],
       "scene": {
         "name": "office_cubicles_left",
@@ -4111,8 +5048,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "pot",
+        "clearance": null
+      }
     },
     {
       "rank": 63,
@@ -4197,7 +5175,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 64,
@@ -4296,7 +5275,8 @@
           0.1157289
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 65,
@@ -4304,7 +5284,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the bowl.",
       "concepts": [
-        "marker"
+        "marker",
+        "bowl"
       ],
       "scene": {
         "name": "office_cubicles_left",
@@ -4344,8 +5325,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "bowl",
+        "clearance": null
+      }
     },
     {
       "rank": 66,
@@ -4444,7 +5466,8 @@
           0.1157289
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 67,
@@ -4529,7 +5552,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 68,
@@ -4537,7 +5561,8 @@
       "task_type": "pick",
       "instruction": "Pick up the pen from the cup and put it on the table.",
       "concepts": [
-        "pen"
+        "pen",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_0_int",
@@ -4577,8 +5602,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 69,
@@ -4663,7 +5730,8 @@
           0.0130667
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 70,
@@ -4733,7 +5801,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 71,
@@ -4818,7 +5887,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 72,
@@ -4904,7 +5974,8 @@
           0.0639822
         ],
         "uniform_scale": 0.94585
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 73,
@@ -4912,7 +5983,8 @@
       "task_type": "pick",
       "instruction": "Take the pen out of the bowl and put it on the table",
       "concepts": [
-        "pen"
+        "pen",
+        "bowl"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -4952,8 +6024,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "bowl",
+        "clearance": null
+      }
     },
     {
       "rank": 74,
@@ -4961,7 +6074,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker from the cup and place it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Pomaria_0_int",
@@ -5002,7 +6116,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 75,
@@ -5010,7 +6150,8 @@
       "task_type": "pick",
       "instruction": "Pick the marker from the bowl and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "bowl"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -5050,8 +6191,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "bowl",
+        "clearance": null
+      }
     },
     {
       "rank": 76,
@@ -5100,7 +6282,8 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": null,
+      "initial_relation": null
     },
     {
       "rank": 77,
@@ -5170,7 +6353,8 @@
           0.05
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 78,
@@ -5178,7 +6362,8 @@
       "task_type": "pick",
       "instruction": "Remove the white cloth from the black stand",
       "concepts": [
-        "cloth"
+        "cloth",
+        "stand"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -5232,9 +6417,49 @@
             0.0012591
           ],
           "scale": 0.90397
+        },
+        {
+          "name": "stand",
+          "original_bbox": [
+            0.5145043,
+            0.5145044,
+            0.0305586
+          ],
+          "authored_bbox": [
+            0.22,
+            0.22,
+            0.0130667
+          ],
+          "scale": 0.4276
         }
       ],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.14,
+          0.1399976,
+          0.0012591
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.14,
+          0.1399976,
+          0.0012591
+        ],
+        "target_bbox": [
+          0.22,
+          0.22,
+          0.0130667
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "cloth",
+        "source": "stand",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 79,
@@ -5319,7 +6544,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 80,
@@ -5389,7 +6615,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 81,
@@ -5474,7 +6701,8 @@
           0.0344362
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 82,
@@ -5559,7 +6787,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 83,
@@ -5567,7 +6796,8 @@
       "task_type": "pick",
       "instruction": "Remove the glass lid from the pot.",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Pomaria_0_int",
@@ -5607,8 +6837,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 84,
@@ -5616,7 +6887,8 @@
       "task_type": "pick",
       "instruction": "Remove the silver lid from the silver pot",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Benevolence_1_int",
@@ -5656,8 +6928,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 85,
@@ -5727,7 +7040,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 86,
@@ -5735,7 +7049,8 @@
       "task_type": "pick",
       "instruction": "Remove the marker out of the cup and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "cup"
       ],
       "scene": {
         "name": "Wainscott_0_int",
@@ -5776,7 +7091,33 @@
         }
       },
       "resized_assets": [],
-      "receiver_capacity": null
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "cup",
+        "clearance": null
+      }
     },
     {
       "rank": 87,
@@ -5784,7 +7125,8 @@
       "task_type": "pick",
       "instruction": "Remove the pen from the mug cup and place it on the table",
       "concepts": [
-        "pen"
+        "pen",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -5824,8 +7166,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 88,
@@ -5895,7 +7279,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 89,
@@ -5981,7 +7366,8 @@
           0.0255603
         ],
         "uniform_scale": 0.488
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 90,
@@ -6051,7 +7437,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 91,
@@ -6121,7 +7508,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 92,
@@ -6129,7 +7517,8 @@
       "task_type": "pick",
       "instruction": "Pick up the lid from the pot and put it on the table.",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "office_cubicles_left",
@@ -6169,8 +7558,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 93,
@@ -6178,7 +7608,8 @@
       "task_type": "pick",
       "instruction": "Pick up the pen from the mug cup and put it on the table.",
       "concepts": [
-        "pen"
+        "pen",
+        "mug"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -6218,8 +7649,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 94,
@@ -6289,7 +7762,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 95,
@@ -6374,7 +7848,8 @@
           0.0623446
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 96,
@@ -6382,7 +7857,8 @@
       "task_type": "pick",
       "instruction": "Remove the pen from the mug",
       "concepts": [
-        "pen"
+        "pen",
+        "mug"
       ],
       "scene": {
         "name": "office_cubicles_left",
@@ -6422,8 +7898,50 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "pen",
+        "source": "mug",
+        "clearance": null
+      }
     },
     {
       "rank": 97,
@@ -6431,7 +7949,8 @@
       "task_type": "pick",
       "instruction": "Take the marker from the bowl and put it on the table",
       "concepts": [
-        "marker"
+        "marker",
+        "bowl"
       ],
       "scene": {
         "name": "Pomaria_1_int",
@@ -6471,8 +7990,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "inside",
+        "main": "marker",
+        "source": "bowl",
+        "clearance": null
+      }
     },
     {
       "rank": 98,
@@ -6557,7 +8117,8 @@
           0.1051826
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     },
     {
       "rank": 99,
@@ -6565,7 +8126,8 @@
       "task_type": "pick",
       "instruction": "Pick up the lid from the pot and put it on the counter",
       "concepts": [
-        "lid"
+        "lid",
+        "pot"
       ],
       "scene": {
         "name": "Pomaria_0_int",
@@ -6605,8 +8167,49 @@
           ]
         }
       },
-      "resized_assets": [],
-      "receiver_capacity": null
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      },
+      "initial_relation": {
+        "type": "on_top",
+        "main": "lid",
+        "source": "pot",
+        "clearance": 0.01
+      }
     },
     {
       "rank": 100,
@@ -6676,7 +8279,8 @@
           0.0639822
         ],
         "uniform_scale": 1.0
-      }
+      },
+      "initial_relation": null
     }
   ]
 }
