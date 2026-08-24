@@ -38,6 +38,18 @@ UNSAFE_SCENE_REGIONS = {
     ("office_cubicles_left", "Circular_Table"),
 }
 ELLIPTICAL_SUPPORTS = {"Coffee_Table", "Circular_Table"}
+REVIEWED_CAMERA_SOURCES = {
+    82: ("droid_realm_ep_060817_cam1", "droid_realm_ep_060817_cam2"),
+    98: ("droid_realm_ep_044890_cam1", "droid_realm_ep_044890_cam2"),
+}
+REVIEWED_MODEL_OVERRIDES = {13: {"cup": "jgethp"}}
+REVIEWED_POSITION_OVERRIDES = {
+    47: {
+        "lid": [0.28, 0.15],
+        "pot": [0.28, 0.15],
+        "distractor_beefsteak_tomato": [0.12, 0.15],
+    },
+}
 REVIEWED_TASK_OVERRIDES = {
     57: {
         "instruction": "Remove the can from the bowl",
@@ -237,6 +249,30 @@ def dataset_object(
         "category": category,
         "model": asset["model"],
         "bounding_box": [round(float(value), 7) for value in asset["bbox"]],
+    }
+
+
+def apply_model_override(
+    config: dict[str, object],
+    model: str,
+    assets_by_category: dict[str, list[dict[str, object]]],
+    max_xy: tuple[float, float],
+) -> dict[str, object]:
+    """Apply a render-reviewed model choice while retaining uniform bbox scaling."""
+    category = str(config["category"])
+    asset = next((item for item in assets_by_category[category] if item["model"] == model), None)
+    if asset is None:
+        raise ValueError(f"reviewed model {category}/{model} is not indexed")
+    original = [round(float(value), 7) for value in asset["bbox"]]
+    fitted, scale = fit_bbox(original, max_xy)
+    config["model"] = model
+    config["bounding_box"] = fitted
+    return {
+        "name": config["name"],
+        "reason": "render_review_model_override",
+        "original_bbox": original,
+        "authored_bbox": fitted,
+        "scale": round(scale, 5),
     }
 
 
@@ -480,7 +516,14 @@ def generate(
             scene_rng.shuffle(scene_order)
         region = scene_order[task_index % len(scene_order)]
         elliptical = region["support"] in ELLIPTICAL_SUPPORTS
+        rank = int(task["rank"])
         sampled_cameras = sample_camera_pair(camera_poses, camera_rng)
+        reviewed_camera_sources = REVIEWED_CAMERA_SOURCES.get(rank)
+        if reviewed_camera_sources:
+            sampled_cameras = {
+                f"cam{index}": {**camera_poses[source_name], "source": source_name}
+                for index, source_name in enumerate(reviewed_camera_sources, start=1)
+            }
         camera_sources = {key: value["source"] for key, value in sampled_cameras.items()}
         cameras = {
             key: {pose_key: pose_value for pose_key, pose_value in value.items() if pose_key != "source"}
@@ -493,11 +536,15 @@ def generate(
         resolved = concepts(instruction, task_type)
         configs, resize_audit, placed = [], [], []
         for index, concept in enumerate(resolved):
+            max_xy = (0.14, 0.16) if index == 0 else (0.17, 0.17)
             config, audit = object_for(
                 concept, instruction, index, assets_by_category,
-                (0.14, 0.16) if index == 0 else (0.17, 0.17),
+                max_xy,
             )
             config["name"] = f"{config['name']}_{index + 1}" if resolved.count(concept) > 1 else config["name"]
+            model_override = REVIEWED_MODEL_OVERRIDES.get(rank, {}).get(str(config["name"]))
+            if model_override:
+                audit = apply_model_override(config, model_override, assets_by_category, max_xy)
             configs.append(config)
             if audit:
                 resize_audit.append(audit)
@@ -542,6 +589,12 @@ def generate(
                 break
         if len(distractors) < 3:
             raise ValueError(f"could not place three distractors for rank {task['rank']}")
+        position_overrides = REVIEWED_POSITION_OVERRIDES.get(rank, {})
+        if position_overrides:
+            by_name = {str(item["name"]): item for item in configs + distractors}
+            for name, xy in position_overrides.items():
+                config = by_name[name]
+                config["relative_bbox_position"][:2] = xy
         verb = {"put": "put", "pick": "pick", "stack": "stack", "rotate": "rotate"}[task_type]
         document = {
             "task": {"type": "DummyTask", "termination_config": {}, "reward_config": {}},
@@ -585,6 +638,11 @@ def generate(
             "resized_assets": resize_audit,
             "receiver_capacity": receiver_capacity,
             "initial_relation": relation_audit,
+            "render_review_overrides": {
+                "camera_sources": list(reviewed_camera_sources) if reviewed_camera_sources else None,
+                "model": REVIEWED_MODEL_OVERRIDES.get(rank),
+                "positions": REVIEWED_POSITION_OVERRIDES.get(rank),
+            },
         })
     audit = {
         "family": "DROID100_tabletop",

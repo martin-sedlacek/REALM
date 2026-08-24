@@ -86,13 +86,13 @@ distractors:
   - 0.28
   - 0.1639537
 - type: DatasetObject
-  name: distractor_chestnut
-  category: chestnut
-  model: fmomat
+  name: distractor_banana
+  category: banana
+  model: verqwv
   bounding_box:
-  - 0.0199921
-  - 0.0153447
-  - 0.0153222
+  - 0.1
+  - 0.0313722
+  - 0.0157945
   orientation:
   - 0.0
   - 0.0
@@ -101,7 +101,7 @@ distractors:
   relative_bbox_position:
   - 0.28
   - 0.12
-  - 0.0576611
+  - 0.0578973
 - type: DatasetObject
   name: distractor_table_knife
   category: table_knife

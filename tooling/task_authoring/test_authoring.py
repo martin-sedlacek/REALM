@@ -21,6 +21,7 @@ from tooling.task_authoring.authoring import (
 )
 from tooling.task_authoring.save_server import save_task_config
 from tooling.task_authoring.generate_droid100_tabletop import (
+    apply_model_override,
     bbox_fits_support,
     concepts,
     distractor_family,
@@ -92,6 +93,18 @@ class AuthoringTest(unittest.TestCase):
         fitted, scale = fit_bbox([0.4, 0.3, 0.2], (0.2, 0.2))
         self.assertEqual(scale, 0.5)
         self.assertEqual(fitted, [0.2, 0.15, 0.1])
+
+    def test_reviewed_model_override_uses_indexed_bbox_and_uniform_fit(self):
+        config = {"name": "cup", "category": "mug", "model": "old", "bounding_box": [1, 1, 1]}
+        audit = apply_model_override(
+            config,
+            "stable",
+            {"mug": [{"model": "stable", "bbox": [0.2, 0.1, 0.1]}]},
+            (0.1, 0.1),
+        )
+        self.assertEqual(config["model"], "stable")
+        self.assertEqual(config["bounding_box"], [0.1, 0.05, 0.05])
+        self.assertEqual(audit["reason"], "render_review_model_override")
 
     def test_batch_placement_keeps_bbox_bottom_above_support(self):
         config = {"name": "object", "bounding_box": [0.05, 0.05, 0.10]}
