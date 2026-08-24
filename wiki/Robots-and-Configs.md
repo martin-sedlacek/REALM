@@ -79,10 +79,9 @@ REALM 1.0.0 has mounted and unmounted definitions of the same RoboLab v2 embodim
 | `droid_mounted` | `DROID_mounted` and `DROID_mounted_ee_control` |
 | `ur` | all three `UR5*` configs |
 
-USD assets live in `realm/robots/panda_robotiq/` and `realm/robots/ur5/` and are committed to the
-repo, not fetched. `robolab_franka_robotiq_2f_85_flattened.usd` is the **upstream source** that
-The committed `droid_robolab*` assets were converted from the RoboLab vendor source; do not point a
-definition at it directly — the definitions say so explicitly.
+Runtime USD assets live in `realm/robots/panda_robotiq/` and `realm/robots/ur5/` and are committed to
+the repo, not fetched. `droid.usd` and `droid_mounted.usd` are self-contained composed exports; the
+intermediate `Defeatured_*` layers and flattened RoboLab vendor source are not shipped.
 
 Definitions reference their USDs by absolute `/app/...` paths, which resolve only when the repo is
 bind-mounted at `/app` inside the container.

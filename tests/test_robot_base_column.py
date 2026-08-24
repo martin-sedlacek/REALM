@@ -123,3 +123,5 @@ def test_all_droid_profiles_use_robolab_v2():
     )
     asset_root = PROJECT_ROOT / "realm/robots/panda_robotiq"
     assert not [name for name in retired if (asset_root / name).exists()]
+    assert not list(asset_root.glob("Defeatured_*.usd"))
+    assert not (asset_root / "robolab_franka_robotiq_2f_85_flattened.usd").exists()

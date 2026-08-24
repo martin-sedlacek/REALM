@@ -285,10 +285,10 @@ Consequences, all measured on `MODE=stock`:
 
 ### `UsdPhysics.MassAPI` on a Mesh under a collider Xform is silently ignored — by BOTH stacks
 
-Every `Defeatured_*` **Mesh** prim in the robolab gripper authors `physics:mass`,
-`physics:centerOfMass` and `physics:diagonalInertia` — the real CAD numbers, identical in
-`droid.usd` and RoboLab's `robolab_franka_robotiq_2f_85_flattened.usd`. **Nothing reads
-them.** Aggregated into the link frame they give the fingertip pad **0.0392547 kg**; the body PhysX
+Every `Defeatured_*` **Mesh** prim embedded in the composed DROID asset authors `physics:mass`,
+`physics:centerOfMass` and `physics:diagonalInertia` — the real CAD numbers. The intermediate source
+layers used during conversion are no longer shipped. **Nothing reads these Mesh attributes.**
+Aggregated into the link frame they give the fingertip pad **0.0392547 kg**; the body PhysX
 actually builds is **0.00951321 kg** — in REALM *and* in RoboLab-through-Isaac-Lab. base_link is
 2.11x apart, the inner knuckle 1.08x.
 
