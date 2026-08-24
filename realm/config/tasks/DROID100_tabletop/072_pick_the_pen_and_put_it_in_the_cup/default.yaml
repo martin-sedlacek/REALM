@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  Benevolence_1_int:
-  - Dining_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2547054
-    - -0.3283672
-    - 0.2081928
+    - 0.0583461
+    - 0.4453376
+    - 0.277806
     rot:
-    - 0.4201436
-    - -0.1633558
-    - -0.3938232
-    - 0.8010602
+    - 0.1740339
+    - -0.4557661
+    - -0.7575837
+    - 0.4336547
   cam2:
     pos:
-    - 0.3605138
-    - 0.5384081
-    - 0.3219366
+    - 0.1044113
+    - -0.4444046
+    - 0.3031941
     rot:
-    - 0.1524884
-    - -0.3878223
-    - -0.8515833
-    - 0.3180363
+    - 0.5380507
+    - -0.1361596
+    - -0.1741744
+    - 0.8134035
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.132
-  - 0.088
+  - 0.28
+  - 0.35
   - 0.0546835
 target_objects:
 - type: DatasetObject
@@ -64,18 +64,18 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.272
+  - 0.12
+  - 0.15
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_cherry_tomato
+  category: cherry_tomato
+  model: dqvtgm
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0315681
+  - 0.0193244
+  - 0.0242142
   orientation:
   - 0.0
   - 0.0
@@ -83,40 +83,40 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.288
-  - 0.0538992
+  - 0.35
+  - 0.0621071
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.088
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_banana
+  category: banana
+  model: verqwv
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0313722
+  - 0.0157945
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.352
-  - 0.0562801
+  - 0.28
+  - 0.15
+  - 0.0578973
+- type: DatasetObject
+  name: distractor_stapler
+  category: stapler
+  model: kgnsas
+  bounding_box:
+  - 0.0874299
+  - 0.0182303
+  - 0.0450232
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.25
+  - 0.0725117
 immutables: []

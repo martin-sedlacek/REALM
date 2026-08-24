@@ -13,24 +13,24 @@ supported_scenes:
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3506725
-    - 0.607014
-    - 0.3454029
+    - 0.2885448
+    - 0.5138503
+    - 0.5129482
     rot:
-    - 0.1682922
-    - -0.5704115
-    - -0.7275857
-    - 0.3419467
+    - 0.1113818
+    - -0.4549545
+    - -0.8543556
+    - 0.2251378
   cam2:
     pos:
-    - 0.2082328
-    - -0.3422521
-    - 0.3073409
+    - -0.0287674
+    - -0.3373308
+    - 0.4425981
     rot:
-    - 0.5675281
-    - -0.1438826
-    - -0.2424824
-    - 0.7735709
+    - 0.4122806
+    - -0.334783
+    - -0.5274527
+    - 0.663128
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.11
+  - 0.28
+  - 0.35
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -55,68 +55,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.34
-  - 0.0811723
+  - 0.12
+  - 0.15
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_rubber_eraser
+  category: rubber_eraser
+  model: cungod
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.05
+  - 0.0213523
+  - 0.0114031
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.36
-  - 0.0538992
+  - 0.12
+  - 0.35
+  - 0.0557016
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_pill_bottle
+  category: pill_bottle
+  model: csvdbe
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0388496
+  - 0.0388496
+  - 0.0546776
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.11
-  - 0.0557962
+  - 0.28
+  - 0.15
+  - 0.0773388
 - type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_water_bottle
+  category: water_bottle
+  model: lzdzkk
   bounding_box:
-  - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0873897
+  - 0.0864275
+  - 0.2549802
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.215
-  - 0.0539367
+  - 0.3
+  - 0.25
+  - 0.1774901
 immutables: []

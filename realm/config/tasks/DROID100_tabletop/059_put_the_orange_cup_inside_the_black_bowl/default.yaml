@@ -8,29 +8,29 @@ instruction_obj_to_replace: cup
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
-  Benevolence_1_int:
-  - Kitchen_Counter
+  Pomaria_1_int:
+  - Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0089857
-    - 0.526519
-    - 0.6488078
+    - 0.2837592
+    - -0.2203568
+    - 0.2084706
     rot:
-    - 0.2050264
-    - -0.4166456
-    - -0.7908335
-    - 0.3986892
+    - 0.410119
+    - -0.2031927
+    - -0.4484581
+    - 0.7677242
   cam2:
     pos:
-    - 0.1965326
-    - -0.471625
-    - 0.5296739
+    - 0.2509776
+    - 0.2684489
+    - 0.3132483
     rot:
-    - 0.4445076
-    - -0.1476348
-    - -0.3517821
-    - 0.8104729
+    - 0.1873814
+    - -0.3427803
+    - -0.8108428
+    - 0.4358025
 main_objects:
 - type: DatasetObject
   name: cup
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.088
+  - 0.28
+  - 0.455
   - 0.0823306
 target_objects:
 - type: DatasetObject
@@ -55,18 +55,18 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.272
-  - 0.0811723
+  - 0.12
+  - 0.195
+  - 0.0740878
 distractors:
 - type: DatasetObject
   name: distractor_teaspoon
@@ -82,41 +82,41 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.288
+  - 0.12
+  - 0.455
   - 0.0538992
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.304
-  - 0.088
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_teapot
+  category: teapot
+  model: mvrhya
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0622266
+  - 0.0388673
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.072
-  - 0.184
-  - 0.0562801
+  - 0.28
+  - 0.195
+  - 0.0694337
+- type: DatasetObject
+  name: distractor_peach
+  category: peach
+  model: wrutgk
+  bounding_box:
+  - 0.0884365
+  - 0.0909698
+  - 0.0949293
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.325
+  - 0.0974647
 immutables: []

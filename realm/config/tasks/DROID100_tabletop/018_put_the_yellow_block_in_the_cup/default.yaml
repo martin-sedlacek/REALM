@@ -8,29 +8,29 @@ instruction_obj_to_replace: block
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_0_int:
-  - Coffee_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2934585
-    - 0.6721401
-    - 0.4462671
+    - 0.0954436
+    - 0.3717184
+    - 0.178954
     rot:
-    - 0.0964754
-    - -0.6046866
-    - -0.7757327
-    - 0.1525953
+    - 0.4455741
+    - -0.3689002
+    - -0.6537576
+    - 0.4878293
   cam2:
     pos:
-    - 0.2664441
-    - -0.5418283
-    - 0.473439
+    - 0.0726872
+    - -0.3650628
+    - 0.1652706
     rot:
-    - 0.5268001
-    - -0.0503876
-    - -0.117669
-    - 0.8402957
+    - 0.5950725
+    - -0.4393703
+    - -0.3999953
+    - 0.5411527
 main_objects:
 - type: PrimitiveObject
   name: yellow_block
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.28
+  - 0.35
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -72,8 +72,8 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.306
+  - 0.12
+  - 0.15
   - 0.0819912
 distractors:
 - type: DatasetObject
@@ -90,41 +90,41 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.1
-  - 0.324
+  - 0.12
+  - 0.35
   - 0.0538992
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_potato
+  category: potato
+  model: ljfitc
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0762014
+  - 0.060351
+  - 0.057834
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.099
-  - 0.0557962
+  - 0.28
+  - 0.15
+  - 0.078917
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_volleyball
+  category: volleyball
+  model: nofzds
   bounding_box:
+  - 0.0997848
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.1000092
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.24
-  - 0.396
-  - 0.0562801
+  - 0.3
+  - 0.25
+  - 0.1000046
 immutables: []

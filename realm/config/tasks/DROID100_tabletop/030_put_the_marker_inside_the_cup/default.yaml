@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  office_cubicles_left:
-  - Circular_Table
+  Pomaria_1_int:
+  - Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0802389
-    - 0.5717152
-    - 0.4665996
+    - 0.3698197
+    - 0.4634936
+    - 0.4656607
     rot:
-    - 0.2486339
-    - -0.4137858
-    - -0.7451501
-    - 0.4601237
+    - 0.0768594
+    - -0.545704
+    - -0.8222995
+    - 0.1418569
   cam2:
     pos:
-    - 0.2710165
-    - -0.2695198
-    - 0.3696396
+    - 0.2362915
+    - -0.5826178
+    - 0.6080113
     rot:
-    - 0.5361608
-    - -0.3486278
-    - -0.3339343
-    - 0.6924436
+    - 0.4550723
+    - -0.172679
+    - -0.2821734
+    - 0.826722
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.132
-  - 0.11
+  - 0.28
+  - 0.455
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,18 +64,18 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.34
+  - 0.12
+  - 0.195
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_water_bottle
+  category: water_bottle
+  model: lzdzkk
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0873897
+  - 0.0864275
+  - 0.2549802
   orientation:
   - 0.0
   - 0.0
@@ -83,40 +83,40 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.36
-  - 0.0538992
+  - 0.455
+  - 0.1774901
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_bottle_of_coke
+  category: bottle_of_coke
+  model: bmtvvb
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0991806
+  - 0.3090207
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.44
-  - 0.0539367
+  - 0.28
+  - 0.195
+  - 0.2045104
+- type: DatasetObject
+  name: distractor_jar_of_pepper_seasoning
+  category: jar_of_pepper_seasoning
+  model: iuydyz
+  bounding_box:
+  - 0.0925713
+  - 0.0925732
+  - 0.1317106
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.1158553
 immutables: []

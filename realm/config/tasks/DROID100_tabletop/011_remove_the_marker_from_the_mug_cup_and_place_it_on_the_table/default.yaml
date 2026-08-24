@@ -9,28 +9,28 @@ instruction_target_to_replace: mug cup
 instruction_verb_to_replace: pick
 supported_scenes:
   Pomaria_1_int:
-  - Table
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.267206
-    - 0.5075315
-    - 0.4264173
+    - 0.2522517
+    - -0.4582312
+    - 0.4944536
     rot:
-    - 0.1947268
-    - -0.4333119
-    - -0.7913634
-    - 0.3847937
+    - 0.6211908
+    - -0.2248103
+    - -0.2451231
+    - 0.7095752
   cam2:
     pos:
-    - 0.3031392
-    - -0.4243913
-    - 0.443427
+    - 0.261682
+    - 0.5761531
+    - 0.5222775
     rot:
-    - 0.4603835
-    - -0.3574372
-    - -0.4767633
-    - 0.6580141
+    - 0.2737522
+    - -0.5719814
+    - -0.6920135
+    - 0.3449846
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.12
+  - 0.15
   - 0.1390538
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.288
-  - 0.442
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.468
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_teapot
+  category: teapot
+  model: mvrhya
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0622266
+  - 0.0388673
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.143
-  - 0.0539367
+  - 0.28
+  - 0.35
+  - 0.0694337
+- type: DatasetObject
+  name: distractor_scone
+  category: scone
+  model: gwdhyj
+  bounding_box:
+  - 0.1
+  - 0.0635422
+  - 0.0342754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.35
+  - 0.0671377
+- type: DatasetObject
+  name: distractor_tongs
+  category: tongs
+  model: rcpjld
+  bounding_box:
+  - 0.1
+  - 0.0257111
+  - 0.0243122
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.15
+  - 0.0621561
 immutables:
 - type: DatasetObject
   name: mug
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.12
+  - 0.15
   - 0.0819912

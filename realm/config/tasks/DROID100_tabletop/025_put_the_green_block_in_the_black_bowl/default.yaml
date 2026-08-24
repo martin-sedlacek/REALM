@@ -9,28 +9,28 @@ instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
   office_cubicles_left:
-  - Circular_Table
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2747163
-    - -0.619101
-    - 0.4225533
+    - 0.3751104
+    - 0.4535299
+    - 0.4583732
     rot:
-    - 0.7297412
-    - -0.1105284
-    - -0.3798075
-    - 0.5576804
+    - 0.1210388
+    - -0.5082062
+    - -0.8385879
+    - 0.1544227
   cam2:
     pos:
-    - 0.244631
-    - 0.7672415
-    - 0.4733302
+    - 0.1725818
+    - -0.3420168
+    - 0.4535656
     rot:
-    - 0.2447162
-    - -0.585256
-    - -0.7727994
-    - 0.019249
+    - 0.524932
+    - -0.2050201
+    - -0.3100448
+    - 0.7656927
 main_objects:
 - type: PrimitiveObject
   name: green_block
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
+  - 0.28
+  - 0.42
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,27 +63,9 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.432
-  - 0.34
-  - 0.0811723
-distractors:
-- type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
@@ -91,40 +73,58 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.36
-  - 0.0538992
+  - 0.18
+  - 0.0740878
+distractors:
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_hammer
+  category: hammer
+  model: fcrlbo
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0414141
+  - 0.012226
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.215
-  - 0.0562801
+  - 0.12
+  - 0.42
+  - 0.056113
+- type: DatasetObject
+  name: distractor_apple
+  category: apple
+  model: rizrsp
+  bounding_box:
+  - 0.0369395
+  - 0.0413219
+  - 0.0412187
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0706094
+- type: DatasetObject
+  name: distractor_tray
+  category: tray
+  model: coqeme
+  bounding_box:
+  - 0.063813
+  - 0.1
+  - 0.0080665
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.3
+  - 0.0540333
 immutables: []

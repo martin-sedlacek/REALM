@@ -84,6 +84,23 @@ The generated-config audit records the inferred predicate, main object, source o
 clearance. A draft is semantically invalid if a required source is absent or its bbox relationship
 does not satisfy the inferred predicate.
 
+## Scene surfaces and distractor diversity
+
+Treat a scene region as a physical support footprint, not merely an axis-aligned placement box.
+Keep every object's full authored XY bbox at least 25 mm inside a rectangular support edge. For
+round or oval supports, validate all bbox corners against the usable ellipse. Exclude a named region
+from batch generation when rendered review shows that its configured rectangle is not a reliable
+support surface. Assign scenes from a shuffled balanced cycle; camera sampling must use a separate
+random stream so it cannot skew scene coverage.
+
+Distractors should be plausible portable objects from the DROID whitelist, but they should not
+collapse the family to one repeated clutter tuple. Balance category usage across the generated
+family, exclude the task's main/target/source categories, and allow at most one member of visually
+redundant product families such as `bottle_of_*`, `jar_of_*`, or `can_of_*` per task. Record the
+selected categories and aggregate usage in the generation manifest. Repetition of the instructed
+task and its main/receiver categories is acceptable when it reflects the source instruction
+frequency; distractor repetition is not evidence of that distribution and should be minimized.
+
 ## Final validation
 
 Bounding-box checks cannot prove mesh clearance, container interior volume, stability, reachability,

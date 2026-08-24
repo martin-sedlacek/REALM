@@ -8,29 +8,29 @@ instruction_obj_to_replace: lid
 instruction_target_to_replace: pan
 instruction_verb_to_replace: stack
 supported_scenes:
-  Benevolence_1_int:
-  - Dining_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.117059
-    - 0.4970365
-    - 0.2076592
+    - -0.1348207
+    - -0.5737622
+    - 0.488848
     rot:
-    - 0.2922263
-    - -0.5521227
-    - -0.7025259
-    - 0.3409131
+    - 0.5352664
+    - -0.2224496
+    - -0.3299078
+    - 0.7450952
   cam2:
     pos:
-    - 0.2184833
-    - -0.3888698
-    - 0.4974716
+    - 0.0654722
+    - 0.5999896
+    - 0.466172
     rot:
-    - 0.4628943
-    - -0.1194043
-    - -0.2677133
-    - 0.8365411
+    - 0.2505589
+    - -0.4644108
+    - -0.7851046
+    - 0.324274
 main_objects:
 - type: DatasetObject
   name: lid
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.088
+  - 0.28
+  - 0.35
   - 0.066524
 target_objects:
 - type: DatasetObject
@@ -55,27 +55,9 @@ target_objects:
   category: frying_pan
   model: cprjvq
   bounding_box:
-  - 0.22
-  - 0.1407512
-  - 0.0344362
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.432
-  - 0.272
-  - 0.0672181
-distractors:
-- type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.17
+  - 0.1087623
+  - 0.0266098
   orientation:
   - 0.0
   - 0.0
@@ -83,40 +65,58 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.288
-  - 0.0538992
+  - 0.15
+  - 0.0633049
+distractors:
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_erlenmeyer_flask
+  category: erlenmeyer_flask
+  model: bpwjxr
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0776034
+  - 0.0776101
+  - 0.1531681
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.456
-  - 0.088
-  - 0.0557962
+  - 0.12
+  - 0.35
+  - 0.1265841
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_pruner
+  category: pruner
+  model: lucqrs
+  bounding_box:
+  - 0.0293022
+  - 0.0669072
+  - 0.2279074
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.15
+  - 0.1639537
+- type: DatasetObject
+  name: distractor_scone
+  category: scone
+  model: gwdhyj
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0635422
+  - 0.0342754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.172
-  - 0.0562801
+  - 0.2
+  - 0.25
+  - 0.0671377
 immutables: []

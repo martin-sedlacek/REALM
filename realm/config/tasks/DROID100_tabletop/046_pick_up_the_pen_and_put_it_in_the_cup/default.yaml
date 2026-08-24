@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Kitchen_Counter
+  Benevolence_1_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.4885381
-    - 0.4773589
-    - 0.4889492
+    - 0.2526539
+    - -0.5477434
+    - 0.5557863
     rot:
-    - 0.0468194
-    - -0.4296074
-    - -0.8953506
-    - 0.1076696
+    - 0.3800836
+    - -0.0225335
+    - -0.1604673
+    - 0.9106475
   cam2:
     pos:
-    - -0.0256942
-    - -0.7050916
-    - 0.2522782
+    - 0.3170717
+    - 0.3995286
+    - 0.4222223
     rot:
-    - 0.5366136
-    - -0.2804783
-    - -0.3612663
-    - 0.7091293
+    - 0.0640212
+    - -0.4376227
+    - -0.8705161
+    - 0.2158457
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.11
+  - 0.42
+  - 0.28
   - 0.0546835
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.34
+  - 0.18
+  - 0.12
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_glue_stick
+  category: glue_stick
+  model: sqzyci
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0947761
+  - 0.0192281
+  - 0.0192804
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.36
-  - 0.0538992
+  - 0.18
+  - 0.28
+  - 0.0596402
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_lemon
+  category: lemon
+  model: bbvonm
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0568493
+  - 0.0475621
+  - 0.0454882
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.11
-  - 0.0557962
+  - 0.42
+  - 0.12
+  - 0.0727442
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_carrot
+  category: carrot
+  model: nktmff
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0912197
+  - 0.0260657
+  - 0.0236784
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.44
-  - 0.0562801
+  - 0.3
+  - 0.2
+  - 0.0618392
 immutables: []

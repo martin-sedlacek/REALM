@@ -8,115 +8,115 @@ instruction_obj_to_replace: towel
 instruction_target_to_replace: box
 instruction_verb_to_replace: put
 supported_scenes:
-  Wainscott_0_int:
-  - Dining_Table
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3417583
-    - 0.3840645
-    - 0.4175205
+    - 0.3018432
+    - 0.4666669
+    - 0.4114184
     rot:
-    - 0.1226685
-    - -0.3518966
-    - -0.8696892
-    - 0.3236695
+    - 0.249163
+    - -0.4559791
+    - -0.778299
+    - 0.3524932
   cam2:
     pos:
-    - 0.2122639
-    - -0.349704
-    - 0.4009921
+    - 0.0179389
+    - -0.5512427
+    - 0.426541
     rot:
-    - 0.4710519
-    - -0.1723394
-    - -0.3546872
-    - 0.789054
+    - 0.4238775
+    - -0.2191007
+    - -0.4362854
+    - 0.7628747
 main_objects:
 - type: DatasetObject
   name: towel
   category: dishtowel
   model: dtfspn
   bounding_box:
-  - 0.1170827
-  - 0.16
-  - 0.0239326
+  - 0.1081742
+  - 0.1478261
+  - 0.0221116
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.132
-  - 0.0619663
+  - 0.28
+  - 0.42
+  - 0.0610558
 target_objects:
 - type: DatasetObject
   name: box
   category: storage_box
   model: izcglf
   bounding_box:
-  - 0.2179629
-  - 0.22
-  - 0.1157289
+  - 0.1684259
+  - 0.17
+  - 0.0894269
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.408
-  - 0.1078645
+  - 0.12
+  - 0.18
+  - 0.0947135
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_hamburger_bun
+  category: hamburger_bun
+  model: fqxumh
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.08664
+  - 0.0849436
+  - 0.0263912
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.1
-  - 0.432
-  - 0.0538992
+  - 0.12
+  - 0.42
+  - 0.0631956
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_jug
+  category: jug
+  model: gjgwvi
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.38
-  - 0.132
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
-  bounding_box:
+  - 0.0716472
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.1521222
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.24
-  - 0.258
-  - 0.0562801
+  - 0.28
+  - 0.18
+  - 0.1260611
+- type: DatasetObject
+  name: distractor_carrot
+  category: carrot
+  model: nktmff
+  bounding_box:
+  - 0.0912197
+  - 0.0260657
+  - 0.0236784
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0618392
 immutables: []

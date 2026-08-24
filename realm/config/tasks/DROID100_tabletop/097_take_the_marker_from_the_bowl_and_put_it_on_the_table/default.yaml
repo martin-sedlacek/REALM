@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_1_int:
-  - Kitchen_Counter
+  Wainscott_0_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2619249
-    - 0.5900843
-    - 0.2951614
+    - -0.0160244
+    - -0.4004213
+    - 0.2356631
     rot:
-    - 0.1503536
-    - -0.5152722
-    - -0.7968894
-    - 0.2772286
+    - 0.5148336
+    - -0.2387908
+    - -0.3649718
+    - 0.7380521
   cam2:
     pos:
-    - 0.1225345
-    - -0.3866954
-    - 0.3194454
+    - 0.3019745
+    - 0.4937814
+    - 0.5780066
     rot:
-    - 0.4787955
-    - -0.2548661
-    - -0.4512275
-    - 0.708655
+    - 0.1938215
+    - -0.3905798
+    - -0.8301216
+    - 0.3475324
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,77 +46,77 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.11
-  - 0.1374161
+  - 0.15
+  - 0.18
+  - 0.1232469
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.288
-  - 0.34
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.36
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_pocketknife
+  category: pocketknife
+  model: ngtgdn
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0215911
+  - 0.0058475
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.11
-  - 0.0539367
+  - 0.35
+  - 0.42
+  - 0.0529238
+- type: DatasetObject
+  name: distractor_tweezers
+  category: tweezers
+  model: ngwoat
+  bounding_box:
+  - 0.0048518
+  - 0.0320922
+  - 0.0024996
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.0512499
+- type: DatasetObject
+  name: distractor_canned_food
+  category: canned_food
+  model: byakrm
+  bounding_box:
+  - 0.0577961
+  - 0.0577961
+  - 0.081812
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.090906
 immutables:
 - type: DatasetObject
   name: bowl
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.11
-  - 0.0811723
+  - 0.15
+  - 0.18
+  - 0.0740878

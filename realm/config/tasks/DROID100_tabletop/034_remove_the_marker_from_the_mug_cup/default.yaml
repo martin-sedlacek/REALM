@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: mug cup
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_1_int:
-  - Table
+  Benevolence_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0945133
-    - 0.3788905
-    - 0.4001961
+    - 0.1889571
+    - 0.2686198
+    - 0.3156472
     rot:
-    - 0.37493
-    - -0.5040217
-    - -0.6600022
-    - 0.4120518
+    - 0.1332731
+    - -0.4015696
+    - -0.7384901
+    - 0.5249881
   cam2:
     pos:
-    - -0.0097654
-    - -0.2928889
-    - 0.5089607
+    - 0.2857419
+    - -0.2907341
+    - 0.2691425
     rot:
-    - 0.3852826
-    - -0.1846497
-    - -0.3983638
-    - 0.8116453
+    - 0.4737553
+    - -0.1916398
+    - -0.4202388
+    - 0.7498196
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.12
+  - 0.12
   - 0.1390538
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.288
-  - 0.442
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.468
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_scone
+  category: scone
+  model: gwdhyj
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0635422
+  - 0.0342754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.143
-  - 0.0539367
+  - 0.28
+  - 0.28
+  - 0.0671377
+- type: DatasetObject
+  name: distractor_chopstick
+  category: chopstick
+  model: bdvjuf
+  bounding_box:
+  - 0.1
+  - 0.0022828
+  - 0.002288
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.28
+  - 0.051144
+- type: DatasetObject
+  name: distractor_nectarine
+  category: nectarine
+  model: frutec
+  bounding_box:
+  - 0.0797581
+  - 0.0785914
+  - 0.0720133
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.0860067
 immutables:
 - type: DatasetObject
   name: mug
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.12
+  - 0.12
   - 0.0819912

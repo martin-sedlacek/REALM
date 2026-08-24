@@ -8,29 +8,29 @@ instruction_obj_to_replace: block
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  office_cubicles_left:
-  - Circular_Table
+  Benevolence_1_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3756978
-    - 0.4568411
-    - 0.4594147
+    - 0.2667519
+    - 0.5951284
+    - 0.6426447
     rot:
-    - 0.1206176
-    - -0.5083051
-    - -0.8388761
-    - 0.1528537
+    - 0.1569077
+    - -0.3388681
+    - -0.8388589
+    - 0.3960608
   cam2:
     pos:
-    - 0.1690887
-    - -0.3369527
-    - 0.4526206
+    - 0.1349785
+    - -0.5780351
+    - 0.415871
     rot:
-    - 0.5256723
-    - -0.2060825
-    - -0.3115633
-    - 0.764282
+    - 0.5265122
+    - -0.2498326
+    - -0.3735644
+    - 0.7216774
 main_objects:
 - type: PrimitiveObject
   name: yellow_block
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
+  - 0.42
+  - 0.28
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -72,59 +72,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.34
+  - 0.18
+  - 0.12
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_can_of_beans
+  category: can_of_beans
+  model: ojqgjz
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0805023
+  - 0.0826111
+  - 0.0987652
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.12
-  - 0.36
-  - 0.0538992
+  - 0.18
+  - 0.28
+  - 0.0993826
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_jug_of_milk
+  category: jug_of_milk
+  model: xbvdpc
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.1
+  - 0.1421249
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.44
-  - 0.0562801
+  - 0.42
+  - 0.12
+  - 0.1210625
+- type: DatasetObject
+  name: distractor_egg
+  category: egg
+  model: qopwgx
+  bounding_box:
+  - 0.0656635
+  - 0.051892
+  - 0.0518489
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.2
+  - 0.0759245
 immutables: []

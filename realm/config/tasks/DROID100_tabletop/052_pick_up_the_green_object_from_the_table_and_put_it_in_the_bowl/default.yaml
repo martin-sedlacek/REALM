@@ -8,29 +8,29 @@ instruction_obj_to_replace: object
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Drawers_Near_Table
+  Benevolence_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.1682843
-    - 0.4791162
-    - 0.4449862
+    - -0.0911607
+    - -0.3505385
+    - 0.4103574
     rot:
-    - 0.3465162
-    - -0.5781257
-    - -0.6293175
-    - 0.3868548
+    - 0.5010745
+    - -0.4128471
+    - -0.4500838
+    - 0.6131119
   cam2:
     pos:
-    - -0.0380029
-    - -0.2980456
-    - 0.3991931
+    - -0.0398682
+    - 0.4660799
+    - 0.3991122
     rot:
-    - 0.649535
-    - -0.3508212
-    - -0.3379385
-    - 0.5838034
+    - 0.3738833
+    - -0.5445575
+    - -0.6357084
+    - 0.3994287
 main_objects:
 - type: PrimitiveObject
   name: green_object
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.154
-  - 0.176
+  - 0.28
+  - 0.28
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,68 +63,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.504
-  - 0.544
-  - 0.0811723
+  - 0.12
+  - 0.12
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.14
-  - 0.576
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.532
-  - 0.176
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_grape
+  category: grape
+  model: uprbwp
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0617632
+  - 0.0602211
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.336
-  - 0.704
-  - 0.0562801
+  - 0.12
+  - 0.28
+  - 0.0801106
+- type: DatasetObject
+  name: distractor_sushi
+  category: sushi
+  model: akpnxn
+  bounding_box:
+  - 0.0354409
+  - 0.0362632
+  - 0.0241283
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.0620642
+- type: DatasetObject
+  name: distractor_parer
+  category: parer
+  model: zpkhwi
+  bounding_box:
+  - 0.1
+  - 0.0126289
+  - 0.006733
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.2
+  - 0.0533665
 immutables: []

@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  Wainscott_0_int:
-  - Dining_Table
+  Pomaria_1_int:
+  - Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.1195713
-    - 0.5392187
-    - 0.4437649
+    - 0.3310944
+    - -0.460492
+    - 0.6467167
     rot:
-    - 0.1498831
-    - -0.5986091
-    - -0.7693465
-    - 0.1652517
+    - 0.4290456
+    - 0.0845206
+    - -0.0157521
+    - 0.8991819
   cam2:
     pos:
-    - -0.0924187
-    - -0.3407998
-    - 0.4068424
+    - 0.4726721
+    - 0.4106092
+    - 0.558582
     rot:
-    - 0.6684613
-    - -0.2682841
-    - -0.2800051
-    - 0.6346497
+    - 0.048501
+    - -0.368696
+    - -0.9235176
+    - 0.0939473
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.132
+  - 0.28
+  - 0.455
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.408
+  - 0.12
+  - 0.195
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.1
-  - 0.432
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.38
-  - 0.132
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_parer
+  category: parer
+  model: zpkhwi
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0126289
+  - 0.006733
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.24
-  - 0.528
-  - 0.0539367
+  - 0.12
+  - 0.455
+  - 0.0533665
+- type: DatasetObject
+  name: distractor_sponge
+  category: sponge
+  model: aewrov
+  bounding_box:
+  - 0.1
+  - 0.0666667
+  - 0.02
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.06
+- type: DatasetObject
+  name: distractor_toasting_fork
+  category: toasting_fork
+  model: osrfkc
+  bounding_box:
+  - 0.1
+  - 0.0172655
+  - 0.005388
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.052694
 immutables: []

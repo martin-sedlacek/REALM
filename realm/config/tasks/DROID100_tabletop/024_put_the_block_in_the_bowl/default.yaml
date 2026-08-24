@@ -8,29 +8,29 @@ instruction_obj_to_replace: block
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Drawers_Near_Table
+  Wainscott_0_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0742702
-    - -0.4869553
-    - 0.4644863
+    - 0.0284893
+    - -0.3859105
+    - 0.2676227
     rot:
-    - 0.4709083
-    - -0.2212345
-    - -0.3813918
-    - 0.7640949
+    - 0.6120285
+    - -0.2827316
+    - -0.3020638
+    - 0.6739744
   cam2:
     pos:
-    - 0.0951354
-    - 0.5603828
-    - 0.4513137
+    - 0.4044776
+    - 0.4055607
+    - 0.2800467
     rot:
-    - 0.2545943
-    - -0.5113163
-    - -0.7234909
-    - 0.3876833
+    - 0.1081029
+    - -0.4695132
+    - -0.8547807
+    - 0.1929275
 main_objects:
 - type: PrimitiveObject
   name: blue_block
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.154
-  - 0.176
+  - 0.35
+  - 0.42
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,68 +63,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.504
-  - 0.544
-  - 0.0811723
+  - 0.15
+  - 0.18
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_tea_bag
+  category: tea_bag
+  model: kmvcrb
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0507929
+  - 0.0391162
+  - 0.0250638
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.14
-  - 0.576
-  - 0.0538992
+  - 0.15
+  - 0.42
+  - 0.0625319
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_strawberry
+  category: strawberry
+  model: xcnzxh
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.036561
+  - 0.025269
+  - 0.026275
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.532
-  - 0.176
-  - 0.0557962
+  - 0.35
+  - 0.18
+  - 0.0631375
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_half_hamburger_bun
+  category: half_hamburger_bun
+  model: sjtieq
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0862754
+  - 0.0424718
+  - 0.0253393
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.336
-  - 0.704
-  - 0.0562801
+  - 0.25
+  - 0.3
+  - 0.0626697
 immutables: []

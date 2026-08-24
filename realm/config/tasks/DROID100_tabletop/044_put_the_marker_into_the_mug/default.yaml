@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: mug
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Kitchen_Counter
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2429959
-    - -0.5096803
-    - 0.6037991
+    - 0.3534913
+    - 0.6560805
+    - 0.4503228
     rot:
-    - 0.4408941
-    - -0.2249559
-    - -0.398362
-    - 0.7722143
+    - 0.185996
+    - -0.4800473
+    - -0.8100367
+    - 0.2807144
   cam2:
     pos:
-    - 0.4478878
-    - 0.4249711
-    - 0.6108887
+    - 0.3137135
+    - -0.3207173
+    - 0.452506
     rot:
-    - 0.1324899
-    - -0.3822546
-    - -0.8449413
-    - 0.3498601
+    - 0.4965677
+    - -0.1755696
+    - -0.2206442
+    - 0.8209214
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.11
+  - 0.28
+  - 0.42
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.34
+  - 0.12
+  - 0.18
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.36
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.304
-  - 0.11
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_zucchini
+  category: zucchini
+  model: yhhkxf
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0399945
+  - 0.0373826
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.44
-  - 0.0539367
+  - 0.12
+  - 0.42
+  - 0.0686914
+- type: DatasetObject
+  name: distractor_broccoli
+  category: broccoli
+  model: wsxavx
+  bounding_box:
+  - 0.029087
+  - 0.0290308
+  - 0.0218591
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0609296
+- type: DatasetObject
+  name: distractor_allen_wrench
+  category: allen_wrench
+  model: neqlcn
+  bounding_box:
+  - 0.1
+  - 0.0216
+  - 0.0037425
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0518713
 immutables: []

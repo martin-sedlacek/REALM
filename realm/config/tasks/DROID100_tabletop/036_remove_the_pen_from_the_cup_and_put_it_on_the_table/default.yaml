@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: cup
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_0_int:
-  - Coffee_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2266933
-    - -0.3501627
-    - 0.4555041
+    - 0.2310314
+    - -0.3889431
+    - 0.2525547
     rot:
-    - 0.3022085
-    - -0.2196484
-    - -0.4691357
-    - 0.8002102
+    - 0.3976522
+    - -0.2036323
+    - -0.3776297
+    - 0.8110502
   cam2:
     pos:
-    - 0.3626746
-    - 0.2983627
-    - 0.3372155
+    - 0.2681379
+    - 0.441149
+    - 0.2258173
     rot:
-    - 0.1313415
-    - -0.3919619
-    - -0.7741005
-    - 0.4794619
+    - 0.2685706
+    - -0.4678453
+    - -0.7213013
+    - 0.4344135
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.12
+  - 0.15
   - 0.1437248
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_cherry_tomato
+  category: cherry_tomato
+  model: dqvtgm
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0315681
+  - 0.0193244
+  - 0.0242142
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.306
-  - 0.0538992
+  - 0.28
+  - 0.35
+  - 0.0621071
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_baseball
+  category: baseball
+  model: zanmar
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0734651
+  - 0.0734803
+  - 0.0734952
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.1
-  - 0.324
-  - 0.0557962
+  - 0.12
+  - 0.35
+  - 0.0867477
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_duct_tape
+  category: duct_tape
+  model: htrage
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0902877
+  - 0.0293116
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.099
-  - 0.0562801
+  - 0.28
+  - 0.15
+  - 0.0646558
 immutables:
 - type: DatasetObject
   name: cup
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.12
+  - 0.15
   - 0.0819912

@@ -8,29 +8,29 @@ instruction_obj_to_replace: cups
 instruction_target_to_replace: cups
 instruction_verb_to_replace: stack
 supported_scenes:
-  office_cubicles_left:
-  - Circular_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.1078482
-    - 0.3767776
-    - 0.4694734
+    - 0.0510593
+    - 0.483058
+    - 0.4786231
     rot:
-    - 0.2343302
-    - -0.4135273
-    - -0.7115269
-    - 0.5175074
+    - 0.2458404
+    - -0.5621545
+    - -0.7154964
+    - 0.3340805
   cam2:
     pos:
-    - 0.063432
-    - -0.2790187
-    - 0.4044757
+    - -0.0773035
+    - -0.3674844
+    - 0.5356654
     rot:
-    - 0.4951597
-    - -0.279064
-    - -0.5135857
-    - 0.6427829
+    - 0.5700397
+    - -0.2541954
+    - -0.3692841
+    - 0.6885265
 main_objects:
 - type: DatasetObject
   name: cup_1
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
+  - 0.28
+  - 0.35
   - 0.0823306
 target_objects:
 - type: DatasetObject
@@ -64,18 +64,18 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.34
+  - 0.12
+  - 0.15
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_beer_bottle
+  category: beer_bottle
+  model: nigfha
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0754415
+  - 0.0754415
+  - 0.2586518
   orientation:
   - 0.0
   - 0.0
@@ -83,40 +83,40 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.36
-  - 0.0538992
+  - 0.35
+  - 0.1793259
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_sponge
+  category: sponge
+  model: aewrov
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0666667
+  - 0.02
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.44
-  - 0.0562801
+  - 0.28
+  - 0.15
+  - 0.06
+- type: DatasetObject
+  name: distractor_hotdog_bun
+  category: hotdog_bun
+  model: ajlvvj
+  bounding_box:
+  - 0.1
+  - 0.0479182
+  - 0.0346417
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.25
+  - 0.0673209
 immutables: []

@@ -8,29 +8,29 @@ instruction_obj_to_replace: object
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Drawers_Near_Table
+  Benevolence_1_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2314073
-    - 0.4503975
-    - 0.440619
+    - 0.1266216
+    - -0.5185954
+    - 0.4552473
     rot:
-    - 0.1233562
-    - -0.7646653
-    - -0.533863
-    - 0.3392058
+    - 0.4913199
+    - -0.1760016
+    - -0.3072537
+    - 0.7957534
   cam2:
     pos:
-    - 0.2940677
-    - -0.5341096
-    - 0.4269243
+    - 0.043808
+    - 0.5287548
+    - 0.4589733
     rot:
-    - 0.59185
-    - 0.0769652
-    - -0.0085475
-    - 0.8023197
+    - 0.200346
+    - -0.4729669
+    - -0.7792256
+    - 0.3591256
 main_objects:
 - type: PrimitiveObject
   name: orange_object
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.154
-  - 0.176
+  - 0.42
+  - 0.28
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,68 +63,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.504
-  - 0.544
-  - 0.0811723
+  - 0.18
+  - 0.12
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.14
-  - 0.576
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.532
-  - 0.176
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_hamburger
+  category: hamburger
+  model: fyswch
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0931673
+  - 0.0648095
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.336
-  - 0.704
-  - 0.0562801
+  - 0.18
+  - 0.28
+  - 0.0824048
+- type: DatasetObject
+  name: distractor_shaker
+  category: shaker
+  model: hbheag
+  bounding_box:
+  - 0.03577
+  - 0.0359248
+  - 0.091956
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.0959781
+- type: DatasetObject
+  name: distractor_tray
+  category: tray
+  model: coqeme
+  bounding_box:
+  - 0.063813
+  - 0.1
+  - 0.0080665
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.3
+  - 0.0540333
 immutables: []

@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: cup
 instruction_verb_to_replace: pick
 supported_scenes:
-  Wainscott_0_int:
-  - Dining_Table
+  Pomaria_1_int:
+  - Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3491553
-    - 0.6135913
-    - 0.5589339
+    - 0.2352939
+    - 0.4226682
+    - 0.5296766
     rot:
-    - 0.0909478
-    - -0.4893412
-    - -0.8449328
-    - 0.1958628
+    - 0.2608018
+    - -0.4846325
+    - -0.8076616
+    - 0.2116516
   cam2:
     pos:
-    - 0.2702025
-    - -0.53521
-    - 0.5396469
+    - 0.3519736
+    - -0.4199402
+    - 0.4948921
     rot:
-    - 0.4285845
-    - -0.1292883
-    - -0.276753
-    - 0.8502986
+    - 0.3219316
+    - -0.0873541
+    - -0.2442627
+    - 0.9105301
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.132
+  - 0.12
+  - 0.195
   - 0.1390538
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_pill_bottle
+  category: pill_bottle
+  model: csvdbe
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0388496
+  - 0.0388496
+  - 0.0546776
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.408
-  - 0.0538992
+  - 0.28
+  - 0.455
+  - 0.0773388
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.1
-  - 0.432
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_pocketknife
+  category: pocketknife
+  model: ngtgdn
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0215911
+  - 0.0058475
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.132
-  - 0.0539367
+  - 0.12
+  - 0.455
+  - 0.0529238
+- type: DatasetObject
+  name: distractor_orange
+  category: orange
+  model: ucstpm
+  bounding_box:
+  - 0.0831017
+  - 0.0853447
+  - 0.0849716
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.0924859
 immutables:
 - type: DatasetObject
   name: cup
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.132
+  - 0.12
+  - 0.195
   - 0.0819912

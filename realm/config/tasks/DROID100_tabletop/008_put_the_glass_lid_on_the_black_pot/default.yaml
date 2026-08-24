@@ -8,29 +8,29 @@ instruction_obj_to_replace: glass lid
 instruction_target_to_replace: pot
 instruction_verb_to_replace: stack
 supported_scenes:
-  Pomaria_0_int:
-  - Coffee_Table
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - -0.1605546
-    - -0.4955364
-    - 0.4148764
+    - 0.2728898
+    - -0.5291954
+    - 0.1810531
     rot:
-    - 0.4765419
-    - -0.1142748
-    - -0.4809386
-    - 0.7270124
+    - 0.5617938
+    - -0.0863553
+    - -0.1608782
+    - 0.8068759
   cam2:
     pos:
-    - 0.1581735
-    - 0.7364608
-    - 0.3594852
+    - 0.4261251
+    - 0.4404879
+    - 0.5112542
     rot:
-    - 0.1240609
-    - -0.4020861
-    - -0.8671187
-    - 0.2665348
+    - -0.020315
+    - 0.3801087
+    - 0.9228568
+    - 0.0586515
 main_objects:
 - type: DatasetObject
   name: lid
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.28
+  - 0.42
   - 0.066524
 target_objects:
 - type: DatasetObject
@@ -55,68 +55,68 @@ target_objects:
   category: saucepot
   model: ozrwwk
   bounding_box:
-  - 0.1369473
-  - 0.22
-  - 0.1051826
+  - 0.1058229
+  - 0.17
+  - 0.0812774
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.306
-  - 0.1025913
+  - 0.12
+  - 0.18
+  - 0.0906387
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.1
-  - 0.324
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.38
-  - 0.099
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_hamburger
+  category: hamburger
+  model: fyswch
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0931673
+  - 0.0648095
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.09
-  - 0.207
-  - 0.0562801
+  - 0.12
+  - 0.42
+  - 0.0824048
+- type: DatasetObject
+  name: distractor_trash_can
+  category: trash_can
+  model: wkxtxh
+  bounding_box:
+  - 0.1
+  - 0.0999688
+  - 0.1211565
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.1105783
+- type: DatasetObject
+  name: distractor_grape
+  category: grape
+  model: uprbwp
+  bounding_box:
+  - 0.1
+  - 0.0617632
+  - 0.0602211
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.3
+  - 0.0801106
 immutables: []

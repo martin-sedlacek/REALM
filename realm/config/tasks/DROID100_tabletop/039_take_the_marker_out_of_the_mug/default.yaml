@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: mug
 instruction_verb_to_replace: pick
 supported_scenes:
-  Benevolence_1_int:
+  Wainscott_0_int:
   - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2054415
-    - -0.5546227
-    - 0.5321386
+    - 0.4152098
+    - 0.4755926
+    - 0.3604124
     rot:
-    - 0.3994296
-    - -0.0434929
-    - -0.1703865
-    - 0.8997404
+    - 0.0217494
+    - 0.5126953
+    - 0.8525487
+    - 0.0991521
   cam2:
     pos:
-    - 0.3078082
-    - 0.3944114
-    - 0.4355454
+    - 0.1867396
+    - -0.4473711
+    - 0.3525193
     rot:
-    - 0.076544
-    - -0.4271702
-    - -0.8805483
-    - 0.1905291
+    - 0.5634944
+    - -0.1697486
+    - -0.3402804
+    - 0.7333953
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.132
-  - 0.088
+  - 0.15
+  - 0.18
   - 0.1390538
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_half_hamburger_bun
+  category: half_hamburger_bun
+  model: sjtieq
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0862754
+  - 0.0424718
+  - 0.0253393
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.272
-  - 0.0538992
+  - 0.35
+  - 0.42
+  - 0.0626697
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.12
-  - 0.288
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_hamburger
+  category: hamburger
+  model: fyswch
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0931673
+  - 0.0648095
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.456
-  - 0.088
-  - 0.0539367
+  - 0.15
+  - 0.42
+  - 0.0824048
+- type: DatasetObject
+  name: distractor_chestnut
+  category: chestnut
+  model: fmomat
+  bounding_box:
+  - 0.0199921
+  - 0.0153447
+  - 0.0153222
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0576611
 immutables:
 - type: DatasetObject
   name: mug
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.088
+  - 0.15
+  - 0.18
   - 0.0819912

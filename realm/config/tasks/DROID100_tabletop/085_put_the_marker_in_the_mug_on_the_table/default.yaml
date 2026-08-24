@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: mug
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Table
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2400412
-    - 0.3920534
-    - 0.2358683
+    - 0.2861827
+    - 0.3879772
+    - 0.355726
     rot:
-    - 0.1018451
-    - -0.6308204
-    - -0.7643475
-    - 0.0864065
+    - 0.2428055
+    - -0.3752919
+    - -0.7409875
+    - 0.5011377
   cam2:
     pos:
-    - 0.4245089
-    - -0.261803
-    - 0.3277643
+    - 0.1548536
+    - -0.3215258
+    - 0.4063955
     rot:
-    - 0.5978558
-    - -0.1591819
-    - -0.1960838
-    - 0.7607764
+    - 0.4284553
+    - -0.414173
+    - -0.471457
+    - 0.6500885
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.28
+  - 0.42
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.442
+  - 0.12
+  - 0.18
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_sushi
+  category: sushi
+  model: akpnxn
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0354409
+  - 0.0362632
+  - 0.0241283
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.468
-  - 0.0538992
+  - 0.12
+  - 0.42
+  - 0.0620642
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.304
-  - 0.143
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_toasting_fork
+  category: toasting_fork
+  model: osrfkc
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0172655
+  - 0.005388
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.572
-  - 0.0539367
+  - 0.28
+  - 0.18
+  - 0.052694
+- type: DatasetObject
+  name: distractor_chopstick
+  category: chopstick
+  model: bdvjuf
+  bounding_box:
+  - 0.1
+  - 0.0022828
+  - 0.002288
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.051144
 immutables: []

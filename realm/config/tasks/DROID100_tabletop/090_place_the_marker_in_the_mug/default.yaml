@@ -9,28 +9,28 @@ instruction_target_to_replace: mug
 instruction_verb_to_replace: put
 supported_scenes:
   Pomaria_1_int:
-  - Table
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3225855
-    - 0.5165134
-    - 0.366372
+    - 0.126561
+    - 0.4327239
+    - 0.4544706
     rot:
-    - 0.1710297
-    - -0.5230925
-    - -0.7981223
-    - 0.2452018
+    - 0.2303375
+    - -0.4133093
+    - -0.682466
+    - 0.5570998
   cam2:
     pos:
-    - 0.3064057
-    - -0.3501289
-    - 0.5380678
+    - 0.0192734
+    - -0.2685454
+    - 0.4307326
     rot:
-    - 0.287315
-    - -0.1347836
-    - -0.4626033
-    - 0.8278174
+    - 0.5558292
+    - -0.1901194
+    - -0.4394992
+    - 0.6795212
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.28
+  - 0.35
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.442
+  - 0.12
+  - 0.15
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_bottle_of_antihistamines
+  category: bottle_of_antihistamines
+  model: agavwx
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0679744
+  - 0.065688
+  - 0.1271973
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.468
-  - 0.0538992
+  - 0.12
+  - 0.35
+  - 0.1135987
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_jar_of_mayonnaise
+  category: jar_of_mayonnaise
+  model: ktmjvg
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.05831
+  - 0.0583101
+  - 0.09
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.143
-  - 0.0557962
+  - 0.28
+  - 0.15
+  - 0.095
 - type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_can_of_tomato_paste
+  category: can_of_tomato_paste
+  model: sqqdzb
   bounding_box:
-  - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0804573
+  - 0.0804111
+  - 0.1234537
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.572
-  - 0.0539367
+  - 0.3
+  - 0.25
+  - 0.1117269
 immutables: []
