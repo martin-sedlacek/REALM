@@ -10,8 +10,6 @@ line re-enables them.
 Image sizing is per-adapter and matters: openpi pads to 224x224, DreamZero resizes to 320x180 and
 takes strictly 3-D uint8 numpy arrays.
 """
-import time
-
 import numpy as np
 from PIL import Image
 import omnigibson as og
@@ -173,9 +171,7 @@ class _MolmoActAdapter:
             "images": [img_to_use, wrist_im],
             "instruction": instruction,
         }
-        _t0 = time.perf_counter()
         pred = self.client.infer(obs_dict)
-        og.log.info(f"[molmoact] inference time: {time.perf_counter() - _t0:.3f}s")
         pred_action_chunk = pred["action"]
 
         if ee_control:

@@ -122,7 +122,7 @@ To eyeball rollouts (videos are stored as mp4 bytes inside parquet, one row per 
 across runs — so they are not directly viewable and the newest is the *last* row):
 
 ```bash
-python scripts/extract_perturbation_frames.py logs/pert_integrity_test_tmp [--video]
+Use the recorded parquet videos directly when visually reviewing perturbation runs.
 ```
 
 ### Gotchas worth knowing before you start

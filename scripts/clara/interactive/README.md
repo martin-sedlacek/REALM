@@ -35,7 +35,6 @@ ALLOC=<ID> ./scripts/clara/interactive/go smoke ./scripts/clara/interactive/chec
 
 | file | what it is for |
 | --- | --- |
-| `show_macros.py` | prove a flag actually reached `gm` **before** spending a run on it |
 | `check_run.py` | the REALM pass criteria; exit 0 alone is not one of them. `--repeats N` also demands the full rollout count and `--newer-than EPOCH` that the artifacts are *this* run's; `sbatch_eval_pi05.sh` gates on it and exits non-zero when it fails |
 | `pi05_server.sh` | resident pi0.5 policy server on :8000 |
 

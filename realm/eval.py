@@ -11,7 +11,6 @@ would boot an Isaac instance in the test driver just to read two lists of string
 import csv
 import datetime
 import os
-import time
 
 import omnigibson as og
 
@@ -98,8 +97,6 @@ def evaluate(
     `model_type` selects the inference client and the policy's gripper convention. It is taken
     verbatim and never inferred from the model's name.
     """
-    start = time.perf_counter()
-    og.log.info(f"DEBUG: Begin eval: {time.perf_counter() - start:.4f}s")
     if rendering_mode is None:
         rendering_mode = "rt"
     set_sim_config(robot=robot)
@@ -110,7 +107,6 @@ def evaluate(
     os.makedirs(log_dir, exist_ok=True)
 
     client = InferenceClient(model_type, host=host, port=port)
-    og.log.info(f"DEBUG: Client connected: {time.perf_counter() - start:.4f}s")
 
     env = RealmEnvironmentDynamic(
         config_path=CONFIG_ROOT,
@@ -121,7 +117,6 @@ def evaluate(
         rendering_mode=rendering_mode,
         robot=robot,
     )
-    og.log.info(f"DEBUG: Env created: {time.perf_counter() - start:.4f}s")
 
     if resume:
         results, first_run_id, results_filename = _load_previous_results(log_dir, task, perturbation)
@@ -137,7 +132,6 @@ def evaluate(
         )
         _run_rollout(rollout, client, max_steps, horizon,
                      render_on_demand, n_pre_obs_renders, max_render_interval)
-        og.log.info(f"DEBUG: Run finished: {time.perf_counter() - start:.4f}s")
 
         entry = build_result_entry(rollout, task, perturbation, model_type)
         write_rollout_artifacts(rollout, entry, log_dir, task, perturbation)
@@ -149,7 +143,6 @@ def evaluate(
 
     save_results(results, log_dir + "/reports", task, perturbation)
     og.log.info("Done!")
-    og.log.info(f"DEBUG: Done: {time.perf_counter() - start:.4f}s")
 
 
 def _run_rollout(rollout, client, max_steps, horizon,
