@@ -1,4 +1,4 @@
-cff-version: 1.2.0
+cff-version: 1.0.0
 message: "If you use REALM in your research, please cite this work."
 title: "REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation"
 type: software
