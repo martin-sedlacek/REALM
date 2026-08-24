@@ -2,11 +2,11 @@ task:
   type: DummyTask
   termination_config: {}
   reward_config: {}
-task_type: pick
-instruction: Pick up all the objects surrounding the white plate and arrange them on the plate
-instruction_obj_to_replace: objects
-instruction_target_to_replace: ''
-instruction_verb_to_replace: pick
+task_type: stack
+instruction: Put the white object on the plate
+instruction_obj_to_replace: object
+instruction_target_to_replace: plate
+instruction_verb_to_replace: stack
 supported_scenes:
   Pomaria_0_int:
   - Coffee_Table
@@ -33,7 +33,7 @@ camera_extrinsics:
     - 0.7067787
 main_objects:
 - type: PrimitiveObject
-  name: white_block
+  name: white_object
   primitive_type: Cube
   rgba:
   - 0.9
@@ -57,7 +57,24 @@ main_objects:
   - 0.11
   - 0.099
   - 0.0750001
-target_objects: []
+target_objects:
+- type: DatasetObject
+  name: plate
+  category: plate
+  model: itoeew
+  bounding_box:
+  - 0.22
+  - 0.22
+  - 0.0130667
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.0565334
 distractors:
 - type: DatasetObject
   name: distractor_teaspoon
@@ -73,8 +90,8 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.306
+  - 0.1
+  - 0.324
   - 0.0538992
 - type: DatasetObject
   name: distractor_masking_tape
@@ -90,8 +107,8 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.1
-  - 0.324
+  - 0.38
+  - 0.099
   - 0.0557962
 - type: DatasetObject
   name: distractor_marker
@@ -107,7 +124,7 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.099
+  - 0.09
+  - 0.207
   - 0.0562801
 immutables: []

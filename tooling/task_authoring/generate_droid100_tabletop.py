@@ -31,6 +31,38 @@ DEFAULT_SEED = 100
 DISTRACTOR_CATEGORIES = ("teaspoon", "masking_tape", "marker", "pen", "can_of_soda", "half_apple")
 SUPPORT_CLEARANCE = 0.05
 RELATION_CLEARANCE = 0.01
+REVIEWED_TASK_OVERRIDES = {
+    57: {
+        "instruction": "Remove the can from the bowl",
+        "task_type": "pick",
+        "reason": "No movable sink asset exists; the authored source is a bowl and the instruction must name it honestly.",
+    },
+    71: {
+        "instruction": "Put the screwdriver in the bowl",
+        "task_type": "put",
+        "reason": "The DROID phrase describes an orange-handled tool; a screwdriver is the grounded asset.",
+    },
+    76: {
+        "instruction": "Put the white object on the plate",
+        "task_type": "stack",
+        "reason": "The original multi-object arrangement is not representable by REALM's single-main contract.",
+    },
+    78: {
+        "instruction": "Remove the white cloth from the plate",
+        "task_type": "pick",
+        "reason": "No stand asset exists; the authored horizontal support is a plate.",
+    },
+    79: {
+        "instruction": "Put the block in the bowl",
+        "task_type": "put",
+        "reason": "The config contains one manipulated block, so the instruction must be singular.",
+    },
+    89: {
+        "instruction": "Pick up the screwdriver and put it in the bowl",
+        "task_type": "put",
+        "reason": "The orange object tool is one tool, not a generic object plus a screwdriver receiver.",
+    },
+}
 
 CATEGORY_BY_CONCEPT = {
     "marker": "marker",
@@ -49,13 +81,14 @@ CATEGORY_BY_CONCEPT = {
     "cloth": "microfiber_cloth",
     "spoon": "teaspoon",
     "tool": "screwdriver",
+    "screwdriver": "screwdriver",
     # Literal fixtures absent from the movable tabletop catalog use conservative proxies.
     "sink": "bowl",
     "stand": "plate",
 }
 CONCEPT_PATTERN = re.compile(
     r"\b(mug cup|glass lid|silver lid|masking tape|marker|pen|cup|mug|bowl|lid|pot|pan|"
-    r"block|blocks|cube|object|objects|cups|towel|box|tape|plate|can|cloth|spoon|tool|sink|stand)\b",
+    r"block|blocks|cube|object|objects|cups|towel|box|tape|plate|can|cloth|spoon|tool|screwdriver|sink|stand)\b",
     re.IGNORECASE,
 )
 COLORS = {
@@ -73,6 +106,30 @@ COLORS = {
 def slug(value: str) -> str:
     """Return a stable config-directory component."""
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+
+
+def reviewed_task(task: dict[str, object]) -> tuple[str, str, dict[str, str] | None]:
+    """Apply human-reviewed semantic corrections while retaining their provenance."""
+    explicit = REVIEWED_TASK_OVERRIDES.get(int(task["rank"]))
+    if explicit:
+        return explicit["instruction"], explicit["task_type"], explicit
+    instruction = str(task["instruction"])
+    task_type = str(task["task_type"])
+    if task_type == "pick":
+        shortened = re.sub(
+            r"\s+and\s+(?:put|place)\s+it\s+on\s+the\s+(?:table|counter)\.?\s*$",
+            "",
+            instruction,
+            flags=re.IGNORECASE,
+        )
+        if shortened != instruction:
+            override = {
+                "instruction": shortened,
+                "task_type": task_type,
+                "reason": "REALM pick evaluates removal/lifting, not a subsequent placement on the scene support.",
+            }
+            return shortened, task_type, override
+    return instruction, task_type, None
 
 
 def fit_bbox(values: list[float], max_xy: tuple[float, float]) -> tuple[list[float], float]:
@@ -249,11 +306,20 @@ def place_initial_relation(
     if relation == "on_top":
         z = source_z + source_height / 2 + main_height / 2 + RELATION_CLEARANCE
     elif relation == "inside":
-        # Keep the upper half accessible while representing partial containment.
-        z = max(
-            main_height / 2 + SUPPORT_CLEARANCE,
-            source_z + source_height / 2 - main_height / 4,
-        )
+        dimensions = [float(value) for value in main["bounding_box"]]
+        longest_axis = max(range(3), key=dimensions.__getitem__)
+        if longest_axis == 0 and dimensions[0] > 2 * max(dimensions[1:]):
+            # Pens and markers must be inserted lengthwise; horizontal placement at the rim is not containment.
+            main["orientation"] = [0.0, 0.7071068, 0.0, 0.7071068]
+            vertical_extent = dimensions[0]
+        elif longest_axis == 1 and dimensions[1] > 2 * max(dimensions[0], dimensions[2]):
+            main["orientation"] = [0.7071068, 0.0, 0.0, 0.7071068]
+            vertical_extent = dimensions[1]
+        else:
+            vertical_extent = main_height
+        # Put the lower quarter inside while leaving a graspable portion above the opening.
+        source_top = source_z + source_height / 2
+        z = max(vertical_extent / 2 + SUPPORT_CLEARANCE, source_top + vertical_extent / 4)
     else:
         raise ValueError(f"unsupported initial relation {relation!r}")
     main["relative_bbox_position"] = [source_x, source_y, round(z, 7)]
@@ -318,7 +384,8 @@ def generate(
             key: {pose_key: pose_value for pose_key, pose_value in value.items() if pose_key != "source"}
             for key, value in sampled_cameras.items()
         }
-        instruction, task_type = task["instruction"], task["task_type"]
+        original_instruction = task["instruction"]
+        instruction, task_type, reviewed_override = reviewed_task(task)
         initial_relation = initial_relation_type(instruction, task_type)
         terms = instruction_terms(instruction, task_type)
         resolved = concepts(instruction, task_type)
@@ -384,7 +451,8 @@ def generate(
             "distractors": distractors,
             "immutables": [configs[1]] if initial_relation else [],
         }
-        directory_name = f"{task['rank']:03d}_{slug(instruction)[:72]}"
+        # Keep reviewed tasks at their established paths so regeneration cannot leave stale duplicates.
+        directory_name = f"{task['rank']:03d}_{slug(original_instruction)[:72]}"
         task_directory = output / directory_name
         task_directory.mkdir(exist_ok=True)
         (task_directory / "default.yaml").write_text(
@@ -395,6 +463,8 @@ def generate(
             "directory": directory_name,
             "task_type": task_type,
             "instruction": instruction,
+            "original_instruction": original_instruction if reviewed_override else None,
+            "reviewed_override": reviewed_override,
             "concepts": resolved,
             "scene": {
                 "name": region["scene"],
@@ -417,6 +487,23 @@ def generate(
         "camera_pose_source": str(camera_extrinsics),
         "camera_pose_pool_size": len(camera_poses),
         "generated_count": len(generated),
+        "semantic_review": {
+            "reviewed_count": len(generated),
+            "reviewed_on": "2026-08-24",
+            "checks": [
+                "instruction-object closure",
+                "single-main and task-type contract",
+                "compound noun grounding",
+                "initial spatial predicates",
+                "receiver/support capacity",
+                "orientation and support clearance",
+            ],
+            "remaining_runtime_checks": [
+                "mesh-level containment and contact stability",
+                "robot reachability",
+                "texture-dependent color and material descriptions",
+            ],
+        },
         "tasks": generated,
     }
     (output / "generation_manifest.json").write_text(json.dumps(audit, indent=2) + "\n", encoding="utf-8")

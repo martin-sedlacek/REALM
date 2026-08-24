@@ -3,8 +3,8 @@ task:
   termination_config: {}
   reward_config: {}
 task_type: put
-instruction: Put the metal object with the orange handle in the black bowl
-instruction_obj_to_replace: object
+instruction: Put the screwdriver in the bowl
+instruction_obj_to_replace: screwdriver
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
@@ -32,22 +32,14 @@ camera_extrinsics:
     - -0.3362071
     - 0.779009
 main_objects:
-- type: PrimitiveObject
-  name: orange_object
-  primitive_type: Cube
-  rgba:
-  - 0.95
-  - 0.4
-  - 0.05
-  - 1.0
+- type: DatasetObject
+  name: screwdriver
+  category: screwdriver
+  model: uajlga
   bounding_box:
-  - 0.05
-  - 0.05
-  - 0.05
-  scale:
-  - 0.05
-  - 0.05
-  - 0.05
+  - 0.14
+  - 0.0129898
+  - 0.0129092
   orientation:
   - 0.0
   - 0.0
@@ -56,7 +48,7 @@ main_objects:
   relative_bbox_position:
   - 0.11
   - 0.099
-  - 0.0750001
+  - 0.0564546
 target_objects:
 - type: DatasetObject
   name: bowl

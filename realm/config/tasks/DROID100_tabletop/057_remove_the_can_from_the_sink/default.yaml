@@ -3,9 +3,9 @@ task:
   termination_config: {}
   reward_config: {}
 task_type: pick
-instruction: Remove the can from the sink
+instruction: Remove the can from the bowl
 instruction_obj_to_replace: can
-instruction_target_to_replace: sink
+instruction_target_to_replace: bowl
 instruction_verb_to_replace: pick
 supported_scenes:
   Wainscott_0_int:
@@ -48,7 +48,7 @@ main_objects:
   relative_bbox_position:
   - 0.11
   - 0.132
-  - 0.1219177
+  - 0.1483035
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -104,7 +104,7 @@ distractors:
   - 0.0562801
 immutables:
 - type: DatasetObject
-  name: sink
+  name: bowl
   category: bowl
   model: ckxwea
   bounding_box:

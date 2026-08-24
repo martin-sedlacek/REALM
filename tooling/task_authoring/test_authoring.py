@@ -27,6 +27,7 @@ from tooling.task_authoring.generate_droid100_tabletop import (
     place,
     place_initial_relation,
     primitive,
+    reviewed_task,
 )
 
 
@@ -56,6 +57,32 @@ class AuthoringTest(unittest.TestCase):
         self.assertEqual(main["relative_bbox_position"][:2], source["relative_bbox_position"][:2])
         self.assertGreater(main_bottom, source_top)
         self.assertEqual(audit["source"], "pot")
+
+    def test_elongated_object_is_inserted_vertically(self):
+        source = {
+            "name": "mug",
+            "bounding_box": [0.12, 0.14, 0.08],
+            "relative_bbox_position": [0.25, 0.30, 0.09],
+        }
+        main = {
+            "name": "marker",
+            "bounding_box": [0.10, 0.013, 0.013],
+            "orientation": [0.0, 0.0, 0.0, 1.0],
+        }
+        place_initial_relation(main, source, "inside")
+        self.assertEqual(main["orientation"], [0.0, 0.7071068, 0.0, 0.7071068])
+        source_top = source["relative_bbox_position"][2] + source["bounding_box"][2] / 2
+        self.assertLess(main["relative_bbox_position"][2] - 0.05, source_top)
+
+    def test_review_removes_unsupported_second_stage_from_pick(self):
+        instruction, task_type, audit = reviewed_task({
+            "rank": 5,
+            "instruction": "Remove the marker from the cup and put it on the table",
+            "task_type": "pick",
+        })
+        self.assertEqual(instruction, "Remove the marker from the cup")
+        self.assertEqual(task_type, "pick")
+        self.assertIn("subsequent placement", audit["reason"])
 
     def test_batch_authoring_uniformly_fits_oversized_bboxes(self):
         fitted, scale = fit_bbox([0.4, 0.3, 0.2], (0.2, 0.2))

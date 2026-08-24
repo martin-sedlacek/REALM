@@ -3,9 +3,9 @@ task:
   termination_config: {}
   reward_config: {}
 task_type: pick
-instruction: Remove the white cloth from the black stand
+instruction: Remove the white cloth from the plate
 instruction_obj_to_replace: cloth
-instruction_target_to_replace: stand
+instruction_target_to_replace: plate
 instruction_verb_to_replace: pick
 supported_scenes:
   Benevolence_1_int:
@@ -48,7 +48,7 @@ main_objects:
   relative_bbox_position:
   - 0.11
   - 0.11
-  - 0.0736963
+  - 0.0633815
 target_objects: []
 distractors:
 - type: DatasetObject
@@ -104,7 +104,7 @@ distractors:
   - 0.0562801
 immutables:
 - type: DatasetObject
-  name: stand
+  name: plate
   category: plate
   model: itoeew
   bounding_box:

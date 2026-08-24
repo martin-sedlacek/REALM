@@ -3,7 +3,7 @@ task:
   termination_config: {}
   reward_config: {}
 task_type: pick
-instruction: Pick up the lid from the pot and put it on the table.
+instruction: Pick up the lid from the pot
 instruction_obj_to_replace: lid
 instruction_target_to_replace: pot
 instruction_verb_to_replace: pick

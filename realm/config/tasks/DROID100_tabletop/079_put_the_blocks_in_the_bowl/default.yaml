@@ -3,8 +3,8 @@ task:
   termination_config: {}
   reward_config: {}
 task_type: put
-instruction: Put the blocks in the bowl
-instruction_obj_to_replace: blocks
+instruction: Put the block in the bowl
+instruction_obj_to_replace: block
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:

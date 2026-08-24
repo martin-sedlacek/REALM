@@ -59,6 +59,26 @@ disposable language:
   short settling drop.
 - `take X from/out of Y` requires X to start at least partially inside Y. The source footprint must
   first pass the same conservative capacity check as a `put` receiver.
+- For an elongated object such as a pen, marker, or utensil, containment normally requires its long
+  axis to be vertical. This is a justified roll/pitch exception: place its lower portion below the
+  source's opening while leaving enough length exposed for grasping.
+
+## Semantic review beyond geometry
+
+After mechanical validation, read the instruction against the complete authored scene as a human
+operator would. Check that noun phrases denote the intended number of physical objects, compound
+nouns have not been split into separate roles, and every described destination or support exists.
+Reject or simplify an instruction that cannot be represented by the task schema—for example, an
+“all objects” instruction in a task family that permits exactly one main object. When a dataset
+phrase describes an unavailable visual asset (“orange-handled tool”), ground the closest honest
+category (“screwdriver”) and rewrite the instruction to state only properties the config guarantees.
+Record every such reviewed override and its reason so regeneration preserves the decision.
+
+The instruction must also match the evaluator's completion contract. In REALM, `pick` is a
+single-object lift/removal task; it cannot promise a second-stage placement such as “and put it on
+the table.” Shorten that instruction to the supported removal clause, or author it as another task
+type with an explicit target. Likewise, never retain the original noun after substituting a proxy
+asset: if a bowl stands in for an unavailable sink, the executable instruction must say “bowl.”
 
 The generated-config audit records the inferred predicate, main object, source object, and applied
 clearance. A draft is semantically invalid if a required source is absent or its bbox relationship
