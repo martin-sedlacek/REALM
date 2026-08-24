@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the glass lid on the black pot.
+instruction_obj_to_replace: glass lid
+instruction_target_to_replace: pot
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_0_int:
+  - Coffee_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - -0.1605546
+    - -0.4955364
+    - 0.4148764
+    rot:
+    - 0.4765419
+    - -0.1142748
+    - -0.4809386
+    - 0.7270124
+  cam2:
+    pos:
+    - 0.1581735
+    - 0.7364608
+    - 0.3594852
+    rot:
+    - 0.1240609
+    - -0.4020861
+    - -0.8671187
+    - 0.2665348
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.099
+  - 0.066524
+target_objects:
+- type: DatasetObject
+  name: pot
+  category: saucepot
+  model: ozrwwk
+  bounding_box:
+  - 0.1369473
+  - 0.22
+  - 0.1051826
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.1025913
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.324
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.099
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.09
+  - 0.207
+  - 0.0562801
+immutables: []

@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Take the marker out of the cup and put it on the table
+instruction_obj_to_replace: marker
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  Pomaria_0_int:
+  - Coffee_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2907329
+    - 0.4993545
+    - 0.4429452
+    rot:
+    - 0.1653866
+    - -0.4958419
+    - -0.8199135
+    - 0.2335164
+  cam2:
+    pos:
+    - 0.1737908
+    - -0.340106
+    - 0.4543458
+    rot:
+    - 0.5179264
+    - -0.210333
+    - -0.3162739
+    - 0.7664745
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.099
+  - 0.056298
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.324
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1
+  - 0.0089092
+  - 0.0078734
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.099
+  - 0.0539367
+immutables: []

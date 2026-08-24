@@ -1,0 +1,6682 @@
+{
+  "family": "DROID100_tabletop",
+  "source": "/Users/sedlam/data/droid/DROID100_tabletop.json",
+  "dataset": "/Users/sedlam/PycharmProjects/REALM/data/datasets_og391/behavior-1k-assets",
+  "seed": 100,
+  "scene_pool_size": 9,
+  "camera_pose_source": "/Users/sedlam/PycharmProjects/REALM/realm/config/env/external_sensors/camera_extrinsics_droid_realm.yaml",
+  "camera_pose_pool_size": 141408,
+  "generated_count": 100,
+  "tasks": [
+    {
+      "rank": 1,
+      "directory": "001_put_the_marker_in_the_cup",
+      "task_type": "put",
+      "instruction": "Put the marker in the cup",
+      "concepts": [
+        "marker",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_062544_cam1",
+        "cam2": "droid_realm_ep_062544_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3310416,
+            0.5093012,
+            0.4950614
+          ],
+          "rot": [
+            0.1070988,
+            -0.3746717,
+            -0.8753534,
+            0.2861948
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2219524,
+            -0.3634741,
+            0.4887413
+          ],
+          "rot": [
+            0.4461139,
+            -0.1785088,
+            -0.2772345,
+            0.8320205
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 2,
+      "directory": "002_put_the_marker_in_the_mug",
+      "task_type": "put",
+      "instruction": "Put the marker in the mug",
+      "concepts": [
+        "marker",
+        "mug"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_023611_cam1",
+        "cam2": "droid_realm_ep_023611_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0889513,
+            -0.5136669,
+            0.4820825
+          ],
+          "rot": [
+            0.5479338,
+            -0.2015611,
+            -0.3003927,
+            0.7542585
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1845942,
+            0.7059869,
+            0.4773577
+          ],
+          "rot": [
+            0.2399913,
+            -0.520937,
+            -0.7516148,
+            0.3257362
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 3,
+      "directory": "003_put_the_marker_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the marker in the bowl",
+      "concepts": [
+        "marker",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_047883_cam1",
+        "cam2": "droid_realm_ep_047883_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2895327,
+            -0.3664764,
+            0.4203255
+          ],
+          "rot": [
+            0.4223235,
+            -0.114391,
+            -0.2474415,
+            0.8644826
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.4245044,
+            0.5152887,
+            0.5156823
+          ],
+          "rot": [
+            0.1184219,
+            -0.4645213,
+            -0.8280661,
+            0.2906936
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 4,
+      "directory": "004_put_the_lid_on_the_pot",
+      "task_type": "stack",
+      "instruction": "Put the lid on the pot",
+      "concepts": [
+        "lid",
+        "pot"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_068861_cam1",
+        "cam2": "droid_realm_ep_068861_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0767313,
+            -0.485596,
+            0.4676392
+          ],
+          "rot": [
+            0.4690545,
+            -0.2218567,
+            -0.3765806,
+            0.7674338
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0865368,
+            0.5605766,
+            0.4447905
+          ],
+          "rot": [
+            0.2558689,
+            -0.5136117,
+            -0.7192737,
+            0.3916369
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 5,
+      "directory": "005_remove_the_marker_from_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the cup and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_072336_cam1",
+        "cam2": "droid_realm_ep_072336_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.1875948,
+            -0.4715753,
+            0.4870331
+          ],
+          "rot": [
+            0.5710619,
+            -0.3198448,
+            -0.3823736,
+            0.6522102
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0242084,
+            0.6137838,
+            0.5029383
+          ],
+          "rot": [
+            0.303753,
+            -0.5292348,
+            -0.7138394,
+            0.3436248
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 6,
+      "directory": "006_remove_the_lid_from_the_pot",
+      "task_type": "pick",
+      "instruction": "Remove the lid from the pot",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_010717_cam1",
+        "cam2": "droid_realm_ep_010717_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2671653,
+            0.4205053,
+            0.3399796
+          ],
+          "rot": [
+            0.4296197,
+            -0.2638249,
+            -0.6804494,
+            0.5318007
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0873355,
+            -0.2848261,
+            0.4098211
+          ],
+          "rot": [
+            0.3957292,
+            -0.3701409,
+            -0.4242011,
+            0.7255671
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 7,
+      "directory": "007_remove_the_marker_from_the_cup",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the cup",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_036249_cam1",
+        "cam2": "droid_realm_ep_036249_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1963964,
+            -0.3943964,
+            0.271717
+          ],
+          "rot": [
+            0.4612037,
+            -0.1887553,
+            -0.3242294,
+            0.8040758
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3554518,
+            0.5541462,
+            0.1855889
+          ],
+          "rot": [
+            0.231883,
+            -0.4996989,
+            -0.7691486,
+            0.3239472
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 8,
+      "directory": "008_put_the_glass_lid_on_the_black_pot",
+      "task_type": "stack",
+      "instruction": "Put the glass lid on the black pot.",
+      "concepts": [
+        "lid",
+        "pot"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_027660_cam1",
+        "cam2": "droid_realm_ep_027660_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.1605546,
+            -0.4955364,
+            0.4148764
+          ],
+          "rot": [
+            0.4765419,
+            -0.1142748,
+            -0.4809386,
+            0.7270124
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1581735,
+            0.7364608,
+            0.3594852
+          ],
+          "rot": [
+            0.1240609,
+            -0.4020861,
+            -0.8671187,
+            0.2665348
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 9,
+      "directory": "009_put_the_pen_in_the_cup",
+      "task_type": "put",
+      "instruction": "Put the pen in the cup",
+      "concepts": [
+        "pen",
+        "cup"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_031666_cam1",
+        "cam2": "droid_realm_ep_031666_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.400886,
+            0.4599537,
+            0.2605262
+          ],
+          "rot": [
+            0.1445511,
+            -0.4807913,
+            -0.8441463,
+            0.1880472
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0562007,
+            -0.4268925,
+            0.4082354
+          ],
+          "rot": [
+            0.5832135,
+            -0.0852792,
+            -0.2334467,
+            0.7733642
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      }
+    },
+    {
+      "rank": 10,
+      "directory": "010_remove_the_marker_from_the_mug",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the mug",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_027577_cam1",
+        "cam2": "droid_realm_ep_027577_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0745989,
+            -0.74645,
+            0.5737398
+          ],
+          "rot": [
+            0.5343445,
+            0.0774171,
+            -0.4052086,
+            0.7377591
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1983293,
+            0.648044,
+            0.4065467
+          ],
+          "rot": [
+            0.1969998,
+            -0.4997466,
+            -0.7725577,
+            0.3385249
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 11,
+      "directory": "011_remove_the_marker_from_the_mug_cup_and_place_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the mug cup and place it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_018994_cam1",
+        "cam2": "droid_realm_ep_018994_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.267206,
+            0.5075315,
+            0.4264173
+          ],
+          "rot": [
+            0.1947268,
+            -0.4333119,
+            -0.7913634,
+            0.3847937
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3031392,
+            -0.4243913,
+            0.443427
+          ],
+          "rot": [
+            0.4603835,
+            -0.3574372,
+            -0.4767633,
+            0.6580141
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 12,
+      "directory": "012_pick_the_marker_from_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Pick the marker from the cup and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_047518_cam1",
+        "cam2": "droid_realm_ep_047518_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2243321,
+            -0.4019649,
+            0.4230275
+          ],
+          "rot": [
+            0.5372238,
+            -0.0722247,
+            -0.1762095,
+            0.8216595
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.4683183,
+            0.5036475,
+            0.4905709
+          ],
+          "rot": [
+            0.2540654,
+            -0.6051988,
+            -0.6933528,
+            0.2974004
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 13,
+      "directory": "013_put_the_cup_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the cup in the bowl",
+      "concepts": [
+        "cup",
+        "bowl"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_055953_cam1",
+        "cam2": "droid_realm_ep_055953_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.1769317,
+            0.8000801,
+            0.5538477
+          ],
+          "rot": [
+            0.3789343,
+            -0.5827624,
+            -0.5905962,
+            0.4098693
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1468247,
+            -0.6383146,
+            0.5159535
+          ],
+          "rot": [
+            0.6033749,
+            -0.1365321,
+            -0.1706068,
+            0.7669361
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 14,
+      "directory": "014_put_the_pen_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the pen in the bowl",
+      "concepts": [
+        "pen",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_055074_cam1",
+        "cam2": "droid_realm_ep_055074_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.4051468,
+            0.4324802,
+            0.4788346
+          ],
+          "rot": [
+            0.1109774,
+            -0.5271467,
+            -0.8139245,
+            0.2175485
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1057942,
+            -0.4981375,
+            0.3995433
+          ],
+          "rot": [
+            0.6313697,
+            -0.1250995,
+            -0.1346228,
+            0.7533917
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 15,
+      "directory": "015_remove_the_glass_lid_from_the_black_pot",
+      "task_type": "pick",
+      "instruction": "Remove the glass lid from the black pot.",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_037891_cam1",
+        "cam2": "droid_realm_ep_037891_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3291591,
+            -0.2529603,
+            0.4234032
+          ],
+          "rot": [
+            0.303997,
+            -0.1008903,
+            -0.4547394,
+            0.8310349
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3167374,
+            0.2611346,
+            0.3762254
+          ],
+          "rot": [
+            0.2131577,
+            -0.2969455,
+            -0.7960231,
+            0.4824255
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 16,
+      "directory": "016_pick_the_marker_and_put_it_in_the_cup",
+      "task_type": "put",
+      "instruction": "Pick the marker and put it in the cup",
+      "concepts": [
+        "marker",
+        "cup"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_021643_cam1",
+        "cam2": "droid_realm_ep_021643_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1195713,
+            0.5392187,
+            0.4437649
+          ],
+          "rot": [
+            0.1498831,
+            -0.5986091,
+            -0.7693465,
+            0.1652517
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0924187,
+            -0.3407998,
+            0.4068424
+          ],
+          "rot": [
+            0.6684613,
+            -0.2682841,
+            -0.2800051,
+            0.6346497
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 17,
+      "directory": "017_put_the_marker_in_the_pot",
+      "task_type": "put",
+      "instruction": "Put the marker in the pot",
+      "concepts": [
+        "marker",
+        "pot"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_024410_cam1",
+        "cam2": "droid_realm_ep_024410_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0046643,
+            -0.5731618,
+            0.4767865
+          ],
+          "rot": [
+            0.496259,
+            -0.1774406,
+            -0.3121454,
+            0.7904474
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0742746,
+            0.6442053,
+            0.4598243
+          ],
+          "rot": [
+            0.2061395,
+            -0.4225732,
+            -0.791008,
+            0.3914648
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 18,
+      "directory": "018_put_the_yellow_block_in_the_cup",
+      "task_type": "put",
+      "instruction": "Put the yellow block in the cup",
+      "concepts": [
+        "block",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_054068_cam1",
+        "cam2": "droid_realm_ep_054068_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2934585,
+            0.6721401,
+            0.4462671
+          ],
+          "rot": [
+            0.0964754,
+            -0.6046866,
+            -0.7757327,
+            0.1525953
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2664441,
+            -0.5418283,
+            0.473439
+          ],
+          "rot": [
+            0.5268001,
+            -0.0503876,
+            -0.117669,
+            0.8402957
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 19,
+      "directory": "019_remove_the_marker_from_the_mug_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the mug and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_021933_cam1",
+        "cam2": "droid_realm_ep_021933_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0164441,
+            0.4235003,
+            0.4526824
+          ],
+          "rot": [
+            0.3131144,
+            -0.6667417,
+            -0.6250258,
+            0.2583749
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0945352,
+            -0.264267,
+            0.4085161
+          ],
+          "rot": [
+            0.6909757,
+            -0.2252333,
+            -0.2244992,
+            0.6491708
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 20,
+      "directory": "020_remove_the_marker_from_the_bowl_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the bowl and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_022533_cam1",
+        "cam2": "droid_realm_ep_022533_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3804689,
+            0.6024478,
+            0.4524245
+          ],
+          "rot": [
+            0.1289356,
+            -0.4548534,
+            -0.8554064,
+            0.2115746
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2173004,
+            -0.4718499,
+            0.415758
+          ],
+          "rot": [
+            0.5934551,
+            -0.1120304,
+            -0.1558705,
+            0.7816423
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 21,
+      "directory": "021_take_the_marker_out_of_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the marker out of the cup and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_032669_cam1",
+        "cam2": "droid_realm_ep_032669_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2907329,
+            0.4993545,
+            0.4429452
+          ],
+          "rot": [
+            0.1653866,
+            -0.4958419,
+            -0.8199135,
+            0.2335164
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1737908,
+            -0.340106,
+            0.4543458
+          ],
+          "rot": [
+            0.5179264,
+            -0.210333,
+            -0.3162739,
+            0.7664745
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 22,
+      "directory": "022_put_the_pen_in_the_mug",
+      "task_type": "put",
+      "instruction": "Put the pen in the mug",
+      "concepts": [
+        "pen",
+        "mug"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_053022_cam1",
+        "cam2": "droid_realm_ep_053022_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3374634,
+            0.5636089,
+            0.3497685
+          ],
+          "rot": [
+            0.0276355,
+            -0.6379698,
+            -0.7687254,
+            0.035944
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2574241,
+            -0.4592588,
+            0.5397189
+          ],
+          "rot": [
+            0.5187677,
+            -0.1009596,
+            -0.1728027,
+            0.8311597
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      }
+    },
+    {
+      "rank": 23,
+      "directory": "023_pick_up_the_marker_and_put_it_in_the_cup",
+      "task_type": "put",
+      "instruction": "Pick up the marker and put it in the cup",
+      "concepts": [
+        "marker",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_007001_cam1",
+        "cam2": "droid_realm_ep_007001_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0801872,
+            0.5634161,
+            0.4292525
+          ],
+          "rot": [
+            0.2392239,
+            -0.4773148,
+            -0.7249367,
+            0.4352119
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1527834,
+            -0.4566319,
+            0.4294593
+          ],
+          "rot": [
+            0.6774014,
+            -0.1846084,
+            -0.2464471,
+            0.668065
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 24,
+      "directory": "024_put_the_block_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the block in the bowl",
+      "concepts": [
+        "block",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_068894_cam1",
+        "cam2": "droid_realm_ep_068894_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0742702,
+            -0.4869553,
+            0.4644863
+          ],
+          "rot": [
+            0.4709083,
+            -0.2212345,
+            -0.3813918,
+            0.7640949
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0951354,
+            0.5603828,
+            0.4513137
+          ],
+          "rot": [
+            0.2545943,
+            -0.5113163,
+            -0.7234909,
+            0.3876833
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 25,
+      "directory": "025_put_the_green_block_in_the_black_bowl",
+      "task_type": "put",
+      "instruction": "Put the green block in the black bowl",
+      "concepts": [
+        "block",
+        "bowl"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_046404_cam1",
+        "cam2": "droid_realm_ep_046404_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2747163,
+            -0.619101,
+            0.4225533
+          ],
+          "rot": [
+            0.7297412,
+            -0.1105284,
+            -0.3798075,
+            0.5576804
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.244631,
+            0.7672415,
+            0.4733302
+          ],
+          "rot": [
+            0.2447162,
+            -0.585256,
+            -0.7727994,
+            0.019249
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 26,
+      "directory": "026_take_the_marker_out_of_the_mug_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the marker out of the mug and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_047012_cam1",
+        "cam2": "droid_realm_ep_047012_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1104616,
+            -0.5309691,
+            0.3482071
+          ],
+          "rot": [
+            0.2702013,
+            -0.1489126,
+            -0.4616613,
+            0.8316761
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2829886,
+            0.6113394,
+            0.4122193
+          ],
+          "rot": [
+            0.1503477,
+            -0.5002111,
+            -0.8180247,
+            0.2408733
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 27,
+      "directory": "027_put_the_marker_inside_the_mug_cup",
+      "task_type": "put",
+      "instruction": "Put the marker inside the mug cup",
+      "concepts": [
+        "marker",
+        "mug"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_049691_cam1",
+        "cam2": "droid_realm_ep_049691_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.0907809,
+            -0.3475197,
+            0.410483
+          ],
+          "rot": [
+            0.4985123,
+            -0.4154461,
+            -0.4478844,
+            0.6150525
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0408044,
+            0.4666822,
+            0.3916162
+          ],
+          "rot": [
+            0.3741554,
+            -0.5469741,
+            -0.6315214,
+            0.402502
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 28,
+      "directory": "028_take_the_marker_out_of_the_cup",
+      "task_type": "pick",
+      "instruction": "Take the marker out of the cup",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_054895_cam1",
+        "cam2": "droid_realm_ep_054895_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0848889,
+            0.5121395,
+            0.584799
+          ],
+          "rot": [
+            0.3326157,
+            -0.626651,
+            -0.6157783,
+            0.3427715
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2175186,
+            -0.6066277,
+            0.4034392
+          ],
+          "rot": [
+            0.6027212,
+            -0.224384,
+            -0.2484959,
+            0.7243126
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 29,
+      "directory": "029_stack_the_cups",
+      "task_type": "stack",
+      "instruction": "Stack the cups",
+      "concepts": [
+        "cup",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_013586_cam1",
+        "cam2": "droid_realm_ep_013586_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1319692,
+            0.3808116,
+            0.4253101
+          ],
+          "rot": [
+            0.2199301,
+            -0.4233707,
+            -0.7622358,
+            0.4374752
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0387861,
+            -0.3107632,
+            0.5297023
+          ],
+          "rot": [
+            0.4697191,
+            -0.2746968,
+            -0.3917962,
+            0.7418904
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 30,
+      "directory": "030_put_the_marker_inside_the_cup",
+      "task_type": "put",
+      "instruction": "Put the marker inside the cup",
+      "concepts": [
+        "marker",
+        "cup"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_059227_cam1",
+        "cam2": "droid_realm_ep_059227_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0802389,
+            0.5717152,
+            0.4665996
+          ],
+          "rot": [
+            0.2486339,
+            -0.4137858,
+            -0.7451501,
+            0.4601237
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2710165,
+            -0.2695198,
+            0.3696396
+          ],
+          "rot": [
+            0.5361608,
+            -0.3486278,
+            -0.3339343,
+            0.6924436
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 31,
+      "directory": "031_put_the_yellow_block_in_the_blue_cup",
+      "task_type": "put",
+      "instruction": "Put the yellow block in the blue cup",
+      "concepts": [
+        "block",
+        "cup"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_033021_cam1",
+        "cam2": "droid_realm_ep_033021_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3756978,
+            0.4568411,
+            0.4594147
+          ],
+          "rot": [
+            0.1206176,
+            -0.5083051,
+            -0.8388761,
+            0.1528537
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1690887,
+            -0.3369527,
+            0.4526206
+          ],
+          "rot": [
+            0.5256723,
+            -0.2060825,
+            -0.3115633,
+            0.764282
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 32,
+      "directory": "032_take_the_pen_out_of_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the pen out of the cup and put it on the table",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_069751_cam1",
+        "cam2": "droid_realm_ep_069751_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0932441,
+            0.4788995,
+            0.476768
+          ],
+          "rot": [
+            0.2350101,
+            -0.5374059,
+            -0.7545928,
+            0.2942022
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0783686,
+            -0.4034401,
+            0.5200208
+          ],
+          "rot": [
+            0.5779589,
+            -0.3359447,
+            -0.3536275,
+            0.654257
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 33,
+      "directory": "033_take_the_lid_off_of_the_pot",
+      "task_type": "pick",
+      "instruction": "Take the lid off of the pot",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_035012_cam1",
+        "cam2": "droid_realm_ep_035012_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1705779,
+            -0.365225,
+            0.3244614
+          ],
+          "rot": [
+            0.471276,
+            -0.124441,
+            -0.3445436,
+            0.8023111
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2028595,
+            0.4537951,
+            0.2914271
+          ],
+          "rot": [
+            0.2054782,
+            -0.4167712,
+            -0.8096488,
+            0.3585376
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 34,
+      "directory": "034_remove_the_marker_from_the_mug_cup",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the mug cup",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_007765_cam1",
+        "cam2": "droid_realm_ep_007765_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0945133,
+            0.3788905,
+            0.4001961
+          ],
+          "rot": [
+            0.37493,
+            -0.5040217,
+            -0.6600022,
+            0.4120518
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0097654,
+            -0.2928889,
+            0.5089607
+          ],
+          "rot": [
+            0.3852826,
+            -0.1846497,
+            -0.3983638,
+            0.8116453
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 35,
+      "directory": "035_place_the_lid_on_the_pot",
+      "task_type": "stack",
+      "instruction": "Place the lid on the pot",
+      "concepts": [
+        "lid",
+        "pot"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_022219_cam1",
+        "cam2": "droid_realm_ep_022219_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.005813,
+            0.463632,
+            0.4396241
+          ],
+          "rot": [
+            0.2832744,
+            -0.52667,
+            -0.7000095,
+            0.3903344
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0679175,
+            -0.2558041,
+            0.4058293
+          ],
+          "rot": [
+            0.6168018,
+            -0.3078897,
+            -0.3338186,
+            0.6429033
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 36,
+      "directory": "036_remove_the_pen_from_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the pen from the cup and put it on the table",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_037809_cam1",
+        "cam2": "droid_realm_ep_037809_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2266933,
+            -0.3501627,
+            0.4555041
+          ],
+          "rot": [
+            0.3022085,
+            -0.2196484,
+            -0.4691357,
+            0.8002102
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3626746,
+            0.2983627,
+            0.3372155
+          ],
+          "rot": [
+            0.1313415,
+            -0.3919619,
+            -0.7741005,
+            0.4794619
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 37,
+      "directory": "037_put_the_orange_cup_in_the_black_bowl",
+      "task_type": "put",
+      "instruction": "Put the orange cup in the black bowl",
+      "concepts": [
+        "cup",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_006772_cam1",
+        "cam2": "droid_realm_ep_006772_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3108801,
+            0.5398227,
+            0.4374335
+          ],
+          "rot": [
+            0.2011713,
+            -0.4561051,
+            -0.7710134,
+            0.3962784
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2372952,
+            -0.4943735,
+            0.4488809
+          ],
+          "rot": [
+            0.4581775,
+            -0.2018091,
+            -0.3888051,
+            0.7734191
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 38,
+      "directory": "038_pick_up_the_marker_from_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Pick up the marker from the cup and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_042471_cam1",
+        "cam2": "droid_realm_ep_042471_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1972866,
+            -0.3219055,
+            0.3194076
+          ],
+          "rot": [
+            0.4507052,
+            -0.1780521,
+            -0.3795988,
+            0.7880781
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2214199,
+            0.4326601,
+            0.2749901
+          ],
+          "rot": [
+            0.0112578,
+            -0.4829886,
+            -0.827703,
+            0.2854873
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 39,
+      "directory": "039_take_the_marker_out_of_the_mug",
+      "task_type": "pick",
+      "instruction": "Take the marker out of the mug.",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_029280_cam1",
+        "cam2": "droid_realm_ep_029280_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2054415,
+            -0.5546227,
+            0.5321386
+          ],
+          "rot": [
+            0.3994296,
+            -0.0434929,
+            -0.1703865,
+            0.8997404
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3078082,
+            0.3944114,
+            0.4355454
+          ],
+          "rot": [
+            0.076544,
+            -0.4271702,
+            -0.8805483,
+            0.1905291
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 40,
+      "directory": "040_put_the_green_block_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the green block in the bowl",
+      "concepts": [
+        "block",
+        "bowl"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_045721_cam1",
+        "cam2": "droid_realm_ep_045721_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2799873,
+            -0.6039919,
+            0.3206242
+          ],
+          "rot": [
+            0.5406709,
+            -0.2333841,
+            -0.2909174,
+            0.7540384
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2556485,
+            0.5933251,
+            0.3993823
+          ],
+          "rot": [
+            0.2272975,
+            -0.4827584,
+            -0.8069532,
+            0.2531931
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 41,
+      "directory": "041_put_the_lid_on_the_black_pot",
+      "task_type": "stack",
+      "instruction": "Put the lid on the black pot",
+      "concepts": [
+        "lid",
+        "pot"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_001655_cam1",
+        "cam2": "droid_realm_ep_001655_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.4428328,
+            0.5265751,
+            0.5006177
+          ],
+          "rot": [
+            0.1255612,
+            -0.4547573,
+            -0.8478232,
+            0.2421279
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2245369,
+            -0.4284801,
+            0.4299135
+          ],
+          "rot": [
+            0.5861666,
+            -0.1024661,
+            -0.1696367,
+            0.785578
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 42,
+      "directory": "042_take_the_marker_from_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the marker from the cup and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_064668_cam1",
+        "cam2": "droid_realm_ep_064668_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1685252,
+            0.6820687,
+            0.4966749
+          ],
+          "rot": [
+            0.157282,
+            -0.4216608,
+            -0.8136096,
+            0.3681087
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0509406,
+            -0.3967271,
+            0.4297105
+          ],
+          "rot": [
+            0.4030386,
+            -0.2826803,
+            -0.4865873,
+            0.7217233
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 43,
+      "directory": "043_take_the_pen_out_of_the_mug_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the pen out of the mug and put it on the table",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_071323_cam1",
+        "cam2": "droid_realm_ep_071323_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.135202,
+            -0.3336332,
+            0.702318
+          ],
+          "rot": [
+            0.4697149,
+            -0.2607432,
+            -0.4460758,
+            0.7158193
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0289264,
+            0.5330691,
+            0.4355446
+          ],
+          "rot": [
+            0.2857622,
+            -0.5917513,
+            -0.6921138,
+            0.2985782
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 44,
+      "directory": "044_put_the_marker_into_the_mug",
+      "task_type": "put",
+      "instruction": "Put the marker into the mug.",
+      "concepts": [
+        "marker",
+        "mug"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_028283_cam1",
+        "cam2": "droid_realm_ep_028283_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2429959,
+            -0.5096803,
+            0.6037991
+          ],
+          "rot": [
+            0.4408941,
+            -0.2249559,
+            -0.398362,
+            0.7722143
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.4478878,
+            0.4249711,
+            0.6108887
+          ],
+          "rot": [
+            0.1324899,
+            -0.3822546,
+            -0.8449413,
+            0.3498601
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 45,
+      "directory": "045_pick_up_the_marker_and_put_it_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Pick up the marker and put it in the bowl",
+      "concepts": [
+        "marker",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_053314_cam1",
+        "cam2": "droid_realm_ep_053314_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1640233,
+            0.395816,
+            0.364463
+          ],
+          "rot": [
+            0.3293198,
+            -0.5692263,
+            -0.6673996,
+            0.349439
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0421436,
+            -0.4465036,
+            0.4520461
+          ],
+          "rot": [
+            0.5778766,
+            -0.2492068,
+            -0.3302808,
+            0.7034694
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 46,
+      "directory": "046_pick_up_the_pen_and_put_it_in_the_cup",
+      "task_type": "put",
+      "instruction": "Pick up the pen and put it in the cup",
+      "concepts": [
+        "pen",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_054747_cam1",
+        "cam2": "droid_realm_ep_054747_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.4885381,
+            0.4773589,
+            0.4889492
+          ],
+          "rot": [
+            0.0468194,
+            -0.4296074,
+            -0.8953506,
+            0.1076696
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0256942,
+            -0.7050916,
+            0.2522782
+          ],
+          "rot": [
+            0.5366136,
+            -0.2804783,
+            -0.3612663,
+            0.7091293
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      }
+    },
+    {
+      "rank": 47,
+      "directory": "047_take_the_lid_off_the_pot",
+      "task_type": "pick",
+      "instruction": "Take the lid off the pot",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_064863_cam1",
+        "cam2": "droid_realm_ep_064863_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2587023,
+            0.437675,
+            0.5107674
+          ],
+          "rot": [
+            0.3393978,
+            -0.4362619,
+            -0.6706457,
+            0.4946908
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1250362,
+            -0.3986292,
+            0.421816
+          ],
+          "rot": [
+            0.4436179,
+            -0.0692314,
+            -0.3106099,
+            0.8378136
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 48,
+      "directory": "048_put_the_red_object_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the red object in the bowl",
+      "concepts": [
+        "object",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_005179_cam1",
+        "cam2": "droid_realm_ep_005179_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3798649,
+            0.5520971,
+            0.3484699
+          ],
+          "rot": [
+            0.1817793,
+            -0.4982885,
+            -0.7473906,
+            0.4000902
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.205506,
+            -0.3435116,
+            0.3045914
+          ],
+          "rot": [
+            0.5710208,
+            -0.1443308,
+            -0.2394403,
+            0.7718628
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 49,
+      "directory": "049_remove_the_lid_from_the_pot_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the lid from the pot and put it on the table",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_021743_cam1",
+        "cam2": "droid_realm_ep_021743_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0321889,
+            0.3994993,
+            0.448311
+          ],
+          "rot": [
+            0.2833616,
+            -0.6546641,
+            -0.650508,
+            0.2606922
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0815566,
+            -0.2876961,
+            0.4092006
+          ],
+          "rot": [
+            0.6820673,
+            -0.2247772,
+            -0.2332873,
+            0.6556191
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 50,
+      "directory": "050_put_the_blue_cup_in_the_orange_cup",
+      "task_type": "put",
+      "instruction": "Put the blue cup in the orange cup",
+      "concepts": [
+        "cup",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_064451_cam1",
+        "cam2": "droid_realm_ep_064451_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3077187,
+            0.4684948,
+            0.4134429
+          ],
+          "rot": [
+            0.2455987,
+            -0.4550243,
+            -0.7798995,
+            0.3526911
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0200913,
+            -0.5498519,
+            0.4291727
+          ],
+          "rot": [
+            0.4221909,
+            -0.2182646,
+            -0.438216,
+            0.7629431
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 51,
+      "directory": "051_put_the_orange_block_on_the_green_block",
+      "task_type": "stack",
+      "instruction": "Put the orange block on the green block",
+      "concepts": [
+        "block",
+        "block"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_026760_cam1",
+        "cam2": "droid_realm_ep_026760_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3494193,
+            -0.3928177,
+            0.5612327
+          ],
+          "rot": [
+            0.3831312,
+            -0.1303569,
+            -0.1894721,
+            0.8946049
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.4484544,
+            0.5098926,
+            0.5556596
+          ],
+          "rot": [
+            0.012638,
+            -0.4449749,
+            -0.8898346,
+            0.1001603
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 52,
+      "directory": "052_pick_up_the_green_object_from_the_table_and_put_it_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Pick up the green object from the table and put it in the bowl",
+      "concepts": [
+        "object",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_021248_cam1",
+        "cam2": "droid_realm_ep_021248_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1682843,
+            0.4791162,
+            0.4449862
+          ],
+          "rot": [
+            0.3465162,
+            -0.5781257,
+            -0.6293175,
+            0.3868548
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0380029,
+            -0.2980456,
+            0.3991931
+          ],
+          "rot": [
+            0.649535,
+            -0.3508212,
+            -0.3379385,
+            0.5838034
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 53,
+      "directory": "053_pick_the_marker_and_put_it_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Pick the marker and put it in the bowl",
+      "concepts": [
+        "marker",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_005205_cam1",
+        "cam2": "droid_realm_ep_005205_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3506725,
+            0.607014,
+            0.3454029
+          ],
+          "rot": [
+            0.1682922,
+            -0.5704115,
+            -0.7275857,
+            0.3419467
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2082328,
+            -0.3422521,
+            0.3073409
+          ],
+          "rot": [
+            0.5675281,
+            -0.1438826,
+            -0.2424824,
+            0.7735709
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 54,
+      "directory": "054_remove_the_pen_from_the_mug_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the pen from the mug and put it on the table",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_028629_cam1",
+        "cam2": "droid_realm_ep_028629_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.130978,
+            -0.4517458,
+            0.5067578
+          ],
+          "rot": [
+            0.6183392,
+            -0.2303376,
+            -0.2601803,
+            0.7049166
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1942991,
+            0.6826007,
+            0.527422
+          ],
+          "rot": [
+            0.1986968,
+            -0.5573413,
+            -0.7481657,
+            0.3002306
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 55,
+      "directory": "055_take_the_marker_out_of_the_bowl_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the marker out of the bowl and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_016501_cam1",
+        "cam2": "droid_realm_ep_016501_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0520896,
+            0.5139934,
+            0.6613418
+          ],
+          "rot": [
+            0.3163138,
+            -0.6673123,
+            -0.6192268,
+            0.2668297
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.1829114,
+            -0.5485743,
+            0.7220434
+          ],
+          "rot": [
+            0.5504458,
+            -0.2843915,
+            -0.3902335,
+            0.6810645
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 56,
+      "directory": "056_stack_the_cups_together",
+      "task_type": "stack",
+      "instruction": "Stack the cups together",
+      "concepts": [
+        "cup",
+        "cup"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_008900_cam1",
+        "cam2": "droid_realm_ep_008900_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1078482,
+            0.3767776,
+            0.4694734
+          ],
+          "rot": [
+            0.2343302,
+            -0.4135273,
+            -0.7115269,
+            0.5175074
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.063432,
+            -0.2790187,
+            0.4044757
+          ],
+          "rot": [
+            0.4951597,
+            -0.279064,
+            -0.5135857,
+            0.6427829
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 57,
+      "directory": "057_remove_the_can_from_the_sink",
+      "task_type": "pick",
+      "instruction": "Remove the can from the sink",
+      "concepts": [
+        "can"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_004910_cam1",
+        "cam2": "droid_realm_ep_004910_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.0248006,
+            -0.3057528,
+            0.4833548
+          ],
+          "rot": [
+            0.388438,
+            -0.2064122,
+            -0.4444401,
+            0.7803736
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3004111,
+            0.380147,
+            0.5050966
+          ],
+          "rot": [
+            0.1656897,
+            -0.4417162,
+            -0.8235902,
+            0.3148537
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 58,
+      "directory": "058_put_the_green_cube_in_the_black_bowl",
+      "task_type": "put",
+      "instruction": "Put the green cube in the black bowl",
+      "concepts": [
+        "block",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_058150_cam1",
+        "cam2": "droid_realm_ep_058150_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1625404,
+            0.4928727,
+            0.6153558
+          ],
+          "rot": [
+            0.2373393,
+            -0.347533,
+            -0.7948845,
+            0.4370921
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0216054,
+            -0.4378634,
+            0.366953
+          ],
+          "rot": [
+            0.5945525,
+            -0.2223975,
+            -0.2484105,
+            0.7316686
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 59,
+      "directory": "059_put_the_orange_cup_inside_the_black_bowl",
+      "task_type": "put",
+      "instruction": "Put the orange cup inside the black bowl",
+      "concepts": [
+        "cup",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_061349_cam1",
+        "cam2": "droid_realm_ep_061349_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0089857,
+            0.526519,
+            0.6488078
+          ],
+          "rot": [
+            0.2050264,
+            -0.4166456,
+            -0.7908335,
+            0.3986892
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1965326,
+            -0.471625,
+            0.5296739
+          ],
+          "rot": [
+            0.4445076,
+            -0.1476348,
+            -0.3517821,
+            0.8104729
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 60,
+      "directory": "060_remove_the_lid_from_the_black_pot",
+      "task_type": "pick",
+      "instruction": "Remove the lid from the black pot",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_061838_cam1",
+        "cam2": "droid_realm_ep_061838_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.4360216,
+            0.4289603,
+            0.358119
+          ],
+          "rot": [
+            0.1058375,
+            -0.6124924,
+            -0.7743752,
+            0.1182986
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0845126,
+            -0.7137756,
+            0.6236854
+          ],
+          "rot": [
+            0.3490042,
+            -0.1816629,
+            -0.3758425,
+            0.8390096
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 61,
+      "directory": "061_put_the_green_block_inside_the_black_bowl",
+      "task_type": "put",
+      "instruction": "Put the green block inside the black bowl",
+      "concepts": [
+        "block",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_026234_cam1",
+        "cam2": "droid_realm_ep_026234_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3340956,
+            -0.5043978,
+            0.3633599
+          ],
+          "rot": [
+            0.3582962,
+            -0.0930586,
+            -0.3349047,
+            0.8664888
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.4161436,
+            0.5852143,
+            0.5122598
+          ],
+          "rot": [
+            0.089377,
+            -0.3792731,
+            -0.8988792,
+            0.2004493
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 62,
+      "directory": "062_remove_the_marker_from_the_pot_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the pot and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_057018_cam1",
+        "cam2": "droid_realm_ep_057018_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.080609,
+            0.429825,
+            0.435937
+          ],
+          "rot": [
+            0.3020432,
+            -0.5522964,
+            -0.6591795,
+            0.4113648
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2517851,
+            -0.5377288,
+            0.505784
+          ],
+          "rot": [
+            0.563637,
+            -0.1559087,
+            -0.1779868,
+            0.7914079
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 63,
+      "directory": "063_put_the_silver_lid_on_the_silver_pot",
+      "task_type": "stack",
+      "instruction": "Put the silver lid on the silver pot.",
+      "concepts": [
+        "lid",
+        "pot"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_028220_cam1",
+        "cam2": "droid_realm_ep_028220_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2787221,
+            -0.3400123,
+            0.404015
+          ],
+          "rot": [
+            0.5658601,
+            -0.0527236,
+            -0.3311593,
+            0.7532304
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3263472,
+            0.4579309,
+            0.5259067
+          ],
+          "rot": [
+            0.2488366,
+            -0.3256469,
+            -0.7858744,
+            0.4630721
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 64,
+      "directory": "064_put_the_towel_in_the_box",
+      "task_type": "put",
+      "instruction": "Put the towel in the box",
+      "concepts": [
+        "towel",
+        "box"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_010317_cam1",
+        "cam2": "droid_realm_ep_010317_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3417583,
+            0.3840645,
+            0.4175205
+          ],
+          "rot": [
+            0.1226685,
+            -0.3518966,
+            -0.8696892,
+            0.3236695
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2122639,
+            -0.349704,
+            0.4009921
+          ],
+          "rot": [
+            0.4710519,
+            -0.1723394,
+            -0.3546872,
+            0.789054
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "towel",
+          "original_bbox": [
+            0.1535375,
+            0.2098175,
+            0.0313843
+          ],
+          "authored_bbox": [
+            0.1170827,
+            0.16,
+            0.0239326
+          ],
+          "scale": 0.76257
+        },
+        {
+          "name": "box",
+          "original_bbox": [
+            0.4026907,
+            0.4064542,
+            0.2138113
+          ],
+          "authored_bbox": [
+            0.2179629,
+            0.22,
+            0.1157289
+          ],
+          "scale": 0.54127
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1170827,
+          0.16,
+          0.0239326
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1170827,
+          0.16,
+          0.0239326
+        ],
+        "target_bbox": [
+          0.2179629,
+          0.22,
+          0.1157289
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 65,
+      "directory": "065_remove_the_marker_from_the_bowl",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the bowl.",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_054770_cam1",
+        "cam2": "droid_realm_ep_054770_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3970673,
+            0.6014957,
+            0.4274327
+          ],
+          "rot": [
+            0.0908769,
+            -0.5219022,
+            -0.8300975,
+            0.1740623
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1891399,
+            -0.6400744,
+            0.4676108
+          ],
+          "rot": [
+            0.5191722,
+            -0.1133489,
+            -0.2256277,
+            0.8165197
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 66,
+      "directory": "066_put_the_white_towel_in_the_black_box",
+      "task_type": "put",
+      "instruction": "Put the white towel in the black box",
+      "concepts": [
+        "towel",
+        "box"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_012728_cam1",
+        "cam2": "droid_realm_ep_012728_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.120028,
+            0.3074377,
+            0.2982238
+          ],
+          "rot": [
+            0.3648425,
+            -0.3683224,
+            -0.5427235,
+            0.6608175
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1221368,
+            -0.4264123,
+            0.288013
+          ],
+          "rot": [
+            0.6184695,
+            -0.1290729,
+            -0.4540738,
+            0.6282139
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "towel",
+          "original_bbox": [
+            0.1535375,
+            0.2098175,
+            0.0313843
+          ],
+          "authored_bbox": [
+            0.1170827,
+            0.16,
+            0.0239326
+          ],
+          "scale": 0.76257
+        },
+        {
+          "name": "box",
+          "original_bbox": [
+            0.4026907,
+            0.4064542,
+            0.2138113
+          ],
+          "authored_bbox": [
+            0.2179629,
+            0.22,
+            0.1157289
+          ],
+          "scale": 0.54127
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.1170827,
+          0.16,
+          0.0239326
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1170827,
+          0.16,
+          0.0239326
+        ],
+        "target_bbox": [
+          0.2179629,
+          0.22,
+          0.1157289
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 67,
+      "directory": "067_put_the_orange_object_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the orange object in the bowl",
+      "concepts": [
+        "object",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_031391_cam1",
+        "cam2": "droid_realm_ep_031391_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2314073,
+            0.4503975,
+            0.440619
+          ],
+          "rot": [
+            0.1233562,
+            -0.7646653,
+            -0.533863,
+            0.3392058
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2940677,
+            -0.5341096,
+            0.4269243
+          ],
+          "rot": [
+            0.59185,
+            0.0769652,
+            -0.0085475,
+            0.8023197
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 68,
+      "directory": "068_pick_up_the_pen_from_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Pick up the pen from the cup and put it on the table.",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_053410_cam1",
+        "cam2": "droid_realm_ep_053410_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2818215,
+            0.6385262,
+            0.3137613
+          ],
+          "rot": [
+            0.0452655,
+            -0.5336004,
+            -0.8351375,
+            0.1255672
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2429605,
+            -0.486982,
+            0.3725216
+          ],
+          "rot": [
+            0.6105592,
+            -0.0404723,
+            -0.1155514,
+            0.7824496
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 69,
+      "directory": "069_put_the_masking_tape_on_the_plate",
+      "task_type": "stack",
+      "instruction": "Put the masking tape on the plate",
+      "concepts": [
+        "tape",
+        "plate"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_000372_cam1",
+        "cam2": "droid_realm_ep_000372_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2613583,
+            0.5692343,
+            0.4494302
+          ],
+          "rot": [
+            0.2087626,
+            -0.448092,
+            -0.7638699,
+            0.414891
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2849422,
+            -0.4951162,
+            0.4382849
+          ],
+          "rot": [
+            0.475047,
+            -0.1709281,
+            -0.3479852,
+            0.7899495
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "plate",
+          "original_bbox": [
+            0.5145043,
+            0.5145044,
+            0.0305586
+          ],
+          "authored_bbox": [
+            0.22,
+            0.22,
+            0.0130667
+          ],
+          "scale": 0.4276
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0501454,
+          0.0499654,
+          0.0115923
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0501454,
+          0.0499654,
+          0.0115923
+        ],
+        "target_bbox": [
+          0.22,
+          0.22,
+          0.0130667
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 70,
+      "directory": "070_put_the_yellow_cube_inside_the_blue_cup",
+      "task_type": "put",
+      "instruction": "Put the yellow cube inside the blue cup",
+      "concepts": [
+        "block",
+        "cup"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_041741_cam1",
+        "cam2": "droid_realm_ep_041741_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2279949,
+            -0.3302518,
+            0.2332371
+          ],
+          "rot": [
+            0.4030444,
+            -0.3610628,
+            -0.5269152,
+            0.6554001
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2473108,
+            0.4082189,
+            0.2479373
+          ],
+          "rot": [
+            0.3060099,
+            -0.4465181,
+            -0.7762301,
+            0.3231815
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 71,
+      "directory": "071_put_the_metal_object_with_the_orange_handle_in_the_black_bowl",
+      "task_type": "put",
+      "instruction": "Put the metal object with the orange handle in the black bowl",
+      "concepts": [
+        "object",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_003456_cam1",
+        "cam2": "droid_realm_ep_003456_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3015023,
+            0.4321499,
+            0.3875287
+          ],
+          "rot": [
+            0.2210131,
+            -0.5289604,
+            -0.7673137,
+            0.287374
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3009467,
+            -0.3400369,
+            0.4196606
+          ],
+          "rot": [
+            0.4852205,
+            -0.2113546,
+            -0.3362071,
+            0.779009
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 72,
+      "directory": "072_pick_the_pen_and_put_it_in_the_cup",
+      "task_type": "put",
+      "instruction": "Pick the pen and put it in the cup",
+      "concepts": [
+        "pen",
+        "cup"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_040405_cam1",
+        "cam2": "droid_realm_ep_040405_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2547054,
+            -0.3283672,
+            0.2081928
+          ],
+          "rot": [
+            0.4201436,
+            -0.1633558,
+            -0.3938232,
+            0.8010602
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3605138,
+            0.5384081,
+            0.3219366
+          ],
+          "rot": [
+            0.1524884,
+            -0.3878223,
+            -0.8515833,
+            0.3180363
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pen",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.1257811,
+            0.0112061,
+            0.0099033
+          ],
+          "authored_bbox": [
+            0.1189699,
+            0.0105993,
+            0.009367
+          ],
+          "scale": 0.94585
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1257811,
+          0.0112061,
+          0.0099033
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1189699,
+          0.0105993,
+          0.009367
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 0.94585
+      }
+    },
+    {
+      "rank": 73,
+      "directory": "073_take_the_pen_out_of_the_bowl_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the pen out of the bowl and put it on the table",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_055018_cam1",
+        "cam2": "droid_realm_ep_055018_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.5073443,
+            0.443846,
+            0.2622773
+          ],
+          "rot": [
+            0.0646006,
+            -0.6197597,
+            -0.7758697,
+            0.0987464
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1583277,
+            -0.6643227,
+            0.2837772
+          ],
+          "rot": [
+            0.5860051,
+            -0.1348086,
+            -0.1670677,
+            0.7813533
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 74,
+      "directory": "074_remove_the_marker_from_the_cup_and_place_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker from the cup and place it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_010696_cam1",
+        "cam2": "droid_realm_ep_010696_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.26522,
+            0.4144923,
+            0.3398272
+          ],
+          "rot": [
+            0.4292884,
+            -0.2672893,
+            -0.6811061,
+            0.5294926
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0894622,
+            -0.2849352,
+            0.4092347
+          ],
+          "rot": [
+            0.3958163,
+            -0.3707348,
+            -0.4229217,
+            0.7259631
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 75,
+      "directory": "075_pick_the_marker_from_the_bowl_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Pick the marker from the bowl and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_040877_cam1",
+        "cam2": "droid_realm_ep_040877_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3149431,
+            -0.2361819,
+            0.5668254
+          ],
+          "rot": [
+            0.3420296,
+            -0.1510557,
+            -0.3270754,
+            0.8678823
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3613826,
+            0.358984,
+            0.516256
+          ],
+          "rot": [
+            0.2399992,
+            -0.3176947,
+            -0.8088494,
+            0.4327043
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 76,
+      "directory": "076_pick_up_all_the_objects_surrounding_the_white_plate_and_arrange_them_on_",
+      "task_type": "pick",
+      "instruction": "Pick up all the objects surrounding the white plate and arrange them on the plate",
+      "concepts": [
+        "block"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_011608_cam1",
+        "cam2": "droid_realm_ep_011608_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3027617,
+            0.5369121,
+            0.1614529
+          ],
+          "rot": [
+            0.3153507,
+            -0.5151183,
+            -0.7024536,
+            0.3765184
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1360866,
+            -0.3767341,
+            0.1855324
+          ],
+          "rot": [
+            0.4941023,
+            -0.436352,
+            -0.256756,
+            0.7067787
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 77,
+      "directory": "077_put_the_orange_block_on_top_of_the_green_block",
+      "task_type": "stack",
+      "instruction": "Put the orange block on top of the green block",
+      "concepts": [
+        "block",
+        "block"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_044416_cam1",
+        "cam2": "droid_realm_ep_044416_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0678851,
+            -0.3460171,
+            0.2707407
+          ],
+          "rot": [
+            0.5101872,
+            -0.268695,
+            -0.3382515,
+            0.7437056
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0748373,
+            0.3776351,
+            0.2946578
+          ],
+          "rot": [
+            0.3651671,
+            -0.3800983,
+            -0.7461494,
+            0.4067424
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 78,
+      "directory": "078_remove_the_white_cloth_from_the_black_stand",
+      "task_type": "pick",
+      "instruction": "Remove the white cloth from the black stand",
+      "concepts": [
+        "cloth"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_004479_cam1",
+        "cam2": "droid_realm_ep_004479_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1217099,
+            0.3698937,
+            0.4149977
+          ],
+          "rot": [
+            0.1149868,
+            -0.2511037,
+            -0.9084587,
+            0.313732
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0523684,
+            -0.3105855,
+            0.3098339
+          ],
+          "rot": [
+            0.4117861,
+            -0.1836081,
+            -0.3796795,
+            0.8078142
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "cloth",
+          "original_bbox": [
+            0.1548719,
+            0.1548692,
+            0.0013929
+          ],
+          "authored_bbox": [
+            0.14,
+            0.1399976,
+            0.0012591
+          ],
+          "scale": 0.90397
+        }
+      ],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 79,
+      "directory": "079_put_the_blocks_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Put the blocks in the bowl",
+      "concepts": [
+        "block",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_011198_cam1",
+        "cam2": "droid_realm_ep_011198_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0582987,
+            0.4423514,
+            0.2795696
+          ],
+          "rot": [
+            0.1742327,
+            -0.4547028,
+            -0.7575002,
+            0.4348354
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1053616,
+            -0.4511399,
+            0.3031589
+          ],
+          "rot": [
+            0.5375006,
+            -0.1402481,
+            -0.1817035,
+            0.8114231
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 80,
+      "directory": "080_put_the_marker_into_the_cup",
+      "task_type": "put",
+      "instruction": "Put the marker into the cup",
+      "concepts": [
+        "marker",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_048256_cam1",
+        "cam2": "droid_realm_ep_048256_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.044383,
+            -0.2886695,
+            0.4456526
+          ],
+          "rot": [
+            0.4958725,
+            -0.3862099,
+            -0.5060912,
+            0.5906132
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0568005,
+            0.4419971,
+            0.3216333
+          ],
+          "rot": [
+            0.4007866,
+            -0.5645874,
+            -0.5649794,
+            0.4487867
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 81,
+      "directory": "081_put_the_lid_on_the_pan",
+      "task_type": "stack",
+      "instruction": "Put the lid on the pan",
+      "concepts": [
+        "lid",
+        "pan"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_019386_cam1",
+        "cam2": "droid_realm_ep_019386_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.117059,
+            0.4970365,
+            0.2076592
+          ],
+          "rot": [
+            0.2922263,
+            -0.5521227,
+            -0.7025259,
+            0.3409131
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2184833,
+            -0.3888698,
+            0.4974716
+          ],
+          "rot": [
+            0.4628943,
+            -0.1194043,
+            -0.2677133,
+            0.8365411
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pan",
+          "original_bbox": [
+            0.637829,
+            0.408069,
+            0.0998381
+          ],
+          "authored_bbox": [
+            0.22,
+            0.1407512,
+            0.0344362
+          ],
+          "scale": 0.34492
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.22,
+          0.1407512,
+          0.0344362
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 82,
+      "directory": "082_put_the_glass_lid_on_the_pot",
+      "task_type": "stack",
+      "instruction": "Put the glass lid on the pot",
+      "concepts": [
+        "lid",
+        "pot"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_000423_cam1",
+        "cam2": "droid_realm_ep_000423_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2645232,
+            0.5717773,
+            0.4415221
+          ],
+          "rot": [
+            0.1947114,
+            -0.4480124,
+            -0.7629778,
+            0.4233642
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2880536,
+            -0.489857,
+            0.4487202
+          ],
+          "rot": [
+            0.4624054,
+            -0.1634913,
+            -0.3528408,
+            0.7968408
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0761192,
+          0.0761192,
+          0.0330479
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 83,
+      "directory": "083_remove_the_glass_lid_from_the_pot",
+      "task_type": "pick",
+      "instruction": "Remove the glass lid from the pot.",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_043851_cam1",
+        "cam2": "droid_realm_ep_043851_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.134354,
+            -0.5227919,
+            0.4405995
+          ],
+          "rot": [
+            0.4892424,
+            -0.2133734,
+            -0.4370742,
+            0.7239336
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.420095,
+            0.6066743,
+            0.3000281
+          ],
+          "rot": [
+            0.2061997,
+            -0.5769694,
+            -0.7418281,
+            0.2725418
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 84,
+      "directory": "084_remove_the_silver_lid_from_the_silver_pot",
+      "task_type": "pick",
+      "instruction": "Remove the silver lid from the silver pot",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_054182_cam1",
+        "cam2": "droid_realm_ep_054182_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3611159,
+            0.4213689,
+            0.3603574
+          ],
+          "rot": [
+            0.3138786,
+            -0.6055279,
+            -0.6689371,
+            0.2955324
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2783081,
+            -0.4821802,
+            0.4704314
+          ],
+          "rot": [
+            0.5264588,
+            -0.4213425,
+            -0.358961,
+            0.645336
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 85,
+      "directory": "085_put_the_marker_in_the_mug_on_the_table",
+      "task_type": "put",
+      "instruction": "Put the marker in the mug on the table",
+      "concepts": [
+        "marker",
+        "mug"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_052057_cam1",
+        "cam2": "droid_realm_ep_052057_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2400412,
+            0.3920534,
+            0.2358683
+          ],
+          "rot": [
+            0.1018451,
+            -0.6308204,
+            -0.7643475,
+            0.0864065
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.4245089,
+            -0.261803,
+            0.3277643
+          ],
+          "rot": [
+            0.5978558,
+            -0.1591819,
+            -0.1960838,
+            0.7607764
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 86,
+      "directory": "086_remove_the_marker_out_of_the_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the marker out of the cup and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Wainscott_0_int",
+        "support": "Dining_Table",
+        "width": 0.5,
+        "depth": 0.5999999999999996
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_060840_cam1",
+        "cam2": "droid_realm_ep_060840_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3491553,
+            0.6135913,
+            0.5589339
+          ],
+          "rot": [
+            0.0909478,
+            -0.4893412,
+            -0.8449328,
+            0.1958628
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2702025,
+            -0.53521,
+            0.5396469
+          ],
+          "rot": [
+            0.4285845,
+            -0.1292883,
+            -0.276753,
+            0.8502986
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 87,
+      "directory": "087_remove_the_pen_from_the_mug_cup_and_place_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Remove the pen from the mug cup and place it on the table",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Drawers_Near_Table",
+        "width": 0.7,
+        "depth": 0.8
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_028757_cam1",
+        "cam2": "droid_realm_ep_028757_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1738267,
+            -0.3989919,
+            0.4837171
+          ],
+          "rot": [
+            0.4240406,
+            -0.1732974,
+            -0.3556291,
+            0.814669
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2101052,
+            0.4410571,
+            0.4689042
+          ],
+          "rot": [
+            0.1823695,
+            -0.5545505,
+            -0.7545924,
+            0.2996757
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 88,
+      "directory": "088_put_the_spoon_in_the_mug",
+      "task_type": "put",
+      "instruction": "Put the spoon in the mug",
+      "concepts": [
+        "spoon",
+        "mug"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_037226_cam1",
+        "cam2": "droid_realm_ep_037226_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3050982,
+            -0.3239822,
+            0.2453307
+          ],
+          "rot": [
+            0.4017851,
+            -0.1461449,
+            -0.2698316,
+            0.8627869
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2314344,
+            0.4011573,
+            0.2951129
+          ],
+          "rot": [
+            0.1835347,
+            -0.5333671,
+            -0.7669828,
+            0.3058954
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.0989419,
+          0.0221837,
+          0.0077984
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0989419,
+          0.0221837,
+          0.0077984
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 89,
+      "directory": "089_pick_up_the_orange_object_tool_and_put_it_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Pick up the orange object tool and put it in the bowl",
+      "concepts": [
+        "object",
+        "tool"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_062276_cam1",
+        "cam2": "droid_realm_ep_062276_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3321106,
+            0.4978257,
+            0.4950961
+          ],
+          "rot": [
+            0.1073489,
+            -0.3774449,
+            -0.877329,
+            0.2762343
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0677439,
+            -0.4647314,
+            0.485453
+          ],
+          "rot": [
+            0.4250582,
+            -0.2354457,
+            -0.3711296,
+            0.7912987
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "orange_object",
+          "reason": "receiver_capacity",
+          "original_bbox": [
+            0.05,
+            0.05,
+            0.05
+          ],
+          "authored_bbox": [
+            0.0244001,
+            0.0244001,
+            0.0244001
+          ],
+          "scale": 0.488
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0244001,
+          0.0244001,
+          0.0244001
+        ],
+        "target_bbox": [
+          0.1963141,
+          0.0280601,
+          0.0255603
+        ],
+        "uniform_scale": 0.488
+      }
+    },
+    {
+      "rank": 90,
+      "directory": "090_place_the_marker_in_the_mug",
+      "task_type": "put",
+      "instruction": "Place the marker in the mug",
+      "concepts": [
+        "marker",
+        "mug"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Table",
+        "width": 0.4,
+        "depth": 0.6499999999999999
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_059626_cam1",
+        "cam2": "droid_realm_ep_059626_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3225855,
+            0.5165134,
+            0.366372
+          ],
+          "rot": [
+            0.1710297,
+            -0.5230925,
+            -0.7981223,
+            0.2452018
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.3064057,
+            -0.3501289,
+            0.5380678
+          ],
+          "rot": [
+            0.287315,
+            -0.1347836,
+            -0.4626033,
+            0.8278174
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 91,
+      "directory": "091_put_the_spoon_in_the_cup",
+      "task_type": "put",
+      "instruction": "Put the spoon in the cup",
+      "concepts": [
+        "spoon",
+        "cup"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Dining_Table",
+        "width": 0.5999999999999999,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_014875_cam1",
+        "cam2": "droid_realm_ep_014875_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1892419,
+            0.2695819,
+            0.3154011
+          ],
+          "rot": [
+            0.1320854,
+            -0.4019459,
+            -0.7388778,
+            0.5244545
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.285037,
+            -0.290912,
+            0.2695344
+          ],
+          "rot": [
+            0.4734192,
+            -0.1914678,
+            -0.4207203,
+            0.7498058
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.0989419,
+          0.0221837,
+          0.0077984
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0989419,
+          0.0221837,
+          0.0077984
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 92,
+      "directory": "092_pick_up_the_lid_from_the_pot_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Pick up the lid from the pot and put it on the table.",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Circular_Table",
+        "width": 0.5999999999999996,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_016938_cam1",
+        "cam2": "droid_realm_ep_016938_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3618113,
+            0.4249845,
+            0.3385557
+          ],
+          "rot": [
+            0.2026003,
+            -0.4480365,
+            -0.8078302,
+            0.3250026
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2780387,
+            -0.4339409,
+            0.4044052
+          ],
+          "rot": [
+            0.4888226,
+            -0.1842885,
+            -0.3563662,
+            0.7746569
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 93,
+      "directory": "093_pick_up_the_pen_from_the_mug_cup_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Pick up the pen from the mug cup and put it on the table.",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_030250_cam1",
+        "cam2": "droid_realm_ep_030250_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            -0.0722161,
+            -0.8137026,
+            0.4063866
+          ],
+          "rot": [
+            0.6691634,
+            -0.1638115,
+            -0.2407004,
+            0.6837027
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1268764,
+            0.7565624,
+            0.2632836
+          ],
+          "rot": [
+            -0.458194,
+            -0.4813759,
+            -0.569363,
+            0.4839021
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 94,
+      "directory": "094_stack_up_the_cups",
+      "task_type": "stack",
+      "instruction": "Stack up the cups",
+      "concepts": [
+        "cup",
+        "cup"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_053805_cam1",
+        "cam2": "droid_realm_ep_053805_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.4557534,
+            0.521933,
+            0.3529911
+          ],
+          "rot": [
+            0.1171702,
+            -0.599534,
+            -0.7720266,
+            0.1755136
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.2963999,
+            -0.5238302,
+            0.4818812
+          ],
+          "rot": [
+            0.5208486,
+            -0.0902245,
+            -0.1835871,
+            0.8287775
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "stack",
+        "margin": 0.65,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.0640022,
+          0.0858475,
+          0.0646612
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 95,
+      "directory": "095_pick_up_the_orange_object_and_put_it_in_the_bowl",
+      "task_type": "put",
+      "instruction": "Pick up the orange object and put it in the bowl.",
+      "concepts": [
+        "object",
+        "bowl"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_058637_cam1",
+        "cam2": "droid_realm_ep_058637_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.3615103,
+            0.498113,
+            0.3651057
+          ],
+          "rot": [
+            0.0860997,
+            -0.5449914,
+            -0.820098,
+            0.1516923
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1002135,
+            -0.3860416,
+            0.6049155
+          ],
+          "rot": [
+            0.4224937,
+            -0.2455746,
+            -0.4181862,
+            0.7657105
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "bowl",
+          "original_bbox": [
+            0.4920784,
+            0.4337536,
+            0.1394474
+          ],
+          "authored_bbox": [
+            0.22,
+            0.193924,
+            0.0623446
+          ],
+          "scale": 0.44708
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 0,
+        "main_bbox_before_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "target_bbox": [
+          0.22,
+          0.193924,
+          0.0623446
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 96,
+      "directory": "096_remove_the_pen_from_the_mug",
+      "task_type": "pick",
+      "instruction": "Remove the pen from the mug",
+      "concepts": [
+        "pen"
+      ],
+      "scene": {
+        "name": "office_cubicles_left",
+        "support": "Office_Desk",
+        "width": 0.40000000000000036,
+        "depth": 0.6000000000000014
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_011689_cam1",
+        "cam2": "droid_realm_ep_011689_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0490572,
+            0.4759999,
+            0.1760047
+          ],
+          "rot": [
+            0.186766,
+            -0.5667991,
+            -0.6195357,
+            0.5099341
+          ]
+        },
+        "cam2": {
+          "pos": [
+            -0.0927064,
+            -0.4208339,
+            0.2428905
+          ],
+          "rot": [
+            0.7224241,
+            -0.1349934,
+            -0.4324839,
+            0.5223389
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 97,
+      "directory": "097_take_the_marker_from_the_bowl_and_put_it_on_the_table",
+      "task_type": "pick",
+      "instruction": "Take the marker from the bowl and put it on the table",
+      "concepts": [
+        "marker"
+      ],
+      "scene": {
+        "name": "Pomaria_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000036,
+        "depth": 0.5
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_006237_cam1",
+        "cam2": "droid_realm_ep_006237_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.2619249,
+            0.5900843,
+            0.2951614
+          ],
+          "rot": [
+            0.1503536,
+            -0.5152722,
+            -0.7968894,
+            0.2772286
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.1225345,
+            -0.3866954,
+            0.3194454
+          ],
+          "rot": [
+            0.4787955,
+            -0.2548661,
+            -0.4512275,
+            0.708655
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 98,
+      "directory": "098_put_the_marker_in_the_silver_pot",
+      "task_type": "put",
+      "instruction": "Put the marker in the silver pot",
+      "concepts": [
+        "marker",
+        "pot"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_056815_cam1",
+        "cam2": "droid_realm_ep_056815_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.0132292,
+            0.5178518,
+            0.659439
+          ],
+          "rot": [
+            0.2691112,
+            -0.5596053,
+            -0.7092869,
+            0.3336663
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0647709,
+            -0.6082895,
+            0.5040412
+          ],
+          "rot": [
+            0.6739064,
+            -0.0887979,
+            -0.0622622,
+            0.7308136
+          ]
+        }
+      },
+      "resized_assets": [
+        {
+          "name": "pot",
+          "original_bbox": [
+            0.3298483,
+            0.5298872,
+            0.2533404
+          ],
+          "authored_bbox": [
+            0.1369473,
+            0.22,
+            0.1051826
+          ],
+          "scale": 0.41518
+        }
+      ],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1369473,
+          0.22,
+          0.1051826
+        ],
+        "uniform_scale": 1.0
+      }
+    },
+    {
+      "rank": 99,
+      "directory": "099_pick_up_the_lid_from_the_pot_and_put_it_on_the_counter",
+      "task_type": "pick",
+      "instruction": "Pick up the lid from the pot and put it on the counter",
+      "concepts": [
+        "lid"
+      ],
+      "scene": {
+        "name": "Pomaria_0_int",
+        "support": "Coffee_Table",
+        "width": 0.5,
+        "depth": 0.45
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_020826_cam1",
+        "cam2": "droid_realm_ep_020826_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1946255,
+            0.5270237,
+            0.5110136
+          ],
+          "rot": [
+            0.0766537,
+            -0.5371423,
+            -0.8141561,
+            0.2067663
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0356009,
+            -0.483738,
+            0.410167
+          ],
+          "rot": [
+            0.4534541,
+            -0.2905185,
+            -0.3430739,
+            0.7695964
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": null
+    },
+    {
+      "rank": 100,
+      "directory": "100_put_the_blue_marker_inside_the_yellow_mug",
+      "task_type": "put",
+      "instruction": "Put the blue marker inside the yellow mug",
+      "concepts": [
+        "marker",
+        "mug"
+      ],
+      "scene": {
+        "name": "Benevolence_1_int",
+        "support": "Kitchen_Counter",
+        "width": 0.40000000000000013,
+        "depth": 0.40000000000000036
+      },
+      "camera_extrinsic_sources": {
+        "cam1": "droid_realm_ep_014231_cam1",
+        "cam2": "droid_realm_ep_014231_cam2"
+      },
+      "camera_extrinsics": {
+        "cam1": {
+          "pos": [
+            0.1259089,
+            0.2971815,
+            0.2455117
+          ],
+          "rot": [
+            0.2190684,
+            -0.4730865,
+            -0.7068589,
+            0.4780677
+          ]
+        },
+        "cam2": {
+          "pos": [
+            0.0942497,
+            -0.2592145,
+            0.2030329
+          ],
+          "rot": [
+            0.4266083,
+            -0.2753337,
+            -0.3528471,
+            0.7859361
+          ]
+        }
+      },
+      "resized_assets": [],
+      "receiver_capacity": {
+        "task_type": "put",
+        "margin": 1.15,
+        "yaw_degrees": 90,
+        "main_bbox_before_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "main_bbox_after_capacity_fit": [
+          0.1002858,
+          0.0126068,
+          0.012596
+        ],
+        "target_bbox": [
+          0.1127337,
+          0.1368154,
+          0.0639822
+        ],
+        "uniform_scale": 1.0
+      }
+    }
+  ]
+}

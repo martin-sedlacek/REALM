@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Place the marker in the mug
+instruction_obj_to_replace: marker
+instruction_target_to_replace: mug
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3225855
+    - 0.5165134
+    - 0.366372
+    rot:
+    - 0.1710297
+    - -0.5230925
+    - -0.7981223
+    - 0.2452018
+  cam2:
+    pos:
+    - 0.3064057
+    - -0.3501289
+    - 0.5380678
+    rot:
+    - 0.287315
+    - -0.1347836
+    - -0.4626033
+    - 0.8278174
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.088
+  - 0.143
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: mug
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.442
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.468
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.143
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1
+  - 0.0089092
+  - 0.0078734
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.192
+  - 0.572
+  - 0.0539367
+immutables: []

@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the lid from the black pot
+instruction_obj_to_replace: lid
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  office_cubicles_left:
+  - Office_Desk
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.4360216
+    - 0.4289603
+    - 0.358119
+    rot:
+    - 0.1058375
+    - -0.6124924
+    - -0.7743752
+    - 0.1182986
+  cam2:
+    pos:
+    - 0.0845126
+    - -0.7137756
+    - 0.6236854
+    rot:
+    - 0.3490042
+    - -0.1816629
+    - -0.3758425
+    - 0.8390096
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.088
+  - 0.132
+  - 0.066524
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.408
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.432
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.132
+  - 0.0562801
+immutables: []

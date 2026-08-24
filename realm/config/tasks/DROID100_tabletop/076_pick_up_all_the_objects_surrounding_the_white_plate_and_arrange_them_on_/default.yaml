@@ -1,0 +1,113 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Pick up all the objects surrounding the white plate and arrange them on the plate
+instruction_obj_to_replace: objects
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  Pomaria_0_int:
+  - Coffee_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3027617
+    - 0.5369121
+    - 0.1614529
+    rot:
+    - 0.3153507
+    - -0.5151183
+    - -0.7024536
+    - 0.3765184
+  cam2:
+    pos:
+    - 0.1360866
+    - -0.3767341
+    - 0.1855324
+    rot:
+    - 0.4941023
+    - -0.436352
+    - -0.256756
+    - 0.7067787
+main_objects:
+- type: PrimitiveObject
+  name: white_block
+  primitive_type: Cube
+  rgba:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.099
+  - 0.0750001
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.324
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.099
+  - 0.0562801
+immutables: []

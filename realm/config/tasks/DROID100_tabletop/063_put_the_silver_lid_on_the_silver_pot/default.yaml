@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the silver lid on the silver pot.
+instruction_obj_to_replace: silver lid
+instruction_target_to_replace: pot
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2787221
+    - -0.3400123
+    - 0.404015
+    rot:
+    - 0.5658601
+    - -0.0527236
+    - -0.3311593
+    - 0.7532304
+  cam2:
+    pos:
+    - 0.3263472
+    - 0.4579309
+    - 0.5259067
+    rot:
+    - 0.2488366
+    - -0.3256469
+    - -0.7858744
+    - 0.4630721
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.088
+  - 0.143
+  - 0.066524
+target_objects:
+- type: DatasetObject
+  name: pot
+  category: saucepot
+  model: ozrwwk
+  bounding_box:
+  - 0.1369473
+  - 0.22
+  - 0.1051826
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.442
+  - 0.1025913
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.468
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.143
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.192
+  - 0.572
+  - 0.0562801
+immutables: []

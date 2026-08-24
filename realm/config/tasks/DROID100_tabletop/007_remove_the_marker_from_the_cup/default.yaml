@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the marker from the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  Benevolence_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1963964
+    - -0.3943964
+    - 0.271717
+    rot:
+    - 0.4612037
+    - -0.1887553
+    - -0.3242294
+    - 0.8040758
+  cam2:
+    pos:
+    - 0.3554518
+    - 0.5541462
+    - 0.1855889
+    rot:
+    - 0.231883
+    - -0.4996989
+    - -0.7691486
+    - 0.3239472
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.088
+  - 0.088
+  - 0.056298
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.272
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.288
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1
+  - 0.0089092
+  - 0.0078734
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.088
+  - 0.0539367
+immutables: []

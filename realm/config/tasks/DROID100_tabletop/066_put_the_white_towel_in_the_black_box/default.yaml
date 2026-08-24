@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the white towel in the black box
+instruction_obj_to_replace: towel
+instruction_target_to_replace: box
+instruction_verb_to_replace: put
+supported_scenes:
+  office_cubicles_left:
+  - Circular_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.120028
+    - 0.3074377
+    - 0.2982238
+    rot:
+    - 0.3648425
+    - -0.3683224
+    - -0.5427235
+    - 0.6608175
+  cam2:
+    pos:
+    - 0.1221368
+    - -0.4264123
+    - 0.288013
+    rot:
+    - 0.6184695
+    - -0.1290729
+    - -0.4540738
+    - 0.6282139
+main_objects:
+- type: DatasetObject
+  name: towel
+  category: dishtowel
+  model: dtfspn
+  bounding_box:
+  - 0.1170827
+  - 0.16
+  - 0.0239326
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.132
+  - 0.11
+  - 0.0619663
+target_objects:
+- type: DatasetObject
+  name: box
+  category: storage_box
+  model: izcglf
+  bounding_box:
+  - 0.2179629
+  - 0.22
+  - 0.1157289
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.432
+  - 0.34
+  - 0.1078645
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.36
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.456
+  - 0.11
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.108
+  - 0.23
+  - 0.0562801
+immutables: []

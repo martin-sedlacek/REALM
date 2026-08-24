@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the red object in the bowl
+instruction_obj_to_replace: object
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3798649
+    - 0.5520971
+    - 0.3484699
+    rot:
+    - 0.1817793
+    - -0.4982885
+    - -0.7473906
+    - 0.4000902
+  cam2:
+    pos:
+    - 0.205506
+    - -0.3435116
+    - 0.3045914
+    rot:
+    - 0.5710208
+    - -0.1443308
+    - -0.2394403
+    - 0.7718628
+main_objects:
+- type: PrimitiveObject
+  name: red_object
+  primitive_type: Cube
+  rgba:
+  - 0.85
+  - 0.1
+  - 0.1
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.132
+  - 0.088
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.22
+  - 0.193924
+  - 0.0623446
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.432
+  - 0.272
+  - 0.0811723
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.288
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.456
+  - 0.088
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.108
+  - 0.184
+  - 0.0562801
+immutables: []

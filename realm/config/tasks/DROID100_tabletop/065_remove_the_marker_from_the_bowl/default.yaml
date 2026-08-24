@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the marker from the bowl.
+instruction_obj_to_replace: marker
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  office_cubicles_left:
+  - Circular_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3970673
+    - 0.6014957
+    - 0.4274327
+    rot:
+    - 0.0908769
+    - -0.5219022
+    - -0.8300975
+    - 0.1740623
+  cam2:
+    pos:
+    - 0.1891399
+    - -0.6400744
+    - 0.4676108
+    rot:
+    - 0.5191722
+    - -0.1133489
+    - -0.2256277
+    - 0.8165197
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.132
+  - 0.11
+  - 0.056298
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.432
+  - 0.34
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.36
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1
+  - 0.0089092
+  - 0.0078734
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.456
+  - 0.11
+  - 0.0539367
+immutables: []

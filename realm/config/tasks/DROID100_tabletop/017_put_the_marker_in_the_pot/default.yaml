@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the marker in the pot
+instruction_obj_to_replace: marker
+instruction_target_to_replace: pot
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.0046643
+    - -0.5731618
+    - 0.4767865
+    rot:
+    - 0.496259
+    - -0.1774406
+    - -0.3121454
+    - 0.7904474
+  cam2:
+    pos:
+    - 0.0742746
+    - 0.6442053
+    - 0.4598243
+    rot:
+    - 0.2061395
+    - -0.4225732
+    - -0.791008
+    - 0.3914648
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.088
+  - 0.11
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: pot
+  category: saucepot
+  model: ozrwwk
+  bounding_box:
+  - 0.1369473
+  - 0.22
+  - 0.1051826
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.34
+  - 0.1025913
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.36
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.11
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1
+  - 0.0089092
+  - 0.0078734
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.072
+  - 0.23
+  - 0.0539367
+immutables: []

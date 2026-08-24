@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Pick up the green object from the table and put it in the bowl
+instruction_obj_to_replace: object
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Drawers_Near_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1682843
+    - 0.4791162
+    - 0.4449862
+    rot:
+    - 0.3465162
+    - -0.5781257
+    - -0.6293175
+    - 0.3868548
+  cam2:
+    pos:
+    - -0.0380029
+    - -0.2980456
+    - 0.3991931
+    rot:
+    - 0.649535
+    - -0.3508212
+    - -0.3379385
+    - 0.5838034
+main_objects:
+- type: PrimitiveObject
+  name: green_object
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.7
+  - 0.25
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.154
+  - 0.176
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.22
+  - 0.193924
+  - 0.0623446
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.504
+  - 0.544
+  - 0.0811723
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.14
+  - 0.576
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.532
+  - 0.176
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.336
+  - 0.704
+  - 0.0562801
+immutables: []

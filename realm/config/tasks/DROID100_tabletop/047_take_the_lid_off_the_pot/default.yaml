@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Take the lid off the pot
+instruction_obj_to_replace: lid
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2587023
+    - 0.437675
+    - 0.5107674
+    rot:
+    - 0.3393978
+    - -0.4362619
+    - -0.6706457
+    - 0.4946908
+  cam2:
+    pos:
+    - 0.1250362
+    - -0.3986292
+    - 0.421816
+    rot:
+    - 0.4436179
+    - -0.0692314
+    - -0.3106099
+    - 0.8378136
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.088
+  - 0.143
+  - 0.066524
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.442
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.468
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.143
+  - 0.0562801
+immutables: []

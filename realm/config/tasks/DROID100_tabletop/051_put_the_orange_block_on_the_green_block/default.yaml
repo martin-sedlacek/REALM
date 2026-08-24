@@ -1,0 +1,138 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the orange block on the green block
+instruction_obj_to_replace: block
+instruction_target_to_replace: block
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_0_int:
+  - Coffee_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3494193
+    - -0.3928177
+    - 0.5612327
+    rot:
+    - 0.3831312
+    - -0.1303569
+    - -0.1894721
+    - 0.8946049
+  cam2:
+    pos:
+    - 0.4484544
+    - 0.5098926
+    - 0.5556596
+    rot:
+    - 0.012638
+    - -0.4449749
+    - -0.8898346
+    - 0.1001603
+main_objects:
+- type: PrimitiveObject
+  name: orange_block_1
+  primitive_type: Cube
+  rgba:
+  - 0.95
+  - 0.4
+  - 0.05
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.099
+  - 0.0750001
+target_objects:
+- type: PrimitiveObject
+  name: green_block_2
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.7
+  - 0.25
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.0750001
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.324
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.099
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.24
+  - 0.396
+  - 0.0562801
+immutables: []

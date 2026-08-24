@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the pen from the mug
+instruction_obj_to_replace: pen
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  office_cubicles_left:
+  - Office_Desk
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.0490572
+    - 0.4759999
+    - 0.1760047
+    rot:
+    - 0.186766
+    - -0.5667991
+    - -0.6195357
+    - 0.5099341
+  cam2:
+    pos:
+    - -0.0927064
+    - -0.4208339
+    - 0.2428905
+    rot:
+    - 0.7224241
+    - -0.1349934
+    - -0.4324839
+    - 0.5223389
+main_objects:
+- type: DatasetObject
+  name: pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1257811
+  - 0.0112061
+  - 0.0099033
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.088
+  - 0.132
+  - 0.0549517
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.408
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.432
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.132
+  - 0.0562801
+immutables: []

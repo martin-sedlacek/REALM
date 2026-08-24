@@ -1,0 +1,105 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the can from the sink
+instruction_obj_to_replace: can
+instruction_target_to_replace: ''
+instruction_verb_to_replace: pick
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - -0.0248006
+    - -0.3057528
+    - 0.4833548
+    rot:
+    - 0.388438
+    - -0.2064122
+    - -0.4444401
+    - 0.7803736
+  cam2:
+    pos:
+    - 0.3004111
+    - 0.380147
+    - 0.5050966
+    rot:
+    - 0.1656897
+    - -0.4417162
+    - -0.8235902
+    - 0.3148537
+main_objects:
+- type: DatasetObject
+  name: can
+  category: can
+  model: moeqjz
+  bounding_box:
+  - 0.1107923
+  - 0.1107923
+  - 0.1438354
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.132
+  - 0.1219177
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.408
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.432
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.132
+  - 0.0562801
+immutables: []

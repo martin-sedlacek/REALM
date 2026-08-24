@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the cup in the bowl
+instruction_obj_to_replace: cup
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  office_cubicles_left:
+  - Office_Desk
+camera_extrinsics:
+  cam1:
+    pos:
+    - -0.1769317
+    - 0.8000801
+    - 0.5538477
+    rot:
+    - 0.3789343
+    - -0.5827624
+    - -0.5905962
+    - 0.4098693
+  cam2:
+    pos:
+    - 0.1468247
+    - -0.6383146
+    - 0.5159535
+    rot:
+    - 0.6033749
+    - -0.1365321
+    - -0.1706068
+    - 0.7669361
+main_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: kitxam
+  bounding_box:
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.088
+  - 0.132
+  - 0.0823306
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.22
+  - 0.193924
+  - 0.0623446
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.408
+  - 0.0811723
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.432
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.132
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.192
+  - 0.528
+  - 0.0562801
+immutables: []

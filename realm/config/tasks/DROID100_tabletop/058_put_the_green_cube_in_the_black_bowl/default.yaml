@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the green cube in the black bowl
+instruction_obj_to_replace: cube
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1625404
+    - 0.4928727
+    - 0.6153558
+    rot:
+    - 0.2373393
+    - -0.347533
+    - -0.7948845
+    - 0.4370921
+  cam2:
+    pos:
+    - 0.0216054
+    - -0.4378634
+    - 0.366953
+    rot:
+    - 0.5945525
+    - -0.2223975
+    - -0.2484105
+    - 0.7316686
+main_objects:
+- type: PrimitiveObject
+  name: green_block
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.7
+  - 0.25
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.132
+  - 0.088
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.22
+  - 0.193924
+  - 0.0623446
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.432
+  - 0.272
+  - 0.0811723
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.288
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.456
+  - 0.088
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.108
+  - 0.184
+  - 0.0562801
+immutables: []

@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the yellow block in the cup
+instruction_obj_to_replace: block
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_0_int:
+  - Coffee_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2934585
+    - 0.6721401
+    - 0.4462671
+    rot:
+    - 0.0964754
+    - -0.6046866
+    - -0.7757327
+    - 0.1525953
+  cam2:
+    pos:
+    - 0.2664441
+    - -0.5418283
+    - 0.473439
+    rot:
+    - 0.5268001
+    - -0.0503876
+    - -0.117669
+    - 0.8402957
+main_objects:
+- type: PrimitiveObject
+  name: yellow_block
+  primitive_type: Cube
+  rgba:
+  - 0.9
+  - 0.8
+  - 0.1
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.099
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.324
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.099
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.24
+  - 0.396
+  - 0.0562801
+immutables: []

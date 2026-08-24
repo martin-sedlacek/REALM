@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Stack the cups
+instruction_obj_to_replace: cups
+instruction_target_to_replace: cups
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_0_int:
+  - Coffee_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1319692
+    - 0.3808116
+    - 0.4253101
+    rot:
+    - 0.2199301
+    - -0.4233707
+    - -0.7622358
+    - 0.4374752
+  cam2:
+    pos:
+    - 0.0387861
+    - -0.3107632
+    - 0.5297023
+    rot:
+    - 0.4697191
+    - -0.2746968
+    - -0.3917962
+    - 0.7418904
+main_objects:
+- type: DatasetObject
+  name: cup_1
+  category: mug
+  model: kitxam
+  bounding_box:
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.11
+  - 0.099
+  - 0.0823306
+target_objects:
+- type: DatasetObject
+  name: cup_2
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.36
+  - 0.306
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.1
+  - 0.324
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.38
+  - 0.099
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.24
+  - 0.396
+  - 0.0562801
+immutables: []

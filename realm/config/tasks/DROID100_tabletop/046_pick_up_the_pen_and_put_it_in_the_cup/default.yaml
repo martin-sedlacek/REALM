@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Pick up the pen and put it in the cup
+instruction_obj_to_replace: pen
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.4885381
+    - 0.4773589
+    - 0.4889492
+    rot:
+    - 0.0468194
+    - -0.4296074
+    - -0.8953506
+    - 0.1076696
+  cam2:
+    pos:
+    - -0.0256942
+    - -0.7050916
+    - 0.2522782
+    rot:
+    - 0.5366136
+    - -0.2804783
+    - -0.3612663
+    - 0.7091293
+main_objects:
+- type: DatasetObject
+  name: pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1189699
+  - 0.0105993
+  - 0.009367
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.088
+  - 0.11
+  - 0.0546835
+target_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.288
+  - 0.34
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_teaspoon
+  category: teaspoon
+  model: wzsvzv
+  bounding_box:
+  - 0.0989419
+  - 0.0221837
+  - 0.0077984
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.08
+  - 0.36
+  - 0.0538992
+- type: DatasetObject
+  name: distractor_masking_tape
+  category: masking_tape
+  model: vpgzne
+  bounding_box:
+  - 0.0501454
+  - 0.0499654
+  - 0.0115923
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.304
+  - 0.11
+  - 0.0557962
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.192
+  - 0.44
+  - 0.0562801
+immutables: []
