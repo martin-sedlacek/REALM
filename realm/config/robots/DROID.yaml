@@ -50,7 +50,7 @@ robots:
           mode: "binary"
           # No open_qpos/closed_qpos and no `inverted` override, and that is CORRECT for this asset
           # -- measured, not assumed. Job 191495, 2026-08-16, MODE=oglite, live droid_mounted build
-          # (scripts/debug_probes/verify_stock_gripper_grasp.py reproduces all of it):
+          # (verified against the stock gripper grasp path):
           #
           #   gripper DOF limits  prismatic [0, 0.05] m,  revolute [0, 0.7854] rad
           #   REALM action -1     -> lower limits [0,0,0,0]          -> jaw 80.1 mm  (OPEN)
@@ -77,4 +77,3 @@ robots:
           # The wrist camera in droid.usd authors 5.376 x 3.024, i.e. an 87.7 deg HFOV; letting
           # OmniGibson default it blows the wrist view up to ~150 deg.
           horizontal_aperture: 5.376
-

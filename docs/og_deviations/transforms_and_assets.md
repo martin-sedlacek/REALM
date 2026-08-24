@@ -257,7 +257,7 @@ positions), `utils/usd_utils.py:1866-1932` (`_get_all_relative_poses`, relative 
   rendered the cabinet the right way round.
   Measured pre-fix on task 8: handle cylinders at world `y = -0.953`, cabinet centre `y = -1.280`,
   `external_sensor0` at `y = -2.453`, `front · (cam − centre) = -0.82`.
-  Fixed in the **asset**, not here: `scripts/fix_drawer_base_link_frame.py` re-parameterises the
+  Fixed in the **asset**, not here: the release asset re-parameterises the
   cabinet so `root_local` is the identity and `:1043` skips as it does for every dataset asset. That
   edit is a change of coordinates — every prim pose and joint anchor relative to `/cabinet` is
   preserved to 1.4e-08 — so it is also a **no-op under OG 1.1.1** and cannot regress that tree.

@@ -24,7 +24,7 @@ import numpy as np
 ROBOT_OBS_PROFILES = {
     # Both droid.usd and droid_mounted.usd hold exactly ONE camera prim, /panda/gripper_link_camera/
     # Camera, so there is nothing here to renumber -- but the prim name is recorded anyway so the
-    # guard covers the stock asset too. Read with scripts/debug_probes/list_usd_cameras.py.
+    # guard covers the stock asset too.
     "DROID": dict(wrist_camera_link="gripper_link_camera", wrist_camera_idx=0,
                   wrist_camera_prim="Camera",
                   gripper_proprio_idx=7, gripper_open_qpos=0.0, gripper_closed_qpos=0.05),
@@ -43,7 +43,7 @@ ROBOT_OBS_PROFILES = {
     #
     # finger_joint follows the standard Robotiq 2F-85 convention: 0 rad = OPEN, 0.7854 rad = CLOSED.
     # Measured 2026-08-11 (job 189066) from the separation of the two inner_finger links once
-    # scripts/fix_robolab_link_origins.py had moved their origins onto the pad centroids:
+    # The shipped RoboLab asset has its finger origins on the pad centroids:
     #     0.0 rad -> 116.2 mm apart (open)     0.7854 rad -> 33.0 mm apart (shut)
     # These were the other way round until 2026-08-11, which fed pi0.5 an INVERTED gripper_state --
     # it is closed-loop on that signal, so it was told "closed" whenever the hand was open.

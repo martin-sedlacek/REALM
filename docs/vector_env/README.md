@@ -14,8 +14,7 @@ is upstream in OmniGibson 3.9.1. Root cause and fix are in
 **The bug: every scene-file object in scenes `idx != 0` is loaded exactly 100 m too high** --
 `INITIAL_SCENE_PRIM_Z_OFFSET` -- by stock OmniGibson 3.9.1. REALM then pins the breakfast table with
 a `FixedJoint` at that lifted pose, so the table is the one thing no later reset can bring back down.
-The task objects have nothing to rest on and fall to the floor. See `frames/montage_external.png`
-and `frames/montage_wrist.png`.
+The task objects had nothing to rest on and fell to the floor in the recorded investigation.
 
 > **Retracted:** this document previously said `apply_scene_fixes_from_cfg()` takes effect only in
 > scene 0, and ranked "object names carry a globally-numbered instance suffix" as the leading
@@ -66,8 +65,8 @@ binds and picks stock vs OG-lite:
 
 The original investigation used a temporary first-frame renderer that has since been removed from
 the release tree. The 2026-08-13 reproduction (job 190155) produced a montage indistinguishable
-from the committed `frames/montage_external.png`, confirming that the reported bug was live rather
-than a stale artifact.
+from the original investigation montage, confirming that the reported bug was live rather than a
+stale artifact. The large diagnostic frames were removed during release cleanup.
 
 **Never wrap the in-container command in `bash -lc`.** Apptainer binds `$HOME`, so a *login* shell
 re-sources the host `~/.bashrc`, prepends `~/miniconda3/bin` to PATH and shadows the container's
@@ -95,7 +94,7 @@ resident. On a 46 GB L40S with no policy server, 4 scenes are comfortable.
 
 ## What the scene fixes actually do: they work
 
-Measured 2026-08-13 with `scripts/clara/interactive/t1_scene_probe.py`, which wraps the real
+Measured 2026-08-13 with the now-removed per-scene investigation probe, which wrapped the real
 `apply_scene_fixes_from_cfg` and dumps the scene immediately either side of it, per member. At
 `num_envs=4`, task 0, stock container:
 
@@ -201,7 +200,7 @@ first) -- both **before** `apply_scene_fixes_from_cfg` ever runs. So the first r
 removal.
 
 Since scene 0 is affected too, this is not a vector-env bug at all. **Confirmed on the single-env
-production path** with `scripts/clara/interactive/t3_single_env_chair.py`: removal is correct after
+production path** with a single-environment chair probe: removal is correct after
 construction, then 2 of 2 resets bring the chair back. REALM calls `reset()` once per repeat, so
 every repeat after the first runs with an object the task config asked to delete -- 24 of 25 at the
 usual `--repeats 25`.
@@ -216,7 +215,7 @@ and a re-measurement off the vector integrity matrix read "env1 of 2 / **env2 of
 env1 clean". That is the same last-member fingerprint as the sibling init-queue eviction
 (PERTURBATIONS.md §2), so the obvious question was whether the two share a cause. **They do not.**
 
-`scripts/clara/interactive/t12_vec_chair.py` reports, per member, registry membership, stage
+A vector chair probe reported, per member, registry membership, stage
 validity, world pose and `_initial_file` membership. At `--num_envs 3`, before either fix:
 
 | phase | member 0 | member 1 | member 2 |
@@ -253,15 +252,15 @@ Several perturbations already call `update_initial_file()` for the same reason (
 
 Verified. `in_initial_file` is now `False` in every member at construction, and:
 
-```
-t12_vec_chair.py --num_envs 3 --resets 2
+```text
+# Vector probe: 3 environments, 2 resets
   PASS -- the removal of 'straight_chair_pmpwwi_0' survives 2 reset(s) in all 3 member(s).
-t3_single_env_chair.py --repeats 2
+# Single-environment probe: 2 repeats
   PASS -- the removal survives 2 reset(s).
 ```
 
 `n_objects` stays at 127 through construction and both resets in all three members, where before it
-went 127 -> 128 on the first reset. `t9_vbpose_nostopplay.py` V-SC and VSB-NOBJ still PASS at
+went 127 -> 128 on the first reset. The V-SC and VSB-NOBJ probes still passed at
 `--num_envs 2 --resets 3`, with check 1's stop/play accounting unchanged (1 cycle per perturbed
 reset for a `NEEDS_STOPPED_SIM` perturbation).
 
@@ -294,7 +293,7 @@ Because the fix lives in OG-lite, vector envs must now run with the OG-lite bind
 
 ### Verified
 
-OG-lite `ef7442b`, `num_envs=4`, task 0, with warmup -- `frames_fixed/montage_external.png`:
+OG-lite `ef7442b`, `num_envs=4`, task 0, with warmup:
 
 | | scene_0 | scene_1 | scene_2 | scene_3 |
 | --- | --- | --- | --- | --- |
@@ -341,7 +340,7 @@ predates that fix.
 ## Sustained stepping
 
 The first-frame smoke test proves construction and tiling; it takes one step, so it says nothing
-about stability. `scripts/clara/interactive/t5_vec_sustained.py` drives the vector env for a
+about stability. The sustained-vector investigation drove the vector env for a
 rollout's worth of steps and checks, every 50 steps, that no member has gone non-finite, that members
 stay pairwise **distinct** (a shared-state bug would collapse them onto each other), that the task
 objects stay on the table -- the regression guard for the 100 m z-offset -- and that per-step time is
@@ -387,11 +386,9 @@ Run 2026-08-13 (Clara, allocation 190155). Task 0 `put_green_block_into_bowl`, `
 perturbation, robot `DROID_robolab`, pi0.5 (`pi05_droid_jointpos`), `num_envs=4`, `repeats=25`,
 `max_steps=500`, horizon 8, render-on-demand ON, `MODE=oglite`.
 
-```bash
-ALLOC=<jobid> NUM_ENVS=4 REPEATS=25 MAX_STEPS=500 ROD=1 ROBOT=DROID_robolab \
-  RUN_ID=vec25_robolab EXPERIMENT=vec_pi05 \
-  ./scripts/clara/interactive/go vec_eval_full ./scripts/clara/interactive/t6_vec_eval.sh
-```
+The one-off launcher used for this historical run was removed during release cleanup. For the
+supported command, see
+[Performance and scaling](../../wiki/Performance-and-Scaling.md#running-vectorized-realm-391-at-full-speed).
 
 ### Result -- RETRACTED 2026-08-13, the SR is invalid
 
@@ -445,7 +442,7 @@ plus release. `task_progression == 1.0` therefore means the block really was pla
 
 The single failure is coherent: **run 24**, TP 0.60 = 3 of 5 stages, stalled at `MOVE_CLOSE`, with
 **3 object_drops** -- it grasped the block and lost it three times, then ran out the full 500 steps.
-`eval/run024_failure_sheet.png` shows exactly that: the arm reaches the block over and over, and the
+The run-024 failure review showed exactly that: the arm reaches the block over and over, and the
 block never leaves the table. It is a policy failure, not an infrastructure one.
 
 ### Desync worked
@@ -480,7 +477,7 @@ them similarly. Worth remembering if you ever treat per-wave results as independ
 
 Measured 2026-08-13 on a 46068 MiB L40S with the pi0.5 policy server resident (11839 MiB), which is
 the operating configuration -- REALM shares one card between the sim and the policy.
-`scripts/clara/interactive/t7_env_capacity.py` builds members one at a time and reports GPU memory
+A capacity investigation built members one at a time and reported GPU memory
 after each, so one run gives the per-scene cost instead of one run per candidate `num_envs`.
 
 | scenes loaded | GPU used | free | increment |
@@ -499,7 +496,7 @@ server on the card, ~14 without. **That extrapolation turned out to be pessimist
 ### Measured at 8 envs: it fits easily
 
 Full `RealmVectorEnvironment`, built *and played*, `DROID_robolab`, 100 shared steps
-(`t5_vec_sustained.py`):
+in the sustained-vector investigation:
 
 | | |
 | --- | --: |

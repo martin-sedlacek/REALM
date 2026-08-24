@@ -79,7 +79,7 @@ and does not bind the symlink's target -- so `/app/logs` resolves to nothing and
 2026-08-16). Under the retired `scripts/run_docker.sh` (`-v $(pwd):/app`), `logs` was a real
 directory and `/app/logs` worked, which is why older code used it.
 
-## The mounted robolab_v2 asset's dangling joint (`scripts/debug_probes/inspect_articulation_roots.py`)
+## The mounted robolab_v2 asset's dangling joint
 
 `--robot DROID_robolab_v2` died during construction for weeks:
 
@@ -133,9 +133,9 @@ exists.
 **Method that works, use it first next time:** replicate the consuming code's inference
 (`entity_prim.py:203-241`) offline with pxr on a login node — no Isaac, no GPU, seconds per asset. It
 prints `valid_root_links`, `root_link_name`, dangling targets and link reachability directly, instead
-of inferring them from USD topology. That is what `inspect_articulation_roots.py` does; the two repair
-scripts beside it are `fix_mounted_articulation_root.py` and `fix_mounted_table_joint.py`. A host
-`usd-core` is enough — the container is not needed. Three cluster runs went into two topology theories
+of inferring them from USD topology. The release removed the one-off inspection and repair scripts
+after recording their conclusions here. A host `usd-core` is enough — the container is not needed.
+Three cluster runs went into two topology theories
 that one offline replication settled immediately.
 
 **Open, cheap, unrelated to the fix:** `/panda/table` carries `physics:mass=0.0` alongside

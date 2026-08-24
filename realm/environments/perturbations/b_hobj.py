@@ -23,7 +23,7 @@ def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:
     and the per-reset factors multiplied.
 
     Measured on task 0 (put_green_block_into_bowl) before this fix, with
-    scripts/clara/interactive/t10_bhobj_props.py --resets 10:
+    A reset-compounding investigation measured:
 
         reset  1: mass 0.0270 -> 0.0569 kg   (2.1x baseline)
         reset  5: mass 0.0875 -> 0.2272 kg   (8.4x)

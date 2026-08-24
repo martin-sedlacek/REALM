@@ -3,7 +3,7 @@
 Written 2026-08-13 on Clara (L40S, 46068 MiB), allocation 190155. A snapshot, not a conclusion —
 several numbers below are confounded and say so. Companion to
 [README.md](README.md) (correctness, the z-offset bug, the 25-rollout eval) and
-[../perf/og391_step_profile.md](../perf/og391_step_profile.md) (single-env profile).
+the release-facing summary in [Performance and scaling](../../wiki/Performance-and-Scaling.md).
 
 All measurements are the **max-juice** configuration, which is the only one worth measuring because
 it is what a production eval runs:
@@ -214,7 +214,7 @@ REALM also has `carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing
 out** at `realm/sim_config.py:112`, and only in the `pt` branch, so it never applies to `rt`.
 
 **Unknown:** why the copy exists. Plausibly because Isaac mutates the referenced layer and sharing
-would leak edits across scenes. Dropping it is a one-line experiment, and `t1_scene_probe.py` (which
+would leak edits across scenes. Dropping it is a one-line experiment, and the scene probe (which
 caught the 100 m z-offset) would detect cross-scene contamination immediately.
 
 ---
@@ -245,7 +245,7 @@ would be a rewrite of its scene layer and is not proposed here.
 
 1. **Drop the per-scene `shutil.copyfile`** so all scenes reference one cached layer. One line;
    attacks the ~150 s/scene floor and is the precondition for instancing. Verify with
-   `t1_scene_probe.py` that scenes stay independent.
+   the historical scene probe that scenes stay independent.
 2. **Batch the play/stop in `import_scene`** — import all N with the sim stopped, then one
    `play()` / `initialize()` each / one `step()` / `stop()`. Kills the O(N^2) growth. REALM's vector
    env already batches the *scene fixes* this way for the same reason, so the pattern exists.
@@ -300,16 +300,10 @@ the robot YAML's `sensor_config: VisionSensor` block applies to robot cameras, s
 
 ## Reproduction
 
-```bash
-# capacity: builds members one at a time, reports GPU memory after each
-MAX_ENVS=12 ./scripts/clara/interactive/go capacity ./scripts/clara/interactive/t7_capacity.sh
-
-# profiled throughput at a given N (max juice, ROD)
-NUM_ENVS=8 STEPS=96 ./scripts/clara/interactive/go scaling_n8 ./scripts/clara/interactive/t8_scaling.sh
-
-# same as an sbatch on another node
-NUM_ENVS=8 sbatch --export=ALL,NUM_ENVS=8,STEPS=96 scripts/clara/interactive/sbatch_scaling.sh
-```
+The historical capacity probe tested up to 12 environments, and the scaling probe used
+`NUM_ENVS=8` for 96 steps. Those one-off measurement launchers were removed during release cleanup.
+For the supported vectorized evaluation command and full-speed settings, see
+[Performance and scaling](../../wiki/Performance-and-Scaling.md#running-vectorized-realm-391-at-full-speed).
 
 ## Uncommitted work this rests on
 
@@ -319,6 +313,6 @@ At time of writing, both repos have working-tree changes:
 - **REALM_og391**: the robolab 2-camera filter (`DROID_robolab.yaml`, `_v2.yaml`,
   `inference/utils.py`, `env_dynamic.py`), `env_vector.py`'s `on_first_env_built` hook, the switch of
   the default robot to `DROID_robolab` across the harness, and the untracked
-  `t8_vec_scaling.py` / `t8_scaling.sh` / `sbatch_scaling.sh`.
+  The one-off scaling harness was removed during release cleanup.
 
 None of it is committed yet.

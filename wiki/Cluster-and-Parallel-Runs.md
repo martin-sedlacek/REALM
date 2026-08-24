@@ -106,7 +106,7 @@ Without `--repeats` it cannot know the expected count, so pass it.
 > `[warn] no EXIT_CODE marker found (run may still be in flight)` and the **whole verdict is FAIL**,
 > however clean the run was and however complete the artifacts. Confirmed 2026-08-16 against a
 > perfectly good `debug` run: artifacts `pass`, log `FAIL`, exit 1. This is deliberate — an unmarked
-> log might be a truncated one, and `t11_eval_gate.sh` tests for exactly that — but it is
+> log might be a truncated one; the release gate treats that as a failure — but it is
 > indistinguishable from "your run was fine, you just did not use `go`".
 >
 > So: produce the log with `go`, or **omit the log argument** and check the artifacts alone, which

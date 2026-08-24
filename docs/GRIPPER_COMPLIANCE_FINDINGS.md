@@ -1,7 +1,7 @@
 # Robotiq 2F-85 compliance in REALM — what was tried, what failed, what had potential
 
-Written 2026-08-15, at the point the work was parked. All code changes were reverted; this document
-and the diagnostic probes under `scripts/debug_probes/` are what survive.
+Written 2026-08-15, at the point the work was parked. All code changes were reverted. The temporary
+diagnostic probes were removed during release cleanup; this document preserves their conclusions.
 
 **The goal:** make the 2F-85's fingertips visibly bend inward when pressed against a surface, as they
 do on the real gripper and reportedly in RoboLab.
@@ -231,8 +231,8 @@ REALM's tasks depend on**, each verified still present:
 | `7c59ed5` | articulation placed by ROOT LINK, not whichever prim was read |
 | `ec7373b` | exported asset's up axis matched to the stage's — **the drawer fix** |
 
-**Kept:** everything under `scripts/debug_probes/` (the measurement harness and its validated
-observables), this document, `CHANGE_LEDGER.md`, and the `docs/og_deviations/` audit chapters.
+**Kept:** this document, `CHANGE_LEDGER.md`, and the `docs/og_deviations/` audit chapters. The
+one-off measurement harness was removed before release.
 
 ### Restoring the fix
 

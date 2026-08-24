@@ -59,7 +59,7 @@ robots:
     # unpaired, the stale index would just make extract_from_obs fall back to "the first camera on
     # the robot" with a printed warning and a clean exit code.
     #
-    # v2 comes out of the same converter (scripts/convert_robolab_gripper_usd.py) as v1 and differs
+    # v2 was produced from the same vendor source as v1 and differs
     # only in geometry, so it is ASSUMED to name its cameras the same way; assert_wrist_camera()
     # is what keeps that assumption from being silent.
     include_sensor_names: ["wrist_camera_flipped"]
@@ -124,7 +124,7 @@ robots:
           # override added on 2026-08-11 from exactly that mistake inverted the gripper for a full
           # batch (og391_gravfix_robolab) before the videos showed the jaws clamped shut throughout.
           # Only trust a separation measured between the two inner_finger links AFTER
-          # scripts/fix_robolab_link_origins.py has put their origins on the pads.
+          # The shipped asset places their origins on the pads.
     sensor_config:
       VisionSensor:
         sensor_kwargs:

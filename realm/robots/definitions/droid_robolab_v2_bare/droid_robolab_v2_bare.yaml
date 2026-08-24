@@ -10,7 +10,7 @@
 # 1.1.1 could not use. The result is a single actuated DOF whose followers can flex, so the pads
 # comply on contact instead of behaving as a rigid jaw.
 #
-# The asset is produced from the vendor file by scripts/convert_robolab_gripper_usd.py, which
+# The asset was produced from the RoboLab vendor file; the release keeps the resulting USD, which
 # flattens the gripper bodies up to /panda (OmniGibson only treats *direct* Xform children of the
 # robot prim as links). Do not point usd_path at the raw robolab file.
 #

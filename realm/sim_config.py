@@ -56,7 +56,7 @@ def set_sim_config(robot="DROID"):
     #   - runtime: clean across 4 pi0.5 rollouts and several debug runs, all four artifacts written,
     #     collisions row matching the stock container;
     #   - speed: -31% of Simulator.step median under pi0.5, -9% under debug (the fold's value scales
-    #     with contact load). See docs/perf/og391_step_profile.md sections 9 and 10.
+    #     with contact load). See wiki/Performance-and-Scaling.md.
     # Set REALM_INCREMENTAL_CONTACT_CACHE=0 to go back to the batched path.
     gm.INCREMENTAL_CONTACT_CACHE = os.environ.get("REALM_INCREMENTAL_CONTACT_CACHE", "1") == "1"
     # OG-lite drops bodies further than PROXIMITY_GATE_RADIUS from every robot out of the contact
