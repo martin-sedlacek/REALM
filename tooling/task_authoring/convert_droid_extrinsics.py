@@ -17,9 +17,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = (
     REPO_ROOT / "realm/config/env/external_sensors/camera_extrinsics_droid_realm.yaml"
 )
-DEFAULT_REJECTIONS = (
-    REPO_ROOT / "realm/config/env/external_sensors/camera_extrinsics_droid_realm_rejected.json"
-)
 NAME_PATTERN = re.compile(r"^droid_v2_(ep_\d+)_(cam[12])$")
 CV_TO_OG = np.diag([1.0, -1.0, -1.0])
 WORKSPACE_PROBE = np.array([0.55, 0.0, 0.10])
@@ -67,7 +64,9 @@ def rejection_reasons(pair: dict[str, dict[str, list[float]]]) -> list[str]:
     return reasons
 
 
-def convert(source: Path, output: Path, rejection_output: Path) -> dict[str, int]:
+def convert(
+    source: Path, output: Path, rejection_output: Path | None = None
+) -> dict[str, int]:
     """Convert, filter, and write a REALM-ready paired pose catalogue."""
     raw_poses = load_camera_extrinsics(source)
     episodes: dict[str, dict[str, dict[str, list[float]]]] = {}
@@ -101,7 +100,10 @@ def convert(source: Path, output: Path, rejection_output: Path) -> dict[str, int
         rot = ", ".join(f"{value:.7f}" for value in pose["rot"])
         lines.extend((f"{name}:", f"  pos: [{pos}]", f"  rot: [{rot}]", ""))
     output.write_text("\n".join(lines), encoding="utf-8")
-    rejection_output.write_text(json.dumps(rejected, indent=2) + "\n", encoding="utf-8")
+    if rejection_output is not None:
+        rejection_output.write_text(
+            json.dumps(rejected, indent=2) + "\n", encoding="utf-8"
+        )
     return {
         "source_poses": len(raw_poses),
         "source_episodes": len(episodes),
@@ -120,7 +122,11 @@ def main() -> None:
         help="Path to the archived raw T_cam_base YAML; it is intentionally not kept in REALM.",
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--rejections", type=Path, default=DEFAULT_REJECTIONS)
+    parser.add_argument(
+        "--rejections",
+        type=Path,
+        help="Optional path for a rejected-episode audit JSON.",
+    )
     args = parser.parse_args()
     result = convert(args.source, args.output, args.rejections)
     print(json.dumps(result, indent=2))
