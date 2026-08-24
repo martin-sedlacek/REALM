@@ -18,11 +18,11 @@ Your job: update the cluster scripts so REALM evaluations run on this cluster ag
 | Thing | Path |
 | --- | --- |
 | Repo | `/home/sedlam56/projects/REALM` (branch `port-to-og391`) |
-| New Apptainer image | `/home/sedlam56/projects/REALM/realm_og391.sif` (13 GB) |
+| New Apptainer image | `/home/sedlam56/projects/REALM/realm.sif` (13 GB) |
 | New BEHAVIOR-1K 3.9.1 dataset | `/home/sedlam56/projects/REALM/data/datasets_og391` |
 | Old 1.1.1 dataset — **do not touch or delete** | `/home/sedlam56/projects/REALM/data/datasets` |
-| Image definition (reference for what is inside the sif) | `.docker/realm_og391.def` |
-| Docker equivalent (reference) | `.docker/realm_og391.Dockerfile` |
+| Image definition (reference for what is inside the sif) | `.docker/realm.def` |
+| Docker equivalent (reference) | `.docker/realm.Dockerfile` |
 
 ### What changed in the image, and why the scripts break
 
@@ -62,21 +62,21 @@ trusting the list blindly.
    storage there instead. Verify a second run is faster than the first.
 4. **`scripts/run_apptainer.sh` uses `apptainer shell`, which bypasses `%runscript`**, so the conda env
    is NOT activated and you land on the base Python 3.13 with no omnigibson. Activate explicitly.
-5. **`REALM_SIF`** must point at `realm_og391.sif`.
+5. **`REALM_SIF`** must point at `realm.sif`.
 6. **OG-lite bind path**: `--bind ../OG-lite:/omnigibson-src` → `/behavior-src/OmniGibson`
    (6 scripts). Note OG-lite is still a 1.1.1 fork and will not work against 3.9.1 regardless — wire
    the path correctly but do not spend time trying to make `--og-lite` runs succeed.
 7. **Runtime pip installs**: `apptainer_eval()` runs `pip install json_numpy zmq msgpack openai` every
    job. In this image `zmq`, `msgpack` and `openai` are already present; only **`json_numpy`** is
    missing. On a read-only sif these installs land in tmpfs and are thrown away each job. Either drop
-   the redundant ones, or better, add `json_numpy` to `.docker/realm_og391.def` and remove the line
+   the redundant ones, or better, add `json_numpy` to `.docker/realm.def` and remove the line
    (rebuilding the sif is a separate, larger task — coordinate before doing it).
 
 ### Constraints
 
 - **Do not modify anything under `data/`.** The datasets are large and were transferred manually.
   In particular `data/datasets` (1.1.1) must stay intact — the old image still uses it.
-- **Do not rebuild or overwrite `realm_og391.sif`** without asking; it was built and checksum-verified
+- **Do not rebuild or overwrite `realm.sif`** without asking; it was built and checksum-verified
   off-cluster.
 - Edit scripts **in place** on branch `port-to-og391` (the branch is the 1.1.1-vs-3.9.1 switch), rather
   than adding parallel `*_og391.sh` variants — unless told otherwise.
@@ -91,12 +91,12 @@ Cheap checks first, in order:
 cd /home/sedlam56/projects/REALM
 
 # 1. Image sanity (no GPU, no job needed)
-apptainer test realm_og391.sif
+apptainer test realm.sif
 
 # 2. Env + dataset + robot registry resolve
 apptainer exec --nv \
   --bind $PWD:/app --bind $PWD/data/datasets_og391:/data \
-  realm_og391.sif bash -lc '
+  realm.sif bash -lc '
     . /opt/conda/etc/profile.d/conda.sh && conda activate behavior
     python -c "
 import omnigibson as og

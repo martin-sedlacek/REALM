@@ -20,20 +20,13 @@ So "installing REALM" means three things:
 
 Plus a GPU. REALM does not run on CPU in any useful sense.
 
-> **Heads up before you follow the repo README.** Its install path (`./setup.sh --docker --dataset`)
-> **does not work on this branch** — it builds from `.docker/realm.Dockerfile` and `.docker/realm.def`,
-> and neither file exists any more; only the `realm_og391` pair does. Two scripts also tell you to run
-> `./scripts/download_dataset.sh`, which does not exist either. See
-> [Known issues](Known-Issues-and-Gotchas). The path documented on this page is the one that is
-> actually used.
-
 ## 1. The container image
 
-The image is `realm_og391.sif`, roughly 13 GB. Build recipes are in the repo and kept in sync:
+The image is `realm.sif`, roughly 13 GB. Build recipes are in the repo and kept in sync:
 
-- `.docker/realm_og391.def` — Apptainer, `Bootstrap: docker`, from `stanfordvl/behavior:3.9.1`
-- `.docker/realm_og391.Dockerfile` — the Docker counterpart
-- `.docker/og391-constraints.txt` — the version pins that make the stack cohere
+- `.docker/realm.def` — Apptainer, `Bootstrap: docker`, from `stanfordvl/behavior:3.9.1`
+- `.docker/realm.Dockerfile` — the Docker counterpart
+- `.docker/constraints.txt` — the version pins that make the stack cohere
 
 Both recipes start from the upstream BEHAVIOR 3.9.1 image, install the staged OG-lite OmniGibson
 package wholesale, then install the robotics and logging dependencies plus the vendored
@@ -48,7 +41,7 @@ First stage OG-lite, then build from the repository root:
 
 ```sh
 ./scripts/stage_oglite_for_build.sh
-apptainer build realm_og391.sif .docker/realm_og391.def
+apptainer build realm.sif .docker/realm.def
 ```
 
 > **Two caveats, and they are the reason there is no one-line install.**
@@ -66,7 +59,7 @@ Sanity-check an image without a GPU or a job — it checks installed package ver
 markers:
 
 ```sh
-apptainer test --bind /path/to/datasets:/data realm_og391.sif
+apptainer test --bind /path/to/datasets:/data realm.sif
 ```
 
 `%test` deliberately does **not** import `omnigibson` (importing it asserts that the data path
@@ -115,57 +108,17 @@ run this, **none** of REALM's robots are registered and even `--robot DROID` wil
 
 ## 4. Check that paths resolve
 
-Every harness script resolves its paths through `scripts/clara/lib/paths.sh`. Print what everything
-resolved to, and whether it exists:
+The portable Apptainer launcher uses two explicit environment variables:
 
 ```sh
-bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
+export REALM_SIF=/path/to/realm.sif
+export REALM_DATA_PATH=/path/to/realm/data
+./scripts/run_apptainer.sh
 ```
 
-Each path line is marked `ok` or `MISSING` (the leading `(cwd)` line is informational). This is the
-first thing to run when something behaves oddly, and it is cheap.
-
-Only three of them are prerequisites — `REALM_SIF`, `REALM_DATA` and `REALM_LOGS`, which are what
-`rr` refuses to start without. **`REALM_APPDATA` reading `MISSING` on a fresh checkout is normal:**
-it is the per-checkout shader cache, and `rr` creates it on first run.
-
-### Pointing it at your machine
-
-Only `REALM_ROOT` is derived from the script's own location. **Everything else hangs off one shared
-store, which is hardcoded to the original author's path.** So on any other machine the single most
-useful override is:
-
-```sh
-export REALM_SHARED_OG391=/your/shared/store
-```
-
-with that directory laid out as `realm_og391.sif`, `data/datasets_og391/`, `logs/` and
-`stock_patch/`. That one variable fixes the image, dataset, log, stock-patch and OG-lite lookups
-together. Alternatively `realm_og391.sif`, `data/datasets/` and `logs/` inside the checkout itself
-are tried first, so a self-contained clone also resolves without any variable set.
-
-### Why the overrides have an `_OG391` suffix
-
-`paths.sh` deliberately does **not** honour `REALM_ROOT`, `REALM_SIF` or `REALM_LOGS` from the
-environment. On the machine this was developed on, the shell profile exports those names pointing at
-a **pre-port OmniGibson 1.1.1 tree and image** — so honouring them would silently select the wrong
-container and the wrong code, with no error.
-
-If you need to override a path, use the suffixed name:
-
-| Override | Selects |
-|---|---|
-| `REALM_SHARED_OG391` | the shared store the other defaults hang off |
-| `REALM_SIF_OG391` | the container image |
-| `REALM_DATA_OG391` | the dataset directory (→ `/data`) |
-| `REALM_LOGS_OG391` | the log directory (→ `/logs`) |
-| `REALM_APPDATA_OG391` | the cache directory (→ `/cache`) |
-| `REALM_OGLITE_OG391` | the OG-lite fork used by `MODE=oglite` |
-
-`REALM_ROOT` is always the checkout that `paths.sh` itself lives in. That is deliberate: it is what
-makes **git worktrees** work. An earlier version named the main checkout absolutely, so a worktree's
-scripts bound the *main* checkout at `/app` — meaning edits made in the worktree had no effect on the
-run, silently, and fixes got tested against code that had never been changed.
+`REALM_DATA_PATH` is the parent directory containing `datasets/` and the writable `isaac-sim/`
+cache directories. The launcher binds `REALM_DATA_PATH/datasets` to `/data`. `setup.sh --apptainer`
+sets the same variables when it installs an image.
 
 ## 5. A GPU allocation
 
@@ -179,17 +132,9 @@ salloc --no-shell --job-name=realm-interactive --partition=l40s --nodes=1 \
 
 Then see [Quick start](Quick-Start).
 
-> ### The harness under `scripts/clara/` is site-specific
->
-> "clara" is the name of the cluster REALM is developed on. The scripts under
-> `scripts/clara/interactive/` — including `rr`, which every other page on this wiki uses — encode
-> that site's partition names, GPU types, shared-store layout and module conventions.
->
-> **They are the working reference, not a portable installer.** On a different cluster you will need
-> to adapt at least the `salloc` line, the paths in `scripts/clara/lib/paths.sh`, and anything that
-> names an absolute location outside the repo. The *structure* transfers — bind the repo at `/app`,
-> the dataset at `/data`, a log directory at `/logs`, and run through the image's runscript — and
-> `rr` is short enough to read end to end before adapting it.
+Cluster-specific launch harnesses are intentionally not distributed with the repository. Adapt the
+portable launcher to bind the checkout at `/app`, the dataset at `/data`, and writable cache and log
+directories for your scheduler.
 >
 > There is currently no site-neutral launcher. If you write one, that is a welcome contribution.
 

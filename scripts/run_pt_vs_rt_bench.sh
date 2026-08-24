@@ -18,8 +18,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REALM_ROOT=$( cd -- "$( dirname -- "${SCRIPT_DIR}" )" &> /dev/null && pwd )
 OG_LITE_DIR="$REALM_ROOT/../OG-lite"
 
-# Image built from .docker/realm_og391.Dockerfile (base: stanfordvl/behavior:3.9.1).
-REALM_IMAGE="${REALM_IMAGE:-realm:og391}"
+# Image built from .docker/realm.Dockerfile (base: stanfordvl/behavior:3.9.1).
+REALM_IMAGE="${REALM_IMAGE:-realm:latest}"
 # OmniGibson lives at /behavior-src/OmniGibson in the 3.9.1 image (was /omnigibson-src in 1.1.1).
 OG_SRC_MOUNT=/behavior-src/OmniGibson
 

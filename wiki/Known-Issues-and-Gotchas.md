@@ -87,13 +87,13 @@ Moving from OmniGibson 1.1.1 to 3.9.1 made rollout stepping substantially faster
 The repo has two eras: pre-port (OmniGibson 1.1.1) and post-port (3.9.1). Several user-facing
 artifacts were never updated.
 
-### The README's install path does not work
+### The setup dataset path remains stale
 
 `./setup.sh --docker --dataset` builds from `.docker/realm.Dockerfile`, and
-`./setup.sh --apptainer` from `.docker/realm.def`. **Neither file exists** — `.docker/` contains only
-the `realm_og391` pair plus a constraints file. `setup.sh` also downloads the dataset through a
+`./setup.sh --apptainer` from `.docker/realm.def`. Both recipes use `.docker/constraints.txt`.
+The container recipe names are current, but `setup.sh` downloads the dataset through a
 `micromamba` environment that does not exist in the 3.9.1 image, and writes path variables into your
-`~/.bashrc` that the current harness deliberately ignores.
+`~/.bashrc`.
 
 Use [Installation](Installation) instead.
 
@@ -108,7 +108,7 @@ It runs `python -u realm/eval.py` with flags. `realm/eval.py` is a library modul
 and no argument parser. Some of the flags it passes (`--model`, a value-taking `--multi-view`) do not
 exist on any parser in the repo.
 
-### The older cluster pipelines are broken against this image
+### Older private cluster pipelines are broken against this image
 
 `scripts/cluster_evals/`, `scripts/karolina/`, `scripts/clara/lib/apptainer.sh` and several
 `scripts/clara/run_*.sh` still activate `micromamba run -n omnigibson`. The 3.9.1 image uses a conda

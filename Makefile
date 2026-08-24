@@ -243,9 +243,9 @@ put_clara: ## Put source to remote source
 	    --exclude /.claude \
 		. sedlam56@login01.clara.ciirc.cvut.cz:/home/sedlam56/projects/REALM
 
-put_sif_clara: ## Put the og391 Apptainer image to clara (put_clara excludes *.sif)
+put_sif_clara: ## Put the REALM Apptainer image to clara (put_clara excludes *.sif)
 	rsync -av --partial --info=progress2 \
-		realm_og391.sif sedlam56@login01.clara.ciirc.cvut.cz:/home/sedlam56/projects/REALM/
+		realm.sif sedlam56@login01.clara.ciirc.cvut.cz:/home/sedlam56/projects/REALM/
 
 # The BEHAVIOR-1K 3.9.1 dataset (behavior-1k-assets/ + omnigibson-robot-assets/) replaces the 1.1.1
 # assets/ + og_dataset/ layout. It goes to datasets_og391/ so the existing datasets/ -- still needed

@@ -67,7 +67,7 @@ REALM_LOGS=/path/to/your/logs uv run streamlit run realm_viewer/dashboard.py
 ```
 
 > **The viewer wants `REALM_LOGS`, which is exactly the variable the run harness deliberately
-> ignores** (it reads `REALM_LOGS_OG391` instead — see [Installation](Installation)). Both are
+> ignores** (it reads `REALM_LOGS` instead — see [Installation](Installation)). Both are
 > correct in their own repository; they are different tools that happen to have collided on a name.
 > Set `REALM_LOGS` for the viewer and do not expect it to affect a run.
 

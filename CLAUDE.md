@@ -9,7 +9,7 @@ directory is the maintained operator documentation — prefer pointing at it ove
 A simulation benchmark for evaluating generalization of robotic manipulation policies (VLA models
 such as Pi0/Pi0.5 via openpi, and DreamZero). Ten manipulation tasks are evaluated against 16
 perturbation types (visual, semantic, behavioral) on OmniGibson **3.9.1** / IsaacSim. Everything
-sim-side runs inside a container (`.docker/realm_og391.Dockerfile` / `realm_og391.def`); nothing
+sim-side runs inside a container (`.docker/realm.Dockerfile` / `.docker/realm.def`); nothing
 here is pip-installable — code runs with the repo on `PYTHONPATH`.
 
 ## The one rule that governs all changes

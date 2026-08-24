@@ -76,24 +76,24 @@ RUN test -d /opt/oglite/omnigibson || { echo "OG-lite not staged; run scripts/st
     grep -q "if not light_fix:" /behavior-src/OmniGibson/omnigibson/objects/dataset_object.py
 
 # Keep OmniGibson's own pins (numpy<2, torch 2.7, pydantic) intact.
-COPY .docker/og391-constraints.txt /opt/og391-constraints.txt
+COPY .docker/constraints.txt /opt/realm-constraints.txt
 
 # dm_control / dm_robotics stack. Pinned to 0.9.0 because 0.10.0 requires numpy>=2,
 # which OmniGibson 3.9.1 forbids (numpy<2.0.0,>=1.23.5). 0.9.0 pulls dm-control 1.0.15.
-RUN $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
     dm-robotics-transformations==0.9.0 \
     dm-robotics-geometry==0.9.0 \
     dm-robotics-controllers==0.9.0
 
-RUN $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
     dm-robotics-moma==0.9.0 \
     dm-robotics-manipulation==0.9.0
 
 # Remaining REALM runtime deps not present in the base image.
-RUN $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
     wandb moviepy openai fastparquet
 
-RUN $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt /opt/openpi-client
+RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/openpi-client
 
 WORKDIR /app
 

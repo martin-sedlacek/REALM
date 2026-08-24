@@ -6,8 +6,8 @@ BRed='\033[1;31m'
 BGreen='\033[1;32m'
 Color_Off='\033[0m'
 
-# Image built from .docker/realm_og391.Dockerfile (base: stanfordvl/behavior:3.9.1).
-REALM_IMAGE="${REALM_IMAGE:-realm:og391}"
+# Image built from .docker/realm.Dockerfile (base: stanfordvl/behavior:3.9.1).
+REALM_IMAGE="${REALM_IMAGE:-realm:latest}"
 # OmniGibson lives at /behavior-src/OmniGibson in the 3.9.1 image (it was /omnigibson-src
 # in the old stanfordvl/omnigibson:1.1.1 image). It is a PEP-660 editable install whose
 # finder maps 'omnigibson' -> /behavior-src/OmniGibson/omnigibson, so bind-mounting over

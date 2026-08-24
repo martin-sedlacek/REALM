@@ -9,7 +9,7 @@ REALM has two deliberately separate environments:
 
 - **Docker or Apptainer/SIF is the runtime.** It contains OmniGibson, Isaac Sim, REALM's runtime
   dependencies, and the simulator patches. The current recipes are
-  `.docker/realm_og391.Dockerfile` and `.docker/realm_og391.def`; follow `wiki/Installation.md`.
+  `.docker/realm.Dockerfile` and `.docker/realm.def`; follow `wiki/Installation.md`.
 - **uv is only for host checks.** Run `uv sync --locked`, then `uv run make check`. This environment
   cannot run simulations and must not accumulate runtime dependencies.
 

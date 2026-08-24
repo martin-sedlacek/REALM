@@ -1,7 +1,7 @@
 Bootstrap: docker
 From: stanfordvl/behavior:3.9.1
 
-# Apptainer counterpart of .docker/realm_og391.Dockerfile -- keep the two in sync.
+# Apptainer counterpart of .docker/realm.Dockerfile -- keep the two in sync.
 #
 # Differences from the 1.1.1 realm.def this replaces:
 #   - base image ships conda (env "behavior", python 3.11) instead of micromamba ("omnigibson", 3.10)
@@ -21,7 +21,7 @@ From: stanfordvl/behavior:3.9.1
 %files
     .docker/vendor/omnigibson /opt/oglite/omnigibson
     .docker/vendor/OGLITE_PROVENANCE /opt/oglite/OGLITE_PROVENANCE
-    .docker/og391-constraints.txt /opt/og391-constraints.txt
+    .docker/constraints.txt /opt/realm-constraints.txt
     packages/openpi-client /opt/openpi-client
 
 %post
@@ -96,20 +96,20 @@ From: stanfordvl/behavior:3.9.1
 
     # dm_control / dm_robotics stack. Pinned to 0.9.0 because 0.10.0 requires numpy>=2,
     # which OmniGibson 3.9.1 forbids (numpy<2.0.0,>=1.23.5). 0.9.0 pulls dm-control 1.0.15.
-    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+    $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
         dm-robotics-transformations==0.9.0 \
         dm-robotics-geometry==0.9.0 \
         dm-robotics-controllers==0.9.0
 
-    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+    $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
         dm-robotics-moma==0.9.0 \
         dm-robotics-manipulation==0.9.0
 
     # Remaining REALM runtime deps not present in the base image.
-    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt \
+    $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
         wandb moviepy openai fastparquet
 
-    $CONDA_PIP install --no-cache-dir -c /opt/og391-constraints.txt /opt/openpi-client
+    $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/openpi-client
 
 %environment
     # The base image's OMNIGIBSON_DATA_PATH=/data and OMNIGIBSON_APPDATA_PATH=/cache/appdata come
@@ -146,7 +146,7 @@ From: stanfordvl/behavior:3.9.1
     # that gm.DATA_PATH exists, and nothing is bound to /data during a build, so importing it can
     # never succeed at this point. Its presence is checked via installed metadata instead; a real
     # import check needs the dataset bound, e.g.
-    #     apptainer test --bind <datasets>:/data realm_og391.sif
+    #     apptainer test --bind <datasets>:/data realm.sif
     python - <<'PY'
 from importlib.metadata import version
 import dm_control, dm_robotics.moma, openpi_client, wandb, moviepy, fastparquet, numpy, torch
