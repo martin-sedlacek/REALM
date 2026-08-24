@@ -8,29 +8,29 @@ instruction_obj_to_replace: lid
 instruction_target_to_replace: pot
 instruction_verb_to_replace: pick
 supported_scenes:
-  Benevolence_1_int:
-  - Kitchen_Counter
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.1705779
-    - -0.365225
-    - 0.3244614
+    - 0.1323739
+    - -0.4504519
+    - 0.5070765
     rot:
-    - 0.471276
-    - -0.124441
-    - -0.3445436
-    - 0.8023111
+    - 0.6182696
+    - -0.2306244
+    - -0.2571283
+    - 0.7060029
   cam2:
     pos:
-    - 0.2028595
-    - 0.4537951
-    - 0.2914271
+    - 0.1920879
+    - 0.6846938
+    - 0.5264407
     rot:
-    - 0.2054782
-    - -0.4167712
-    - -0.8096488
-    - 0.3585376
+    - 0.2003852
+    - -0.5581376
+    - -0.7469697
+    - 0.3006068
 main_objects:
 - type: DatasetObject
   name: lid
@@ -46,77 +46,77 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.11
-  - 0.1817066
+  - 0.12
+  - 0.18
+  - 0.1578014
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_mug
+  category: mug
+  model: kitxam
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.272
-  - 0.0538992
+  - 0.28
+  - 0.42
+  - 0.0823306
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.288
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_screwdriver
+  category: screwdriver
+  model: uajlga
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0092784
+  - 0.0092209
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.088
-  - 0.0562801
+  - 0.12
+  - 0.42
+  - 0.0546105
+- type: DatasetObject
+  name: distractor_blackboard_eraser
+  category: blackboard_eraser
+  model: oynrtw
+  bounding_box:
+  - 0.1
+  - 0.0333333
+  - 0.0242238
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0621119
 immutables:
 - type: DatasetObject
   name: pot
   category: saucepot
   model: ozrwwk
   bounding_box:
-  - 0.1369473
-  - 0.22
-  - 0.1051826
+  - 0.1058229
+  - 0.17
+  - 0.0812774
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.11
-  - 0.1025913
+  - 0.12
+  - 0.18
+  - 0.0906387

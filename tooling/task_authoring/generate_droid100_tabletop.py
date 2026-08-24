@@ -7,7 +7,7 @@ import json
 import math
 import random
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import yaml
@@ -15,6 +15,7 @@ import yaml
 from tooling.task_authoring.authoring import (
     discover_assets,
     load_camera_extrinsics,
+    load_droid_categories,
     load_scene_regions,
     sample_opposite_camera_pair,
 )
@@ -28,9 +29,15 @@ DEFAULT_CAMERA_EXTRINSICS = (
     REPO_ROOT / "realm" / "config" / "env" / "external_sensors" / "camera_extrinsics_droid_realm.yaml"
 )
 DEFAULT_SEED = 100
-DISTRACTOR_CATEGORIES = ("teaspoon", "masking_tape", "marker", "pen", "can_of_soda", "half_apple")
 SUPPORT_CLEARANCE = 0.05
 RELATION_CLEARANCE = 0.01
+SUPPORT_EDGE_CLEARANCE = 0.025
+UNSAFE_SCENE_REGIONS = {
+    ("Pomaria_0_int", "Coffee_Table"),
+    ("Pomaria_1_int", "Drawers_Near_Table"),
+    ("office_cubicles_left", "Circular_Table"),
+}
+ELLIPTICAL_SUPPORTS = {"Coffee_Table", "Circular_Table"}
 REVIEWED_TASK_OVERRIDES = {
     57: {
         "instruction": "Remove the can from the bowl",
@@ -244,12 +251,45 @@ def overlaps(candidate: dict[str, object], placed: list[dict[str, object]], marg
     )
 
 
-def place(config: dict[str, object], placed: list[dict[str, object]], width: float, depth: float) -> None:
+def bbox_fits_support(
+    x: float,
+    y: float,
+    bbox: list[float],
+    width: float,
+    depth: float,
+    elliptical: bool = False,
+) -> bool:
+    """Return whether the complete XY bbox lies on the usable support footprint."""
+    half_x, half_y = float(bbox[0]) / 2, float(bbox[1]) / 2
+    if elliptical:
+        radius_x = width / 2 - SUPPORT_EDGE_CLEARANCE
+        radius_y = depth / 2 - SUPPORT_EDGE_CLEARANCE
+        if radius_x <= half_x or radius_y <= half_y:
+            return False
+        return (
+            ((abs(x - width / 2) + half_x) / radius_x) ** 2
+            + ((abs(y - depth / 2) + half_y) / radius_y) ** 2
+            <= 1.0
+        )
+    return (
+        half_x + SUPPORT_EDGE_CLEARANCE <= x <= width - half_x - SUPPORT_EDGE_CLEARANCE
+        and half_y + SUPPORT_EDGE_CLEARANCE <= y <= depth - half_y - SUPPORT_EDGE_CLEARANCE
+    )
+
+
+def place(
+    config: dict[str, object],
+    placed: list[dict[str, object]],
+    width: float,
+    depth: float,
+    *,
+    elliptical: bool = False,
+) -> None:
     """Place a resized bbox at the first collision-free normalized candidate."""
     candidates = (
-        (0.22, 0.22), (0.72, 0.68), (0.20, 0.72), (0.76, 0.22),
-        (0.48, 0.88), (0.48, 0.43), (0.18, 0.46), (0.82, 0.47),
-        (0.35, 0.65), (0.64, 0.84), (0.35, 0.10), (0.65, 0.10),
+        (0.30, 0.30), (0.70, 0.70), (0.30, 0.70), (0.70, 0.30),
+        (0.50, 0.50), (0.25, 0.50), (0.75, 0.50), (0.50, 0.25),
+        (0.50, 0.75), (0.15, 0.50), (0.85, 0.50), (0.50, 0.85),
     )
     bx, by, _ = config["bounding_box"]
     for ux, uy in candidates:
@@ -258,7 +298,7 @@ def place(config: dict[str, object], placed: list[dict[str, object]], width: flo
         z = float(config["bounding_box"][2]) / 2 + SUPPORT_CLEARANCE
         authored_z = math.ceil(z * 10_000_000) / 10_000_000
         config["relative_bbox_position"] = [round(x, 5), round(y, 5), authored_z]
-        if not overlaps(config, placed):
+        if bbox_fits_support(x, y, config["bounding_box"], width, depth, elliptical) and not overlaps(config, placed):
             placed.append(config)
             return
     raise ValueError(f"no collision-free placement for {config['name']!r}")
@@ -352,6 +392,47 @@ def object_for(
     return config, audit
 
 
+def distractor_family(category: str) -> str:
+    """Group visually repetitive product categories for balanced sampling."""
+    for prefix in ("bottle_of_", "jar_of_", "can_of_", "box_of_", "bag_of_"):
+        if category.startswith(prefix):
+            return prefix.removesuffix("_of_")
+    return category
+
+
+def sample_distractors(
+    assets_by_category: dict[str, list[dict[str, object]]],
+    eligible_categories: list[str],
+    excluded_categories: set[str],
+    category_usage: Counter[str],
+    family_usage: Counter[str],
+    rng: random.Random,
+) -> list[dict[str, object]]:
+    """Choose three portable distractors while balancing categories and visual families."""
+    ties = {category: rng.random() for category in eligible_categories}
+    ranked = sorted(
+        (category for category in eligible_categories if category not in excluded_categories),
+        key=lambda category: (
+            family_usage[distractor_family(category)], category_usage[category], ties[category]
+        ),
+    )
+    chosen = []
+    chosen_families = set()
+    for category in ranked:
+        family = distractor_family(category)
+        if family in chosen_families:
+            continue
+        config = dataset_object(category, assets_by_category)
+        config["name"] = f"distractor_{category}"
+        config["bounding_box"], _ = fit_bbox(config["bounding_box"], (0.10, 0.10))
+        config["orientation"] = [0.0, 0.0, 0.0, 1.0]
+        chosen.append(config)
+        chosen_families.add(family)
+    if len(chosen) < 3:
+        raise ValueError("fewer than three distinct distractor families are available")
+    return chosen
+
+
 def generate(
     source: Path,
     dataset: Path,
@@ -360,7 +441,9 @@ def generate(
     seed: int = DEFAULT_SEED,
 ) -> dict[str, object]:
     """Generate the full task family and return its audit manifest."""
-    rng = random.Random(seed)
+    scene_rng = random.Random(seed)
+    camera_rng = random.Random(seed + 1)
+    distractor_rng = random.Random(seed + 2)
     selection = json.loads(source.read_text(encoding="utf-8"))
     indexed = discover_assets(dataset)
     assets_by_category: dict[str, list[dict[str, object]]] = defaultdict(list)
@@ -370,15 +453,34 @@ def generate(
         item
         for item in load_scene_regions(REPO_ROOT / "realm" / "config" / "scenes" / "scenes.yaml")
         if item["width"] >= 0.4 and item["depth"] >= 0.4 and item["z"] > 0
+        and (item["scene"], item["support"]) not in UNSAFE_SCENE_REGIONS
     ]
     if not regions:
         raise ValueError("no tabletop scene region is large enough for DROID100 layouts")
     camera_poses = load_camera_extrinsics(camera_extrinsics)
+    droid_categories = load_droid_categories(REPO_ROOT / "realm" / "config" / "objects" / "categories.yaml")
+    eligible_distractors = []
+    for category in droid_categories:
+        candidates = assets_by_category.get(category, [])
+        if not candidates:
+            continue
+        smallest = min(candidates, key=lambda item: math.prod(item["bbox"][:2]))
+        if max(float(value) for value in smallest["bbox"][:2]) <= 0.24 and float(smallest["bbox"][2]) <= 0.35:
+            eligible_distractors.append(category)
+    if len({distractor_family(category) for category in eligible_distractors}) < 3:
+        raise ValueError("DROID whitelist has fewer than three usable distractor families")
+    scene_order = list(regions)
+    scene_rng.shuffle(scene_order)
+    category_usage: Counter[str] = Counter()
+    family_usage: Counter[str] = Counter()
     output.mkdir(parents=True, exist_ok=True)
     generated = []
-    for task in selection["tasks"]:
-        region = rng.choice(regions)
-        sampled_cameras = sample_camera_pair(camera_poses, rng)
+    for task_index, task in enumerate(selection["tasks"]):
+        if task_index and task_index % len(scene_order) == 0:
+            scene_rng.shuffle(scene_order)
+        region = scene_order[task_index % len(scene_order)]
+        elliptical = region["support"] in ELLIPTICAL_SUPPORTS
+        sampled_cameras = sample_camera_pair(camera_poses, camera_rng)
         camera_sources = {key: value["source"] for key, value in sampled_cameras.items()}
         cameras = {
             key: {pose_key: pose_value for pose_key, pose_value in value.items() if pose_key != "source"}
@@ -393,7 +495,7 @@ def generate(
         for index, concept in enumerate(resolved):
             config, audit = object_for(
                 concept, instruction, index, assets_by_category,
-                (0.14, 0.16) if index == 0 else (0.22, 0.22),
+                (0.14, 0.16) if index == 0 else (0.17, 0.17),
             )
             config["name"] = f"{config['name']}_{index + 1}" if resolved.count(concept) > 1 else config["name"]
             configs.append(config)
@@ -413,24 +515,28 @@ def generate(
                 })
         relation_audit = None
         if initial_relation:
-            place(configs[1], placed, region["width"], region["depth"])
+            place(configs[1], placed, region["width"], region["depth"], elliptical=elliptical)
             relation_audit = place_initial_relation(configs[0], configs[1], initial_relation)
             placed.append(configs[0])
         else:
-            for config in configs:
-                place(config, placed, region["width"], region["depth"])
+            # Pack the receiver/support first; placing a small main object centrally can
+            # otherwise strand a large bowl or pot despite ample free support area.
+            for config in sorted(configs, key=lambda item: math.prod(item["bounding_box"][:2]), reverse=True):
+                place(config, placed, region["width"], region["depth"], elliptical=elliptical)
+        excluded = {str(config.get("category")) for config in configs if config.get("category")}
+        distractor_candidates = sample_distractors(
+            assets_by_category, eligible_distractors, excluded,
+            category_usage, family_usage, distractor_rng,
+        )
         distractors = []
-        for category in DISTRACTOR_CATEGORIES:
-            if category in {config.get("category") for config in configs}:
-                continue
+        for distractor in distractor_candidates:
             try:
-                distractor = dataset_object(category, assets_by_category)
-                distractor["name"] = f"distractor_{category}"
-                distractor["bounding_box"], _ = fit_bbox(distractor["bounding_box"], (0.10, 0.10))
-                distractor["orientation"] = [0.0, 0.0, 0.0, 1.0]
-                place(distractor, placed, region["width"], region["depth"])
+                place(distractor, placed, region["width"], region["depth"], elliptical=elliptical)
             except ValueError:
                 continue
+            category = str(distractor["category"])
+            category_usage[category] += 1
+            family_usage[distractor_family(category)] += 1
             distractors.append(distractor)
             if len(distractors) == 3:
                 break
@@ -471,7 +577,9 @@ def generate(
                 "support": region["support"],
                 "width": region["width"],
                 "depth": region["depth"],
+                "footprint": "ellipse" if elliptical else "rectangle",
             },
+            "distractor_categories": [item["category"] for item in distractors],
             "camera_extrinsic_sources": camera_sources,
             "camera_extrinsics": cameras,
             "resized_assets": resize_audit,
@@ -484,6 +592,10 @@ def generate(
         "dataset": str(dataset),
         "seed": seed,
         "scene_pool_size": len(regions),
+        "excluded_scene_regions": [list(item) for item in sorted(UNSAFE_SCENE_REGIONS)],
+        "distractor_pool_size": len(eligible_distractors),
+        "distractor_category_usage": dict(sorted(category_usage.items())),
+        "distractor_family_usage": dict(sorted(family_usage.items())),
         "camera_pose_source": str(camera_extrinsics),
         "camera_pose_pool_size": len(camera_poses),
         "generated_count": len(generated),

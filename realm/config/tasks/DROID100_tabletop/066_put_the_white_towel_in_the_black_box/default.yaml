@@ -8,74 +8,56 @@ instruction_obj_to_replace: towel
 instruction_target_to_replace: box
 instruction_verb_to_replace: put
 supported_scenes:
-  office_cubicles_left:
-  - Circular_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.120028
-    - 0.3074377
-    - 0.2982238
+    - -0.0459673
+    - 0.6326992
+    - 0.5289787
     rot:
-    - 0.3648425
-    - -0.3683224
-    - -0.5427235
-    - 0.6608175
+    - 0.2029162
+    - -0.3293456
+    - -0.7675929
+    - 0.5110359
   cam2:
     pos:
-    - 0.1221368
-    - -0.4264123
-    - 0.288013
+    - 0.2653578
+    - -0.3950717
+    - 0.407007
     rot:
-    - 0.6184695
-    - -0.1290729
-    - -0.4540738
-    - 0.6282139
+    - 0.4660043
+    - -0.0445734
+    - -0.0850407
+    - 0.8795574
 main_objects:
 - type: DatasetObject
   name: towel
   category: dishtowel
   model: dtfspn
   bounding_box:
-  - 0.1170827
-  - 0.16
-  - 0.0239326
+  - 0.1081742
+  - 0.1478261
+  - 0.0221116
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
-  - 0.0619663
+  - 0.28
+  - 0.35
+  - 0.0610558
 target_objects:
 - type: DatasetObject
   name: box
   category: storage_box
   model: izcglf
   bounding_box:
-  - 0.2179629
-  - 0.22
-  - 0.1157289
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.432
-  - 0.34
-  - 0.1078645
-distractors:
-- type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.1684259
+  - 0.17
+  - 0.0894269
   orientation:
   - 0.0
   - 0.0
@@ -83,40 +65,58 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.36
-  - 0.0538992
+  - 0.15
+  - 0.0947135
+distractors:
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_reagent_bottle
+  category: reagent_bottle
+  model: uaijua
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0902924
+  - 0.0902924
+  - 0.1847585
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0557962
+  - 0.12
+  - 0.35
+  - 0.1423793
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_tennis_ball
+  category: tennis_ball
+  model: rgekxe
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0667253
+  - 0.0658372
+  - 0.0659834
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.108
-  - 0.23
-  - 0.0562801
+  - 0.28
+  - 0.15
+  - 0.0829917
+- type: DatasetObject
+  name: distractor_chestnut
+  category: chestnut
+  model: fmomat
+  bounding_box:
+  - 0.0199921
+  - 0.0153447
+  - 0.0153222
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.25
+  - 0.0576611
 immutables: []

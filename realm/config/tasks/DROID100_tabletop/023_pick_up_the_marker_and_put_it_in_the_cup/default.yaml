@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Table
+  Benevolence_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0801872
-    - 0.5634161
-    - 0.4292525
+    - 0.0886488
+    - 0.4223848
+    - 0.4662603
     rot:
-    - 0.2392239
-    - -0.4773148
-    - -0.7249367
-    - 0.4352119
+    - 0.394227
+    - -0.3450233
+    - -0.6083528
+    - 0.5961969
   cam2:
     pos:
-    - 0.1527834
-    - -0.4566319
-    - 0.4294593
+    - 0.1338937
+    - -0.5526269
+    - 0.3829756
     rot:
-    - 0.6774014
-    - -0.1846084
-    - -0.2464471
-    - 0.668065
+    - 0.5537302
+    - -0.1638614
+    - -0.2354987
+    - 0.7817114
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.28
+  - 0.28
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.442
+  - 0.12
+  - 0.12
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_pruner
+  category: pruner
+  model: lucqrs
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0293022
+  - 0.0669072
+  - 0.2279074
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.468
-  - 0.0538992
+  - 0.12
+  - 0.28
+  - 0.1639537
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_chestnut
+  category: chestnut
+  model: fmomat
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0199921
+  - 0.0153447
+  - 0.0153222
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.143
-  - 0.0557962
+  - 0.28
+  - 0.12
+  - 0.0576611
 - type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_table_knife
+  category: table_knife
+  model: nmkend
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0105588
+  - 0.0021862
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.572
-  - 0.0539367
+  - 0.3
+  - 0.2
+  - 0.0510931
 immutables: []

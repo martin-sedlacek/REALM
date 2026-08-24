@@ -8,29 +8,29 @@ instruction_obj_to_replace: object
 instruction_target_to_replace: plate
 instruction_verb_to_replace: stack
 supported_scenes:
-  Pomaria_0_int:
-  - Coffee_Table
+  Pomaria_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3027617
-    - 0.5369121
-    - 0.1614529
+    - -0.1678869
+    - -0.4693573
+    - 0.3849592
     rot:
-    - 0.3153507
-    - -0.5151183
-    - -0.7024536
-    - 0.3765184
+    - 0.5669505
+    - -0.2997832
+    - -0.3678342
+    - 0.6733462
   cam2:
     pos:
-    - 0.1360866
-    - -0.3767341
-    - 0.1855324
+    - 0.0572269
+    - 0.555295
+    - 0.5047467
     rot:
-    - 0.4941023
-    - -0.436352
-    - -0.256756
-    - 0.7067787
+    - 0.3216571
+    - -0.5103172
+    - -0.71819
+    - 0.3468663
 main_objects:
 - type: PrimitiveObject
   name: white_object
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.28
+  - 0.35
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,68 +63,68 @@ target_objects:
   category: plate
   model: itoeew
   bounding_box:
-  - 0.22
-  - 0.22
-  - 0.0130667
+  - 0.17
+  - 0.17
+  - 0.010097
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.306
-  - 0.0565334
+  - 0.12
+  - 0.15
+  - 0.0550485
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_water_bottle
+  category: water_bottle
+  model: lzdzkk
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0873897
+  - 0.0864275
+  - 0.2549802
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.1
-  - 0.324
-  - 0.0538992
+  - 0.12
+  - 0.35
+  - 0.1774901
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_bowl
+  category: bowl
+  model: kthvrl
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0934412
+  - 0.0934412
+  - 0.06
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.099
-  - 0.0557962
+  - 0.28
+  - 0.15
+  - 0.08
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_coffee_cup
+  category: coffee_cup
+  model: ykuftq
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.09144
+  - 0.0569466
+  - 0.0775323
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.09
-  - 0.207
-  - 0.0562801
+  - 0.3
+  - 0.25
+  - 0.0887662
 immutables: []

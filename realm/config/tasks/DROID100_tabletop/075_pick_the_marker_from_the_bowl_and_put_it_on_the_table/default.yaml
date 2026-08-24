@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_1_int:
-  - Drawers_Near_Table
+  Benevolence_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3149431
-    - -0.2361819
-    - 0.5668254
+    - 0.3654584
+    - -0.4565446
+    - 0.3882358
     rot:
-    - 0.3420296
-    - -0.1510557
-    - -0.3270754
-    - 0.8678823
+    - 0.3289755
+    - -0.0326313
+    - -0.4979596
+    - 0.8017147
   cam2:
     pos:
-    - 0.3613826
-    - 0.358984
-    - 0.516256
+    - 0.4034095
+    - 0.5915241
+    - 0.3906625
     rot:
-    - 0.2399992
-    - -0.3176947
-    - -0.8088494
-    - 0.4327043
+    - 0.2033174
+    - -0.4751461
+    - -0.7913016
+    - 0.326711
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,77 +46,77 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.154
-  - 0.176
-  - 0.1374161
+  - 0.12
+  - 0.12
+  - 0.1232469
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_glue_stick
+  category: glue_stick
+  model: sqzyci
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0947761
+  - 0.0192281
+  - 0.0192804
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.504
-  - 0.544
-  - 0.0538992
+  - 0.28
+  - 0.28
+  - 0.0596402
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.14
-  - 0.576
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_avocado
+  category: avocado
+  model: arswzs
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0644419
+  - 0.0716496
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.532
-  - 0.176
-  - 0.0539367
+  - 0.12
+  - 0.28
+  - 0.0858249
+- type: DatasetObject
+  name: distractor_table_knife
+  category: table_knife
+  model: nmkend
+  bounding_box:
+  - 0.1
+  - 0.0105588
+  - 0.0021862
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.0510931
 immutables:
 - type: DatasetObject
   name: bowl
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.154
-  - 0.176
-  - 0.0811723
+  - 0.12
+  - 0.12
+  - 0.0740878

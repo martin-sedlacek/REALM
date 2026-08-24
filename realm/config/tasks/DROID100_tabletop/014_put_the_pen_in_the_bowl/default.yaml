@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_1_int:
-  - Drawers_Near_Table
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.4051468
-    - 0.4324802
-    - 0.4788346
+    - 0.1349881
+    - 0.3569105
+    - 0.468794
     rot:
-    - 0.1109774
-    - -0.5271467
-    - -0.8139245
-    - 0.2175485
+    - 0.1434189
+    - -0.5170226
+    - -0.7781702
+    - 0.3264503
   cam2:
     pos:
-    - 0.1057942
-    - -0.4981375
-    - 0.3995433
+    - 0.0573524
+    - -0.3685903
+    - 0.3876676
     rot:
-    - 0.6313697
-    - -0.1250995
-    - -0.1346228
-    - 0.7533917
+    - 0.4399351
+    - -0.2921687
+    - -0.4419136
+    - 0.7251255
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.154
-  - 0.176
+  - 0.28
+  - 0.42
   - 0.0549517
 target_objects:
 - type: DatasetObject
@@ -55,68 +55,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.504
-  - 0.544
-  - 0.0811723
+  - 0.12
+  - 0.18
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.14
-  - 0.576
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.532
-  - 0.176
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_chopstick
+  category: chopstick
+  model: bdvjuf
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0022828
+  - 0.002288
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.336
-  - 0.704
-  - 0.0562801
+  - 0.12
+  - 0.42
+  - 0.051144
+- type: DatasetObject
+  name: distractor_baseball
+  category: baseball
+  model: zanmar
+  bounding_box:
+  - 0.0734651
+  - 0.0734803
+  - 0.0734952
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0867477
+- type: DatasetObject
+  name: distractor_screwdriver
+  category: screwdriver
+  model: uajlga
+  bounding_box:
+  - 0.1
+  - 0.0092784
+  - 0.0092209
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0546105
 immutables: []

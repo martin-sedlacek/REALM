@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: mug
 instruction_verb_to_replace: pick
 supported_scenes:
-  office_cubicles_left:
-  - Office_Desk
+  Wainscott_0_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0490572
-    - 0.4759999
-    - 0.1760047
+    - 0.2660967
+    - -0.2150941
+    - 0.2268883
     rot:
-    - 0.186766
-    - -0.5667991
-    - -0.6195357
-    - 0.5099341
+    - 0.408067
+    - -0.1071841
+    - -0.3535156
+    - 0.834877
   cam2:
     pos:
-    - -0.0927064
-    - -0.4208339
-    - 0.2428905
+    - 0.1597348
+    - 0.2792607
+    - 0.2416757
     rot:
-    - 0.7224241
-    - -0.1349934
-    - -0.4324839
-    - 0.5223389
+    - 0.2400938
+    - -0.3849822
+    - -0.7443359
+    - 0.4900079
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.132
+  - 0.15
+  - 0.18
   - 0.1437248
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_pear
+  category: pear
+  model: clvnqe
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0933374
+  - 0.0726271
+  - 0.0773291
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.408
-  - 0.0538992
+  - 0.35
+  - 0.42
+  - 0.0886646
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.432
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_pencil
+  category: pencil
+  model: fnlbpu
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0038285
+  - 0.0031847
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.132
-  - 0.0562801
+  - 0.15
+  - 0.42
+  - 0.0515924
+- type: DatasetObject
+  name: distractor_lemon
+  category: lemon
+  model: bbvonm
+  bounding_box:
+  - 0.0568493
+  - 0.0475621
+  - 0.0454882
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0727442
 immutables:
 - type: DatasetObject
   name: mug
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.132
+  - 0.15
+  - 0.18
   - 0.0819912

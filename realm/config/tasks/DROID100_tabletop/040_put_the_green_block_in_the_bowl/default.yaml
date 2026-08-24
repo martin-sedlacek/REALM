@@ -13,24 +13,24 @@ supported_scenes:
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2799873
-    - -0.6039919
-    - 0.3206242
+    - 0.0741523
+    - 0.3726577
+    - 0.5477247
     rot:
-    - 0.5406709
-    - -0.2333841
-    - -0.2909174
-    - 0.7540384
+    - 0.2382781
+    - -0.5209891
+    - -0.7450591
+    - 0.3415858
   cam2:
     pos:
-    - 0.2556485
-    - 0.5933251
-    - 0.3993823
+    - 0.1319123
+    - -0.5628819
+    - 0.5177217
     rot:
-    - 0.2272975
-    - -0.4827584
-    - -0.8069532
-    - 0.2531931
+    - 0.581929
+    - -0.1718203
+    - -0.2549723
+    - 0.7528782
 main_objects:
 - type: PrimitiveObject
   name: green_block
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.132
+  - 0.28
+  - 0.42
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,68 +63,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.408
-  - 0.0811723
+  - 0.12
+  - 0.18
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_apple
+  category: apple
+  model: rizrsp
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0369395
+  - 0.0413219
+  - 0.0412187
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.432
-  - 0.0538992
+  - 0.12
+  - 0.42
+  - 0.0706094
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_shaker
+  category: shaker
+  model: hbheag
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.03577
+  - 0.0359248
+  - 0.091956
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.132
-  - 0.0557962
+  - 0.28
+  - 0.18
+  - 0.0959781
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_tea_bag
+  category: tea_bag
+  model: kmvcrb
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0507929
+  - 0.0391162
+  - 0.0250638
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.528
-  - 0.0562801
+  - 0.2
+  - 0.3
+  - 0.0625319
 immutables: []

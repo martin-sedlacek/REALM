@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: bowl
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_1_int:
-  - Kitchen_Counter
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0520896
-    - 0.5139934
-    - 0.6613418
+    - 0.2683631
+    - 0.3783897
+    - 0.4403776
     rot:
-    - 0.3163138
-    - -0.6673123
-    - -0.6192268
-    - 0.2668297
+    - 0.1386919
+    - -0.5034372
+    - -0.8127185
+    - 0.2584651
   cam2:
     pos:
-    - -0.1829114
-    - -0.5485743
-    - 0.7220434
+    - 0.2494383
+    - -0.4371407
+    - 0.3465157
     rot:
-    - 0.5504458
-    - -0.2843915
-    - -0.3902335
-    - 0.6810645
+    - 0.6358208
+    - -0.1658518
+    - -0.1656638
+    - 0.7353779
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,77 +46,77 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.11
-  - 0.1374161
+  - 0.12
+  - 0.18
+  - 0.1232469
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.288
-  - 0.34
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.36
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_toasting_fork
+  category: toasting_fork
+  model: osrfkc
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0172655
+  - 0.005388
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.11
-  - 0.0539367
+  - 0.28
+  - 0.42
+  - 0.052694
+- type: DatasetObject
+  name: distractor_toy_figure
+  category: toy_figure
+  model: jddrck
+  bounding_box:
+  - 0.0823193
+  - 0.0870553
+  - 0.15
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.42
+  - 0.125
+- type: DatasetObject
+  name: distractor_hamburger_bun
+  category: hamburger_bun
+  model: fqxumh
+  bounding_box:
+  - 0.08664
+  - 0.0849436
+  - 0.0263912
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0631956
 immutables:
 - type: DatasetObject
   name: bowl
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.11
-  - 0.0811723
+  - 0.12
+  - 0.18
+  - 0.0740878

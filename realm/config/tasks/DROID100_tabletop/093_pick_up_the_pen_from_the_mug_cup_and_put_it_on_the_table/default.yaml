@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: mug cup
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_1_int:
-  - Kitchen_Counter
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - -0.0722161
-    - -0.8137026
-    - 0.4063866
+    - 0.0030139
+    - 0.4862828
+    - 0.2859611
     rot:
-    - 0.6691634
-    - -0.1638115
-    - -0.2407004
-    - 0.6837027
+    - 0.2491597
+    - -0.4435746
+    - -0.7587701
+    - 0.4067296
   cam2:
     pos:
-    - 0.1268764
-    - 0.7565624
-    - 0.2632836
+    - 0.2163908
+    - -0.5832136
+    - 0.4230995
     rot:
-    - -0.458194
-    - -0.4813759
-    - -0.569363
-    - 0.4839021
+    - 0.5168552
+    - -0.0502789
+    - -0.1643419
+    - 0.8386444
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.11
+  - 0.12
+  - 0.18
   - 0.1437248
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.288
-  - 0.34
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.36
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_parer
+  category: parer
+  model: zpkhwi
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0126289
+  - 0.006733
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.11
-  - 0.0562801
+  - 0.28
+  - 0.42
+  - 0.0533665
+- type: DatasetObject
+  name: distractor_blackboard_eraser
+  category: blackboard_eraser
+  model: oynrtw
+  bounding_box:
+  - 0.1
+  - 0.0333333
+  - 0.0242238
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.42
+  - 0.0621119
+- type: DatasetObject
+  name: distractor_hamburger
+  category: hamburger
+  model: fyswch
+  bounding_box:
+  - 0.1
+  - 0.0931673
+  - 0.0648095
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0824048
 immutables:
 - type: DatasetObject
   name: mug
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.11
+  - 0.12
+  - 0.18
   - 0.0819912

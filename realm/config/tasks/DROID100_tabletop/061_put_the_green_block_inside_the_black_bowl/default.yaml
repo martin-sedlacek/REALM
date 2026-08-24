@@ -13,24 +13,24 @@ supported_scenes:
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3340956
-    - -0.5043978
-    - 0.3633599
+    - 0.2765631
+    - 0.6641601
+    - 0.4100613
     rot:
-    - 0.3582962
-    - -0.0930586
-    - -0.3349047
-    - 0.8664888
+    - 0.1308834
+    - -0.4435359
+    - -0.8060464
+    - 0.3693706
   cam2:
     pos:
-    - 0.4161436
-    - 0.5852143
-    - 0.5122598
+    - 0.1211144
+    - -0.6397715
+    - 0.4295614
     rot:
-    - 0.089377
-    - -0.3792731
-    - -0.8988792
-    - 0.2004493
+    - 0.5887105
+    - -0.0772714
+    - -0.1328566
+    - 0.7935983
 main_objects:
 - type: PrimitiveObject
   name: green_block
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.088
+  - 0.42
+  - 0.28
   - 0.0750001
 target_objects:
 - type: DatasetObject
@@ -63,68 +63,68 @@ target_objects:
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.272
-  - 0.0811723
+  - 0.18
+  - 0.12
+  - 0.0740878
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.12
-  - 0.288
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.088
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_can
+  category: can
+  model: moeqjz
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.1
+  - 0.1298244
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.108
-  - 0.184
-  - 0.0562801
+  - 0.18
+  - 0.28
+  - 0.1149122
+- type: DatasetObject
+  name: distractor_trash_can
+  category: trash_can
+  model: wkxtxh
+  bounding_box:
+  - 0.1
+  - 0.0999688
+  - 0.1211565
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.1105783
+- type: DatasetObject
+  name: distractor_hammer
+  category: hammer
+  model: fcrlbo
+  bounding_box:
+  - 0.1
+  - 0.0414141
+  - 0.012226
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.3
+  - 0.056113
 immutables: []

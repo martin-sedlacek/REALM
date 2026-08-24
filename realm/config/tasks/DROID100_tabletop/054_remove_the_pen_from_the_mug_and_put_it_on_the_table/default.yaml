@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: mug
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_1_int:
-  - Table
+  office_cubicles_left:
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.130978
-    - -0.4517458
-    - 0.5067578
+    - 0.308613
+    - -0.314825
+    - 0.236702
     rot:
-    - 0.6183392
-    - -0.2303376
-    - -0.2601803
-    - 0.7049166
+    - 0.4894354
+    - -0.1128228
+    - -0.1808426
+    - 0.8455885
   cam2:
     pos:
-    - 0.1942991
-    - 0.6826007
-    - 0.527422
+    - 0.1925156
+    - 0.330672
+    - 0.2406243
     rot:
-    - 0.1986968
-    - -0.5573413
-    - -0.7481657
-    - 0.3002306
+    - 0.2916621
+    - -0.403109
+    - -0.7232927
+    - 0.4788361
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.12
+  - 0.18
   - 0.1437248
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_wine_bottle
+  category: wine_bottle
+  model: hlzfxw
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0585717
+  - 0.0585691
+  - 0.2522422
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.442
-  - 0.0538992
+  - 0.28
+  - 0.42
+  - 0.1761212
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_tray
+  category: tray
+  model: coqeme
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.063813
+  - 0.1
+  - 0.0080665
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.468
-  - 0.0557962
+  - 0.12
+  - 0.42
+  - 0.0540333
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_hammer
+  category: hammer
+  model: fcrlbo
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0414141
+  - 0.012226
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.143
-  - 0.0562801
+  - 0.28
+  - 0.18
+  - 0.056113
 immutables:
 - type: DatasetObject
   name: mug
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.143
+  - 0.12
+  - 0.18
   - 0.0819912

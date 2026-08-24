@@ -13,24 +13,24 @@ supported_scenes:
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0678851
-    - -0.3460171
-    - 0.2707407
+    - 0.2169868
+    - 0.4931385
+    - 0.4936356
     rot:
-    - 0.5101872
-    - -0.268695
-    - -0.3382515
-    - 0.7437056
+    - 0.1937217
+    - -0.608784
+    - -0.7170476
+    - 0.2787411
   cam2:
     pos:
-    - 0.0748373
-    - 0.3776351
-    - 0.2946578
+    - 0.1676113
+    - -0.5381474
+    - 0.4512595
     rot:
-    - 0.3651671
-    - -0.3800983
-    - -0.7461494
-    - 0.4067424
+    - 0.544916
+    - -0.1718121
+    - -0.2452218
+    - 0.7832071
 main_objects:
 - type: PrimitiveObject
   name: orange_block_1
@@ -54,8 +54,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.132
+  - 0.12
+  - 0.18
   - 0.0750001
 target_objects:
 - type: PrimitiveObject
@@ -80,44 +80,10 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.408
+  - 0.28
+  - 0.42
   - 0.0750001
 distractors:
-- type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.08
-  - 0.432
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.304
-  - 0.132
-  - 0.0557962
 - type: DatasetObject
   name: distractor_marker
   category: marker
@@ -132,7 +98,41 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.192
-  - 0.528
+  - 0.12
+  - 0.42
   - 0.0562801
+- type: DatasetObject
+  name: distractor_soda_cup
+  category: soda_cup
+  model: vicaqs
+  bounding_box:
+  - 0.0783589
+  - 0.0783587
+  - 0.129041
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.1145205
+- type: DatasetObject
+  name: distractor_mug
+  category: mug
+  model: kitxam
+  bounding_box:
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0823306
 immutables: []

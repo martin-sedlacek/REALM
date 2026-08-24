@@ -8,29 +8,29 @@ instruction_obj_to_replace: marker
 instruction_target_to_replace: cup
 instruction_verb_to_replace: put
 supported_scenes:
-  Pomaria_0_int:
-  - Coffee_Table
+  Wainscott_0_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - -0.044383
-    - -0.2886695
-    - 0.4456526
+    - 0.2603033
+    - 0.508048
+    - 0.4268777
     rot:
-    - 0.4958725
-    - -0.3862099
-    - -0.5060912
-    - 0.5906132
+    - 0.1975396
+    - -0.431689
+    - -0.7919319
+    - 0.3840138
   cam2:
     pos:
-    - -0.0568005
-    - 0.4419971
-    - 0.3216333
+    - 0.3091332
+    - -0.2797259
+    - 0.4428665
     rot:
-    - 0.4007866
-    - -0.5645874
-    - -0.5649794
-    - 0.4487867
+    - 0.5124545
+    - -0.1184083
+    - -0.2336666
+    - 0.8177834
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.35
+  - 0.42
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -64,59 +64,59 @@ target_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.306
+  - 0.15
+  - 0.18
   - 0.0819912
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.1
-  - 0.324
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.38
-  - 0.099
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_half_bagel
+  category: half_bagel
+  model: hsvakn
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0660361
+  - 0.0367416
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.24
-  - 0.396
-  - 0.0539367
+  - 0.15
+  - 0.42
+  - 0.0683709
+- type: DatasetObject
+  name: distractor_canned_food
+  category: canned_food
+  model: byakrm
+  bounding_box:
+  - 0.0577961
+  - 0.0577961
+  - 0.081812
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.090906
+- type: DatasetObject
+  name: distractor_teapot
+  category: teapot
+  model: mvrhya
+  bounding_box:
+  - 0.1
+  - 0.0622266
+  - 0.0388673
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.25
+  - 0.3
+  - 0.0694337
 immutables: []

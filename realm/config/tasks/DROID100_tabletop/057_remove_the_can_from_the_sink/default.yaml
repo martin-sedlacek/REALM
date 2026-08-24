@@ -13,24 +13,24 @@ supported_scenes:
 camera_extrinsics:
   cam1:
     pos:
-    - -0.0248006
-    - -0.3057528
-    - 0.4833548
+    - 0.3766383
+    - 0.4924901
+    - 0.444242
     rot:
-    - 0.388438
-    - -0.2064122
-    - -0.4444401
-    - 0.7803736
+    - 0.0561561
+    - -0.5567525
+    - -0.8213856
+    - 0.1104483
   cam2:
     pos:
-    - 0.3004111
-    - 0.380147
-    - 0.5050966
+    - 0.0526131
+    - -0.3352111
+    - 0.3301058
     rot:
-    - 0.1656897
-    - -0.4417162
-    - -0.8235902
-    - 0.3148537
+    - 0.4558011
+    - -0.2976487
+    - -0.4565616
+    - 0.703706
 main_objects:
 - type: DatasetObject
   name: can
@@ -46,77 +46,77 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.132
-  - 0.1483035
+  - 0.15
+  - 0.18
+  - 0.1341344
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_potato
+  category: potato
+  model: ljfitc
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0762014
+  - 0.060351
+  - 0.057834
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.408
-  - 0.0538992
+  - 0.35
+  - 0.42
+  - 0.078917
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_volleyball
+  category: volleyball
+  model: nofzds
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0997848
+  - 0.1
+  - 0.1000092
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.1
-  - 0.432
-  - 0.0557962
+  - 0.15
+  - 0.42
+  - 0.1000046
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_erlenmeyer_flask
+  category: erlenmeyer_flask
+  model: bpwjxr
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0776034
+  - 0.0776101
+  - 0.1531681
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.132
-  - 0.0562801
+  - 0.35
+  - 0.18
+  - 0.1265841
 immutables:
 - type: DatasetObject
   name: bowl
   category: bowl
   model: ckxwea
   bounding_box:
-  - 0.22
-  - 0.193924
-  - 0.0623446
+  - 0.17
+  - 0.1498503
+  - 0.0481754
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.132
-  - 0.0811723
+  - 0.15
+  - 0.18
+  - 0.0740878

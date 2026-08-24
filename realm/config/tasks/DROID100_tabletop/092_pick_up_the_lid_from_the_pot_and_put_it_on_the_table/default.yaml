@@ -8,29 +8,29 @@ instruction_obj_to_replace: lid
 instruction_target_to_replace: pot
 instruction_verb_to_replace: pick
 supported_scenes:
-  office_cubicles_left:
-  - Circular_Table
+  Benevolence_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.3618113
-    - 0.4249845
-    - 0.3385557
+    - -0.0715256
+    - -0.3527618
+    - 0.4095998
     rot:
-    - 0.2026003
-    - -0.4480365
-    - -0.8078302
-    - 0.3250026
+    - 0.4162337
+    - -0.4159783
+    - -0.5350331
+    - 0.6061775
   cam2:
     pos:
-    - 0.2780387
-    - -0.4339409
-    - 0.4044052
+    - 0.0639672
+    - 0.4004726
+    - 0.32938
     rot:
-    - 0.4888226
-    - -0.1842885
-    - -0.3563662
-    - 0.7746569
+    - 0.3057832
+    - -0.5055823
+    - -0.6898285
+    - 0.4183536
 main_objects:
 - type: DatasetObject
   name: lid
@@ -46,36 +46,36 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
-  - 0.1817066
+  - 0.12
+  - 0.12
+  - 0.1578014
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_toasting_fork
+  category: toasting_fork
+  model: osrfkc
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.1
+  - 0.0172655
+  - 0.005388
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.34
-  - 0.0538992
+  - 0.28
+  - 0.28
+  - 0.052694
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
+  name: distractor_pill_bottle
+  category: pill_bottle
+  model: csvdbe
   bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
+  - 0.0388496
+  - 0.0388496
+  - 0.0546776
   orientation:
   - 0.0
   - 0.0
@@ -83,40 +83,40 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.36
-  - 0.0557962
+  - 0.28
+  - 0.0773388
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_stapler
+  category: stapler
+  model: kgnsas
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0874299
+  - 0.0182303
+  - 0.0450232
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0562801
+  - 0.28
+  - 0.12
+  - 0.0725117
 immutables:
 - type: DatasetObject
   name: pot
   category: saucepot
   model: ozrwwk
   bounding_box:
-  - 0.1369473
-  - 0.22
-  - 0.1051826
+  - 0.1058229
+  - 0.17
+  - 0.0812774
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
-  - 0.1025913
+  - 0.12
+  - 0.12
+  - 0.0906387

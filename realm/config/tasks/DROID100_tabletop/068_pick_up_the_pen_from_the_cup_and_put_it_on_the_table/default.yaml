@@ -8,29 +8,29 @@ instruction_obj_to_replace: pen
 instruction_target_to_replace: cup
 instruction_verb_to_replace: pick
 supported_scenes:
-  Pomaria_0_int:
-  - Coffee_Table
+  Benevolence_1_int:
+  - Kitchen_Counter
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2818215
-    - 0.6385262
-    - 0.3137613
+    - 0.2022817
+    - -0.3198482
+    - 0.3167347
     rot:
-    - 0.0452655
-    - -0.5336004
-    - -0.8351375
-    - 0.1255672
+    - 0.4503326
+    - -0.1759914
+    - -0.3707248
+    - 0.7929632
   cam2:
     pos:
-    - 0.2429605
-    - -0.486982
-    - 0.3725216
+    - 0.2331655
+    - 0.3935454
+    - 0.2976625
     rot:
-    - 0.6105592
-    - -0.0404723
-    - -0.1155514
-    - 0.7824496
+    - 0.1844018
+    - -0.5277619
+    - -0.7718747
+    - 0.3027752
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.12
+  - 0.12
   - 0.1437248
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
-  bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.36
-  - 0.306
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.1
-  - 0.324
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_tablefork
+  category: tablefork
+  model: uodzrq
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0126529
+  - 0.0063285
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.099
-  - 0.0562801
+  - 0.28
+  - 0.28
+  - 0.0531643
+- type: DatasetObject
+  name: distractor_papaya
+  category: papaya
+  model: zsdzix
+  bounding_box:
+  - 0.1
+  - 0.0566961
+  - 0.0578202
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.28
+  - 0.0789102
+- type: DatasetObject
+  name: distractor_rubber_eraser
+  category: rubber_eraser
+  model: cungod
+  bounding_box:
+  - 0.05
+  - 0.0213523
+  - 0.0114031
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.0557016
 immutables:
 - type: DatasetObject
   name: cup
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.099
+  - 0.12
+  - 0.12
   - 0.0819912

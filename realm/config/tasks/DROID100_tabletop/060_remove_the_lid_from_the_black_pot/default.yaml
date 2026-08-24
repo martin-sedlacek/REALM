@@ -8,29 +8,29 @@ instruction_obj_to_replace: lid
 instruction_target_to_replace: pot
 instruction_verb_to_replace: pick
 supported_scenes:
-  office_cubicles_left:
-  - Office_Desk
+  Benevolence_1_int:
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.4360216
-    - 0.4289603
-    - 0.358119
+    - 0.3522126
+    - 0.6566933
+    - 0.4510686
     rot:
-    - 0.1058375
-    - -0.6124924
-    - -0.7743752
-    - 0.1182986
+    - 0.1890304
+    - -0.4795813
+    - -0.8069671
+    - 0.2882246
   cam2:
     pos:
-    - 0.0845126
-    - -0.7137756
-    - 0.6236854
+    - 0.3187815
+    - -0.3216935
+    - 0.4532376
     rot:
-    - 0.3490042
-    - -0.1816629
-    - -0.3758425
-    - 0.8390096
+    - 0.495753
+    - -0.1708242
+    - -0.221015
+    - 0.8223141
 main_objects:
 - type: DatasetObject
   name: lid
@@ -46,77 +46,77 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.132
-  - 0.1817066
+  - 0.18
+  - 0.12
+  - 0.1578014
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_bowl
+  category: bowl
+  model: kthvrl
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0934412
+  - 0.0934412
+  - 0.06
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.408
-  - 0.0538992
-- type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
+  - 0.42
+  - 0.28
   - 0.08
-  - 0.432
-  - 0.0557962
 - type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_bottle_of_face_cream
+  category: bottle_of_face_cream
+  model: dztaed
   bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0765897
+  - 0.0767016
+  - 0.0540738
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.304
-  - 0.132
-  - 0.0562801
+  - 0.18
+  - 0.28
+  - 0.0770369
+- type: DatasetObject
+  name: distractor_jar_of_kidney_beans
+  category: jar_of_kidney_beans
+  model: kfzxah
+  bounding_box:
+  - 0.0930049
+  - 0.0930049
+  - 0.1317107
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.1158554
 immutables:
 - type: DatasetObject
   name: pot
   category: saucepot
   model: ozrwwk
   bounding_box:
-  - 0.1369473
-  - 0.22
-  - 0.1051826
+  - 0.1058229
+  - 0.17
+  - 0.0812774
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.088
-  - 0.132
-  - 0.1025913
+  - 0.18
+  - 0.12
+  - 0.0906387

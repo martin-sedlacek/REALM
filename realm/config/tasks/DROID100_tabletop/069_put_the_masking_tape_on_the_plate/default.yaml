@@ -9,28 +9,28 @@ instruction_target_to_replace: plate
 instruction_verb_to_replace: stack
 supported_scenes:
   office_cubicles_left:
-  - Circular_Table
+  - Office_Desk
 camera_extrinsics:
   cam1:
     pos:
-    - 0.2613583
-    - 0.5692343
-    - 0.4494302
+    - -0.0518017
+    - -0.2971175
+    - 0.2067697
     rot:
-    - 0.2087626
-    - -0.448092
-    - -0.7638699
-    - 0.414891
+    - 0.494668
+    - -0.3077903
+    - -0.4273015
+    - 0.6913625
   cam2:
     pos:
-    - 0.2849422
-    - -0.4951162
-    - 0.4382849
+    - -0.1017784
+    - 0.5184805
+    - 0.6411688
     rot:
-    - 0.475047
-    - -0.1709281
-    - -0.3479852
-    - 0.7899495
+    - 0.3272091
+    - -0.4359507
+    - -0.6668735
+    - 0.5080954
 main_objects:
 - type: DatasetObject
   name: tape
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.132
-  - 0.11
+  - 0.28
+  - 0.42
   - 0.0557962
 target_objects:
 - type: DatasetObject
@@ -55,19 +55,53 @@ target_objects:
   category: plate
   model: itoeew
   bounding_box:
-  - 0.22
-  - 0.22
-  - 0.0130667
+  - 0.17
+  - 0.17
+  - 0.010097
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.432
-  - 0.34
-  - 0.0565334
+  - 0.12
+  - 0.18
+  - 0.0550485
 distractors:
+- type: DatasetObject
+  name: distractor_lemon
+  category: lemon
+  model: bbvonm
+  bounding_box:
+  - 0.0568493
+  - 0.0475621
+  - 0.0454882
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.42
+  - 0.0727442
+- type: DatasetObject
+  name: distractor_beefsteak_tomato
+  category: beefsteak_tomato
+  model: eevvzv
+  bounding_box:
+  - 0.0551043
+  - 0.0539619
+  - 0.0716401
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0858201
 - type: DatasetObject
   name: distractor_teaspoon
   category: teaspoon
@@ -82,41 +116,7 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.12
-  - 0.36
+  - 0.2
+  - 0.3
   - 0.0538992
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
-  bounding_box:
-  - 0.1
-  - 0.0125709
-  - 0.0125601
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.456
-  - 0.11
-  - 0.0562801
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
-  bounding_box:
-  - 0.1
-  - 0.0089092
-  - 0.0078734
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.108
-  - 0.23
-  - 0.0539367
 immutables: []

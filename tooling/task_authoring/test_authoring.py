@@ -2,6 +2,7 @@ import tempfile
 import random
 import struct
 import unittest
+from collections import Counter
 from pathlib import Path
 
 from tooling.task_authoring.authoring import (
@@ -20,7 +21,9 @@ from tooling.task_authoring.authoring import (
 )
 from tooling.task_authoring.save_server import save_task_config
 from tooling.task_authoring.generate_droid100_tabletop import (
+    bbox_fits_support,
     concepts,
+    distractor_family,
     ensure_receiver_capacity,
     fit_bbox,
     initial_relation_type,
@@ -28,6 +31,7 @@ from tooling.task_authoring.generate_droid100_tabletop import (
     place_initial_relation,
     primitive,
     reviewed_task,
+    sample_distractors,
 )
 
 
@@ -95,6 +99,23 @@ class AuthoringTest(unittest.TestCase):
         clearance = config["relative_bbox_position"][2] - 0.05
         self.assertGreaterEqual(clearance, 0.05)
         self.assertLess(clearance, 0.050001)
+
+    def test_support_fit_checks_complete_bbox_and_edge_clearance(self):
+        self.assertTrue(bbox_fits_support(0.25, 0.25, [0.10, 0.10, 0.10], 0.5, 0.5))
+        self.assertFalse(bbox_fits_support(0.05, 0.25, [0.10, 0.10, 0.10], 0.5, 0.5))
+        self.assertFalse(bbox_fits_support(0.10, 0.10, [0.10, 0.10, 0.10], 0.5, 0.5, True))
+
+    def test_distractor_sampler_balances_visual_families(self):
+        assets = {
+            category: [{"model": "model", "bbox": [0.05, 0.05, 0.10]}]
+            for category in ("bottle_of_water", "bottle_of_juice", "apple", "fork", "spoon")
+        }
+        sampled = sample_distractors(
+            assets, list(assets), set(), Counter(), Counter(), random.Random(4)
+        )
+        families = {distractor_family(str(item["category"])) for item in sampled[:3]}
+        self.assertEqual(len(families), 3)
+        self.assertLessEqual(sum(item["category"].startswith("bottle_of_") for item in sampled[:3]), 1)
 
     def test_receiver_capacity_uses_yaw_then_uniform_scaling(self):
         main = {"bounding_box": [0.2, 0.1, 0.05]}

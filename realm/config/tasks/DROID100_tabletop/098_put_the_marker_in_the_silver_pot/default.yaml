@@ -9,28 +9,28 @@ instruction_target_to_replace: pot
 instruction_verb_to_replace: put
 supported_scenes:
   Benevolence_1_int:
-  - Kitchen_Counter
+  - Dining_Table
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0132292
-    - 0.5178518
-    - 0.659439
+    - 0.3096869
+    - 0.4987724
+    - 0.2572133
     rot:
-    - 0.2691112
-    - -0.5596053
-    - -0.7092869
-    - 0.3336663
+    - 0.5101872
+    - -0.4797542
+    - -0.6653733
+    - 0.2585022
   cam2:
     pos:
-    - 0.0647709
-    - -0.6082895
-    - 0.5040412
+    - -0.0546644
+    - -0.5556831
+    - 0.2723456
     rot:
-    - 0.6739064
-    - -0.0887979
-    - -0.0622622
-    - 0.7308136
+    - 0.7610307
+    - 0.1051705
+    - -0.5098575
+    - 0.3870617
 main_objects:
 - type: DatasetObject
   name: marker
@@ -46,8 +46,8 @@ main_objects:
   - 0.7071068
   - 0.7071068
   relative_bbox_position:
-  - 0.088
-  - 0.088
+  - 0.42
+  - 0.28
   - 0.056298
 target_objects:
 - type: DatasetObject
@@ -55,68 +55,68 @@ target_objects:
   category: saucepot
   model: ozrwwk
   bounding_box:
-  - 0.1369473
-  - 0.22
-  - 0.1051826
+  - 0.1058229
+  - 0.17
+  - 0.0812774
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.288
-  - 0.272
-  - 0.1025913
+  - 0.18
+  - 0.12
+  - 0.0906387
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_cherry_tomato
+  category: cherry_tomato
+  model: dqvtgm
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0315681
+  - 0.0193244
+  - 0.0242142
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.08
-  - 0.288
-  - 0.0538992
+  - 0.18
+  - 0.28
+  - 0.0621071
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.304
-  - 0.088
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_pen
-  category: pen
-  model: ubwjqa
+  name: distractor_tablefork
+  category: tablefork
+  model: uodzrq
   bounding_box:
   - 0.1
-  - 0.0089092
-  - 0.0078734
+  - 0.0126529
+  - 0.0063285
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.072
-  - 0.184
-  - 0.0539367
+  - 0.42
+  - 0.12
+  - 0.0531643
+- type: DatasetObject
+  name: distractor_screwdriver
+  category: screwdriver
+  model: uajlga
+  bounding_box:
+  - 0.1
+  - 0.0092784
+  - 0.0092209
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.2
+  - 0.0546105
 immutables: []

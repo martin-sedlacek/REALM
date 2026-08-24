@@ -13,24 +13,24 @@ supported_scenes:
 camera_extrinsics:
   cam1:
     pos:
-    - 0.0932441
-    - 0.4788995
-    - 0.476768
+    - 0.248897
+    - -0.3295405
+    - 0.2300085
     rot:
-    - 0.2350101
-    - -0.5374059
-    - -0.7545928
-    - 0.2942022
+    - 0.3926246
+    - -0.3469154
+    - -0.5327605
+    - 0.6645765
   cam2:
     pos:
-    - -0.0783686
-    - -0.4034401
-    - 0.5200208
+    - 0.3010743
+    - 0.4541963
+    - 0.1947261
     rot:
-    - 0.5779589
-    - -0.3359447
-    - -0.3536275
-    - 0.654257
+    - 0.1793461
+    - -0.5107607
+    - -0.7551272
+    - 0.3697855
 main_objects:
 - type: DatasetObject
   name: pen
@@ -46,62 +46,62 @@ main_objects:
   - 0.0
   - 0.7071068
   relative_bbox_position:
-  - 0.11
-  - 0.132
+  - 0.15
+  - 0.18
   - 0.1437248
 target_objects: []
 distractors:
 - type: DatasetObject
-  name: distractor_teaspoon
-  category: teaspoon
-  model: wzsvzv
+  name: distractor_pruner
+  category: pruner
+  model: lucqrs
   bounding_box:
-  - 0.0989419
-  - 0.0221837
-  - 0.0077984
+  - 0.0293022
+  - 0.0669072
+  - 0.2279074
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.36
-  - 0.408
-  - 0.0538992
+  - 0.35
+  - 0.42
+  - 0.1639537
 - type: DatasetObject
-  name: distractor_masking_tape
-  category: masking_tape
-  model: vpgzne
-  bounding_box:
-  - 0.0501454
-  - 0.0499654
-  - 0.0115923
-  orientation:
-  - 0.0
-  - 0.0
-  - 0.0
-  - 1.0
-  relative_bbox_position:
-  - 0.1
-  - 0.432
-  - 0.0557962
-- type: DatasetObject
-  name: distractor_marker
-  category: marker
-  model: qemval
+  name: distractor_half_bagel
+  category: half_bagel
+  model: hsvakn
   bounding_box:
   - 0.1
-  - 0.0125709
-  - 0.0125601
+  - 0.0660361
+  - 0.0367416
   orientation:
   - 0.0
   - 0.0
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.38
-  - 0.132
-  - 0.0562801
+  - 0.15
+  - 0.42
+  - 0.0683709
+- type: DatasetObject
+  name: distractor_pomelo
+  category: pomelo
+  model: ezckjt
+  bounding_box:
+  - 0.0882033
+  - 0.072013
+  - 0.0732954
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0866477
 immutables:
 - type: DatasetObject
   name: cup
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.11
-  - 0.132
+  - 0.15
+  - 0.18
   - 0.0819912
