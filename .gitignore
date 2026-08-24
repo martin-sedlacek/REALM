@@ -170,6 +170,11 @@ isaac-sim/
 .claude/
 realm-container.skill
 
+# Private site-specific cluster harnesses. These remain local to their operators and are not part
+# of the portable REALM release.
+scripts/clara/
+scripts/karolina/
+
 # Apptainer/Singularity images -- 9-13 GB each, built from .docker/*.def
 *.sif
 # Thumbnail caches written by USD tooling
