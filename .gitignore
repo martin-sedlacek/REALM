@@ -175,6 +175,9 @@ realm-container.skill
 scripts/clara/
 scripts/karolina/
 
+# Local visual-review utility for generated REALM_DROID100 renders; not part of the release.
+tooling/droid100_frame_browser/
+
 # Apptainer/Singularity images -- 9-13 GB each, built from .docker/*.def
 *.sif
 # Thumbnail caches written by USD tooling
