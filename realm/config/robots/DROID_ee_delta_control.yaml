@@ -1,6 +1,9 @@
 robots:
   - name: "DROID"
-    type: "DROID"
+    model: "droid"
+    dof: 13
+    has_base_column: false
+    include_sensor_names: ["wrist_camera_flipped"]
     ee_control: true
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
@@ -16,6 +19,7 @@ robots:
             mode: "pose_delta_ori"
             motor_type: "position"
             control_freq: 15
+            height_offset: 0.0
             use_delta_commands: False
             use_impedances: True
             use_gravity_compensation: False

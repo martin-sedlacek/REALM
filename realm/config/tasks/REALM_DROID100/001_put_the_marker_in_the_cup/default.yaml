@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the marker in the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  office_cubicles_left:
+  - Office_Desk
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2806971
+    - -0.3381947
+    - 0.3681429
+    rot:
+    - 0.3623341
+    - -0.0699062
+    - -0.0525469
+    - 0.9279364
+  cam2:
+    pos:
+    - 0.5131082
+    - 0.3419457
+    - 0.4220328
+    rot:
+    - 0.0732146
+    - -0.4682234
+    - -0.8704055
+    - 0.1334197
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.28
+  - 0.42
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.18
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_bottle_of_strawberry_juice
+  category: bottle_of_strawberry_juice
+  model: mlnuza
+  bounding_box:
+  - 0.072067
+  - 0.0720663
+  - 0.1862659
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.42
+  - 0.143133
+- type: DatasetObject
+  name: distractor_carving_knife
+  category: carving_knife
+  model: awvoox
+  bounding_box:
+  - 0.1
+  - 0.0133686
+  - 0.0075487
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0537744
+- type: DatasetObject
+  name: distractor_open_end_wrench
+  category: open_end_wrench
+  model: klnawb
+  bounding_box:
+  - 0.1
+  - 0.0272955
+  - 0.0051241
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0525621
+immutables: []

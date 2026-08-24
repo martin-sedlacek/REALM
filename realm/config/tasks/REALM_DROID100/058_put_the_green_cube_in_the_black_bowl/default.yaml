@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the green cube in the black bowl
+instruction_obj_to_replace: cube
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1224978
+    - -0.5677941
+    - 0.29123
+    rot:
+    - 0.481595
+    - -0.1949828
+    - -0.3424876
+    - 0.7827836
+  cam2:
+    pos:
+    - 0.2085844
+    - 0.6764704
+    - 0.6311228
+    rot:
+    - 0.1207339
+    - -0.3758647
+    - -0.8685708
+    - 0.2995559
+main_objects:
+- type: PrimitiveObject
+  name: green_block
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.7
+  - 0.25
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.28
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.12
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_pencil
+  category: pencil
+  model: fnlbpu
+  bounding_box:
+  - 0.1
+  - 0.0038285
+  - 0.0031847
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.28
+  - 0.0515924
+- type: DatasetObject
+  name: distractor_mouse
+  category: mouse
+  model: oydobn
+  bounding_box:
+  - 0.0310995
+  - 0.0195964
+  - 0.0112779
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.055639
+- type: DatasetObject
+  name: distractor_wire_cutter
+  category: wire_cutter
+  model: ugbval
+  bounding_box:
+  - 0.1
+  - 0.0359596
+  - 0.0070931
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.2
+  - 0.0535466
+immutables: []

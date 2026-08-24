@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Take the pen out of the mug
+instruction_obj_to_replace: pen
+instruction_target_to_replace: mug
+instruction_verb_to_replace: pick
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.367236
+    - 0.4493225
+    - 0.4049073
+    rot:
+    - 0.1162924
+    - -0.5752778
+    - -0.7986369
+    - 0.1330817
+  cam2:
+    pos:
+    - 0.157126
+    - -0.6205593
+    - 0.4890189
+    rot:
+    - 0.5656394
+    - -0.1663288
+    - -0.1667839
+    - 0.7902974
+main_objects:
+- type: DatasetObject
+  name: pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1189699
+  - 0.0105993
+  - 0.009367
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.1437248
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_orange
+  category: orange
+  model: ucstpm
+  bounding_box:
+  - 0.0831017
+  - 0.0853447
+  - 0.0849716
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.42
+  - 0.0924859
+- type: DatasetObject
+  name: distractor_soda_cup
+  category: soda_cup
+  model: vicaqs
+  bounding_box:
+  - 0.0783589
+  - 0.0783587
+  - 0.129041
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.1145205
+- type: DatasetObject
+  name: distractor_tennis_ball
+  category: tennis_ball
+  model: rgekxe
+  bounding_box:
+  - 0.0667253
+  - 0.0658372
+  - 0.0659834
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0829917
+immutables:
+- type: DatasetObject
+  name: mug
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.0819912

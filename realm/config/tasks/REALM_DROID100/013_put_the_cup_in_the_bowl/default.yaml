@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the cup in the bowl
+instruction_obj_to_replace: cup
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3344901
+    - 0.4781994
+    - 0.5696037
+    rot:
+    - 0.1363506
+    - -0.4243443
+    - -0.8587079
+    - 0.2529055
+  cam2:
+    pos:
+    - 0.3157459
+    - -0.4038569
+    - 0.5493391
+    rot:
+    - 0.273688
+    - -0.1244696
+    - -0.4052359
+    - 0.8633574
+main_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.28
+  - 0.28
+  - 0.0819912
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.12
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_lemon
+  category: lemon
+  model: bbvonm
+  bounding_box:
+  - 0.0568493
+  - 0.0475621
+  - 0.0454882
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.28
+  - 0.0727442
+- type: DatasetObject
+  name: distractor_tweezers
+  category: tweezers
+  model: ngwoat
+  bounding_box:
+  - 0.0048518
+  - 0.0320922
+  - 0.0024996
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.0512499
+- type: DatasetObject
+  name: distractor_chestnut
+  category: chestnut
+  model: fmomat
+  bounding_box:
+  - 0.0199921
+  - 0.0153447
+  - 0.0153222
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0576611
+immutables: []

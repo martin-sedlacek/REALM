@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the blue cup in the orange cup
+instruction_obj_to_replace: cup
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.341561
+    - 0.3837635
+    - 0.4288264
+    rot:
+    - 0.1195883
+    - -0.3456879
+    - -0.8737633
+    - 0.3205249
+  cam2:
+    pos:
+    - 0.2062768
+    - -0.3478448
+    - 0.4051961
+    rot:
+    - 0.4731779
+    - -0.1685524
+    - -0.3608102
+    - 0.7858173
+main_objects:
+- type: DatasetObject
+  name: cup_1
+  category: mug
+  model: kitxam
+  bounding_box:
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.0823306
+target_objects:
+- type: DatasetObject
+  name: cup_2
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_gooseberry
+  category: gooseberry
+  model: cltzwx
+  bounding_box:
+  - 0.0142568
+  - 0.0126678
+  - 0.0128769
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.0564385
+- type: DatasetObject
+  name: distractor_box_of_cereal
+  category: box_of_cereal
+  model: pfwgkm
+  bounding_box:
+  - 0.035
+  - 0.1
+  - 0.115
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.1075001
+- type: DatasetObject
+  name: distractor_open_end_wrench
+  category: open_end_wrench
+  model: klnawb
+  bounding_box:
+  - 0.1
+  - 0.0272955
+  - 0.0051241
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.0525621
+immutables: []

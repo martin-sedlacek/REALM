@@ -105,7 +105,7 @@ obviously.
 does and does not establish. It is short, and it is the point.
 
 Knobs: `SUITE_OUT=` (results JSON, default `tmp/suite/results.json`), `SUITE_MODE=`
-(`stock`/`stockfix`/`oglite`, default `stock`), `SUITE_ARGS=` (passed through to `run_suite.py`).
+(`stock`/`oglite`, default `stock`), `SUITE_ARGS=` (passed through to `run_suite.py`).
 
 To run one test rather than a tier, name it:
 

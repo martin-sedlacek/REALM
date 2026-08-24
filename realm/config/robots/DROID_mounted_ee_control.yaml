@@ -1,0 +1,90 @@
+# DROID_mounted under END-EFFECTOR control (dm_robotics IK), rather than joint-position control.
+#
+# Same mounted robot as DROID_mounted.yaml, with the arm controller swapped for
+# DroidEndEffectorController.
+#
+# `name` is deliberately "DROID_mounted", NOT the filename. Configs are selected by FILENAME
+# (env_config.py loads robots/<--robot>.yaml) but observations are keyed by the robot's `name`, and
+# realm/inference/utils.py's ROBOT_OBS_PROFILES is looked up by that same name -- with a silent
+# fallback observation profile for anything unknown. Keeping the canonical name means the
+# v2 profile resolves; assert_wrist_camera() fails the build if it ever does not.
+robots:
+  - name: "DROID_mounted"
+    model: "droid_mounted"
+    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers).
+    dof: 13
+    has_base_column: true
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    # Drop the dead second wrist camera, exactly as DROID_mounted.yaml does -- read the long comment
+    # there for why it is an include and not an exclude, and why the camera index in
+    # ROBOT_OBS_PROFILES has to move with it. v2 comes out of the same converter
+    # as v1 and is described as differing only in geometry,
+    # so it is ASSUMED to name its cameras the same way; that assumption is not silent, because
+    # assert_wrist_camera() hard-fails at build time if this filter leaves the robot without the
+    # `wrist_camera_flipped` prim its profile names.
+    include_sensor_names: ["wrist_camera_flipped"]
+    control_freq: 15
+    action_normalize: False
+    action_type: "continuous"
+    friction: [ 0.05, 0.10, 0.05, 0.10, 0.75, 0.425, 0.20 ]
+    armature: [ 0.25, 0.50, 0.25, 0.50, 0.25, 0.150, 0.00 ]
+    # END-EFFECTOR CONTROL. IK is solved against the matching 7-DOF Franka MJCF; the RoboLab
+    # gripper is outside that chain.
+    ee_control: true
+    controller_name: "DroidEndEffectorController"
+    controller_config:
+        arm_0:
+            name: "DroidEndEffectorController"
+            mode: "absolute_pose"
+            motor_type: "position"
+            # Measured panda_link0 height above the mounted asset root. The controller compares
+            # commands with the end effector in that robot-root frame.
+            height_offset: 0.863891
+            control_freq: 15
+            use_delta_commands: False
+            use_impedances: True
+            # Both left as real booleans and both False, matching DROID_ee_control.yaml. NOTE this
+            # differs from the joint-control robolab configs, where use_cc_compensation is the
+            # truthy STRING "False," and has therefore been ON for every historical REALM result.
+            # Do not "harmonise" these without a measurement: it is a control hyperparameter.
+            use_gravity_compensation: False
+            use_cc_compensation: False
+            Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
+            Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
+            Kx: [ 400, 400, 400, 15, 15, 15 ]
+            Kxd: [ 37, 37, 37, 2, 2, 2 ]
+            command_output_limits: null
+            command_input_limits: null
+            max_effort: [ 87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0 ]
+            min_effort: [ -87.0, -87.0, -87.0, -87.0, -12.0, -12.0, -12.0 ]
+        gripper_0:
+          name: "CustomGripperController"
+          mode: "binary"
+          # No open_qpos/closed_qpos override: finger_joint follows the standard Robotiq 2F-85
+          # convention -- 0 rad = OPEN, 0.7854 rad = CLOSED -- which is already what
+          # MultiFingerGripperController assumes (droid_gripper_controller.py:49-60 sends the
+          # target>=0 branch, i.e. REALM's CLOSE, to the joint's UPPER limit).
+          #
+          # Measured 2026-08-11 on l40s-02 (job 189066), pad separation between the re-origined
+          # left/right_inner_finger links, which sit on the pad centroids:
+          #     finger_joint 0.0    -> 116.2 mm  (jaws wide open, ~85 mm gap plus pad thickness)
+          #     finger_joint 0.7854 ->  33.0 mm  (jaws shut)
+          #
+          # WARNING, this is what makes the joint easy to get backwards: the gripper is a four-bar
+          # linkage, so the KNUCKLES swing apart as the PADS close. Measuring "pad separation"
+          # between anything other than the pads themselves reports the opposite of the truth. An
+          # override added on 2026-08-11 from exactly that mistake inverted the gripper for a full
+          # batch (og391_gravfix_robolab) before the videos showed the jaws clamped shut throughout.
+          # Only trust a separation measured between the two inner_finger links AFTER
+          # The shipped asset places their origins on the pads.
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          focal_length: 2.8
+          # As in DROID.yaml: OG >= 3.9.1 writes horizontalAperture at init (default 20.995) instead
+          # of honouring the camera prim, which would widen the wrist view to ~150 deg. The robolab
+          # cameras author the same 5.376 x 3.024 sensor as droid.usd.
+          horizontal_aperture: 5.376

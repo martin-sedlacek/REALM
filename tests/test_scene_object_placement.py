@@ -47,7 +47,7 @@ def main():
                    help="2 is the minimum that can see this: the defect is an asymmetry between "
                         "the FIRST reference to an asset and the rest.")
     p.add_argument("--task_cfg_path", default="REALM_DROID10/open_drawer/default.yaml")
-    p.add_argument("--robot", default="DROID_robolab_v2")
+    p.add_argument("--robot", default="DROID_mounted")
     args = p.parse_args()
 
     set_sim_config(robot=args.robot)

@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the block in the bowl
+instruction_obj_to_replace: block
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  office_cubicles_left:
+  - Office_Desk
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3124502
+    - 0.5533298
+    - 0.3561944
+    rot:
+    - 0.2062965
+    - -0.4710924
+    - -0.8090284
+    - 0.2845818
+  cam2:
+    pos:
+    - 0.2874249
+    - -0.4959262
+    - 0.4064825
+    rot:
+    - 0.3687456
+    - -0.0185403
+    - -0.2090955
+    - 0.9055175
+main_objects:
+- type: PrimitiveObject
+  name: blue_block
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.25
+  - 0.9
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.42
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.18
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_half_hamburger_bun
+  category: half_hamburger_bun
+  model: sjtieq
+  bounding_box:
+  - 0.0862754
+  - 0.0424718
+  - 0.0253393
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.42
+  - 0.0626697
+- type: DatasetObject
+  name: distractor_lime
+  category: lime
+  model: iwjcjp
+  bounding_box:
+  - 0.0780001
+  - 0.059701
+  - 0.0595602
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.0797802
+- type: DatasetObject
+  name: distractor_tablespoon
+  category: tablespoon
+  model: mwzxal
+  bounding_box:
+  - 0.1
+  - 0.0183986
+  - 0.0078308
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.0539154
+immutables: []

@@ -203,7 +203,7 @@ seen in RoboLab, it did not come from this mechanism under these loads.
 
 A commit-by-commit audit of both repos was done to find everything the debug introduced, not just the
 obvious artefacts. **REALM was clean** — its remaining changes are all vectorization/port work that
-predates this investigation (perturbations, `env_*`, the seven `realm/misc/` patches, task configs).
+predates this investigation (perturbations, `env_*`, the former compatibility patches, task configs).
 **OG-lite was not**, and the first revert missed six commits.
 
 **REALM (`31223c1`)** — the `curlgrip` (nf=200), `padspring` and `xflat` robot configs, definitions
@@ -244,8 +244,7 @@ intermediate Xform. If it is wanted back:
 cd ~/projects/OG-lite_og391 && git revert --no-commit <the revert commit> && git commit
 ```
 
-Note it only reaches a run via `MODE=oglite` or `MODE=stockfix`; `rr` defaults to `MODE=stock`, and it
-was never added to the seven `realm/misc/` patches, so a rebuilt image does not contain it.
+This reverted change is not part of the validated SIF or current OG-lite release path.
 
 The asset-side equivalent (`make_xflat_gripper_usd.py`) is preferable if it is ever revisited, because
 it repairs the hull as well as the CoM and needs no engine patch — but both are reverted here.

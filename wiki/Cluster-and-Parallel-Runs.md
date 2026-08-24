@@ -68,7 +68,7 @@ Other variables include `TASK_ID`, `PERT_ID`, `REPEATS`, `MAX_STEPS`, `HORIZON`,
 
 > **Check two defaults before using it.**
 >
-> - **`ROBOT` defaults to `DROID_robolab_v2`**, not the `DROID` documented everywhere else. Pass
+> - **`ROBOT` defaults to `DROID_mounted`**, not the `DROID` documented everywhere else. Pass
 >   `ROBOT=DROID` unless you specifically want the RoboLab gripper — and note that if its definitions
 >   are not registered, the job fails and **still exits 0**.
 > - **It hard-requires the OG-lite fork** and aborts if it is absent, so it is not usable
@@ -152,11 +152,8 @@ wave instead of cycling per member.
 including `VB-POSE` and `V-VIEW` — only writes poses, works on a live sim, and deliberately never
 triggers a cycle.
 
-**Vector environments historically required `MODE=oglite`**, because the scene z-offset fix lived
-only in the fork. That fix is now in both build recipes, so a rebuilt image — or `MODE=stockfix` with
-a current patch directory — should remove the requirement. **A rebuilt image has never been
-verified**, and the vectorized script's own docstring still asserts the OG-lite requirement. Until
-someone verifies it, `MODE=oglite` is the conservative choice.
+The validated OG391 SIF includes the scene z-offset and other OG-lite fixes, so vector environments
+run in the default `MODE=stock`. Use `MODE=oglite` only to test a host fork checkout.
 
 See also the vector-run caveat in [Logs and outputs](Logs-Outputs-and-Viewer): results recorded
 before the per-environment rubric fix have invalid success rates.

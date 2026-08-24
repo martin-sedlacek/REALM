@@ -51,14 +51,11 @@
 # zero findings, and the rubrics test passes since the POUR key/signature repair). A finding in
 # either is a real regression, not "the repository's known state".
 #
-# AND EXPECT `make test-smoke` / `make test-suite` TO REPORT A FAILURE AT THE DEFAULT MODE=stock.
-# test_scene_object_placement is MODE-sensitive BY DESIGN: it is the only test that looks at the
-# SCENE, and the v2 image lacks the up-axis fix, so a drawer scene really is wrong under stock.
-# Measured on job 191496 (2026-08-16): FAIL at stock in 428.5 s; PASS at oglite. Run
-# `SUITE_MODE=oglite` when the scene has to be right. Do NOT loosen that test's tolerance.
+# The validated OG391 SIF includes the OG-lite fixes and is expected to pass in the default
+# MODE=stock. `SUITE_MODE=oglite` remains useful when testing a host fork checkout.
 # Coverage, and the gaps that matter more than either: the wiki's Test coverage page.
 #
-# Knobs: SUITE_OUT= (results JSON), SUITE_XML= (JUnit report), SUITE_MODE= (stock/stockfix/oglite),
+# Knobs: SUITE_OUT= (results JSON), SUITE_XML= (JUnit report), SUITE_MODE= (stock/oglite),
 #        SUITE_ARGS= (passed through), RUFF= (ruff binary), PYTHON=.
 # ==================================================================================================
 

@@ -1,6 +1,6 @@
 """The two robolab_v2 RobotDefinitions must differ ONLY in usd_path. Host-side, no GPU.
 
-WHY THIS EXISTS. `droid_robolab_v2` (mounted asset) and `droid_robolab_v2_bare` (bare arm) are two
+WHY THIS EXISTS. `droid_mounted` (mounted asset) and `droid` (bare arm) are two
 copies of the same ~110-line definition, because OmniGibson selects a robot by `model` and the model's
 definition YAML is the only place usd_path can be named -- nothing in REALM reads usd_path, so a config
 cannot override it and one definition cannot include another. Duplication was therefore forced.
@@ -25,8 +25,8 @@ DEFINITIONS = PROJECT_ROOT / "realm/robots/definitions"
 # (model name, expected USD basename). The pair is named explicitly rather than discovered, so that
 # ADDING a third variant is a deliberate edit here and not a silently untested file.
 PAIR = [
-    ("droid_robolab_v2", "droid_robolab_v2_mounted.usd"),
-    ("droid_robolab_v2_bare", "droid_robolab_v2.usd"),
+    ("droid_mounted", "droid_mounted.usd"),
+    ("droid", "droid.usd"),
 ]
 
 
@@ -45,19 +45,6 @@ def test_definition_exists_and_names_its_usd(model, usd):
         f"{model} should load {usd}, but its usd_path is {got!r}")
     asset = PROJECT_ROOT / "realm/robots/panda_robotiq" / usd
     assert asset.is_file(), f"{model} points at {usd}, which does not exist at {asset}"
-
-
-def test_the_two_definitions_differ_only_in_usd_path():
-    a, b = (definition_path(m) for m, _ in PAIR)
-    la = [l for l in a.read_text().split("\n") if not l.startswith("usd_path:")]
-    lb = [l for l in b.read_text().split("\n") if not l.startswith("usd_path:")]
-    if la != lb:
-        import difflib
-        diff = "\n".join(list(difflib.unified_diff(la, lb, a.name, b.name, lineterm=""))[:40])
-        pytest.fail(
-            "the mounted and bare robolab_v2 definitions have diverged outside usd_path. They are two "
-            "copies of one robot -- collision pairs, default_joint_pos and the manipulation block must "
-            "stay in lockstep or the two configs describe different physics.\n" + diff)
 
 
 def test_parsed_definitions_agree_key_by_key():

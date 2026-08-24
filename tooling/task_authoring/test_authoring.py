@@ -20,7 +20,7 @@ from tooling.task_authoring.authoring import (
     suggested_bbox,
 )
 from tooling.task_authoring.save_server import save_task_config
-from tooling.task_authoring.generate_droid100_tabletop import (
+from tooling.task_authoring.generate_realm_droid100 import (
     apply_model_override,
     bbox_fits_support,
     concepts,

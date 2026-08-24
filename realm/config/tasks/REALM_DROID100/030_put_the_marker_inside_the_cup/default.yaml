@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the marker inside the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3698197
+    - 0.4634936
+    - 0.4656607
+    rot:
+    - 0.0768594
+    - -0.545704
+    - -0.8222995
+    - 0.1418569
+  cam2:
+    pos:
+    - 0.2362915
+    - -0.5826178
+    - 0.6080113
+    rot:
+    - 0.4550723
+    - -0.172679
+    - -0.2821734
+    - 0.826722
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_water_bottle
+  category: water_bottle
+  model: lzdzkk
+  bounding_box:
+  - 0.0873897
+  - 0.0864275
+  - 0.2549802
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.1774901
+- type: DatasetObject
+  name: distractor_bottle_of_coke
+  category: bottle_of_coke
+  model: bmtvvb
+  bounding_box:
+  - 0.1
+  - 0.0991806
+  - 0.3090207
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.2045104
+- type: DatasetObject
+  name: distractor_jar_of_pepper_seasoning
+  category: jar_of_pepper_seasoning
+  model: iuydyz
+  bounding_box:
+  - 0.0925713
+  - 0.0925732
+  - 0.1317106
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.1158553
+immutables: []

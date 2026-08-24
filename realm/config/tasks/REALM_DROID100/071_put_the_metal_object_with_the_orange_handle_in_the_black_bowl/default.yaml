@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the screwdriver in the bowl
+instruction_obj_to_replace: screwdriver
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3542347
+    - 0.6551608
+    - 0.4506822
+    rot:
+    - 0.1840702
+    - -0.4793257
+    - -0.8099062
+    - 0.2835787
+  cam2:
+    pos:
+    - 0.3184674
+    - -0.3205691
+    - 0.4551086
+    rot:
+    - 0.4952467
+    - -0.1714013
+    - -0.2217371
+    - 0.8223047
+main_objects:
+- type: DatasetObject
+  name: screwdriver
+  category: screwdriver
+  model: uajlga
+  bounding_box:
+  - 0.14
+  - 0.0129898
+  - 0.0129092
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.0564546
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_jug_of_milk
+  category: jug_of_milk
+  model: xbvdpc
+  bounding_box:
+  - 0.1
+  - 0.1
+  - 0.1421249
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.1210625
+- type: DatasetObject
+  name: distractor_hotdog_bun
+  category: hotdog_bun
+  model: ajlvvj
+  bounding_box:
+  - 0.1
+  - 0.0479182
+  - 0.0346417
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.0673209
+- type: DatasetObject
+  name: distractor_tea_bag
+  category: tea_bag
+  model: kmvcrb
+  bounding_box:
+  - 0.0507929
+  - 0.0391162
+  - 0.0250638
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.0625319
+immutables: []

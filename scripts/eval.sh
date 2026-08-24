@@ -616,8 +616,6 @@ else
     exit 1
 fi
 
-echo "DEBUG: Server running"
-
 # Running evaluation ---------------------------------------------------------------------------------
 cd "$REALM_ROOT"
 mkdir -p "$REALM_ROOT/tmp"

@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Pick the marker from the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: pick
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1347838
+    - -0.3198509
+    - 0.3419315
+    rot:
+    - 0.5698157
+    - -0.2290414
+    - -0.2868397
+    - 0.7352368
+  cam2:
+    pos:
+    - 0.172469
+    - 0.3993292
+    - 0.3105214
+    rot:
+    - 0.1175191
+    - -0.4610931
+    - -0.7571495
+    - 0.4475569
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.1390538
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_broccoli
+  category: broccoli
+  model: wsxavx
+  bounding_box:
+  - 0.029087
+  - 0.0290308
+  - 0.0218591
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.0609296
+- type: DatasetObject
+  name: distractor_cherry_tomato
+  category: cherry_tomato
+  model: dqvtgm
+  bounding_box:
+  - 0.0315681
+  - 0.0193244
+  - 0.0242142
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.0621071
+- type: DatasetObject
+  name: distractor_mouse
+  category: mouse
+  model: oydobn
+  bounding_box:
+  - 0.0310995
+  - 0.0195964
+  - 0.0112779
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.055639
+immutables:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0819912

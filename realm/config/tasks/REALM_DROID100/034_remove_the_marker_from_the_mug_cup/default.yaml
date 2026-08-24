@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the marker from the mug cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: mug cup
+instruction_verb_to_replace: pick
+supported_scenes:
+  Benevolence_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1889571
+    - 0.2686198
+    - 0.3156472
+    rot:
+    - 0.1332731
+    - -0.4015696
+    - -0.7384901
+    - 0.5249881
+  cam2:
+    pos:
+    - 0.2857419
+    - -0.2907341
+    - 0.2691425
+    rot:
+    - 0.4737553
+    - -0.1916398
+    - -0.4202388
+    - 0.7498196
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.12
+  - 0.12
+  - 0.1390538
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_scone
+  category: scone
+  model: gwdhyj
+  bounding_box:
+  - 0.1
+  - 0.0635422
+  - 0.0342754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.28
+  - 0.0671377
+- type: DatasetObject
+  name: distractor_chopstick
+  category: chopstick
+  model: bdvjuf
+  bounding_box:
+  - 0.1
+  - 0.0022828
+  - 0.002288
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.28
+  - 0.051144
+- type: DatasetObject
+  name: distractor_nectarine
+  category: nectarine
+  model: frutec
+  bounding_box:
+  - 0.0797581
+  - 0.0785914
+  - 0.0720133
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.12
+  - 0.0860067
+immutables:
+- type: DatasetObject
+  name: mug
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.12
+  - 0.0819912

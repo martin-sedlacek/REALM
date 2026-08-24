@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the pen from the cup
+instruction_obj_to_replace: pen
+instruction_target_to_replace: cup
+instruction_verb_to_replace: pick
+supported_scenes:
+  Pomaria_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2310314
+    - -0.3889431
+    - 0.2525547
+    rot:
+    - 0.3976522
+    - -0.2036323
+    - -0.3776297
+    - 0.8110502
+  cam2:
+    pos:
+    - 0.2681379
+    - 0.441149
+    - 0.2258173
+    rot:
+    - 0.2685706
+    - -0.4678453
+    - -0.7213013
+    - 0.4344135
+main_objects:
+- type: DatasetObject
+  name: pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1189699
+  - 0.0105993
+  - 0.009367
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.12
+  - 0.15
+  - 0.1437248
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_cherry_tomato
+  category: cherry_tomato
+  model: dqvtgm
+  bounding_box:
+  - 0.0315681
+  - 0.0193244
+  - 0.0242142
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.35
+  - 0.0621071
+- type: DatasetObject
+  name: distractor_baseball
+  category: baseball
+  model: zanmar
+  bounding_box:
+  - 0.0734651
+  - 0.0734803
+  - 0.0734952
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.35
+  - 0.0867477
+- type: DatasetObject
+  name: distractor_duct_tape
+  category: duct_tape
+  model: htrage
+  bounding_box:
+  - 0.1
+  - 0.0902877
+  - 0.0293116
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.15
+  - 0.0646558
+immutables:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.15
+  - 0.0819912

@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Pick up the orange object and put it in the bowl.
+instruction_obj_to_replace: object
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1619758
+    - -0.3551515
+    - 0.5308013
+    rot:
+    - 0.5057885
+    - -0.2007133
+    - -0.2713593
+    - 0.7938868
+  cam2:
+    pos:
+    - 0.2226664
+    - 0.5777053
+    - 0.4412192
+    rot:
+    - 0.1568637
+    - -0.5727709
+    - -0.7722216
+    - 0.2258341
+main_objects:
+- type: PrimitiveObject
+  name: orange_object
+  primitive_type: Cube
+  rgba:
+  - 0.95
+  - 0.4
+  - 0.05
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.28
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.12
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_gooseberry
+  category: gooseberry
+  model: cltzwx
+  bounding_box:
+  - 0.0142568
+  - 0.0126678
+  - 0.0128769
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.28
+  - 0.0564385
+- type: DatasetObject
+  name: distractor_beer_bottle
+  category: beer_bottle
+  model: nigfha
+  bounding_box:
+  - 0.0754415
+  - 0.0754415
+  - 0.2586518
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.1793259
+- type: DatasetObject
+  name: distractor_glue_stick
+  category: glue_stick
+  model: sqzyci
+  bounding_box:
+  - 0.0947761
+  - 0.0192281
+  - 0.0192804
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.45
+  - 0.2
+  - 0.0596402
+immutables: []

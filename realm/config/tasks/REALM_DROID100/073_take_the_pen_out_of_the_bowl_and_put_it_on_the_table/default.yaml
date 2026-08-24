@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Take the pen out of the bowl
+instruction_obj_to_replace: pen
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: pick
+supported_scenes:
+  Benevolence_1_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3426911
+    - -0.2659489
+    - 0.3028235
+    rot:
+    - 0.5085601
+    - -0.2653546
+    - -0.3583849
+    - 0.7365554
+  cam2:
+    pos:
+    - 0.2019241
+    - 0.4017999
+    - 0.2307561
+    rot:
+    - 0.3689094
+    - -0.4856675
+    - -0.6420308
+    - 0.4645743
+main_objects:
+- type: DatasetObject
+  name: pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1257811
+  - 0.0112061
+  - 0.0099033
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.18
+  - 0.12
+  - 0.1296208
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_gooseberry
+  category: gooseberry
+  model: cltzwx
+  bounding_box:
+  - 0.0142568
+  - 0.0126678
+  - 0.0128769
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.28
+  - 0.0564385
+- type: DatasetObject
+  name: distractor_blackboard_eraser
+  category: blackboard_eraser
+  model: oynrtw
+  bounding_box:
+  - 0.1
+  - 0.0333333
+  - 0.0242238
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.28
+  - 0.0621119
+- type: DatasetObject
+  name: distractor_plier
+  category: plier
+  model: zwzncq
+  bounding_box:
+  - 0.1
+  - 0.0290735
+  - 0.0057135
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.0528568
+immutables:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.12
+  - 0.0740878

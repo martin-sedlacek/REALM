@@ -262,8 +262,8 @@ positions), `utils/usd_utils.py:1866-1932` (`_get_all_relative_poses`, relative 
   edit is a change of coordinates — every prim pose and joint anchor relative to `/cabinet` is
   preserved to 1.4e-08 — so it is also a **no-op under OG 1.1.1** and cannot regress that tree.
   `7c59ed5` itself is correct and must not be reverted: without it this asset does not load on stock
-  3.9.1 at all (the `xform_prim.py` round-trip assert quoted in
-  `realm/misc/material_prim_preset_og391.patch` is this same composition), and root-link placement is
+  3.9.1 at all (the corresponding OG-lite `xform_prim.py` round-trip assert is this same
+  composition), and root-link placement is
   what both versions already do once playing.
 - **`objects/usd_object.py:355-364`, the up-axis rewrite** (OG-lite `ec7373b`). Rotates nothing: up
   axis is layer metadata, every caller places the object explicitly afterwards, and for a Z-up asset

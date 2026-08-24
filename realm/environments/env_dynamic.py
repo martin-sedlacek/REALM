@@ -57,18 +57,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
     ) -> None:
         assert not (multi_view and no_rendering), f"Multi-view rendering was enabled during no_rendering mode. Either one is likely a mistake."
         self.task_cfg_path = "/".join(task_cfg_path.split("/")[-3:])
-        # Which suites mount the DROID on its base column. This decides three things at once: the
-        # robot definition picked in env_config (`droid_mounted` vs `droid`), whether the spawn point
-        # of a base-less asset is raised, and whether DROID_BASE_HEIGHT is added to the external
-        # camera poses and to the robot<->world action frames.
-        #
-        # DROID100_tabletop is here because its camera_extrinsics come from the DROID dataset, i.e.
-        # they are ROBOT-BASE-relative (see runbook references/jai_droid_extrinsics), and its objects
-        # sit on the same tabletop regions REALM_DROID10 uses. Left off the list, the arm spawns on
-        # the floor while the objects are at z~0.85 and both external cameras sit 0.86 m too low.
-        # No existing suite's numbers move: the set only grows.
-        # TODO: infer properly from the task/scene config yaml
-        self.use_droid_with_base = self.task_cfg_path.split("/")[0] in ("REALM_DROID10", "DROID100_tabletop")
+        # Every supported DROID profile uses the mounted RoboLab v2 asset. Camera and coordinate
+        # transforms therefore include the base-column height for every task family.
+        self.use_droid_with_base = robot.startswith("DROID")
         self.robot_name = robot
         self.multi_view = multi_view
         self.no_rendering = no_rendering

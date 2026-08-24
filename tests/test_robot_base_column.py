@@ -3,7 +3,7 @@
 WHY THIS EXISTS. `has_base_column` describes THE ASSET, and env_config.py:111 turns it into geometry:
 
     if env.use_droid_with_base and not cfg_robot["robots"][0].pop("has_base_column", True):
-        spawn_pos[2] += DROID_BASE_HEIGHT          # 0.86244
+        spawn_pos[2] += DROID_BASE_HEIGHT          # 0.863891
 
 So the flag and the asset must agree, and the two failure modes are both silent-ish and both severe:
 
@@ -13,14 +13,12 @@ So the flag and the asset must agree, and the two failure modes are both silent-
     the table; the contact forces NaN the sim within a few steps.
 
 Neither is a crash at load, and a NaN a few steps in reads like a physics problem rather than a
-config one. On 2026-08-19 `droid_robolab_v2` was switched from the bare arm to
-`droid_robolab_v2_mounted.usd`, which is exactly the edit that trips the first case if the flag is
-forgotten -- and the flag lives in TWO files (DROID_robolab_v2.yaml and
-DROID_robolab_v2_ee_control.yaml) that both name the same `model`, so it can also be half-changed.
+config one. On 2026-08-19 `droid_mounted` was switched from the bare arm to
+`droid_mounted.usd`, which is exactly the edit that trips the first case if the flag is
+forgotten -- and the flag lives in TWO files (DROID_mounted.yaml and
+DROID_mounted_ee_control.yaml) that both name the same `model`, so it can also be half-changed.
 
-The naming convention is the only asset property readable without booting Isaac: a USD whose stem ends
-in `_mounted` carries a base. That is a convention rather than a measurement, so the test says so, and
-the measured z-heights are recorded in DROID_robolab_v2.yaml where a reader will find them.
+The release invariant is now stronger: every DROID config uses the single mounted RoboLab v2 model.
 """
 
 from pathlib import Path
@@ -102,3 +100,28 @@ def test_configs_sharing_a_model_agree_on_has_base_column():
         "config(s) naming the same `model` disagree on has_base_column, so they load the same USD "
         f"with different spawn offsets: {disagreeing}"
     )
+
+
+def test_all_droid_profiles_use_robolab_v2():
+    """Prevent a generic profile from silently reintroducing a retired stock or v1 asset."""
+    droid_configs = [path for path in ROBOT_CONFIGS if path.name.startswith("DROID")]
+    assert droid_configs
+    for path in droid_configs:
+        robot = yaml.safe_load(path.read_text())["robots"][0]
+        mounted = path.name.startswith("DROID_mounted")
+        expected_model = "droid_mounted" if mounted else "droid"
+        expected_name = "DROID_mounted" if mounted else "DROID"
+        assert robot.get("model") == expected_model, path
+        assert robot.get("name") == expected_name, path
+        assert robot.get("dof") == 13, path
+        assert robot.get("has_base_column") is (expected_model == "droid_mounted"), path
+
+    retired = (
+        "droid_robolab.usd",
+        "droid_robolab_v2.usd",
+        "droid_robolab_v2_mounted.usd",
+    )
+    asset_root = PROJECT_ROOT / "realm/robots/panda_robotiq"
+    assert not [name for name in retired if (asset_root / name).exists()]
+    assert not list(asset_root.glob("Defeatured_*.usd"))
+    assert not (asset_root / "robolab_franka_robotiq_2f_85_flattened.usd").exists()

@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the marker into the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2603033
+    - 0.508048
+    - 0.4268777
+    rot:
+    - 0.1975396
+    - -0.431689
+    - -0.7919319
+    - 0.3840138
+  cam2:
+    pos:
+    - 0.3091332
+    - -0.2797259
+    - 0.4428665
+    rot:
+    - 0.5124545
+    - -0.1184083
+    - -0.2336666
+    - 0.8177834
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.35
+  - 0.42
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_half_bagel
+  category: half_bagel
+  model: hsvakn
+  bounding_box:
+  - 0.1
+  - 0.0660361
+  - 0.0367416
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.0683709
+- type: DatasetObject
+  name: distractor_canned_food
+  category: canned_food
+  model: byakrm
+  bounding_box:
+  - 0.0577961
+  - 0.0577961
+  - 0.081812
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.090906
+- type: DatasetObject
+  name: distractor_teapot
+  category: teapot
+  model: mvrhya
+  bounding_box:
+  - 0.1
+  - 0.0622266
+  - 0.0388673
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.25
+  - 0.3
+  - 0.0694337
+immutables: []

@@ -62,10 +62,10 @@ def apply_blur_and_contrast(obs, sigma=None, alpha=None, robot_name='DROID'):
         ).to(base_im.device)
 
     # The wrist observation key is <robot>:<link>:Camera:<idx>, and BOTH halves depend on the robot:
-    # obs is keyed by robot.name, and only droid.usd mounts the camera on `gripper_link_camera`.
+    # obs is keyed by robot.name, while the profile resolves the RoboLab wrist link and camera index.
     # This used to hardcode robot_name='DROID' and that link, and all three call sites in
     # env_dynamic.py omitted robot_name -- so on the robolab assets (DROID_robolab /
-    # DROID_robolab_v2, the default robot for every eval since 2026-08-13) the lookup was
+    # DROID_mounted, the default robot for every eval since 2026-08-13) the lookup was
     # obs['DROID'], which does not exist, and V-AUG died with a KeyError inside reset(). Resolve
     # the key from the robot profile instead, exactly as inference/utils.extract_from_obs does, so
     # the two cannot disagree about which image the policy sees.

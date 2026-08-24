@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Place the lid on the pot
+instruction_obj_to_replace: lid
+instruction_target_to_replace: pot
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.1497012
+    - -0.3566955
+    - 0.1991936
+    rot:
+    - 0.5278359
+    - -0.3065139
+    - -0.4877925
+    - 0.624097
+  cam2:
+    pos:
+    - 0.1715239
+    - 0.4006952
+    - 0.3066885
+    rot:
+    - 0.1214495
+    - -0.4628464
+    - -0.759684
+    - 0.4403447
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.066524
+target_objects:
+- type: DatasetObject
+  name: pot
+  category: saucepot
+  model: ozrwwk
+  bounding_box:
+  - 0.1058229
+  - 0.17
+  - 0.0812774
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0906387
+distractors:
+- type: DatasetObject
+  name: distractor_strawberry
+  category: strawberry
+  model: xcnzxh
+  bounding_box:
+  - 0.036561
+  - 0.025269
+  - 0.026275
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.0631375
+- type: DatasetObject
+  name: distractor_jug
+  category: jug
+  model: gjgwvi
+  bounding_box:
+  - 0.0716472
+  - 0.1
+  - 0.1521222
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.1260611
+- type: DatasetObject
+  name: distractor_pear
+  category: pear
+  model: clvnqe
+  bounding_box:
+  - 0.0933374
+  - 0.0726271
+  - 0.0773291
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.325
+  - 0.0886646
+immutables: []

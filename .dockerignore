@@ -1,5 +1,5 @@
-# Only realm/misc, packages/openpi-client and .docker are needed for the build --
-# everything below is data/artifacts that would otherwise be sent as build context.
+# The build needs the staged OG-lite package, vendored client, and Docker recipes; everything below
+# is data or generated output that should not be sent as build context.
 data/
 datasets/
 logs/

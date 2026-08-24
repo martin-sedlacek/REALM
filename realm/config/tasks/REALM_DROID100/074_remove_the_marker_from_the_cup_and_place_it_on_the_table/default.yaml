@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the marker from the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: pick
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.0936654
+    - 0.4799751
+    - 0.3911361
+    rot:
+    - 0.2339155
+    - -0.6207033
+    - -0.6853134
+    - 0.3005936
+  cam2:
+    pos:
+    - 0.1120763
+    - -0.3254142
+    - 0.5735582
+    rot:
+    - 0.4390254
+    - -0.293618
+    - -0.4806351
+    - 0.700025
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.1390538
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_softball
+  category: softball
+  model: erhbze
+  bounding_box:
+  - 0.0975069
+  - 0.0974477
+  - 0.0978493
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.42
+  - 0.0989247
+- type: DatasetObject
+  name: distractor_wine_bottle
+  category: wine_bottle
+  model: hlzfxw
+  bounding_box:
+  - 0.0585717
+  - 0.0585691
+  - 0.2522422
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.1761212
+- type: DatasetObject
+  name: distractor_strawberry
+  category: strawberry
+  model: xcnzxh
+  bounding_box:
+  - 0.036561
+  - 0.025269
+  - 0.026275
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0631375
+immutables:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.0819912

@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the marker out of the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: pick
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2352939
+    - 0.4226682
+    - 0.5296766
+    rot:
+    - 0.2608018
+    - -0.4846325
+    - -0.8076616
+    - 0.2116516
+  cam2:
+    pos:
+    - 0.3519736
+    - -0.4199402
+    - 0.4948921
+    rot:
+    - 0.3219316
+    - -0.0873541
+    - -0.2442627
+    - 0.9105301
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.1390538
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_pill_bottle
+  category: pill_bottle
+  model: csvdbe
+  bounding_box:
+  - 0.0388496
+  - 0.0388496
+  - 0.0546776
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.0773388
+- type: DatasetObject
+  name: distractor_pocketknife
+  category: pocketknife
+  model: ngtgdn
+  bounding_box:
+  - 0.1
+  - 0.0215911
+  - 0.0058475
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.0529238
+- type: DatasetObject
+  name: distractor_orange
+  category: orange
+  model: ucstpm
+  bounding_box:
+  - 0.0831017
+  - 0.0853447
+  - 0.0849716
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.0924859
+immutables:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0819912

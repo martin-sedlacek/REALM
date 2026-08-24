@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the marker in the mug
+instruction_obj_to_replace: marker
+instruction_target_to_replace: mug
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.4067877
+    - 0.4040456
+    - 0.3314639
+    rot:
+    - 0.0972204
+    - -0.6022361
+    - -0.7921221
+    - 0.0200612
+  cam2:
+    pos:
+    - 0.2182578
+    - -0.4345767
+    - 0.3406628
+    rot:
+    - 0.531848
+    - -0.061089
+    - -0.2299137
+    - 0.8127395
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.42
+  - 0.28
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: mug
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.12
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_tablefork
+  category: tablefork
+  model: uodzrq
+  bounding_box:
+  - 0.1
+  - 0.0126529
+  - 0.0063285
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.28
+  - 0.0531643
+- type: DatasetObject
+  name: distractor_beefsteak_tomato
+  category: beefsteak_tomato
+  model: eevvzv
+  bounding_box:
+  - 0.0551043
+  - 0.0539619
+  - 0.0716401
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.0858201
+- type: DatasetObject
+  name: distractor_orange
+  category: orange
+  model: ucstpm
+  bounding_box:
+  - 0.0831017
+  - 0.0853447
+  - 0.0849716
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.2
+  - 0.0924859
+immutables: []

@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the marker in the mug on the table
+instruction_obj_to_replace: marker
+instruction_target_to_replace: mug
+instruction_verb_to_replace: put
+supported_scenes:
+  office_cubicles_left:
+  - Office_Desk
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2861827
+    - 0.3879772
+    - 0.355726
+    rot:
+    - 0.2428055
+    - -0.3752919
+    - -0.7409875
+    - 0.5011377
+  cam2:
+    pos:
+    - 0.1548536
+    - -0.3215258
+    - 0.4063955
+    rot:
+    - 0.4284553
+    - -0.414173
+    - -0.471457
+    - 0.6500885
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.28
+  - 0.42
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: mug
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.18
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_sushi
+  category: sushi
+  model: akpnxn
+  bounding_box:
+  - 0.0354409
+  - 0.0362632
+  - 0.0241283
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.42
+  - 0.0620642
+- type: DatasetObject
+  name: distractor_toasting_fork
+  category: toasting_fork
+  model: osrfkc
+  bounding_box:
+  - 0.1
+  - 0.0172655
+  - 0.005388
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.18
+  - 0.052694
+- type: DatasetObject
+  name: distractor_chopstick
+  category: chopstick
+  model: bdvjuf
+  bounding_box:
+  - 0.1
+  - 0.0022828
+  - 0.002288
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.3
+  - 0.051144
+immutables: []

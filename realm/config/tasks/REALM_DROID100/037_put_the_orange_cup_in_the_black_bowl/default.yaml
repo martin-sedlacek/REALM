@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the orange cup in the black bowl
+instruction_obj_to_replace: cup
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.365712
+    - 0.4773824
+    - 0.4197171
+    rot:
+    - 0.1423313
+    - -0.5958792
+    - -0.7501585
+    - 0.2488614
+  cam2:
+    pos:
+    - 0.1984949
+    - -0.5594897
+    - 0.2631849
+    rot:
+    - 0.6006109
+    - -0.1943415
+    - -0.260528
+    - 0.7304951
+main_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: kitxam
+  bounding_box:
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.28
+  - 0.35
+  - 0.0823306
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.15
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_pen
+  category: pen
+  model: ubwjqa
+  bounding_box:
+  - 0.1
+  - 0.0089092
+  - 0.0078734
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.35
+  - 0.0539367
+- type: DatasetObject
+  name: distractor_sourdough
+  category: sourdough
+  model: jgydml
+  bounding_box:
+  - 0.089787
+  - 0.0798728
+  - 0.0522223
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.15
+  - 0.0761112
+- type: DatasetObject
+  name: distractor_stapler
+  category: stapler
+  model: kgnsas
+  bounding_box:
+  - 0.0874299
+  - 0.0182303
+  - 0.0450232
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.25
+  - 0.0725117
+immutables: []

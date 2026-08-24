@@ -114,7 +114,7 @@ srun --jobid=<ID> --overlap \
     --repeats 25 --max_steps 500 --horizon 8 \
     --model_type openpi --model_name <checkpoint-name> \
     --host 127.0.0.1 --port 8000 \
-    --robot DROID_robolab_v2 \
+    --robot DROID_mounted \
     --experiment_name <experiment> --run_id <run-id> \
     --log_dir /logs --rendering_mode rt \
     --render_on_demand

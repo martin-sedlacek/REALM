@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the white object on the plate
+instruction_obj_to_replace: object
+instruction_target_to_replace: plate
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - -0.1678869
+    - -0.4693573
+    - 0.3849592
+    rot:
+    - 0.5669505
+    - -0.2997832
+    - -0.3678342
+    - 0.6733462
+  cam2:
+    pos:
+    - 0.0572269
+    - 0.555295
+    - 0.5047467
+    rot:
+    - 0.3216571
+    - -0.5103172
+    - -0.71819
+    - 0.3468663
+main_objects:
+- type: PrimitiveObject
+  name: white_object
+  primitive_type: Cube
+  rgba:
+  - 0.9
+  - 0.9
+  - 0.9
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.35
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: plate
+  category: plate
+  model: itoeew
+  bounding_box:
+  - 0.17
+  - 0.17
+  - 0.010097
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.15
+  - 0.0550485
+distractors:
+- type: DatasetObject
+  name: distractor_water_bottle
+  category: water_bottle
+  model: lzdzkk
+  bounding_box:
+  - 0.0873897
+  - 0.0864275
+  - 0.2549802
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.35
+  - 0.1774901
+- type: DatasetObject
+  name: distractor_bowl
+  category: bowl
+  model: kthvrl
+  bounding_box:
+  - 0.0934412
+  - 0.0934412
+  - 0.06
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.15
+  - 0.08
+- type: DatasetObject
+  name: distractor_coffee_cup
+  category: coffee_cup
+  model: ykuftq
+  bounding_box:
+  - 0.09144
+  - 0.0569466
+  - 0.0775323
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.25
+  - 0.0887662
+immutables: []

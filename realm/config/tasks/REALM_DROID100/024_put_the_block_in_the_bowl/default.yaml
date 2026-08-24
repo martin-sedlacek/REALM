@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the block in the bowl
+instruction_obj_to_replace: block
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.0284893
+    - -0.3859105
+    - 0.2676227
+    rot:
+    - 0.6120285
+    - -0.2827316
+    - -0.3020638
+    - 0.6739744
+  cam2:
+    pos:
+    - 0.4044776
+    - 0.4055607
+    - 0.2800467
+    rot:
+    - 0.1081029
+    - -0.4695132
+    - -0.8547807
+    - 0.1929275
+main_objects:
+- type: PrimitiveObject
+  name: blue_block
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.25
+  - 0.9
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.42
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_tea_bag
+  category: tea_bag
+  model: kmvcrb
+  bounding_box:
+  - 0.0507929
+  - 0.0391162
+  - 0.0250638
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.0625319
+- type: DatasetObject
+  name: distractor_strawberry
+  category: strawberry
+  model: xcnzxh
+  bounding_box:
+  - 0.036561
+  - 0.025269
+  - 0.026275
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0631375
+- type: DatasetObject
+  name: distractor_half_hamburger_bun
+  category: half_hamburger_bun
+  model: sjtieq
+  bounding_box:
+  - 0.0862754
+  - 0.0424718
+  - 0.0253393
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.25
+  - 0.3
+  - 0.0626697
+immutables: []

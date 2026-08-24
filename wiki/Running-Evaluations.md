@@ -39,13 +39,6 @@ and adds logging — see [Cluster and parallel runs](Cluster-and-Parallel-Runs).
 |---|---|
 | `stock` | the image's own OmniGibson 3.9.1. Nothing bound. **Default.** |
 | `oglite` | the host OG-lite fork bound over the image's package — the whole fork |
-| `stockfix` | the image's own OmniGibson, plus individually-bound patched files from the stock-patch directory |
-
-`stockfix` exists because a rebuilt image cannot currently be produced (see
-[Installation](Installation)). Both build recipes apply the same patches, so `stockfix` is intended
-to behave identically to a rebuilt image — but **check that the stock-patch directory is current**
-before relying on it. It is produced by `scripts/clara/interactive/make_stock_patch.sh`, and `rr`
-binds whatever it finds there; if the directory is stale, you silently run without the newer fixes.
 
 Other environment variables `rr` passes through, only when you set them:
 `REALM_INCREMENTAL_CONTACT_CACHE`, `REALM_PROXIMITY_GATE`, `REALM_GPU_DYNAMICS`,

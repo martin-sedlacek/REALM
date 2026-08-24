@@ -1,16 +1,28 @@
-# RobotDefinition for the DROID platform (Franka Panda + Robotiq 2F-85, wrist camera), table-mounted
-# variant WITHOUT the base column. Ported from the pre-3.9.1 `realm/robots/droid_arm.py`, which
-# encoded all of this as Python properties on a `ManipulationRobot` subclass; OmniGibson 3.9.1 has a
-# single `Robot` class driven by this schema instead (see omnigibson/robots/definition_schema.py).
+# Unmounted form of the canonical RoboLab v2 DROID embodiment.
+# RobotDefinition for the DROID platform using the robolab Franka + Robotiq 2F-85 asset.
 #
-# Reachable because `<robot-assets>/models/droid` is a symlink to this directory, so OmniGibson finds
-# `models/droid/droid.yaml` where it expects a registered robot. `REGISTERED_ROBOTS` is built by
-# globbing `<data>/*/models/*/*.yaml` for files whose stem matches their parent directory, which is
-# why this file must keep the name `droid.yaml`.
+# Same arm as `droid`, different gripper physics. The stock droid.usd models the 2F-85 with extra
+# prismatic joints and relies on the loop-closing joints contributing no articulation DOFs, which
+# makes the fingers effectively rigid. The robolab asset instead models the four-bar linkage as a
+# *tree* (each inner_knuckle is a leaf rather than being joined back to base_link) and reproduces
+# the linkage kinematics with PhysX **mimic joints** -- an Isaac Sim 5.1 feature that OmniGibson
+# 1.1.1 could not use. The result is a single actuated DOF whose followers can flex, so the pads
+# comply on contact instead of behaving as a rigid jaw.
 #
-# `usd_path` is absolute on purpose: OmniGibson joins it onto the robot-assets root with os.path.join,
-# and an absolute second argument wins, so the asset is taken straight from the repo bound at /app.
-# The pre-3.9.1 class did exactly the same thing.
+# The asset was produced from the RoboLab vendor file; the release keeps the resulting USD, which
+# flattens the gripper bodies up to /panda (OmniGibson only treats *direct* Xform children of the
+# robot prim as links). Do not point usd_path at the raw robolab file.
+#
+# Gripper joint topology (base_link is the gripper base, fixed to panda_link8):
+#   finger_joint                     base_link          -> left_outer_knuckle   [ACTUATED, drive]
+#   right_outer_knuckle_joint        base_link          -> right_outer_knuckle  [mimic]
+#   left_inner_finger_joint          left_outer_finger  -> left_inner_finger    [mimic]
+#   right_inner_finger_joint         right_outer_finger -> right_inner_finger   [mimic]
+#   left_inner_finger_knuckle_joint  left_inner_finger  -> left_inner_knuckle   [mimic]
+#   right_inner_finger_knuckle_joint right_inner_finger -> right_inner_knuckle  [mimic]
+#   FixedJoint x2                    *_outer_knuckle    -> *_outer_finger
+#
+# Loaded via `model: droid`.
 
 raw_controller_order: ["arm_0", "gripper_0"]
 default_controllers:
@@ -18,11 +30,55 @@ default_controllers:
   gripper_0: CustomGripperController
 
 usd_path: "/app/realm/robots/panda_robotiq/droid.usd"
-self_collisions: true
 
-# 7 arm joints + the 4 gripper joints listed under finger_joint_names, in DOF order (= 11, matching
-# DROID_DEFAULT_DOF in realm/environments/env_dynamic.py). Values are the measured DROID rest pose
-# carried over verbatim from droid_arm.py; env_dynamic overwrites the first 7 per task anyway.
+# Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
+# Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the
+# resulting contact forces drive finger_joint hard to its upper limit -- measured: setting the
+# joint to 0.0 and stepping lands it at 0.7854 within ~60 steps, with the pads stuck at the
+# maximum ~8 cm opening regardless of command. OmniGibson's own franka.yaml disables the same
+# 28 pairs for its `robotiq` end-effector variant, which uses these exact link names.
+self_collisions: true
+disabled_collision_pairs:
+  - ["left_outer_knuckle", "left_outer_finger"]
+  - ["left_outer_knuckle", "left_inner_finger"]
+  - ["left_outer_knuckle", "left_inner_knuckle"]
+  - ["left_outer_knuckle", "right_outer_knuckle"]
+  - ["left_outer_knuckle", "right_outer_finger"]
+  - ["left_outer_knuckle", "right_inner_finger"]
+  - ["left_outer_knuckle", "right_inner_knuckle"]
+  - ["left_outer_finger", "left_inner_finger"]
+  - ["left_outer_finger", "left_inner_knuckle"]
+  - ["left_outer_finger", "right_outer_knuckle"]
+  - ["left_outer_finger", "right_outer_finger"]
+  - ["left_outer_finger", "right_inner_finger"]
+  - ["left_outer_finger", "right_inner_knuckle"]
+  - ["left_inner_finger", "left_inner_knuckle"]
+  - ["left_inner_finger", "right_outer_knuckle"]
+  - ["left_inner_finger", "right_outer_finger"]
+  - ["left_inner_finger", "right_inner_finger"]
+  - ["left_inner_finger", "right_inner_knuckle"]
+  - ["left_inner_knuckle", "right_outer_knuckle"]
+  - ["left_inner_knuckle", "right_outer_finger"]
+  - ["left_inner_knuckle", "right_inner_finger"]
+  - ["left_inner_knuckle", "right_inner_knuckle"]
+  - ["right_outer_knuckle", "right_outer_finger"]
+  - ["right_outer_knuckle", "right_inner_finger"]
+  - ["right_outer_knuckle", "right_inner_knuckle"]
+  - ["right_outer_finger", "right_inner_finger"]
+  - ["right_outer_finger", "right_inner_knuckle"]
+  - ["right_inner_finger", "right_inner_knuckle"]
+  - ["base_link", "left_outer_knuckle"]
+  - ["base_link", "left_outer_finger"]
+  - ["base_link", "left_inner_finger"]
+  - ["base_link", "left_inner_knuckle"]
+  - ["base_link", "right_outer_knuckle"]
+  - ["base_link", "right_outer_finger"]
+  - ["base_link", "right_inner_finger"]
+  - ["base_link", "right_inner_knuckle"]
+
+# 7 arm DOFs + 6 gripper DOFs (the actuated finger_joint plus its five mimic followers, all of which
+# are real articulation DOFs here because the linkage is a tree). Arm values are the measured DROID
+# rest pose carried over from droid.yaml; env_dynamic overwrites the first 7 per task.
 default_joint_pos: [
   0.143628523,
   -0.597331285,
@@ -31,7 +87,7 @@ default_joint_pos: [
   0.267941624,
   1.97807848,
   -0.0898026153,
-  0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 ]
 
 manipulation:
@@ -41,28 +97,16 @@ manipulation:
     "0": ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
   eef_link_names:
     "0": "panda_link8"
+  # The compliant pads that actually contact the object; grasp detection intersects contacts with
+  # these (RealmEnvironmentBase.is_grasping expects exactly two).
   finger_link_names:
-    "0": ["gripper_link_left_inner_finger", "gripper_link_right_inner_finger"]
-  # Order matters and is depended on downstream: droid_gripper_controller.compute_control maps
-  # dof_idx[:2] (the two prismatic inner-finger joints) onto dof_idx[2:] (the two revolute ones).
-  #
-  # CORRECTION: this used to claim `gripper_control_idx` reproduces the old hardcoded arange(7, 11).
-  # It does not -- it is [8, 7, 10, 9]. See the long note in droid_mounted.yaml (same asset family,
-  # measured there on a live build) for the articulation's own ordering and why the difference is
-  # benign. n_dof == n_joints == 11 was confirmed on that build, so the claim below still holds:
-  # the six remaining non-fixed gripper joints close kinematic loops in the 2F-85 four-bar linkage
-  # and contribute no articulation DOFs.
+    "0": ["left_inner_finger", "right_inner_finger"]
+  # Only the driven joint. Everything else follows through the mimic constraints, so commanding it
+  # is enough -- and listing followers here would have the controller fight its own linkage.
+  # NOTE: this joint is inverted relative to OmniGibson's convention (0 rad = open, upper limit =
+  # closed), so the gripper controller needs explicit open_qpos/closed_qpos; see
+  # realm/config/robots/DROID_mounted.yaml (DROID_robolab.yaml was deleted 2026-08-19).
   finger_joint_names:
-    "0": [
-      "left_inner_finger_prismatic_joint",
-      "right_inner_finger_prismatic_joint",
-      "left_inner_finger_joint",
-      "right_inner_finger_joint",
-    ]
+    "0": ["finger_joint"]
   teleop_rotation_offset:
     "0": [-1, 0, 0, 0]
-
-# Assisted-grasp points are deliberately omitted. REALM evaluates with the default grasping_mode
-# "physical", so they are never consulted, and the pre-3.9.1 class pointed them at `panda_leftfinger`
-# / `panda_rightfigner` (sic) -- links that do not exist in droid.usd at all. Declaring nonexistent
-# links here would turn dead config into a load-time failure.

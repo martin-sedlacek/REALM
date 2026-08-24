@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the lid on the black pot
+instruction_obj_to_replace: lid
+instruction_target_to_replace: pot
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2375243
+    - 0.6164672
+    - 0.2956132
+    rot:
+    - 0.1709381
+    - -0.5055301
+    - -0.7913857
+    - 0.2982082
+  cam2:
+    pos:
+    - 0.1134198
+    - -0.3956649
+    - 0.306893
+    rot:
+    - 0.4947693
+    - -0.2369454
+    - -0.4263019
+    - 0.7192544
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.066524
+target_objects:
+- type: DatasetObject
+  name: pot
+  category: saucepot
+  model: ozrwwk
+  bounding_box:
+  - 0.1058229
+  - 0.17
+  - 0.0812774
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0906387
+distractors:
+- type: DatasetObject
+  name: distractor_coffee_cup
+  category: coffee_cup
+  model: ykuftq
+  bounding_box:
+  - 0.09144
+  - 0.0569466
+  - 0.0775323
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.0887662
+- type: DatasetObject
+  name: distractor_marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1
+  - 0.0125709
+  - 0.0125601
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.0562801
+- type: DatasetObject
+  name: distractor_pocketknife
+  category: pocketknife
+  model: ngtgdn
+  bounding_box:
+  - 0.1
+  - 0.0215911
+  - 0.0058475
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.0529238
+immutables: []

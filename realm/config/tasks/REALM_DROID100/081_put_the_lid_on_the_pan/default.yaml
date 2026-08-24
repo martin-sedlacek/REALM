@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the lid on the pan
+instruction_obj_to_replace: lid
+instruction_target_to_replace: pan
+instruction_verb_to_replace: stack
+supported_scenes:
+  Pomaria_1_int:
+  - Kitchen_Counter
+camera_extrinsics:
+  cam1:
+    pos:
+    - -0.1348207
+    - -0.5737622
+    - 0.488848
+    rot:
+    - 0.5352664
+    - -0.2224496
+    - -0.3299078
+    - 0.7450952
+  cam2:
+    pos:
+    - 0.0654722
+    - 0.5999896
+    - 0.466172
+    rot:
+    - 0.2505589
+    - -0.4644108
+    - -0.7851046
+    - 0.324274
+main_objects:
+- type: DatasetObject
+  name: lid
+  category: lid
+  model: zkderg
+  bounding_box:
+  - 0.0761192
+  - 0.0761192
+  - 0.0330479
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.35
+  - 0.066524
+target_objects:
+- type: DatasetObject
+  name: pan
+  category: frying_pan
+  model: cprjvq
+  bounding_box:
+  - 0.17
+  - 0.1087623
+  - 0.0266098
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.15
+  - 0.0633049
+distractors:
+- type: DatasetObject
+  name: distractor_erlenmeyer_flask
+  category: erlenmeyer_flask
+  model: bpwjxr
+  bounding_box:
+  - 0.0776034
+  - 0.0776101
+  - 0.1531681
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.35
+  - 0.1265841
+- type: DatasetObject
+  name: distractor_pruner
+  category: pruner
+  model: lucqrs
+  bounding_box:
+  - 0.0293022
+  - 0.0669072
+  - 0.2279074
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.15
+  - 0.1639537
+- type: DatasetObject
+  name: distractor_scone
+  category: scone
+  model: gwdhyj
+  bounding_box:
+  - 0.1
+  - 0.0635422
+  - 0.0342754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.25
+  - 0.0671377
+immutables: []

@@ -1,0 +1,130 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Put the green block inside the black bowl
+instruction_obj_to_replace: block
+instruction_target_to_replace: bowl
+instruction_verb_to_replace: put
+supported_scenes:
+  Benevolence_1_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2765631
+    - 0.6641601
+    - 0.4100613
+    rot:
+    - 0.1308834
+    - -0.4435359
+    - -0.8060464
+    - 0.3693706
+  cam2:
+    pos:
+    - 0.1211144
+    - -0.6397715
+    - 0.4295614
+    rot:
+    - 0.5887105
+    - -0.0772714
+    - -0.1328566
+    - 0.7935983
+main_objects:
+- type: PrimitiveObject
+  name: green_block
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.7
+  - 0.25
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.28
+  - 0.0750001
+target_objects:
+- type: DatasetObject
+  name: bowl
+  category: bowl
+  model: ckxwea
+  bounding_box:
+  - 0.17
+  - 0.1498503
+  - 0.0481754
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.12
+  - 0.0740878
+distractors:
+- type: DatasetObject
+  name: distractor_can
+  category: can
+  model: moeqjz
+  bounding_box:
+  - 0.1
+  - 0.1
+  - 0.1298244
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.18
+  - 0.28
+  - 0.1149122
+- type: DatasetObject
+  name: distractor_trash_can
+  category: trash_can
+  model: wkxtxh
+  bounding_box:
+  - 0.1
+  - 0.0999688
+  - 0.1211565
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.42
+  - 0.12
+  - 0.1105783
+- type: DatasetObject
+  name: distractor_hammer
+  category: hammer
+  model: fcrlbo
+  bounding_box:
+  - 0.1
+  - 0.0414141
+  - 0.012226
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.3
+  - 0.3
+  - 0.056113
+immutables: []

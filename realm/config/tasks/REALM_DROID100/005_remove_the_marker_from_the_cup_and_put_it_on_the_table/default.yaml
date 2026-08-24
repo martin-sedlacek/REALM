@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: pick
+instruction: Remove the marker from the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: pick
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.2933965
+    - 0.6207183
+    - 0.4308651
+    rot:
+    - 0.1337797
+    - -0.4823236
+    - -0.8097329
+    - 0.3062671
+  cam2:
+    pos:
+    - 0.2295852
+    - -0.4765661
+    - 0.4364524
+    rot:
+    - 0.4783753
+    - -0.1465749
+    - -0.3169349
+    - 0.8057451
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.7071068
+  - 0.0
+  - 0.7071068
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.1390538
+target_objects: []
+distractors:
+- type: DatasetObject
+  name: distractor_avocado
+  category: avocado
+  model: arswzs
+  bounding_box:
+  - 0.1
+  - 0.0644419
+  - 0.0716496
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.42
+  - 0.0858249
+- type: DatasetObject
+  name: distractor_soda_cup
+  category: soda_cup
+  model: vicaqs
+  bounding_box:
+  - 0.0783589
+  - 0.0783587
+  - 0.129041
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.1145205
+- type: DatasetObject
+  name: distractor_half_bagel
+  category: half_bagel
+  model: hsvakn
+  bounding_box:
+  - 0.1
+  - 0.0660361
+  - 0.0367416
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.0683709
+immutables:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.0819912

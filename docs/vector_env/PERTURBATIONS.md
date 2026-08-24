@@ -92,11 +92,9 @@ sampled `distractor_<i>` ones, whose names do not collide.
 strictly narrower than the name test and always the correct entry, since `scene.add_object` already
 forbids two live same-named objects in one scene. Against the fork the repair below finds nothing.
 
-`vec_init_queue.repair_init_queue()` is **kept**, as a net rather than a workaround, because
-the OG-lite bind is optional and the fix does not travel with the image. `rr` defaults to
-`MODE=stock`, and `MODE=stockfix` — the configuration `make_stock_patch.sh` exists to prepare and
-that both build recipes wire in — binds only `scenes/scene_base.py`, so it still runs the stock
-`simulator.py`. Under either, the eviction is live and this repair is the only thing between it and
+`vec_init_queue.repair_init_queue()` is **kept** as a defensive net for older images. The validated
+SIF and OG-lite both contain the identity-matching fix. With an older stock image the eviction is
+live and this repair is the only thing between it and
 an opaque `Object must be initialized before dumping state!` (or `prim view [...] is not a valid
 view` out of `play()`) raised from an unrelated call site much later. It is two comprehensions per
 reset that needs a stopped sim, and it announces itself loudly, so the presence or absence of its
@@ -113,9 +111,8 @@ Both PASS either way — the repair worked; it just no longer has anything to re
 poses and contact-row counts are identical before and after, so the only thing that changed is that
 nothing is evicted.
 
-**Follow-up worth doing:** add the `_pre_remove_object` one-liner to `make_stock_patch.sh` and to the
-two build recipes alongside the `scene_base.py` patch. Until that happens, `MODE=stockfix` and the
-rebuilt SIF carry the bug, and the net above is what keeps them working.
+The validated SIF carries the `_pre_remove_object` identity fix; the net remains for compatibility
+with older images.
 
 #### The same pop has a second half: the corpse keeps its slot
 

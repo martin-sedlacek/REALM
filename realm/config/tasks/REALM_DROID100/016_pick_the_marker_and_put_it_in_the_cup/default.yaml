@@ -1,0 +1,122 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: put
+instruction: Pick the marker and put it in the cup
+instruction_obj_to_replace: marker
+instruction_target_to_replace: cup
+instruction_verb_to_replace: put
+supported_scenes:
+  Pomaria_1_int:
+  - Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3310944
+    - -0.460492
+    - 0.6467167
+    rot:
+    - 0.4290456
+    - 0.0845206
+    - -0.0157521
+    - 0.8991819
+  cam2:
+    pos:
+    - 0.4726721
+    - 0.4106092
+    - 0.558582
+    rot:
+    - 0.048501
+    - -0.368696
+    - -0.9235176
+    - 0.0939473
+main_objects:
+- type: DatasetObject
+  name: marker
+  category: marker
+  model: qemval
+  bounding_box:
+  - 0.1002858
+  - 0.0126068
+  - 0.012596
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  relative_bbox_position:
+  - 0.28
+  - 0.455
+  - 0.056298
+target_objects:
+- type: DatasetObject
+  name: cup
+  category: mug
+  model: jgethp
+  bounding_box:
+  - 0.1127337
+  - 0.1368154
+  - 0.0639822
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.195
+  - 0.0819912
+distractors:
+- type: DatasetObject
+  name: distractor_parer
+  category: parer
+  model: zpkhwi
+  bounding_box:
+  - 0.1
+  - 0.0126289
+  - 0.006733
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.12
+  - 0.455
+  - 0.0533665
+- type: DatasetObject
+  name: distractor_sponge
+  category: sponge
+  model: aewrov
+  bounding_box:
+  - 0.1
+  - 0.0666667
+  - 0.02
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.28
+  - 0.195
+  - 0.06
+- type: DatasetObject
+  name: distractor_toasting_fork
+  category: toasting_fork
+  model: osrfkc
+  bounding_box:
+  - 0.1
+  - 0.0172655
+  - 0.005388
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.2
+  - 0.325
+  - 0.052694
+immutables: []

@@ -131,11 +131,10 @@ The `scripts/clara/interactive/` harness is the route that works.
 - The second camera on drawer tasks is gated on a task type string that no task config ever sets, so
   that branch is unreachable. Treat it as a latent bug, not a mechanism.
 
-### The container cannot currently be rebuilt — *known and accepted*
+### Build the container off Lustre
 
 `apptainer build --fakeroot` fails on Lustre trying to change ownership inside the image rootfs.
-Consequently **a rebuilt image has never been verified** — only the bind-mount path has. `MODE=stockfix`
-is the substitute, and it is only as good as the stock-patch directory it binds from.
+Build on local disk and move the resulting validated SIF to the cluster.
 
 ---
 

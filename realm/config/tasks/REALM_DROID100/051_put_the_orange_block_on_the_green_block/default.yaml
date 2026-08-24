@@ -1,0 +1,138 @@
+task:
+  type: DummyTask
+  termination_config: {}
+  reward_config: {}
+task_type: stack
+instruction: Put the orange block on the green block
+instruction_obj_to_replace: block
+instruction_target_to_replace: block
+instruction_verb_to_replace: stack
+supported_scenes:
+  Wainscott_0_int:
+  - Dining_Table
+camera_extrinsics:
+  cam1:
+    pos:
+    - 0.3624653
+    - 0.4424749
+    - 0.2295834
+    rot:
+    - 0.052751
+    - -0.6005586
+    - -0.7971887
+    - 0.0322012
+  cam2:
+    pos:
+    - 0.3481592
+    - -0.4823261
+    - 0.3633843
+    rot:
+    - 0.594115
+    - 0.051481
+    - 0.0707682
+    - 0.7996055
+main_objects:
+- type: PrimitiveObject
+  name: orange_block_1
+  primitive_type: Cube
+  rgba:
+  - 0.95
+  - 0.4
+  - 0.05
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.18
+  - 0.0750001
+target_objects:
+- type: PrimitiveObject
+  name: green_block_2
+  primitive_type: Cube
+  rgba:
+  - 0.1
+  - 0.7
+  - 0.25
+  - 1.0
+  bounding_box:
+  - 0.05
+  - 0.05
+  - 0.05
+  scale:
+  - 0.05
+  - 0.05
+  - 0.05
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.42
+  - 0.0750001
+distractors:
+- type: DatasetObject
+  name: distractor_drill
+  category: drill
+  model: nzgmza
+  bounding_box:
+  - 0.0372309
+  - 0.1
+  - 0.1252277
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.15
+  - 0.42
+  - 0.1126139
+- type: DatasetObject
+  name: distractor_trash_can
+  category: trash_can
+  model: wkxtxh
+  bounding_box:
+  - 0.1
+  - 0.0999688
+  - 0.1211565
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.35
+  - 0.18
+  - 0.1105783
+- type: DatasetObject
+  name: distractor_mug
+  category: mug
+  model: kitxam
+  bounding_box:
+  - 0.0640022
+  - 0.0858475
+  - 0.0646612
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  relative_bbox_position:
+  - 0.25
+  - 0.3
+  - 0.0823306
+immutables: []

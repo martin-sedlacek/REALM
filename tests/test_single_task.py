@@ -28,7 +28,7 @@ MAX_STEPS = 1
 
 #: The robot asset this test drives. Passed EXPLICITLY rather than inherited from
 #: examples/02_evaluate.py's own default, which is what happened until 2026-08-16 -- so half of
-#: tests/ ran DROID_robolab_v2 (test_vector_integrity, test_scene_object_placement, which set it)
+#: tests/ ran DROID_mounted (test_vector_integrity, test_scene_object_placement, which set it)
 #: and half ran stock DROID (this file, test_integrity), and nothing in either said so. The value
 #: is unchanged: "DROID" is exactly what 02_evaluate.py's default gave this test before. What
 #: changes is that the choice is now visible and overridable with --robot.

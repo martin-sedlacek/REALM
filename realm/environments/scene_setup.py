@@ -154,11 +154,10 @@ class SceneSetupMixin:
                         UsdGeom.Imageable(prim).CreatePurposeAttr().Set(
                             authored or UsdGeom.Tokens.default_)
                         restored.append(mesh.prim_path)
-        # One line per env, so a run's log says whether this fired and on what. Silence here would
-        # make a regression (or an accidental no-op) invisible.
-        print(f"[render_purpose] restored {len(restored)} double-duty geom(s) to their authored "
-              f"purpose, kept {len(kept_guide)} authored-guide geom(s) hidden"
-              + (f"; first restored: {restored[0]}" if restored else ""))
+        og.log.debug(
+            f"Restored {len(restored)} double-duty geom purpose(s); kept "
+            f"{len(kept_guide)} authored-guide geom(s) hidden"
+        )
         return restored, kept_guide
 
     def apply_scene_fixes_from_cfg(self, manage_sim_state=True):

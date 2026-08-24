@@ -1,6 +1,9 @@
 robots:
   - name: "DROID"
-    type: "DROID"
+    model: "droid"
+    dof: 13
+    has_base_column: false
+    include_sensor_names: ["wrist_camera_flipped"]
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
     control_freq: 15
@@ -34,4 +37,3 @@ robots:
           # The wrist camera in droid.usd authors 5.376 x 3.024, i.e. an 87.7 deg HFOV; letting
           # OmniGibson default it blows the wrist view up to ~150 deg.
           horizontal_aperture: 5.376
-
