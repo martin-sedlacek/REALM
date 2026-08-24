@@ -57,7 +57,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
     ) -> None:
         assert not (multi_view and no_rendering), f"Multi-view rendering was enabled during no_rendering mode. Either one is likely a mistake."
         self.task_cfg_path = "/".join(task_cfg_path.split("/")[-3:])
-        self.use_droid_with_base = True if self.task_cfg_path.split("/")[0] == "REALM_DROID10" else False # TODO: infer properly from the task/scene config yaml
+        # Every supported DROID profile uses the mounted RoboLab v2 asset. Camera and coordinate
+        # transforms therefore include the base-column height for every task family.
+        self.use_droid_with_base = robot.startswith("DROID")
         self.robot_name = robot
         self.multi_view = multi_view
         self.no_rendering = no_rendering

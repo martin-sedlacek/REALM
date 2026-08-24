@@ -1,58 +1,24 @@
 # DROID with the robolab Franka + Robotiq 2F-85 asset (compliant, mimic-joint gripper).
 #
-# Same arm and same controllers as DROID.yaml -- the only differences come from the gripper being a
-# single actuated revolute joint with five mimic followers instead of four independently driven
-# joints. See realm/robots/definitions/droid_robolab/droid_robolab.yaml for the asset details.
-#
-# `model` is set explicitly (rather than relying on the legacy `type`) so env_dynamic does not
-# rewrite it to the stock droid/droid_mounted definition.
+# This is the canonical DROID asset for REALM 1.0.0. Every supported DROID profile selects the same
+# mounted model explicitly.
 
 robots:
   - name: "DROID_robolab_v2"
     model: "droid_robolab_v2"
-    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
+    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers).
     dof: 13
     # TRUE: this model loads droid_robolab_v2_MOUNTED.usd, which carries its own base, so
     # env_config.py:111 must NOT add DROID_BASE_HEIGHT to the spawn point (a REALM_DROID10 task's scene
     # position is the bottom of the column, which the asset now fills itself). Measured panda_link0
-    # heights, logs/mountedasset/probe.log:
-    #
-    #   droid_robolab_v2_mounted.usd  0.863891   loaded here
-    #   droid_robolab_v2.usd (bare)   0.000000   loaded by model droid_robolab_v2_bare
-    #   droid_mounted.usd (stock)     0.862880   reference; DROID_BASE_HEIGHT is 0.86244
+    # height: droid_robolab_v2_mounted.usd has panda_link0 at z=0.863891 above its root.
     #
     # Getting this flag wrong is not a load-time error: false with a mounted asset floats the arm
     # ~0.86 m; true with the bare arm buries it in the table and NaNs a few steps in.
     # tests/test_robot_base_column.py pins the flag against the `_mounted` USD naming convention.
     #
-    # KNOWN 1.45 mm: 0.863891 is 1.451 mm above DROID_BASE_HEIGHT, which _robot2world / _world2robot /
-    # construct_ext_cam_pose_by_name still use to reach the arm origin. Deliberately left; see the note
-    # at DROID_BASE_HEIGHT in realm/environments/constants.py.
+    # DROID_BASE_HEIGHT uses the same measured value for camera and coordinate transforms.
     #
-    # ===================================================================================================
-    # KNOWN FAILURE, MEASURED, SHIPPED ANYWAY BY DECISION: the VECTOR path rejects this asset.
-    #
-    #     ValueError: 'panda_joint1' is not in list      (robot.py:2816, arm_control_idx)
-    #
-    # i.e. the articulation comes up without its arm joints. Measured on Clara 2026-08-19:
-    #   examples/02_evaluate.py   (VEC=0, single env)   -> PASSES     (task 0)
-    #   examples/04_vector_evaluate.py (VEC>=1)         -> CRASHES    at num_envs=1 AND num_envs=2
-    #                                                                (logs/mnt_n1_0819, mnt_n2_0819)
-    #   the same cells on the BARE arm                  -> PASS       (logs/bare_recheck_0819)
-    # Martin runs this asset locally without trouble, which is consistent: that is the single-env path.
-    #
-    # SO: fine for VEC=0 runs; every VEC>=1 run and tests/test_vector_integrity.py will crash until the
-    # articulation problem is fixed. TO SWITCH AWAY, no edit needed -- pass the bare arm by name:
-    #
-    #     --robot DROID_robolab_v2_bare        (model droid_robolab_v2_bare, has_base_column: false)
-    #
-    # NOT the cause, so do not spend time there: the root-link fallback at entity_prim.py:241. Measured
-    # (logs/mountedasset/rootlink.log) -- the mounted asset yields ONE clean root, `table`, and every
-    # joint in it has both body0 and body1; the fallback never fires for it. The one asset that DOES
-    # rely on that fallback is stock droid_mounted.usd, and it works. Next thing to check is whether
-    # ArticulationView(f"{prim_path}/table") (entity_prim.py:141) resolves to the articulation that
-    # PhysicsArticulationRootAPI is authored on -- `table` is a root link no config names.
-    # ===================================================================================================
     has_base_column: true
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]

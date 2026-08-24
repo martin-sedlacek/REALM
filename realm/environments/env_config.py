@@ -122,12 +122,7 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
     # The base-mounted DROID used to be chosen by importing a different module; it is now a
     # separate definition. `type` in the REALM robot configs is still accepted -- OmniGibson
     # lowercases it into `model` -- but we set `model` explicitly so the mounted variant works.
-    # A config that names its own `model` (e.g. DROID_robolab_v2.yaml) is left alone -- only the
-    # stock DROID configs, which still carry the legacy `type: DROID`, get the mounted/unmounted
-    # definition chosen for them here.
-    if "DROID" in env.robot_name and "model" not in cfg_robot["robots"][0]:
-        cfg_robot["robots"][0].pop("type", None)
-        cfg_robot["robots"][0]["model"] = "droid_mounted" if env.use_droid_with_base else "droid"
+    # All supported DROID configs now select a RoboLab v2 model explicitly.
 
     reset_joint_pos = np.zeros(cfg_robot["robots"][0]["dof"] if "dof" in cfg_robot["robots"][0] else DROID_DEFAULT_DOF)
     if "DROID" in env.robot_name:

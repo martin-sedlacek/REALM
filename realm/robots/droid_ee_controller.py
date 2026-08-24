@@ -118,9 +118,8 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
 
         `height_offset` is a property of the ASSET, not of this controller: it is the height of the
         arm base above the robot prim, and it is added to a commanded z before that z is compared
-        against the eef pose relative to the robot prim. The default suits `droid_mounted.usd`
-        (panda_link0 at z = 0.86444 above /panda); the bare robolab arm has panda_link0 at the robot
-        prim, so its config sets 0.0. See DROID_robolab_v2_ee_control.yaml for the measurements.
+        against the eef pose relative to the robot prim. All release configs set the measured
+        mounted RoboLab v2 arm-base height explicitly.
         """
         self._link_name = link_name
         self._motor_type = motor_type.lower()

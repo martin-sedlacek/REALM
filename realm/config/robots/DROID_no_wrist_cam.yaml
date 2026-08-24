@@ -1,6 +1,9 @@
 robots:
-  - name: "DROID"
-    type: "DROID"
+  - name: "DROID_robolab_v2"
+    model: "droid_robolab_v2"
+    dof: 13
+    has_base_column: true
+    include_sensor_names: ["wrist_camera_flipped"]
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
     control_freq: 15

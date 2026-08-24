@@ -17,38 +17,28 @@ Franka Panda arm with a Robotiq 2F-85 gripper. This is what the benchmark runs o
 
 | `--robot` | Arm controller | What distinguishes it |
 |---|---|---|
-| `DROID` | `CustomJointController` | **The baseline.** Task-space-weighted joint PD, non-zero joint friction and armature, effort limits, and an explicit wrist-camera aperture. The asset (mounted vs unmounted) is resolved at runtime from the task suite. |
+| `DROID` | `CustomJointController` | **The baseline.** Task-space-weighted joint PD on the mounted RoboLab v2 asset. |
 | `DROID_default_pd_control` | stock OmniGibson `JointController` | Swaps REALM's controller for OmniGibson's own, and zeroes friction and armature. No task-space gains, no effort limits. A reference point, not a better config. |
 | `DROID_polaris_control` | `IndividualJointPDController` | Scalar-gain PD. **Orphaned** — nothing in the repo references it. |
 | `DROID_ee_control` | `DroidEndEffectorController` | End-effector control: the policy commands an **absolute** 6-DOF pose, solved by IK. |
 | `DROID_ee_delta_control` | `DroidEndEffectorController` | The same, but the policy commands 6-DOF pose **deltas**. |
 | `DROID_no_wrist_cam` | `CustomJointController` | See the caveat below — the name is ahead of what the file does. |
-| `DROID_robolab` | `CustomJointController` | The RoboLab gripper asset, v1. |
-| `DROID_robolab_v2` | `CustomJointController` | The RoboLab gripper asset, v2. Opt-in; see below. |
+| `DROID_robolab_v2` | `CustomJointController` | Explicit alias for the same canonical asset and controller as `DROID`. |
 | `DROID_robolab_v2_ee_control` | `DroidEndEffectorController` | `DROID_robolab_v2` with end-effector control. Carries a required height-offset override. |
 
-### `DROID` vs `DROID_robolab_v2`
+### Canonical DROID embodiment
 
-**Same arm, different gripper physics.** The stock asset models the 2F-85 with extra prismatic joints
-that make the fingers effectively rigid. The RoboLab asset models the real four-bar linkage as one
-actuated revolute joint plus five mimic followers. That changes DOF count (11 vs 13), the
-gripper-open/closed conventions used to normalise observations, the base column, and which camera
-prims exist.
+All DROID profiles use the mounted RoboLab v2 asset: a 7-DOF Franka arm plus the compliant Robotiq
+four-bar linkage represented by one actuated joint and five mimic followers (13 total DOFs).
 
 **Every REALM robot needs registering before it will load** — including `DROID`. OmniGibson 3.9.1
 discovers robots by globbing the dataset directory for `<data>/*/models/<name>/<name>.yaml`, and
 REALM's definitions live in the repo, linked in by symlinks that are **not tracked in git**. Run
-`scripts/install_robot_definitions.py`; it installs all five in one pass and exits on the first
+`scripts/install_robot_definitions.py`; it installs every definition in one pass and exits on the first
 failure, so the state is all-or-nothing. On a machine where it has not been run, **none** are
 registered.
 
-Internal performance and integrity tooling generally defaults to `DROID_robolab_v2`, which is why you
-will see it all over `scripts/clara/` and the debug probes — including the batch launcher, whose
-`ROBOT` default is `DROID_robolab_v2` rather than the `DROID` this page documents. The shipped
-user-facing default is still `DROID`.
-
-> `DROID_robolab` and `DROID_robolab_v2` differ only in the USD they point at. v2 exists so the two
-> can be A/B compared without disturbing v1.
+The user-facing `DROID` and explicit `DROID_robolab_v2` filenames now resolve to the same model.
 
 ### Caveat: `DROID_no_wrist_cam` does not remove the wrist camera
 
@@ -79,18 +69,13 @@ on their own defaults. Do not treat them as available.
 
 ## Robot definitions and assets
 
-A **definition** is the YAML OmniGibson discovers; a **config** is what REALM passes `--robot`. Five
-definitions live in `realm/robots/definitions/`:
+A **definition** is the YAML OmniGibson discovers; a **config** is what REALM passes `--robot`.
+REALM 1.0.0 has one DROID definition:
 
 | Definition | Used by |
 |---|---|
-| `droid` | `type: DROID` configs on non-`REALM_DROID10` task suites |
-| `droid_mounted` | `type: DROID` configs on the `REALM_DROID10` benchmark suite |
-| `droid_robolab` | `DROID_robolab` |
-| `droid_robolab_v2` | `DROID_robolab_v2`, `DROID_robolab_v2_ee_control` |
+| `droid_robolab_v2` | every `DROID*` robot config |
 | `ur` | all three `UR5*` configs |
-
-`droid` and `droid_mounted` are otherwise identical — same joints, same default pose.
 
 USD assets live in `realm/robots/panda_robotiq/` and `realm/robots/ur5/` and are committed to the
 repo, not fetched. `robolab_franka_robotiq_2f_85_flattened.usd` is the **upstream source** that
@@ -121,11 +106,8 @@ Two gotchas, both documented in that module:
 
 ### End-effector control: the height offset
 
-The EE controller adds a fixed height offset to the commanded z, defaulting to a value correct for
-the *mounted* DROID asset, whose base link sits well above the floor. The RoboLab asset's base link
-is at z = 0, so `DROID_robolab_v2_ee_control` must override the offset to `0.0`. Getting this wrong
-makes the arm stretch upward and diverge — and the config notes that the vectorized integrity test
-does not catch it.
+The EE controller adds the mounted arm-base height to commanded z. Every EE profile explicitly uses
+the measured RoboLab v2 offset, `0.863891` m.
 
 ## Cameras
 

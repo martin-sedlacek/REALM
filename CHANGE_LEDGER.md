@@ -17,6 +17,11 @@ the perturbations decomposition, Phase-0 dead-code deletion, robots fail-fast + 
 inference-client adapters, logging dedup, `realm/paths.py`, the upstream drawer-fix merge, the
 test-driver dedup, and the CLAUDE.md/wiki realignment. None of that moves a number.
 
+Before the first 1.0.0 release, all supported DROID profiles were unified on the mounted RoboLab v2
+asset. The stock and bare definitions were removed; EE-control profiles use the measured mounted-arm
+base offset, `0.863891` m. Thus 1.0.0 has one DROID embodiment: the compliant 13-DOF mimic-joint
+gripper with the `wrist_camera_flipped` view.
+
 **The three fixes below DO CHANGE BENCHMARK SCORES**, and they are why the major version turns.
 They had been flagged `KNOWN ISSUE` in place and gated since the behaviour-preserving cleanup
 passes; the owner's call on 2026-08-19 was to fix them and recompute rather than preserve. Every

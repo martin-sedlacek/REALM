@@ -40,7 +40,7 @@
 #     grep-the-XML pattern in any future CI workflow here.
 #
 # FOUR PYTEST FILES, OTHERWISE SCRIPTS. test_perturbation_task_types, test_cell_classification,
-# test_robot_base_column and test_robot_definition_parity are real pytest modules, host-safe by
+# test_robot_base_column is a real pytest module, host-safe by
 # design (they read code and configs as text with ast/yaml instead of importing omnigibson) --
 # `make test-static` runs them when pytest is importable and says so when it is not (the login
 # python has no pytest). Every OTHER test_*.py is a standalone script with a printed verdict,
@@ -134,7 +134,7 @@ test: ## Tier 1 only (the suite's 2 container-free entries), then print what it 
 # The four pytest modules named in HOST_PYTESTS are as container-free as the local tier, but need
 # pytest itself, which the login python lacks -- so their absence is a loud skip, not a failure.
 HOST_PYTESTS = tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-               tests/test_robot_base_column.py tests/test_robot_definition_parity.py
+               tests/test_robot_base_column.py
 
 test-static: ## The container-free tests (no GPU, no allocation, no container)
 	$(PYTHON) $(SUITE) --only local --strict \

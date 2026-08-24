@@ -135,7 +135,7 @@ runtime correctness.
 | Drawer reset **outcome** | that the drawer *loads* is tested; that it *ends up open* is not |
 | `--resume` | no test covers it, and the sweep drivers depend on it |
 | `openpi` and `dreamzero` model types | only `debug` is ever constructed |
-| 3 of the 5 robot **definitions** | Only `droid_mounted` (reached by the default `--robot DROID` on a `REALM_DROID10` task) and `droid_robolab_v2` (the default of `test_vector_integrity` and `test_scene_object_placement`) are ever loaded. **`droid`, `droid_robolab` (v1) and `ur` are never loaded by any test** — so nothing catches a definition or USD path that has gone stale in those three |
+| Robot **definitions** | The canonical `droid_robolab_v2` definition is covered; `ur` remains outside the default DROID gates. |
 | 10 of the 13 robot **configs** | no test passes `--robot` explicitly except through those two defaults; the EE-control configs, the PD-control variants, `DROID_no_wrist_cam` and all three `UR5*` are untouched |
 | `MODE` agreement | no test asserts `stock` and `oglite` produce the same result |
 | A policy server | `test_pi0_integration` SKIPs without one |

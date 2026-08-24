@@ -1,11 +1,10 @@
 import numpy as np
 
 # Per-robot observation conventions. Keyed by the robot's name in the scene (robot.name, which comes
-# from `name:` in realm/config/robots/*.yaml). Anything not listed falls back to "DROID".
+# from `name:` in realm/config/robots/*.yaml). Anything not listed falls back to RoboLab v2.
 #
 #   wrist_camera_link  -- the link the wrist camera hangs off; the obs key is
-#                         "<robot>:<link>:Camera:<idx>". droid.usd mounts it on `gripper_link_camera`;
-#                         the robolab asset mounts two on the gripper's `base_link`.
+#                         "<robot>:<link>:Camera:<idx>".
 #   wrist_camera_idx   -- which camera on that link. This is a CREATION-ORDER index, not a property
 #                         of the asset: Robot._load_sensors numbers a link's cameras 0,1,2... in prim
 #                         order and only counts the ones it actually instantiates, so filtering a
@@ -22,12 +21,6 @@ import numpy as np
 #                         gripper is a single revolute finger_joint following the standard Robotiq
 #                         2F-85 convention: 0 rad = fully OPEN, 0.7854 rad = CLOSED.
 ROBOT_OBS_PROFILES = {
-    # Both droid.usd and droid_mounted.usd hold exactly ONE camera prim, /panda/gripper_link_camera/
-    # Camera, so there is nothing here to renumber -- but the prim name is recorded anyway so the
-    # guard covers the stock asset too.
-    "DROID": dict(wrist_camera_link="gripper_link_camera", wrist_camera_idx=0,
-                  wrist_camera_prim="Camera",
-                  gripper_proprio_idx=7, gripper_open_qpos=0.0, gripper_closed_qpos=0.05),
     # `wrist_camera_flipped` is the camera whose framing matches the stock DROID wrist view (fingers
     # entering symmetrically from the bottom); the asset's other camera, `wrist_camera`, is rotated
     # 180 deg in yaw and looks at the floor and the wall behind the table -- a view unlike anything in
@@ -49,21 +42,15 @@ ROBOT_OBS_PROFILES = {
     # it is closed-loop on that signal, so it was told "closed" whenever the hand was open.
     # Do not re-derive this from knuckle or link-origin separation: the four-bar linkage swings the
     # knuckles apart as the pads close, so any such measurement reports the exact opposite.
-    "DROID_robolab": dict(wrist_camera_link="base_link", wrist_camera_idx=0,
-                          wrist_camera_prim="wrist_camera_flipped",
-                          gripper_proprio_idx=7, gripper_open_qpos=0.0, gripper_closed_qpos=0.7853982),
+    "DROID_robolab_v2": dict(wrist_camera_link="base_link", wrist_camera_idx=0,
+                             wrist_camera_prim="wrist_camera_flipped",
+                             gripper_proprio_idx=7, gripper_open_qpos=0.0,
+                             gripper_closed_qpos=0.7853982),
 }
-# v2 of the robolab asset differs only in geometry, so it shares v1's observation conventions.
-# Without an entry here it would silently fall back to the stock DROID profile: a wrist camera key
-# that does not exist (black image) and the prismatic gripper normalisation (inverted state).
-# Sharing the entry means sharing wrist_camera_idx=0, which is only correct while
-# realm/config/robots/DROID_robolab_v2.yaml also filters the dead camera out -- it does, and
-# assert_wrist_camera() is what stops the pair from drifting apart unnoticed.
-ROBOT_OBS_PROFILES["DROID_robolab_v2"] = dict(ROBOT_OBS_PROFILES["DROID_robolab"])
 
 
 def get_robot_obs_profile(robot_name):
-    return ROBOT_OBS_PROFILES.get(robot_name, ROBOT_OBS_PROFILES["DROID"])
+    return ROBOT_OBS_PROFILES.get(robot_name, ROBOT_OBS_PROFILES["DROID_robolab_v2"])
 
 
 def wrist_camera_obs_key(robot_name):
@@ -88,8 +75,8 @@ def assert_wrist_camera(robot):
     Returns the verified obs key, or None when there is nothing to check (see the two early exits).
     """
     if robot.name not in ROBOT_OBS_PROFILES:
-        # No profile of its own, so get_robot_obs_profile falls back to the stock DROID one, whose
-        # camera link need not exist on this asset at all (UR5, WidowX). That path has always
+        # No profile of its own, so get_robot_obs_profile falls back to RoboLab v2, whose camera
+        # link need not exist on this asset at all (UR5, WidowX). That path has always
         # degraded to extract_from_obs's warn-and-fallback; do not promote it to a hard failure here.
         return None
 
@@ -132,7 +119,7 @@ def assert_wrist_camera(robot):
     return key
 
 
-def extract_from_obs(obs: dict, robot_name='DROID', enable_depth=False):
+def extract_from_obs(obs: dict, robot_name='DROID_robolab_v2', enable_depth=False):
     # Fallback to zeros if external sensors are missing (e.g. during no_render)
     if 'external' in obs and 'external_sensor0' in obs['external']:
         base_im = obs['external']['external_sensor0']['rgb'].cpu().numpy()[..., :3]

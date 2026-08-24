@@ -3,7 +3,7 @@
 WHY THIS EXISTS. `has_base_column` describes THE ASSET, and env_config.py:111 turns it into geometry:
 
     if env.use_droid_with_base and not cfg_robot["robots"][0].pop("has_base_column", True):
-        spawn_pos[2] += DROID_BASE_HEIGHT          # 0.86244
+        spawn_pos[2] += DROID_BASE_HEIGHT          # 0.863891
 
 So the flag and the asset must agree, and the two failure modes are both silent-ish and both severe:
 
@@ -18,9 +18,7 @@ config one. On 2026-08-19 `droid_robolab_v2` was switched from the bare arm to
 forgotten -- and the flag lives in TWO files (DROID_robolab_v2.yaml and
 DROID_robolab_v2_ee_control.yaml) that both name the same `model`, so it can also be half-changed.
 
-The naming convention is the only asset property readable without booting Isaac: a USD whose stem ends
-in `_mounted` carries a base. That is a convention rather than a measurement, so the test says so, and
-the measured z-heights are recorded in DROID_robolab_v2.yaml where a reader will find them.
+The release invariant is now stronger: every DROID config uses the single mounted RoboLab v2 model.
 """
 
 from pathlib import Path
@@ -102,3 +100,24 @@ def test_configs_sharing_a_model_agree_on_has_base_column():
         "config(s) naming the same `model` disagree on has_base_column, so they load the same USD "
         f"with different spawn offsets: {disagreeing}"
     )
+
+
+def test_all_droid_profiles_use_mounted_robolab_v2():
+    """Prevent a generic profile from silently reintroducing a retired stock/bare asset."""
+    droid_configs = [path for path in ROBOT_CONFIGS if path.name.startswith("DROID")]
+    assert droid_configs
+    for path in droid_configs:
+        robot = yaml.safe_load(path.read_text())["robots"][0]
+        assert robot.get("model") == "droid_robolab_v2", path
+        assert robot.get("name") == "DROID_robolab_v2", path
+        assert robot.get("dof") == 13, path
+        assert robot.get("has_base_column") is True, path
+
+    retired = (
+        "droid.usd",
+        "droid_mounted.usd",
+        "droid_robolab.usd",
+        "droid_robolab_v2.usd",
+    )
+    asset_root = PROJECT_ROOT / "realm/robots/panda_robotiq"
+    assert not [name for name in retired if (asset_root / name).exists()]

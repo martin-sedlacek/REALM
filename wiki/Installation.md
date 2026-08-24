@@ -107,7 +107,7 @@ python scripts/install_robot_definitions.py
 Flags: `--copy` to copy instead of symlinking, `--data-path` to point at a dataset other than
 `$OMNIGIBSON_DATA_PATH`.
 
-The script installs **all five** definitions in one pass and exits on the first failure — it is
+The script installs every definition in one pass and exits on the first failure — it is
 all-or-nothing, so there is no partially-registered state to diagnose. The links are **not tracked in
 git**, so they do not come with a clone and they do not survive a fresh dataset directory: until you
 run this, **none** of REALM's robots are registered and even `--robot DROID` will fail with

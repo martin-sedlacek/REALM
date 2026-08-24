@@ -1,31 +1,19 @@
 # DROID_robolab_v2 under END-EFFECTOR control (dm_robotics IK), rather than joint-position control.
 #
-# Same robot as DROID_robolab_v2.yaml -- same USD, same gripper, same cameras -- with the arm
-# controller swapped for DroidEndEffectorController. Diff the two files to see exactly that and
-# nothing else.
+# Same mounted robot as DROID_robolab_v2.yaml, with the arm controller swapped for
+# DroidEndEffectorController.
 #
 # `name` is deliberately "DROID_robolab_v2", NOT the filename. Configs are selected by FILENAME
 # (env_config.py loads robots/<--robot>.yaml) but observations are keyed by the robot's `name`, and
 # realm/inference/utils.py's ROBOT_OBS_PROFILES is looked up by that same name -- with a silent
-# fallback to the stock DROID profile for anything unknown, which would hand the policy a
-# non-existent wrist-camera key and the prismatic gripper normalisation. Keeping the name means the
+# fallback observation profile for anything unknown. Keeping the canonical name means the
 # v2 profile resolves; assert_wrist_camera() fails the build if it ever does not.
 robots:
   - name: "DROID_robolab_v2"
-    model: "droid_robolab_v2_bare"
-    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers), vs 11 for the stock DROID asset.
+    model: "droid_robolab_v2"
+    # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers).
     dof: 13
-    # FALSE, and this config deliberately stays on the BARE arm (`model: droid_robolab_v2_bare`) while
-    # DROID_robolab_v2.yaml moved to the mounted one on 2026-08-19.
-    #
-    # WHY IT DID NOT FOLLOW: `height_offset` below must equal the arm base's height above the robot
-    # prim, which is a property of the ASSET. It is 0.0 here BECAUSE the arm is bare and env_config
-    # raises the spawn instead -- measured, job 190727. On the mounted asset the robot prim sits at the
-    # bottom of the base and panda_link0 is 0.863891 above it, so 0.0 would be 0.86 m of error and the
-    # controller would diverge exactly as the note on height_offset describes. Moving this config to the
-    # mounted asset therefore means re-deriving AND re-measuring height_offset; until someone does that,
-    # bare + 0.0 is the pair that is known to converge (error 0.090 -> 0.005 m).
-    has_base_column: false
+    has_base_column: true
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
     # Drop the dead second wrist camera, exactly as DROID_robolab_v2.yaml does -- read the long comment
@@ -41,14 +29,8 @@ robots:
     action_type: "continuous"
     friction: [ 0.05, 0.10, 0.05, 0.10, 0.75, 0.425, 0.20 ]
     armature: [ 0.25, 0.50, 0.25, 0.50, 0.25, 0.150, 0.00 ]
-    # END-EFFECTOR CONTROL. Identical to DROID_ee_control.yaml's arm block; only the robot it drives
-    # differs. That works because the IK is NOT solved against the robot's USD -- robot_ik/arm.py
-    # loads a MuJoCo MJCF Franka (`franka/panda.xml`) and dm_robotics' cartesian_6d_velocity_effector
-    # solves on that, then the resulting joint targets are applied to whichever OmniGibson robot is
-    # loaded. The robolab asset is the same 7-DOF Franka arm as droid.usd (see
-    # realm/robots/definitions/droid_robolab_v2/droid_robolab_v2.yaml: "Same arm as `droid`,
-    # different gripper physics"), so the IK model matches and only the gripper differs -- and the
-    # gripper is not part of the IK chain.
+    # END-EFFECTOR CONTROL. IK is solved against the matching 7-DOF Franka MJCF; the RoboLab
+    # gripper is outside that chain.
     ee_control: true
     controller_name: "DroidEndEffectorController"
     controller_config:
@@ -56,26 +38,9 @@ robots:
             name: "DroidEndEffectorController"
             mode: "absolute_pose"
             motor_type: "position"
-            # THE ONE LINE THAT MUST NOT BE COPIED FROM DROID_ee_control.yaml.
-            #
-            # droid_ee_controller.py defaults height_offset to 0.87 and adds it to the commanded z
-            # before comparing against the eef pose RELATIVE TO THE ROBOT PRIM. That constant is the
-            # height of the arm base above the robot prim, which is a property of the ASSET:
-            #     droid_mounted.usd    panda_link0 at z = 0.86444 above /panda  -> 0.87 is right
-            #     droid_robolab_v2.usd panda_link0 at z = 0.00000 above /panda  -> 0.87 is 0.87 m of error
-            # The robolab asset is the bare arm (has_base_column: false), and env_config raises the
-            # SPAWN by DROID_BASE_HEIGHT instead, so the robot prim already sits AT the arm base --
-            # the same origin env._world2robot() uses to express the command. The offset must be 0.
-            #
-            # Measured on l40s-01 (job 190727), task 0, debug policy, 8 steps:
-            #     height_offset 0.87 -> controller targets z=1.4425 in the arm-base frame; the arm's
-            #                           maximum wrist reach is 1.187, so it stretches upward and the
-            #                           error goes 0.904 -> 0.711 m and keeps climbing.
-            #     height_offset 0.0  -> error goes 0.090 -> 0.005 m (converges).
-            # NOTE this failure is INVISIBLE to tests/test_vector_integrity.py, which passed the
-            # 0.87 version: nothing crashes, all four artifacts are written, the arm is just in
-            # completely the wrong place.
-            height_offset: 0.0
+            # Measured panda_link0 height above the mounted asset root. The controller compares
+            # commands with the end effector in that robot-root frame.
+            height_offset: 0.863891
             control_freq: 15
             use_delta_commands: False
             use_impedances: True

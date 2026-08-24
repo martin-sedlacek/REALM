@@ -1,11 +1,7 @@
-# v2 of the robolab asset. Identical to droid_robolab except for the USD it points at, so the
-# two can be A/B compared without disturbing the v1 definition.
-# RobotDefinition for the DROID platform using the robolab Franka + Robotiq 2F-85 asset.
+# Canonical RobotDefinition for REALM's DROID platform using the RoboLab Franka + Robotiq 2F-85.
 #
-# Same arm as `droid`, different gripper physics. The stock droid.usd models the 2F-85 with extra
-# prismatic joints and relies on the loop-closing joints contributing no articulation DOFs, which
-# makes the fingers effectively rigid. The robolab asset instead models the four-bar linkage as a
-# *tree* (each inner_knuckle is a leaf rather than being joined back to base_link) and reproduces
+# The asset models the four-bar linkage as a *tree* (each inner_knuckle is a leaf rather than being
+# joined back to base_link) and reproduces
 # the linkage kinematics with PhysX **mimic joints** -- an Isaac Sim 5.1 feature that OmniGibson
 # 1.1.1 could not use. The result is a single actuated DOF whose followers can flex, so the pads
 # comply on contact instead of behaving as a rigid jaw.
