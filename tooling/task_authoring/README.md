@@ -9,15 +9,17 @@ OMNIGIBSON_DATASET_PATH=/path/to/og_dataset \
 
 The workspace scans USD files, supports drag-and-drop 3D placement, exposes object roles and
 bounding boxes, and downloads a draft matching the object-list structure in `realm/config/tasks`.
-Left-click selects and drags objects on XY, right-drag orbits the camera, middle-drag pans, and the
-mouse wheel zooms. Z remains directly editable in the selected-object inspector. The dashboard
-does not write benchmark configuration files automatically. The 3D view renders a lightweight
+Left-click selects and drags objects on XY, the axis gizmo supports constrained XYZ movement,
+right-drag orbits the camera, middle-drag pans, and the mouse wheel zooms. Exact transforms remain
+editable in the selected-object inspector. The 3D view renders a lightweight
 version of REALM's unencrypted Panda OBJ visual meshes in the scene's standard reset pose. Encrypted
 BEHAVIOR object assets remain scale-accurate outlined bounding boxes. New objects default to
 `distractors`; assigning the unique `main_objects` or `target_objects` role automatically demotes
 the previous object in that role, while any number of distractors and immutables are allowed. Object
 rotation is edited as XYZ Euler angles in degrees and exported to task YAML as an XYZW quaternion.
 Live validation blocks saving to REALM, but still allows copying or downloading incomplete drafts.
+Valid drafts can be created directly under `realm/config/tasks/REALM_DROID10`; existing configs are
+never overwritten.
 Drawer
 tasks additionally require the custom articulated cabinet or a whitelisted `bottom_cabinet` model
 from `object_sampling.py`; a yellow recommendation asks for at least three distractors.

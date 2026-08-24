@@ -53,7 +53,7 @@ The workflow follows the same broad pattern as RoboLab's agent-assisted generati
    REALM's drawer allowlist.
 5. **Scene draft** — place task objects on the selected scene's valid spawn rectangle and avoid
    obvious bounding-box overlap when choosing starter positions.
-   Objects start 5 mm above the support after accounting for half their authored bbox height.
+   Objects start 50 mm above the support after accounting for half their authored bbox height.
    Oversized assets are scaled uniformly, never squeezed per axis; receiver alignment uses yaw
    before any uniform main-object reduction.
 6. **Clutter** — add up to three distinct DROID-category distractors that fit the support region.

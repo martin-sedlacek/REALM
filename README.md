@@ -66,10 +66,8 @@ OMNIGIBSON_HEADLESS=1 python /app/examples/01_pi0_eval.py
 # !!! Set this to point to your local REALM logs folder:
 export REALM_LOGS=</path/to/REALM/logs> # e.g., /home/my_user/projects/REALM/logs
 
-git clone https://github.com/martin-sedlacek/REALM_toolkit.git
-cd REALM_toolkit
-uv sync
-uv run streamlit run realm_viewer/dashboard.py
+uv sync --locked
+uv run streamlit run tooling/realm_viewer/dashboard.py
 ```
 
 This will open a web UI where you can view results from the experiments. Navigate to the experiment created from step 3

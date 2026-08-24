@@ -56,20 +56,18 @@ if it matches the task default, the perturbation was a no-op for that rollout.
 
 The reports are plain CSV; anything that reads CSV will do.
 
-There is also a Streamlit dashboard, in a **separate repository** —
-<https://github.com/martin-sedlacek/REALM_toolkit>:
+The Streamlit results dashboard is included in this repository:
 
 ```sh
-git clone https://github.com/martin-sedlacek/REALM_toolkit
-cd REALM_toolkit
-uv sync
-REALM_LOGS=/path/to/your/logs uv run streamlit run realm_viewer/dashboard.py
+uv sync --locked
+REALM_LOGS=/path/to/your/logs \
+  uv run streamlit run tooling/realm_viewer/dashboard.py
 ```
 
-> **The viewer wants `REALM_LOGS`, which is exactly the variable the run harness deliberately
-> ignores** (it reads `REALM_LOGS` instead — see [Installation](Installation)). Both are
-> correct in their own repository; they are different tools that happen to have collided on a name.
-> Set `REALM_LOGS` for the viewer and do not expect it to affect a run.
+It discovers standard run directories recursively, aggregates selected CSV reports, checks matrix
+completeness when metadata is present, compares task and perturbation outcomes, displays videos, and
+exports filtered CSV or PDF summaries. See [Results dashboard](Results-Dashboard) for the complete
+workflow and interpretation safeguards.
 
 ## ⚠ Vector runs: check before trusting `binary_SR`
 
@@ -104,5 +102,6 @@ length, and any figure quoted here would be a guess.
 ## See also
 
 - [Running evaluations](Running-Evaluations)
+- [Results dashboard](Results-Dashboard)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
 - [Known issues and gotchas](Known-Issues-and-Gotchas)

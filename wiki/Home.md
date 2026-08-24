@@ -49,6 +49,8 @@ See [Logs, outputs and the viewer](Logs-Outputs-and-Viewer) for the full schema.
 | [Tasks and perturbations](Tasks-and-Perturbations) | the 10 × 16 matrix, with what each cell means |
 | [Robots and configs](Robots-and-Configs) | what `--robot` selects, and how they differ |
 | [Logs, outputs and the viewer](Logs-Outputs-and-Viewer) | what a run writes, and how to read it |
+| [Results dashboard](Results-Dashboard) | compare runs, inspect completeness and videos, export reports |
+| [Task authoring](Task-Authoring) | build, validate, import, and save task YAML in 2D/3D |
 | [Cluster and parallel runs](Cluster-and-Parallel-Runs) | scheduler-neutral sweeps and vectorized evaluation |
 | [Running the test suite](Running-the-Test-Suite) | the two-tier pipeline — and why `pytest tests/` finds nothing |
 | [Test coverage](Test-Coverage) | **what a passing test run does and does not establish** |
