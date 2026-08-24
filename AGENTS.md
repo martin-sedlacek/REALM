@@ -24,7 +24,7 @@ Use four-space indentation and conventional Python naming: `snake_case` for modu
 
 ## Testing Guidelines
 
-Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run `uv run make check`, or invoke only the four host-safe pytest modules listed by `HOST_PYTESTS` in the `Makefile`. Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in `TODO_CLARA.MD`.
+Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run `uv run make check`, or invoke only the four host-safe pytest modules listed by `HOST_PYTESTS` in the `Makefile`. Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.
 
 ## Commit & Pull Request Guidelines
 

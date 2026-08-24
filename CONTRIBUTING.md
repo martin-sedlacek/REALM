@@ -34,7 +34,7 @@ smallest relevant suite through `tests/run_suite.py`; typically:
 ALLOC=<jobid> make test-smoke
 ```
 
-Record verification that must be completed on the cluster in `TODO_CLARA.MD`.
+Record verification that must be completed on a GPU cluster in the pull request.
 
 ## Pull Requests
 
