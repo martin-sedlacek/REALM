@@ -9,7 +9,7 @@ instruction_target_to_replace: pot
 instruction_verb_to_replace: pick
 supported_scenes:
   Pomaria_1_int:
-  - Kitchen_Counter
+  - Table
 camera_extrinsics:
   cam1:
     pos:
@@ -46,8 +46,8 @@ main_objects:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.28
-  - 0.15
+  - 0.12
+  - 0.195
   - 0.1578014
 target_objects: []
 distractors:
@@ -66,7 +66,7 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.28
-  - 0.35
+  - 0.455
   - 0.0531643
 - type: DatasetObject
   name: distractor_table_knife
@@ -83,7 +83,7 @@ distractors:
   - 1.0
   relative_bbox_position:
   - 0.12
-  - 0.35
+  - 0.455
   - 0.0510931
 - type: DatasetObject
   name: distractor_beefsteak_tomato
@@ -99,8 +99,8 @@ distractors:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.12
-  - 0.15
+  - 0.28
+  - 0.195
   - 0.0858201
 immutables:
 - type: DatasetObject
@@ -117,6 +117,6 @@ immutables:
   - 0.0
   - 1.0
   relative_bbox_position:
-  - 0.28
-  - 0.15
+  - 0.12
+  - 0.195
   - 0.0906387
