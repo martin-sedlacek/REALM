@@ -1,4 +1,4 @@
-"""Generate grounded REALM configs from the filtered DROID100 tabletop manifest."""
+"""Generate grounded configs for the REALM_DROID100 task family."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from tooling.task_authoring.authoring import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = Path.home() / "data" / "droid" / "DROID100_tabletop.json"
 DEFAULT_DATASET = REPO_ROOT / "data" / "datasets_og391" / "behavior-1k-assets"
-DEFAULT_OUTPUT = REPO_ROOT / "realm" / "config" / "tasks" / "DROID100_tabletop"
+DEFAULT_OUTPUT = REPO_ROOT / "realm" / "config" / "tasks" / "REALM_DROID100"
 DEFAULT_CAMERA_EXTRINSICS = (
     REPO_ROOT / "realm" / "config" / "env" / "external_sensors" / "camera_extrinsics_droid_realm.yaml"
 )
@@ -645,7 +645,7 @@ def generate(
             },
         })
     audit = {
-        "family": "DROID100_tabletop",
+        "family": "REALM_DROID100",
         "source": str(source),
         "dataset": str(dataset),
         "seed": seed,

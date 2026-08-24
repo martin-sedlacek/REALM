@@ -1,5 +1,5 @@
 {
-  "family": "DROID100_tabletop",
+  "family": "REALM_DROID100",
   "source": "/Users/sedlam/data/droid/DROID100_tabletop.json",
   "dataset": "/Users/sedlam/PycharmProjects/REALM/data/datasets_og391/behavior-1k-assets",
   "seed": 100,
