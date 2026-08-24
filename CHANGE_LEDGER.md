@@ -130,13 +130,9 @@ geoms are direct children of the link, the old and new expressions are algebraic
 
 ### Which run modes actually carry the fix
 
-**Not the default.** `rr` defaults to `MODE=stock`, which does **not** have it. It reaches a run only
-via `MODE=oglite` (the whole OG-lite bind) or `MODE=stockfix` with `STOCK_PATCH` set. Every measured
-result reported for this fix used `MODE=stockfix`.
-
-`realm/misc/` holds exactly **seven** patches, all wired into `.docker/realm_og391.def` and
-`.docker/realm_og391.Dockerfile`; `rigid_prim` appears **zero** times in either. A rebuilt image will
-not contain this fix. Left that way deliberately — carrying it into the image was scoped out.
+At the time of this investigation, every measured result used the now-retired `MODE=stockfix`
+comparison workflow. The validated release SIF subsequently incorporated the OG-lite implementation
+wholesale; the historical patch files and mode were removed during release cleanup.
 
 ### ⚠ The loader patch fixes ONE of three sites with the same defect
 

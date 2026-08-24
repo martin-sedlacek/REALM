@@ -35,20 +35,19 @@ The image is `realm_og391.sif`, roughly 13 GB. Build recipes are in the repo and
 - `.docker/realm_og391.Dockerfile` — the Docker counterpart
 - `.docker/og391-constraints.txt` — the version pins that make the stack cohere
 
-Both recipes do the same thing: start from the upstream BEHAVIOR 3.9.1 image, apply the seven patches
-under `realm/misc/`, then install the robotics and logging dependencies plus the vendored
+Both recipes start from the upstream BEHAVIOR 3.9.1 image, install the staged OG-lite OmniGibson
+package wholesale, then install the robotics and logging dependencies plus the vendored
 `openpi-client`.
 
-Two separate safeguards, worth keeping straight: the `%post` section runs under `set -e`, so a
-**failed** `patch` aborts the build; and `%test` greps for a marker string from each of the seven
-patches, catching one that applied but produced the wrong result. **The greps are in `%test`, so
+The build records the exact OG-lite commit and `%test` greps for each required semantic marker.
+**The greps are in `%test`, so
 `apptainer build --notest` skips them** — do not build with `--notest` and assume the image is
 verified.
 
-Build it **from the repository root** — the recipe copies patches and the vendored client in by
-repo-relative path, so it will not build from anywhere else:
+First stage OG-lite, then build from the repository root:
 
 ```sh
+./scripts/stage_oglite_for_build.sh
 apptainer build realm_og391.sif .docker/realm_og391.def
 ```
 
@@ -57,17 +56,14 @@ apptainer build realm_og391.sif .docker/realm_og391.def
 > 1. **Build somewhere that is not Lustre.** On Lustre, `apptainer build --fakeroot` fails trying to
 >    change ownership inside the image rootfs. That is a filesystem limitation, not a recipe bug —
 >    build on local disk and move the resulting `.sif`.
-> 2. **A rebuilt image has never been verified.** Only the bind-mount path has been exercised. The
->    recipes are believed correct and the patch checks are real, but nobody has yet confirmed that an
->    image built from them behaves identically to the one in use. Until someone does, the substitute
->    for "an image with the patches in it" is `MODE=stockfix` — see
->    [Running evaluations](Running-Evaluations).
+> 2. Use the validated OG391 SIF for benchmark runs. `MODE=oglite` remains available for testing a
+>    host OG-lite checkout without rebuilding.
 >
 > There is no published prebuilt image. If you are joining an existing deployment, get the `.sif`
 > path from whoever runs it rather than rebuilding.
 
-Sanity-check an image without a GPU or a job — it checks installed package versions and greps for
-each patch marker:
+Sanity-check an image without a GPU or a job — it checks installed package versions and semantic
+markers:
 
 ```sh
 apptainer test --bind /path/to/datasets:/data realm_og391.sif
@@ -164,7 +160,6 @@ If you need to override a path, use the suffixed name:
 | `REALM_DATA_OG391` | the dataset directory (→ `/data`) |
 | `REALM_LOGS_OG391` | the log directory (→ `/logs`) |
 | `REALM_APPDATA_OG391` | the cache directory (→ `/cache`) |
-| `REALM_STOCK_PATCH_OG391` | the patched-files directory used by `MODE=stockfix` (`rr` also honours a bare `STOCK_PATCH`, since nothing in a shell profile sets that name) |
 | `REALM_OGLITE_OG391` | the OG-lite fork used by `MODE=oglite` |
 
 `REALM_ROOT` is always the checkout that `paths.sh` itself lives in. That is deliberate: it is what

@@ -18,8 +18,6 @@ ENV CONDA_PIP="/opt/conda/envs/behavior/bin/pip"
 # referenced at ../OG-lite_og391.
 COPY .docker/vendor/omnigibson /opt/oglite/omnigibson
 COPY .docker/vendor/OGLITE_PROVENANCE /opt/oglite/OGLITE_PROVENANCE
-# Kept as documentation of the correctness-critical subset, not applied (the fork has all nine).
-COPY realm/misc /opt/realm_misc_patches
 COPY packages/openpi-client /opt/openpi-client
 
 # INSTALL THE OG-LITE FORK WHOLESALE. THIS IMAGE NEEDS NO RUNTIME BIND.

@@ -18,7 +18,6 @@
 #   REALM_DATA         dataset root                    -> bound as /data
 #   REALM_APPDATA      OMNIGIBSON_APPDATA_PATH backing -> bound as /cache
 #   REALM_LOGS         results and logs                -> bound as /logs
-#   REALM_STOCK_PATCH  patched stock OmniGibson files, for `MODE=stockfix rr`
 #
 # and defines realm_paths_show(), which prints what everything resolved to plus whether it exists.
 # Run it when a path surprises you: `bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'`.
@@ -61,7 +60,7 @@
 # quietly evaluating the old stack and reporting the numbers as the port's.
 #
 # So every name here is ASSIGNED, never defaulted-through. Overrides do exist, but only under names
-# the profile does not manage: the *_OG391 suffix, following make_stock_patch.sh's REALM_SIF_OG391.
+# the profile does not manage: the *_OG391 suffix, including REALM_SIF_OG391.
 # If you add a path, keep that rule. `${REALM_ANYTHING:-...}` here is a trap, not a feature.
 #
 # REALM_DATA_PATH is deliberately NOT touched: scripts/clara/lib/apptainer.sh (the pre-3.9.1 eval
@@ -109,7 +108,7 @@ _realm_pick() {
 # only some of those symlinks, which is what the fallback covers.
 #
 # THE IMAGE: v2 FIRST, 2026-08-16. realm_og391_v2.sif (built 2026-08-14) carries MOST of the
-# OmniGibson patches that used to require MODE=oglite or MODE=stockfix.
+# OmniGibson fixes that used to require a host-side override.
 #
 # NOT ALL OF THEM. md5 of the six patch-site files, read out of both images and compared against
 # the OG-lite fork and stock_patch (2026-08-16):
@@ -164,8 +163,6 @@ REALM_DATA=${REALM_DATA_OG391:-$(_realm_pick -d "$REALM_ROOT/data/datasets" "$RE
 # directory and the first candidate wins. A loop makes the caller's `[ -d ]` check fail loudly,
 # which is the intended outcome; nothing here can silently pick a wrong log tree.
 REALM_LOGS=${REALM_LOGS_OG391:-$(_realm_pick -d "$REALM_ROOT/logs" "$REALM_SHARED/logs")}
-REALM_STOCK_PATCH=${REALM_STOCK_PATCH_OG391:-$REALM_SHARED/stock_patch}
-
 # Per-checkout, not shared: the Kit/USD shader caches this backs are written by the running sim and
 # two concurrent jobs sharing one appdata dir corrupt each other's.
 REALM_APPDATA=${REALM_APPDATA_OG391:-$REALM_ROOT/data/cache}
@@ -180,16 +177,14 @@ REALM_APPDATA=${REALM_APPDATA_OG391:-$REALM_ROOT/data/cache}
 REALM_OGLITE_ROOT=${REALM_OGLITE_OG391:-$(_realm_pick -d \
   "$(dirname "$REALM_ROOT")/OG-lite_og391" "$(dirname "$REALM_SHARED")/OG-lite_og391")}
 
-export REALM_ROOT REALM_SHARED REALM_OGLITE_ROOT REALM_SIF REALM_DATA REALM_APPDATA \
-       REALM_LOGS REALM_STOCK_PATCH
+export REALM_ROOT REALM_SHARED REALM_OGLITE_ROOT REALM_SIF REALM_DATA REALM_APPDATA REALM_LOGS
 
 #--- debugging -----------------------------------------------------------------------------------
 
 realm_paths_show() {
   local v p
   printf '%-18s %s\n' "(cwd)" "$PWD"
-  for v in REALM_ROOT REALM_SHARED REALM_OGLITE_ROOT REALM_SIF REALM_DATA REALM_APPDATA \
-           REALM_LOGS REALM_STOCK_PATCH; do
+  for v in REALM_ROOT REALM_SHARED REALM_OGLITE_ROOT REALM_SIF REALM_DATA REALM_APPDATA REALM_LOGS; do
     p=${!v}
     printf '%-18s %-64s %s\n' "$v" "$p" "$([ -e "$p" ] && echo ok || echo MISSING)"
   done

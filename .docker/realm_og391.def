@@ -17,14 +17,10 @@ From: stanfordvl/behavior:3.9.1
 #                              exist otherwise). Copied to /opt and moved into place in %post so the
 #                              stock package can be REMOVED rather than merged over: %files merges
 #                              into an existing directory and would leave stock strays behind.
-#   realm/misc                 the nine patches, kept as DOCUMENTATION of the correctness-critical
-#                              subset -- no longer applied, since the fork already contains them.
-#                              make_stock_patch.sh still consumes patches of exactly this shape.
 
 %files
     .docker/vendor/omnigibson /opt/oglite/omnigibson
     .docker/vendor/OGLITE_PROVENANCE /opt/oglite/OGLITE_PROVENANCE
-    realm/misc /opt/realm_misc_patches
     .docker/og391-constraints.txt /opt/og391-constraints.txt
     packages/openpi-client /opt/openpi-client
 
@@ -50,8 +46,8 @@ From: stanfordvl/behavior:3.9.1
     #
     # THE COST, so it can be reversed knowingly: this image no longer documents its delta from stock,
     # and a future base image's upstream fixes to these eight files would be silently overwritten.
-    # The nine grep guards below are the mitigation -- they fail the build if a semantic change is
-    # missing -- together with the recorded fork commit and realm/misc/*.patch as documentation.
+    # The nine grep guards below are the mitigation: they fail the build if a semantic change is
+    # missing, while the recorded fork commit preserves exact provenance.
     #
     # rm -rf then cp -a, NOT a merge: a file the fork DELETED must not survive from the stock tree.
     # cp/rm rather than rsync because rsync is not guaranteed in the base image.
@@ -93,8 +89,7 @@ From: stanfordvl/behavior:3.9.1
     #                                 1.1.1-LIT UNLESS A RUN SETS REALM_LIGHT_FIX=0.
 
     # /opt/oglite/omnigibson has been copied into place, so drop the staging copy -- ~40 MB of an
-    # identical tree. /opt/realm_misc_patches stays: it is the documentation of the correctness-critical
-    # subset, and make_stock_patch.sh reads patches of exactly that shape.
+    # identical tree.
     rm -rf /opt/oglite/omnigibson
 
     CONDA_PIP=/opt/conda/envs/behavior/bin/pip

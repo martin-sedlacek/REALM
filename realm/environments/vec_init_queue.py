@@ -15,11 +15,9 @@ One wrong pop, two symmetric repairs:
     (a) a LIVE object was knocked off the queue and would never be initialized
     (b) the REMOVED object kept its slot and would be initialized after its prim was deleted
 
-FIXED UPSTREAM 2026-08-14: OG-lite's ``_pre_remove_object`` matches on IDENTITY, so against that fork
-this module finds nothing and prints nothing. KEPT ANYWAY, as a net rather than a workaround, because
-the fix does not travel with the image -- ``scripts/clara/interactive/rr`` defaults to ``MODE=stock``
-and ``MODE=stockfix`` binds only ``scenes/scene_base.py``, so both still run the stock
-``simulator.py``. The full account, that argument, and the measurement table
+FIXED UPSTREAM 2026-08-14: OG-lite's ``_pre_remove_object`` matches on IDENTITY, and the validated
+SIF includes that implementation, so this module normally finds nothing and prints nothing. It is
+kept as a defensive net for older images. The full account and measurement table
 (historical probe with 2 environments and 3 resets: 4 re-queue warnings per perturbation against
 stock, 0 against OG-lite, both PASS either way) are in ``docs/vector_env/PERTURBATIONS.md`` §2-3.
 

@@ -24,8 +24,7 @@
 # THE COST, stated so it can be reversed knowingly: the image no longer documents what changed relative
 # to stock OmniGibson, and a future base image's upstream fixes to these files would be silently
 # overwritten. Mitigations kept in place: the recipes still run all nine grep guards (so a stage that
-# lost a semantic change fails the build), realm/misc/*.patch stays as documentation of the
-# correctness-critical subset, and the fork's exact commit is recorded in the image (see below).
+# lost a semantic change fails the build), and the fork's exact commit is recorded in the image.
 set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

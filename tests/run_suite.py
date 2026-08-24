@@ -516,7 +516,7 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--jobid", default=None, help="Slurm job to srun --overlap into. Omit to run "
                                                  "on the current node.")
-    p.add_argument("--mode", default=None, help="MODE for rr (stock/stockfix/oglite)")
+    p.add_argument("--mode", default=None, help="MODE for rr (stock/oglite)")
     p.add_argument("--out", default="suite_results.json")
     p.add_argument("--junit-xml", default=None, metavar="PATH",
                    help="also write a JUnit XML report here, ONCE, after the last test. This is "

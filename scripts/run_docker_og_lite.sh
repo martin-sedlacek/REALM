@@ -30,7 +30,6 @@ OG_DATA_PATH="${OG_DATA_PATH:-}"
 # Parse the command line arguments.
 GUI=true
 OG_LITE=true  # OG-lite enabled by default in this script
-APPLY_PATCHES=false
 
 while [[ $# -gt 0 ]]
 do
@@ -46,10 +45,6 @@ do
         ;;
         --no-og-lite)
         OG_LITE=false
-        shift
-        ;;
-        --patch-og-lite)
-        APPLY_PATCHES=true
         shift
         ;;
         *)
@@ -92,36 +87,6 @@ if [ "$OG_LITE" = true ]; then
         echo -e "${BGreen}OG-lite $OG_LITE_VERSION -> ${OG_SRC_MOUNT} (matches image)${Color_Off}"
     fi
 
-    # The image bakes the REALM patches into /behavior-src/OmniGibson at build time, but the
-    # bind mount hides that patched tree. The mounted source therefore needs the same patches
-    # applied on the host, or our custom robot USDs will trip OmniGibson's kinematic-tree
-    # assertions at load time.
-    MISSING_PATCHES=()
-    for patchfile in "$REALM_ROOT"/realm/misc/*_og391.patch; do
-        [ -e "$patchfile" ] || continue
-        # Already applied? Then it reverse-applies cleanly.
-        if patch -p1 -d "$OG_LITE_PATH" --dry-run --reverse --force < "$patchfile" > /dev/null 2>&1; then
-            continue
-        fi
-        MISSING_PATCHES+=("$patchfile")
-    done
-
-    if [ ${#MISSING_PATCHES[@]} -gt 0 ]; then
-        if [ "$APPLY_PATCHES" = true ]; then
-            for patchfile in "${MISSING_PATCHES[@]}"; do
-                echo "Applying $(basename "$patchfile") to $OG_LITE_PATH"
-                patch -p1 -d "$OG_LITE_PATH" --forward < "$patchfile"
-            done
-        else
-            echo -e "${BYellow}WARNING: these REALM patches are baked into the image but NOT present in the"
-            echo -e "mounted OG-lite source (the mount shadows the patched copy):${Color_Off}"
-            for patchfile in "${MISSING_PATCHES[@]}"; do
-                echo -e "${BYellow}  - $(basename "$patchfile")${Color_Off}"
-            done
-            echo -e "${BYellow}Custom robot USDs will fail OmniGibson's root-link / joint-count assertions."
-            echo -e "Re-run with --patch-og-lite to apply them to the OG-lite working tree.${Color_Off}"
-        fi
-    fi
 fi
 
 # ---------------------------------------------------------------------------

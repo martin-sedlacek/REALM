@@ -6,10 +6,6 @@
 #
 #   MODE=stock    image's own OmniGibson 3.9.1 at /behavior-src/OmniGibson  (default)
 #   MODE=oglite   host OG-lite_og391/omnigibson bound over the image's package
-#   MODE=stockfix image's own OmniGibson plus the patched files under $STOCK_PATCH, bound
-#                 individually. This is what the rebuilt SIF ships -- both build recipes apply the
-#                 same patches, so stockfix and a rebuilt image behave identically.
-#                 Run scripts/clara/interactive/make_stock_patch.sh once to produce them.
 #
 # Usage:
 #   ./scripts/clara/interactive/rr python -u examples/04_vector_evaluate.py --help
@@ -44,16 +40,13 @@ set -uo pipefail
 #      account is in the header of scripts/clara/lib/paths.sh -- read it before adding a path.
 #
 # Sets REALM_ROOT, REALM_SIF, REALM_DATA (-> /data), REALM_APPDATA (-> /cache), REALM_LOGS
-# (-> /logs), REALM_OGLITE_ROOT and REALM_STOCK_PATCH.
+# (-> /logs) and REALM_OGLITE_ROOT.
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/paths.sh"
 # A failed `source` is not fatal by itself (no set -e), and $REALM_ROOT would then hold the
 # value the shell profile exports -- the PRE-PORT 1.1.1 checkout -- so this run would silently
 # evaluate the wrong tree. paths.sh sets REALM_PATHS_SH last and does not export it.
 [ "${REALM_PATHS_SH:-}" = 1 ] || { echo "ERROR: could not source scripts/clara/lib/paths.sh" >&2; exit 1; }
 
-# STOCK_PATCH keeps its own override: unlike the REALM_* names, nothing in the shell profile touches
-# it, and MODE=stockfix is routinely pointed at a freshly built patch dir.
-STOCK_PATCH=${STOCK_PATCH:-$REALM_STOCK_PATCH}
 MODE=${MODE:-stock}
 JOB=${SLURM_JOB_ID:-interactive}
 TMPROOT=$REALM_ROOT/tmp/$JOB
@@ -65,27 +58,11 @@ TMPROOT=$REALM_ROOT/tmp/$JOB
 OGLITE_BIND=()
 case "$MODE" in
   stock)  ;;
-  stockfix)
-    # Bind ONE patched file over the stock package rather than the whole fork. Without it, scenes
-    # other than 0 load their objects ~100 m high and the task object falls to z=0.015 -- measured
-    # on this image for both Default and V-SC, and it was the ONLY thing that failed.
-    [ -d "$STOCK_PATCH/omnigibson" ] || { echo "rr: no patched files under $STOCK_PATCH -- run scripts/clara/interactive/make_stock_patch.sh" >&2; exit 1; }
-    # Bind each patched file individually over the stock package rather than the whole fork, so the
-    # image stays stock apart from exactly these. Three files: the z-offset fix (without which every
-    # scene but 0 loads its objects ~100 m high), the init-queue identity match (without which a
-    # sibling scene evicts freshly-added objects and REALM has to repair it at runtime), and
-    # OmniSurfaceMaterialPrim's missing preset_name default (without which such assets never load).
-    OGLITE_BIND=()
-    while IFS= read -r f; do
-      rel=${f#"$STOCK_PATCH"/}
-      OGLITE_BIND+=(--bind "$f":/behavior-src/OmniGibson/"$rel")
-    done < <(find "$STOCK_PATCH/omnigibson" -name '*.py')
-    ;;
   oglite)
     [ -d "$REALM_OGLITE_ROOT/omnigibson" ] || { echo "rr: no OG-lite at $REALM_OGLITE_ROOT" >&2; exit 1; }
     OGLITE_BIND=(--bind "$REALM_OGLITE_ROOT/omnigibson":/behavior-src/OmniGibson/omnigibson)
     ;;
-  *) echo "rr: MODE must be stock, stockfix or oglite (got '$MODE')" >&2; exit 1 ;;
+  *) echo "rr: MODE must be stock or oglite (got '$MODE')" >&2; exit 1 ;;
 esac
 
 # REALM_LIGHT_FIX only exists in patched OmniGibson. Under MODE=stock the image's own 3.9.1 has no
@@ -103,12 +80,12 @@ if [ "${REALM_LIGHT_FIX:-1}" != 0 ] && [ "$MODE" = stock ]; then
   # stay for them; the discriminator is the provenance file the new recipes write.
   #
   # The probe costs one short container start and runs ONLY on this path -- the one that would
-  # otherwise be refused outright. MODE=oglite and MODE=stockfix never reach it.
+  # otherwise be refused outright. MODE=oglite never reaches it.
   if apptainer exec --userns "$REALM_SIF" test -f /behavior-src/OmniGibson/OGLITE_PROVENANCE 2>/dev/null; then
     echo "rr: MODE=stock on an image that has OG-lite baked in ($(basename "$REALM_SIF")) -- no bind" >&2
     echo "    needed; REALM_LIGHT_FIX is honoured by the image's own OmniGibson." >&2
   else
-    echo "rr: REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-1 (default)} needs MODE=oglite or MODE=stockfix -- the" >&2
+    echo "rr: REALM_LIGHT_FIX=${REALM_LIGHT_FIX:-1 (default)} needs MODE=oglite with this old image -- the" >&2
     echo "    image's own OmniGibson 3.9.1 has no code that reads it, so this run would silently be" >&2
     echo "    stock-lit. Pass REALM_LIGHT_FIX=0 if stock lighting is what you actually want." >&2
     echo "    ($(basename "$REALM_SIF") has no /behavior-src/OmniGibson/OGLITE_PROVENANCE, i.e. it was" >&2
@@ -132,8 +109,7 @@ mkdir -p "$TMPROOT" "$REALM_APPDATA/appdata"
 # FORCE_LIGHT_INTENSITY definition in omnigibson/macros.py. Every run prints its resolved state as
 # a "[REALM_LIGHT_FIX] ..." line, so grep the log rather than guessing.
 #
-# Needs MODE=oglite or MODE=stockfix -- plain MODE=stock runs the image's unpatched OmniGibson,
-# where the variable has nothing to read it, so it is silently inert. Guarded below.
+# Old images need MODE=oglite; the validated SIF supports this directly in MODE=stock. Guarded above.
 PASS_ENV=()
 for v in REALM_INCREMENTAL_CONTACT_CACHE REALM_PROXIMITY_GATE REALM_GPU_DYNAMICS REALM_LIGHT_FIX OMNIGIBSON_HEADLESS; do
   if [ -n "${!v:-}" ]; then PASS_ENV+=(--env "$v=${!v}"); fi
