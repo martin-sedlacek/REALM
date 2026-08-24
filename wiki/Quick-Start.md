@@ -86,25 +86,7 @@ srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
 
 If that produced a run directory under `/logs/smoke/debug/first`, the install is good.
 
-## 3. A vectorized smoke test
-
-Before running a real vectorized evaluation, check that N environments build and render:
-
-```sh
-srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
-  python -u examples/03_vector_first_frames.py \
-    --num_envs 4 --task_id 0 --out_dir /logs/vector_first_frames
-```
-
-This steps every environment once and writes **two PNGs per environment** — `env<i>_external.png`
-and `env<i>_wrist.png` — plus `montage_external.png` and `montage_wrist.png`. At `--num_envs 4` that
-is ten files.
-
-**Look at the wrist images too, not just the external ones.** They are the half that shows whether
-the wrist camera resolved to the prim the observation profile expects, which is the failure this
-smoke test is best at catching. It is much faster to debug here than inside a real evaluation.
-
-## 4. A real evaluation
+## 3. A real evaluation
 
 Now you need a policy server. **REALM does not ship one** — it is a client. The server is a separate
 process serving your policy over a websocket, and REALM only needs its host and port.

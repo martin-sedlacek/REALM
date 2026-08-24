@@ -1,7 +1,7 @@
 """Does a vector env stay correct over a long run, not just for one step?
 
-`examples/03_vector_first_frames.py` builds N members, warms up and takes a single shared step. That
-proves construction and tiling; it says nothing about whether the thing stays stable and whether the
+The historical first-frame smoke test built N members, warmed up and took a single shared step. That
+proved construction and tiling; it said nothing about whether the thing stayed stable or whether the
 members stay independent over a rollout's worth of stepping.
 
 This drives `RealmVectorEnvironment` for --steps shared steps and checks, every so often:

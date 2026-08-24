@@ -37,7 +37,6 @@ and `frames/montage_wrist.png`.
 | --- | --- |
 | `realm/environments/env_vector.py` | `RealmVectorEnvironment` -- new |
 | `realm/environments/env_dynamic.py` | `in_vec_env` flag; `__init__` split into load + `post_play_setup()`; `bind_scene_handles()` / `finalize_setup()` halves; `pre_step()` / `post_step()`; `warmup_ee_cmd()` / `warmup_action()`; `apply_scene_fixes_from_cfg(manage_sim_state=...)` |
-| `examples/03_vector_first_frames.py` | smoke test: load N envs, warm up, step once, save each member's first frame |
 | `realm/sim_config.py` | `REALM_INCREMENTAL_CONTACT_CACHE` / `REALM_PROXIMITY_GATE` env-var knobs for the OG-lite macros (unrelated to this bug) |
 
 ### Why construction is three-phase
@@ -65,17 +64,10 @@ shape as OmniGibson's own `VectorEnvironment`.
 On Clara (Apptainer, no Docker), from a held L40S allocation -- `scripts/clara/interactive/rr` supplies the
 binds and picks stock vs OG-lite:
 
-```bash
-MODE=stock ./scripts/clara/interactive/rr \
-  python -u examples/03_vector_first_frames.py --num_envs 4 --task_id 0 \
-    --out_dir /logs/vector_first_frames
-```
-
-Reproduced verbatim on 2026-08-13 (job 190155): the new montage is indistinguishable from the
-committed `frames/montage_external.png`, so the bug is live rather than a stale artifact.
-
-Writes `env<i>_external.png`, `env<i>_wrist.png` and 2x2 montages. Takes ~11 min: ~90 s Isaac boot,
-then ~2 min per scene, then warmup.
+The original investigation used a temporary first-frame renderer that has since been removed from
+the release tree. The 2026-08-13 reproduction (job 190155) produced a montage indistinguishable
+from the committed `frames/montage_external.png`, confirming that the reported bug was live rather
+than a stale artifact.
 
 **Never wrap the in-container command in `bash -lc`.** Apptainer binds `$HOME`, so a *login* shell
 re-sources the host `~/.bashrc`, prepends `~/miniconda3/bin` to PATH and shadows the container's

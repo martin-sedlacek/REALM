@@ -10,9 +10,7 @@ The complete flag surface, and what the knobs actually do.
 | `examples/04_vector_evaluate.py` | N environments in one process, rollouts run in waves |
 
 There is also `examples/01_pi0_eval.py`, which takes **no flags at all** — it is a hardcoded
-demonstration (task 1, no perturbation, one repeat) and silently ignores anything you pass it. And
-`examples/03_vector_first_frames.py`, a build-and-render smoke test that writes an external **and** a
-wrist PNG per environment plus two montages — `2N + 2` files.
+demonstration (task 1, no perturbation, one repeat) and silently ignores anything you pass it.
 
 > `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. If you find a
 > script invoking `python realm/eval.py --...`, that script is stale — see

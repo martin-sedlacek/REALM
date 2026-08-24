@@ -12,7 +12,7 @@
 #                 Run scripts/clara/interactive/make_stock_patch.sh once to produce them.
 #
 # Usage:
-#   ./scripts/clara/interactive/rr python -u examples/03_vector_first_frames.py --num_envs 1 --task_id 0
+#   ./scripts/clara/interactive/rr python -u examples/04_vector_evaluate.py --help
 #   MODE=oglite ./scripts/clara/interactive/rr python -u examples/02_evaluate.py ...
 #   MODE=oglite REALM_INCREMENTAL_CONTACT_CACHE=1 ./scripts/clara/interactive/rr python ...
 #

@@ -4,7 +4,7 @@
 stem** — `--robot DROID_robolab_v2` loads `DROID_robolab_v2.yaml`.
 
 **The default is `DROID`.** That default is set independently in the two eval entry points, the
-vectorized first-frame tool, the environment constructor, and both `evaluate` functions, and the
+environment constructor, and both `evaluate` functions, and the
 `scripts/eval.sh` wrapper does not override it. If you pass no `--robot`, you get `DROID`.
 
 > The `name:` **inside** the file is a separate thing: it is the key observations are built against,

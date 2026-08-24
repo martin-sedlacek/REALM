@@ -175,7 +175,7 @@ def main(num_envs, task_id, perturbation_id, robot, warmup, rendering_mode, fram
             snapshot("post-warmup", env, i)
 
         if frames_dir:
-            # Same montage as examples/03_vector_first_frames.py, so the output is directly
+            # Keep the historical first-frame montage layout so the output is directly
             # comparable to docs/vector_env/frames/montage_external.png.
             import numpy as np_
             from PIL import Image
