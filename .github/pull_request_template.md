@@ -13,8 +13,8 @@ Commands and results:
 ## Benchmark impact
 
 - [ ] This preserves benchmark behavior and RNG draw order.
-- [ ] This intentionally changes results; the compatibility impact, `VERSION` change, and
-      `CHANGE_LEDGER.md` entry are explained below.
+- [ ] This intentionally changes results; the compatibility impact and `VERSION` change are
+      explained below.
 - [ ] Not applicable (documentation or tooling only).
 
 ## Assets and output

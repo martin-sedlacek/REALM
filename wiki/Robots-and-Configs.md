@@ -62,7 +62,7 @@ Present, but not what the benchmark is built or validated on.
 
 ## Configs named in scripts but absent from the tree
 
-These appear as defaults in debug probes and in the change ledger, but the YAML files are **not in
+These appear as defaults in historical debug probes, but the YAML files are **not in
 the repo**: `DROID_robolab_xflat`, `DROID_robolab_curlgrip`, `DROID_robolab_curlgrip_ee_control`,
 `DROID_robolab_padspring`. They were removed when the bendy-gripper investigation was reverted — see
 [Gripper compliance findings](Gripper-Compliance-Findings). The probes that default to them will fail

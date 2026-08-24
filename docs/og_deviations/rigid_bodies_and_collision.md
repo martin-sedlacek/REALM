@@ -55,8 +55,8 @@ impossible for a mirrored pair, and the fingertip pads landed **128.347 mm** fro
 centroid. That displacement enters each pad's inertia about its own pivot as `m·d²` =
 **1.496e-04 kg·m²** against a true **1.937e-06** — an inflation of **77.3×**. A PhysX mimic joint
 realises stiffness `k ~ ω²·I`, so at the authored `naturalFrequency` the fingertips came out ~77×
-too stiff and would not curl under load. *(Established by the CoM-fix chain; see `CHANGE_LEDGER.md`.
-Not re-derived here.)*
+too stiff and would not curl under load. *(Established by the CoM-fix commit chain; not re-derived
+here.)*
 
 A diagnostic worth keeping: a wrong CoM shared by a mirrored pair gives the two sides **different**
 effective inertias where symmetry demands they match — `nf_eq` 253 vs 217 (commit `ab28282`).
@@ -347,7 +347,7 @@ only locally-defined prims were used);
 objects `bottom_cabinet/glefdh`, `breakfast_table/lcsizg`, `microwave/vuezel`, `stove/yhjzwg`.
 
 Numbers attributed to commits (`83b21d5`, `ab28282`, `0ed25c9`, `3bf4ab9`, `6541869`, `15b4072`)
-were established elsewhere in this project and are **not** re-derived here; see `CHANGE_LEDGER.md`.
+were established elsewhere in this project and are **not** re-derived here.
 
 Every "OG-lite only?" answer was decided by `git diff 25c73e1 HEAD -- <file>`, where `25c73e1` is the
 BEHAVIOR-1K 3.9.1 port commit. `rigid_dynamic_prim.py`, `rigid_kinematic_prim.py`, `geom_prim.py`,

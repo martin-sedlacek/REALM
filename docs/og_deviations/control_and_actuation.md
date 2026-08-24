@@ -252,4 +252,4 @@ state — flagged here as a pointer only, and covered in
 Also unresolved and outside this lane: `grep 'frame="parent"'` finds **three** sites composing to the
 wrong level; only `rigid_prim.py:324` is patched. `geom_prim.py:250` (collision hull) and
 `object_utils.py:88` (`compute_base_aligned_bboxes`) are not — see
-[`transforms_and_assets.md`](transforms_and_assets.md) and `CHANGE_LEDGER.md`.
+[`transforms_and_assets.md`](transforms_and_assets.md).

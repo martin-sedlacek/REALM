@@ -20,7 +20,7 @@ wrong.** Concretely:
   reordering a single `np.random`/`random` call shifts every draw after it. Dead draws are kept
   and commented rather than deleted.
 - Known number-moving bugs are flagged `KNOWN ISSUE` in place and fixed only in a gated batch
-  behind a `VERSION` bump. The 1.0.0 batch (2026-08-19, see CHANGE_LEDGER.md) shipped the last
+  behind a `VERSION` bump. The 1.0.0 batch (2026-08-19) shipped the last
   gated set — `b_hobj`'s discarded scale factors, `vb_pose`'s compounding `init_poses` drift, the
   V-AUG range disagreement — so B-HOBJ / push-task VB-POSE / V-AUG numbers recorded before 1.0.0
   are not comparable and are being recomputed.
@@ -72,8 +72,8 @@ examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
             debug_probes/, karolina/, cluster_evals/, container launchers
-docs/       code_archaeology.md (long-form evidence behind terse docstrings), CHANGE_LEDGER.md
-            (root), vector_env/, perf/, evaluation_paths.md
+docs/       code_archaeology.md (long-form evidence behind terse docstrings), vector_env/,
+            perf/, evaluation_paths.md
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Robots-and-Configs,
             Running-the-Test-Suite, Cluster-and-Parallel-Runs, Known-Issues-and-Gotchas
 ```
@@ -139,8 +139,8 @@ trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on pass
 
 Changes made off-cluster (this machine has no GPU; OmniGibson cannot run locally) need their
 container-side verification steps recorded in the pull request. Durable findings belong in
-`docs/code_archaeology.md` (evidence), `CHANGE_LEDGER.md` (a change and its revert), or
-`wiki/Known-Issues-and-Gotchas.md` (traps), not in a repository-level temporary checklist.
+`docs/code_archaeology.md` (evidence) or `wiki/Known-Issues-and-Gotchas.md` (traps), not in a
+repository-level temporary checklist.
 
 ## Clusters
 
@@ -175,7 +175,7 @@ frequency in `sim_config.set_sim_config`.
   apart; world-frame writes only look right in scene 0). `bounding_box` in a cfg is an EXTENT.
 - Rubric dicts must be deep-copied per env (`TASK_PROGRESSIONS` is module-level and mutated).
 - `og.sim.stop/play/step/render` are GLOBAL across scenes — batch them in vector paths.
-- Docstrings carry contracts; long-form incident evidence lives in `docs/code_archaeology.md`
-  and `CHANGE_LEDGER.md` — add new postmortems there, not as 40-line docstrings.
+- Docstrings carry contracts; long-form incident evidence lives in `docs/code_archaeology.md` — add
+  new postmortems there, not as 40-line docstrings.
 - `VERSION` at root is the release source of truth (`.github/workflows/release.yml` tags merges
   to main). The lint gate (`make lint`, F401/F811 only) and tier-1 tests are kept at zero/green.

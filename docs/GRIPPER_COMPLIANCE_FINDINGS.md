@@ -231,8 +231,8 @@ REALM's tasks depend on**, each verified still present:
 | `7c59ed5` | articulation placed by ROOT LINK, not whichever prim was read |
 | `ec7373b` | exported asset's up axis matched to the stage's — **the drawer fix** |
 
-**Kept:** this document, `CHANGE_LEDGER.md`, and the `docs/og_deviations/` audit chapters. The
-one-off measurement harness was removed before release.
+**Kept:** this document and the `docs/og_deviations/` audit chapters. The one-off measurement
+harness was removed before release.
 
 ### Restoring the fix
 

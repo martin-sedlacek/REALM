@@ -18,8 +18,8 @@ See `wiki/Installation.md` and `wiki/Running-the-Test-Suite.md` for full setup a
 ## Making Changes
 
 REALM is a benchmark, so preserve observable behavior and random-number draw order during refactors.
-Do not silently fix a result-changing defect. Such changes need an explicit compatibility decision,
-a `VERSION` bump, and an entry in `CHANGE_LEDGER.md`.
+Do not silently fix a result-changing defect. Such changes need an explicit compatibility decision
+and a `VERSION` bump.
 
 Keep single- and vector-evaluation semantics shared in `realm/rollout.py`. Add tasks and
 perturbations through the existing YAML layers and registries; avoid hard-coded parallel lists.
