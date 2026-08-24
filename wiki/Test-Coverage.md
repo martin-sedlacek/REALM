@@ -38,7 +38,7 @@ server on `:8000`, which no automated run has. It **SKIPs**. Measured: `SKIP: pr
 met`, 6.9 s, in job 191441's results.
 
 > **Do not over-read this.** It is a statement about the **suite**, not about REALM. Under a real
-> policy the ladder does advance: in the pi0.5 control runs on this cluster on 2026-08-16
+> policy the ladder does advance: in the recorded pi0.5 control runs from 2026-08-16
 > (`logs/ctl_gripper/`), 24 of 45 rollouts reached `SUCCESS`, through `GRASP`, `LIFT_SLIGHT` and
 > `MOVE_CLOSE`. Across the whole log tree, 9,839 of 42,561 recorded rollouts are `SUCCESS`. The
 > gap is that **the automated tests never look at any of that.**
@@ -140,31 +140,29 @@ runtime correctness.
 | `MODE` agreement | no test asserts `stock` and `oglite` produce the same result |
 | A policy server | `test_pi0_integration` SKIPs without one |
 
-### The `MODE` trap, which is a coverage gap wearing a disguise
+### The historical scene-orientation regression
 
-`realm_og391_v2.sif` carries six of the seven OmniGibson patches. **The missing one is the up-axis
-fix**, which lives only in the OG-lite fork. Without it, referencing a layer whose `upAxis`
-disagrees with the stage's makes Kit append `xformOp:rotateX:unitsResolve` to the referencing prim,
-which no OmniGibson pose setter can see — and it is materialised only for the **first** reference
-to the asset.
+An earlier image lacked the up-axis fix now included in the release image. Referencing a layer whose
+`upAxis` disagreed with the stage made Kit append `xformOp:rotateX:unitsResolve` to the referencing
+prim, which no OmniGibson pose setter could see and which materialised only for the first reference.
 
 Measured on `impact_drawer`'s `cabinet.usd` at `num_envs=2`: **scene 0's cabinet lay on its back**
 with its drawers jammed at 0.229 m of a 0.300 m range, while scene 1's stood upright.
 
-**The drawer tests pass anyway.** 10/10 on `test_integrity`, 2/2 on the vector drawer cells, both
-at `MODE=stock`. Nothing in `tests/` notices, because almost every check is "the artifacts exist
+**The drawer tests passed anyway.** 10/10 on `test_integrity`, 2/2 on the vector drawer cells.
+Nothing in those tests noticed, because almost every check was "the artifacts exist
 with the right row count" and the `debug` policy never touches the drawer.
 
-`test_scene_object_placement` exists precisely because of this, and is the only test that looks at
-the **scene** rather than at the artifacts. Measured 2026-08-16, same code, same task, different
-bind:
+`test_scene_object_placement` exists precisely because of this, and is the test that looks at the
+**scene** rather than only at artifacts. In the original regression audit, the same code and task
+produced:
 
-| `MODE` | `test_scene_object_placement` | `test_integrity` (10 tasks) | `test_vector_integrity_drawers` |
+| Image contents | `test_scene_object_placement` | `test_integrity` (10 tasks) | `test_vector_integrity_drawers` |
 |---|---|---|---|
-| `stock` | **FAIL** (329.2 s; 428.5 s on a re-run) | PASS | PASS |
-| `oglite` | **PASS** (334.5 s) | — | — |
+| missing up-axis fix | **FAIL** | PASS | PASS |
+| with up-axis fix | **PASS** | — | — |
 
-> **That failing run exited 0.** Measured on job 191496, 2026-08-16: `test_scene_object_placement`
+> **That failing run exited 0.** `test_scene_object_placement`
 > reported `FAIL` with `exit=0`. If the suite gated on exit codes it would have called that a pass.
 > It gates on the test's own printed verdict line instead, which is why it did not — and it is the
 > single clearest demonstration in this repository of why "exit code 0 proves nothing" is a rule
@@ -174,8 +172,9 @@ bind:
 the bind where the drawer is physically wrong; the one test that looks at the scene is the only one
 that notices. Do not "fix" it by loosening its tolerance.
 
-So: `make test-suite` re-runs the OG-lite-sensitive cells under `MODE=oglite` as a second
-invocation, and `run_suite.py` records `mode` **per result** rather than as a header field. **Always
+The release image carries the fix, but the incident remains important evidence that artifact-only
+checks cannot establish scene correctness. `run_suite.py` records mode **per result** rather than as
+a header field. **Always
 say which mode a result came from.**
 
 ---

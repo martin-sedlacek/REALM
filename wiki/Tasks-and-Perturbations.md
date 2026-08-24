@@ -226,25 +226,17 @@ python examples/02_evaluate.py --task_id 4 --perturbation_id 15 \
     --experiment_name <exp>
 ```
 
-> **Before copying the sweep commands below:** `scripts/cluster_evals/run_evals_for_ckpt.sh` and
-> `scripts/eval.sh` both **fail against the current container** — they activate a `micromamba`
-> environment the 3.9.1 image does not have, and `scripts/eval.sh` additionally drives a CLI that
-> `realm/eval.py` does not expose. Their **flag grammar** is documented here because it is the
-> project's sweep convention and the ID expansion is worth copying, but the scripts themselves need
-> repair before use. See [Cluster and parallel runs](Cluster-and-Parallel-Runs).
-
-A sweep — `scripts/cluster_evals/run_evals_for_ckpt.sh` takes `--task_ids` and `--perturbation_ids`,
-each accepting comma-separated values and `a-b` ranges:
+For a scheduler sweep, pass explicit task and perturbation IDs to one evaluation process per cell.
+A useful scheduler-facing convention accepts comma-separated values and `a-b` ranges:
 
 ```sh
 --task_ids 0,4,8 --perturbation_ids 3-7
 ```
 
-**Omitting either flag means "all of it"** — they default to `0-9` and `0-15` respectively. The script
-launches one process per cell and skips cells whose outputs already exist, so it is re-runnable.
-`scripts/karolina/run_eval_for_ckpt.sh` is the same pattern for a different cluster, and
-`scripts/eval.sh` is the single-cell wrapper, which validates that the IDs are in range — subject to
-the caveat above about all three.
+When implementing this convention in a site-local launcher, validate IDs against `realm/eval.py`,
+make omitted ranges explicit, assign unique run IDs and ports, and skip a cell only after verifying
+that its complete expected artifact set already exists. See
+[Cluster and parallel runs](Cluster-and-Parallel-Runs).
 
 ## Rollout budget
 

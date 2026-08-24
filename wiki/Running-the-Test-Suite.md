@@ -47,6 +47,9 @@ It does not build or run the simulation container.
 
 ### Tier 2 — GPU. Needs the image, the dataset and a card.
 
+The Make targets accept `ALLOC` as a scheduler allocation identifier through an operator-provided
+site adapter:
+
 ```sh
 ALLOC=<jobid> make test-smoke    # ~12 min   the cheap gate
 ALLOC=<jobid> make test-suite    # ~1.7 h    the gate before trusting a change
@@ -60,28 +63,11 @@ ALLOC=<jobid> make test-server   #           needs a policy server on :8000
 | `suite` | `smoke` plus both drawer paths, all 10 tasks, all 16 perturbations | ~1.7 h |
 | `matrix` | the full task × perturbation sweep through the vector path | hours; no completed run on record |
 
-Costs are **measured**: `smoke` end to end on job 191496 (705.5 s), the rest from
-`logs/suite_results_v2.json` — both 2026-08-16, one L40S, `MODE=stock`.
+The rough costs were measured on one L40S-class GPU and will vary with hardware, storage, caches,
+rendering settings, and policy-server placement.
 
-> ### ⚠ `make test-smoke` and `make test-suite` report a FAILURE at the default `MODE=stock`
->
-> Two of them, and neither is your install:
->
-> - `test_task_progression_rubrics` — the two real code defects described below;
-> - **`test_scene_object_placement`** — which is **MODE-sensitive by design**. It is the only test
->   that looks at the *scene* rather than at the artifacts, and the v2 image lacks the up-axis fix,
->   so at `MODE=stock` a drawer scene genuinely is wrong. Measured on job 191496: **FAIL at `stock`
->   in 428.5 s**, PASS at `oglite`.
->
-> Run `SUITE_MODE=oglite make test-smoke` when the scene has to be right. **Do not loosen that
-> test's tolerance** — it is the tripwire, and everything else about the drawer passes regardless.
->
-> That same run is a live demonstration of why verdicts are not exit codes:
-> `test_scene_object_placement` **failed while exiting 0**.
-
-`make test-suite` additionally **re-runs the OG-lite-sensitive cells at `MODE=oglite`** as a second
-invocation, because at `MODE=stock` a drawer scene can be physically wrong while every artifact
-check passes. See below.
+The release image contains the required OmniGibson fixes and is validated in its default `stock`
+mode. `SUITE_MODE=oglite` is for testing a host checkout of the separate OG-lite fork.
 
 ### Either tier
 
@@ -96,10 +82,10 @@ make test-report   # re-print the last run's table, running nothing
 > quietly covered a twelfth of the suite while looking like a full pass would be this project's
 > worst failure mode, which is things passing while being wrong.
 
-`ALLOC` is a **RUNNING** Slurm allocation — see [Quick start](Quick-Start) step 0. Every tier-2
-target refuses without it, because `rr` starts the container **wherever it is invoked**: with no
-allocation the container tests run on the login node, get no GPU, and fail confusingly rather than
-obviously.
+`ALLOC` must identify a running allocation understood by your site adapter. The repository does not
+ship cluster-specific allocation or launch wrappers. On another scheduler, run the corresponding
+test scripts inside the release container on an allocated GPU node or provide a local adapter for
+`tests/run_suite.py`.
 
 **Before trusting any of this, read [Test coverage](Test-Coverage)** — what a pass in either tier
 does and does not establish. It is short, and it is the point.
@@ -168,30 +154,14 @@ exists to carry.
 two standalone AST/YAML contract checks, and the four explicitly named host pytest modules. Missing
 tools are resolved by `uv sync --locked`; a failure after that is a regression, not a known baseline.
 
-## Which `MODE` to run under, and why it changes the answer
+## Which mode to run
 
-`SUITE_MODE` selects the OmniGibson bind, exactly as `MODE` does for `rr` — see
-[Running evaluations](Running-Evaluations). The default is `stock`, the image's own 3.9.1.
-
-**`stock` is not sufficient where scene correctness matters.** The current image carries most of the
-OmniGibson patches but **not the up-axis fix**, which lives only in the OG-lite fork. Without it, a
-referenced layer whose `upAxis` disagrees with the stage's gets an `xformOp:rotateX:unitsResolve`
-appended that no OmniGibson pose setter can see — and it is materialised only for the **first**
-reference to the asset. Measured on `impact_drawer`'s `cabinet.usd` at `num_envs=2`: scene 0's
-cabinet lay on its back with its drawers jammed at 0.229 m of a 0.300 m range, while scene 1's stood
-upright.
-
-The trap is that **the drawer tasks still load, still run, and still pass** under `stock` — 10/10 on
-`test_integrity`, 2/2 on the vector drawer cells. Nothing in `tests/` notices, because almost every
-check is "the artifacts exist with the right row count" and the `debug` policy never touches the
-drawer. `test_scene_object_placement` is the exception and the reason it exists: it is the only test
-that looks at the **scene** rather than at the artifacts.
-
-So:
+The default `stock` mode uses the OmniGibson package baked into `realm.sif` and is the release gate.
+Use `oglite` only when deliberately binding and testing a host OG-lite checkout:
 
 ```sh
-ALLOC=<jobid> SUITE_MODE=oglite make test-suite  # when an OUTCOME matters
-ALLOC=<jobid> make test-suite                    # when "does it build and write artifacts" is the question
+ALLOC=<jobid> make test-suite
+ALLOC=<jobid> SUITE_MODE=oglite make test-suite  # host-fork development only
 ```
 
 **Always say which mode a result came from.** `run_suite.py` prints `mode` as a per-result column
@@ -219,7 +189,7 @@ What a green run is actually worth, per tier, is tabulated in [Test coverage](Te
 ## See also
 
 - [Installation](Installation) — the single-command install check
-- [Quick start](Quick-Start) — getting an allocation, and the smoke tests
-- [Running evaluations](Running-Evaluations) — `MODE`, and the full flag surface
+- [Quick start](Quick-Start) — GPU setup and the smoke test
+- [Running evaluations](Running-Evaluations) — container execution and the full flag surface
 - [Test coverage](Test-Coverage) — what a pass in either tier does and does not establish
 - [Known issues and gotchas](Known-Issues-and-Gotchas) — why exit code 0 proves nothing

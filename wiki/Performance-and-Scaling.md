@@ -66,11 +66,9 @@ Two things that cost you:
   over an hour.
 
 There is also a **renderer descriptor-pool ceiling** that causes a segfault once enough scenes are
-resident. It is worked around by raising the descriptor-set limits before launch — **but that raise
-lives in the OG-lite fork, so you only get it under `MODE=oglite`**, not under the default
-`MODE=stock`. If you push `--num_envs` high and hit an unexplained segfault during scene build, that
-is the first thing to
-check.
+resident. The release image includes the raised descriptor-set limits from OG-lite. If you test a
+different image and hit an unexplained segfault during high-`--num_envs` scene construction, verify
+that it carries the same limit change.
 
 ## The contact cache: a lever that was spent
 
@@ -101,14 +99,13 @@ real-time rendering, render-on-demand, the incremental contact cache, and the pr
 Both optimization flags currently default on in `realm/sim_config.py`, but set them explicitly in
 recorded runs so the configuration remains reproducible:
 
+Run this inside the release container on an allocated GPU node:
+
 ```sh
-MODE=oglite \
 REALM_INCREMENTAL_CONTACT_CACHE=1 \
 REALM_PROXIMITY_GATE=1 \
 REALM_GPU_DYNAMICS=0 \
-srun --jobid=<ID> --overlap \
-  ./scripts/clara/interactive/rr \
-  python -u examples/04_vector_evaluate.py \
+python -u examples/04_vector_evaluate.py \
     --num_envs 4 \
     --task_id 0 --perturbation_id 0 \
     --repeats 25 --max_steps 500 --horizon 8 \
@@ -116,7 +113,7 @@ srun --jobid=<ID> --overlap \
     --host 127.0.0.1 --port 8000 \
     --robot DROID_mounted \
     --experiment_name <experiment> --run_id <run-id> \
-    --log_dir /logs --rendering_mode rt \
+    --log_dir /app/logs --rendering_mode rt \
     --render_on_demand
 ```
 

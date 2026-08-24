@@ -39,17 +39,17 @@ See [Logs, outputs and the viewer](Logs-Outputs-and-Viewer) for the full schema.
 | Page | |
 |---|---|
 | [Installation](Installation) | the container, the dataset, and the robot-definition step that is easy to miss |
-| [Quick start](Quick-Start) | allocation → smoke test → real evaluation, in four steps |
+| [Quick start](Quick-Start) | GPU setup → smoke test → real evaluation |
 
 ## Reference
 
 | Page | |
 |---|---|
-| [Running evaluations](Running-Evaluations) | every flag, `MODE`, rendering modes, model types |
+| [Running evaluations](Running-Evaluations) | container execution, flags, rendering modes, model types |
 | [Tasks and perturbations](Tasks-and-Perturbations) | the 10 × 16 matrix, with what each cell means |
 | [Robots and configs](Robots-and-Configs) | what `--robot` selects, and how they differ |
 | [Logs, outputs and the viewer](Logs-Outputs-and-Viewer) | what a run writes, and how to read it |
-| [Cluster and parallel runs](Cluster-and-Parallel-Runs) | SLURM, sweeps, and vectorized evaluation |
+| [Cluster and parallel runs](Cluster-and-Parallel-Runs) | scheduler-neutral sweeps and vectorized evaluation |
 | [Running the test suite](Running-the-Test-Suite) | the two-tier pipeline — and why `pytest tests/` finds nothing |
 | [Test coverage](Test-Coverage) | **what a passing test run does and does not establish** |
 
@@ -77,7 +77,7 @@ debug it.
 ## A note on scope
 
 Some of these pages document things that are **wrong or stale in the repository** — an install script
-that references deleted files, older cluster pipelines that cannot run against the current container,
+that references deleted files, older launch pipelines that cannot run against the current container,
 two tasks whose camera views are unusable. Those are recorded rather than hidden, because finding out
 the hard way is worse. [Known issues](Known-Issues-and-Gotchas) is the index of them.
 

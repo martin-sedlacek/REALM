@@ -1,181 +1,100 @@
 # Quick start
 
-This page takes you from a working [installation](Installation) to a real evaluation, in steps
-that each verify something before the next one depends on it.
+This page takes you from a working [installation](Installation) to a small evaluation without
+assuming a particular cluster, scheduler, filesystem, or account.
 
-Everything runs **inside the container**. The wrapper that puts you there is
-`scripts/clara/interactive/rr`.
+## 1. Obtain a GPU shell
 
-> **`scripts/clara/` is the development cluster's harness, not a portable installer.** The commands
-> below are exactly what is run in practice, which makes them trustworthy — but the `salloc` line,
-> the partition and GPU names, and the paths resolved by `scripts/clara/lib/paths.sh` are
-> site-specific. Adapt them for your machine. See the note at the end of
-> [Installation](Installation).
+REALM requires an NVIDIA GPU. On a workstation, run the commands below directly. On a managed
+cluster, first request an interactive GPU allocation using the command documented by your site, then
+run them on the allocated compute node. Do not start the simulator on a login node.
 
-## 0. Hold an allocation
+Confirm that the GPU is visible and has enough free memory:
 
 ```sh
-salloc --no-shell --job-name=realm-interactive --partition=l40s --nodes=1 \
-       --cpus-per-task=32 --gres=gpu:L40S:1 --mem=120G --time=24:00:00
+nvidia-smi
 ```
 
-Note the job ID it prints — you need it for every command below.
+## 2. Configure the container paths
 
-> ### `rr` does not put you on the node. `srun` does.
->
-> `rr` starts the container **wherever it is invoked**. It does not allocate and it does not `srun`.
-> Run it bare on a login node and you get a container with no GPU, which fails in confusing ways
-> rather than obviously.
->
-> So every `rr` invocation goes **through `srun` onto the allocation you hold**:
->
-> ```sh
-> srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr python -u ...
-> ```
->
-> The repo's `go` wrapper does this for you and adds logging and an explicit exit marker:
-> `ALLOC=<ID> ./scripts/clara/interactive/go <logname> <script> [args...]`. It runs a **script
-> file**, not an inline command string — passing multi-line commands through `srun` has mangled them
-> before, which is why `go` exists.
->
-> The commands below show the `srun` form explicitly. Drop the prefix only if you already have an
-> interactive shell on the node.
-
-Check the GPU is actually free before using it — holding an allocation does not guarantee nothing
-else is resident on the card:
+From the repository root:
 
 ```sh
-srun --jobid=<ID> --overlap nvidia-smi \
-     --query-compute-apps=pid,used_memory,name --format=csv
+export REALM_SIF=/path/to/realm.sif
+export REALM_DATA_PATH=/path/to/realm/data
 ```
 
-## 1. Check paths before anything else
+`REALM_DATA_PATH` is the parent directory containing `datasets/` and the writable `isaac-sim/`
+cache directories. See [Installation](Installation) for the expected layout.
+
+Open the container:
 
 ```sh
-bash -c 'source scripts/clara/lib/paths.sh; realm_paths_show'
+./scripts/run_apptainer.sh
 ```
 
-The three that `rr` actually checks before it will start are `REALM_SIF`, `REALM_DATA` and
-`REALM_LOGS`. **Those three must say `ok`**; if one is missing `rr` refuses anyway, and this just
-tells you *which*, immediately, instead of after a container spin-up.
+The remaining commands on this page run inside that shell. The repository is mounted at `/app`.
 
-> **`REALM_APPDATA` reads `MISSING` on a fresh checkout, and that is fine.** It is
-> `$REALM_ROOT/data/cache`, the per-checkout Kit/USD shader cache, and `rr` creates it on first run
-> — it is an output, not a prerequisite. Verified 2026-08-16 on a clean worktree: seven lines `ok`,
-> `REALM_APPDATA` `MISSING`, and step 2 below then ran fine and wrote all four artifacts. Do not go
-> hunting for it.
+## 3. Run a server-free smoke evaluation
 
-`(cwd)` is the first line and is informational, not a path check.
-
-## 2. A run that needs no policy server
-
-The `debug` model type returns a constant action, so this exercises the whole simulation and logging
-path without a network dependency. Keep it tiny.
+The `debug` model returns a constant action, so this checks simulation, rendering, and logging
+without a policy server:
 
 ```sh
-srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
-  python -u examples/02_evaluate.py \
-    --task_id 0 --perturbation_id 0 \
-    --repeats 1 --max_steps 20 \
-    --model_type debug --model_name debug --port 8000 \
-    --experiment_name smoke --run_id first --log_dir /logs
+python -u examples/02_evaluate.py \
+  --task_id 0 --perturbation_id 0 \
+  --repeats 1 --max_steps 20 \
+  --model_type debug --model_name debug --port 8000 \
+  --experiment_name smoke --run_id first --log_dir /app/logs
 ```
 
-`--port` is required even for `debug`, which never connects. `MODE` is not set here because
-**`MODE=stock` is the default** — the image's own OmniGibson.
+`--port` is required by the CLI even though the debug model never connects to it. A successful run
+creates output under `logs/smoke/debug/first` in the checkout.
 
-If that produced a run directory under `/logs/smoke/debug/first`, the install is good.
+## 4. Run a policy evaluation
 
-## 3. A real evaluation
-
-Now you need a policy server. **REALM does not ship one** — it is a client. The server is a separate
-process serving your policy over a websocket, and REALM only needs its host and port.
-
-For π0.5 the repo has a launcher, `scripts/clara/interactive/pi05_server.sh`. Read it before running
-it: it `cd`s into an **openpi checkout outside this repository** and defaults to a checkpoint under a
-specific user's home directory, so it will exit immediately on any other machine. Treat it as a
-worked example of the shape:
-
-```sh
-PORT=8000 CKPT=/path/to/your/checkpoint ./scripts/clara/interactive/pi05_server.sh
-```
-
-Serving π0.5 yourself means an openpi checkout, a checkpoint directory containing `params/`, and
-`scripts/serve_policy.py` from openpi — not from REALM. It takes roughly 70 seconds to come up and
-about 12 GB of VRAM at the memory fraction that launcher sets, which matters because the simulator
-needs the rest of the card.
-
-Wait for the server to be listening before starting the eval. Every batch launcher in the repo does a
-socket preflight for exactly this reason: the client **blocks forever retrying** rather than failing,
-so an eval against a dead port looks like a hang, not an error.
+REALM is a policy client; it does not ship a policy server. Start a compatible server separately and
+wait until its socket accepts connections. The client retries indefinitely when the endpoint is
+unavailable, so a dead port otherwise looks like a hung evaluation.
 
 Single environment:
 
 ```sh
-srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
-  python -u examples/02_evaluate.py \
-    --task_id 0 --perturbation_id 0 \
-    --repeats 25 --max_steps 800 --horizon 8 \
-    --model_type openpi --model_name checkpoints_pi05_droid_jointpos \
-    --host 127.0.0.1 --port 8000 \
-    --experiment_name pi05 --run_id single --log_dir /logs
+python -u examples/02_evaluate.py \
+  --task_id 0 --perturbation_id 0 \
+  --repeats 25 --max_steps 800 --horizon 8 \
+  --model_type openpi --model_name YOUR_MODEL_NAME \
+  --host POLICY_HOST --port POLICY_PORT \
+  --experiment_name evaluation --run_id single --log_dir /app/logs
 ```
 
-Vectorized — note this is a **different script** with a slightly different flag set:
+Vectorized:
 
 ```sh
-srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
-  python -u examples/04_vector_evaluate.py \
-    --num_envs 4 --repeats 25 --max_steps 800 --horizon 8 \
-    --task_id 0 --perturbation_id 0 \
-    --model_type openpi --model_name checkpoints_pi05_droid_jointpos \
-    --host 127.0.0.1 --port 8000 \
-    --experiment_name pi05 --run_id vec --log_dir /logs
+python -u examples/04_vector_evaluate.py \
+  --num_envs 4 --repeats 25 --max_steps 800 --horizon 8 \
+  --task_id 0 --perturbation_id 0 \
+  --model_type openpi --model_name YOUR_MODEL_NAME \
+  --host POLICY_HOST --port POLICY_PORT \
+  --experiment_name evaluation --run_id vector --log_dir /app/logs
 ```
 
-With `--num_envs 4 --repeats 25`, the 25 rollouts run in waves of 4.
+With `--num_envs 4 --repeats 25`, rollouts run in waves of four. Start at four environments on a
+high-memory GPU and measure before increasing it.
 
-> **Do not copy a single-env command line onto the vectorized script.** `examples/04_vector_evaluate.py`
-> has no `--resume` and no `--no_render`; `examples/02_evaluate.py` has both. Their `--log_dir`
-> defaults also differ. See [Running evaluations](Running-Evaluations).
+The two entry points do not expose exactly the same flags. In particular, the vectorized script has
+no `--resume` or `--no_render`; see [Running evaluations](Running-Evaluations).
 
-> **Four perturbations need a stopped simulator** — `V-SC`, `VB-MOBJ`, `VSB-NOBJ` and `SB-VRB`,
-> because they add or remove objects. They still run vectorized: the vector environment batches
-> **one** stop/play cycle across the whole wave. They are simply the expensive ones to reset.
+## 5. Verify artifacts
 
-## Or just submit a batch job
-
-`sbatch_eval_pi05.sh` does the whole thing — allocates, starts its own policy server on a
-non-colliding port, waits for it, runs the eval, and then **checks that real artifacts were produced**
-before reporting success:
-
-```sh
-VEC=4 PERT_ID=0 MAX_STEPS=800 REPEATS=25 RUN_ID=def_vec4 ROBOT=DROID \
-  sbatch scripts/clara/interactive/sbatch_eval_pi05.sh
-```
-
-It is configured entirely through environment variables, and `VEC` selects the path: `VEC>=1` runs
-the vectorized script with that many environments, `VEC=0` runs the single-env script.
-
-> **Two of its defaults will surprise you, which is why `ROBOT=DROID` is set explicitly above.**
->
-> - **It defaults to `ROBOT=DROID_mounted`**, not the `DROID` that every flag table on this wiki
->   documents. That robot needs `scripts/install_robot_definitions.py` to have been run, and if it
->   has not, the job fails with `... is not a registered robot` — **and still exits 0, so SLURM
->   reports COMPLETED.**
-> - **It hard-requires the OG-lite fork** and aborts if it is not found. OG-lite is not part of a
->   normal install, so this launcher is not a route an outside user can take unmodified.
->
-> Its four preflight checks run **on the compute node, after SLURM has accepted the job** — they
-> catch a misconfiguration early in the run, not before submission.
-
-> **A SLURM exit code of 0 proves nothing here.** Isaac's shutdown call hard-exits with status 0, so
-> an unhandled Python exception still produces a `COMPLETED` job that wrote no results. This has
-> happened. Always check the artifacts — which is what that launcher's final gate does for you.
+Do not use the process or scheduler exit code as the sole success criterion. Isaac can terminate
+with status zero after an unhandled exception and can segfault during teardown after a valid result
+was already written. Check that the expected report, rollout files, and media exist and contain the
+requested number of repeats.
 
 ## Next
 
-- [Tasks and perturbations](Tasks-and-Perturbations) — the 10 × 16 matrix
-- [Running evaluations](Running-Evaluations) — every flag, and what `MODE` does
-- [Cluster and parallel runs](Cluster-and-Parallel-Runs) — sweeping the matrix
-- [Known issues and gotchas](Known-Issues-and-Gotchas) — read before debugging anything
+- [Tasks and perturbations](Tasks-and-Perturbations)
+- [Running evaluations](Running-Evaluations)
+- [Cluster and parallel runs](Cluster-and-Parallel-Runs)
+- [Known issues and gotchas](Known-Issues-and-Gotchas)

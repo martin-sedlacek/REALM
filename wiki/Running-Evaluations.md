@@ -16,31 +16,16 @@ demonstration (task 1, no perturbation, one repeat) and silently ignores anythin
 > script invoking `python realm/eval.py --...`, that script is stale — see
 > [Known issues](Known-Issues-and-Gotchas).
 
-## `rr` and `MODE`
+## Container execution
 
-Everything runs inside the container. `scripts/clara/interactive/rr` puts you there. It takes **no
-flags of its own** — everything after `rr` is the in-container command, and configuration is by
-environment variable.
+Everything runs inside the release container. Set `REALM_SIF` and `REALM_DATA_PATH`, then open it
+with `./scripts/run_apptainer.sh`; see [Quick start](Quick-Start). On a managed cluster, invoke the
+launcher only after entering an allocated GPU node using your site's scheduler instructions.
 
-**`rr` starts the container wherever it is invoked.** It does not allocate and it does not `srun`, so
-it has to be reached through one:
+The release image contains OmniGibson 3.9.1 and the required REALM fixes. Binding a host OG-lite
+checkout over the installed package is a development workflow, not part of a normal evaluation.
 
-```sh
-MODE=stock srun --jobid=<ID> --overlap \
-  ./scripts/clara/interactive/rr python -u examples/02_evaluate.py --task_id 0 ...
-```
-
-Run bare on a login node you get a container with no GPU. The `go` wrapper does the `srun` for you
-and adds logging — see [Cluster and parallel runs](Cluster-and-Parallel-Runs).
-
-`MODE` selects which OmniGibson the run sees. **`stock` is the default.**
-
-| `MODE` | What it binds |
-|---|---|
-| `stock` | the image's own OmniGibson 3.9.1. Nothing bound. **Default.** |
-| `oglite` | the host OG-lite fork bound over the image's package — the whole fork |
-
-Other environment variables `rr` passes through, only when you set them:
+Relevant optional environment variables are:
 `REALM_INCREMENTAL_CONTACT_CACHE`, `REALM_PROXIMITY_GATE`, `REALM_GPU_DYNAMICS`,
 `OMNIGIBSON_HEADLESS` (defaults to `1`).
 
@@ -48,7 +33,7 @@ Other environment variables `rr` passes through, only when you set them:
 > investigation needed it, not because it works — see
 > [Performance and scaling](Performance-and-Scaling).
 
-> **Two container traps, both encoded in `rr`'s own comments:**
+> **Two container traps:**
 > - It uses `apptainer run`, never `exec` — `exec` skips the runscript that activates the conda
 >   environment, and you land on a Python with no `omnigibson`.
 > - **Never wrap the command in `bash -lc`.** A *login* shell re-sources your host `~/.bashrc`,

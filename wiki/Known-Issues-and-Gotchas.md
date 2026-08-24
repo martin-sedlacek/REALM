@@ -108,16 +108,6 @@ It runs `python -u realm/eval.py` with flags. `realm/eval.py` is a library modul
 and no argument parser. Some of the flags it passes (`--model`, a value-taking `--multi-view`) do not
 exist on any parser in the repo.
 
-### Older private cluster pipelines are broken against this image
-
-`scripts/cluster_evals/`, `scripts/karolina/`, `scripts/clara/lib/apptainer.sh` and several
-`scripts/clara/run_*.sh` still activate `micromamba run -n omnigibson`. The 3.9.1 image uses a conda
-environment named `behavior` on Python 3.11. They also bind Isaac cache paths that no longer exist —
-and because the container runs with a writable tmpfs, those binds are created silently, so the shader
-cache is discarded every job with **no error**.
-
-The `scripts/clara/interactive/` harness is the route that works.
-
 ### Other stale flags and names
 
 - `--spp` and `--og_lite` are passed by some scripts and exist on **no** Python parser; argparse
@@ -157,7 +147,7 @@ prepend a host Python to `PATH` and shadow the container's conda environment. Th
 
 ### `apptainer shell` and `exec` skip the runscript
 
-The runscript is what activates the conda environment. Use `apptainer run`, which is what `rr` does.
+The runscript is what activates the conda environment. Use `apptainer run`.
 
 ### Undefined macros are truthy
 
@@ -181,13 +171,6 @@ OmniGibson JIT-compiles with caching enabled, which writes next to the source. T
 read-only, so `NUMBA_CACHE_DIR` must point somewhere writable that survives — the harness binds it
 under the log filesystem. The failure is `cannot cache function '_quat_multiply': no locator
 available` at import time, and it does not reproduce under Docker.
-
-### Environment path variables may point at the wrong tree
-
-`paths.sh` deliberately ignores `REALM_ROOT`, `REALM_SIF` and `REALM_LOGS` from the environment,
-because on the development machine the shell profile exports those names pointing at a **pre-port
-1.1.1 tree and image**. Overrides use `_OG391`-suffixed names. If a path surprises you, run
-`realm_paths_show` — see [Installation](Installation).
 
 ### `VB-POSE` logs nothing at all
 

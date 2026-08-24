@@ -49,8 +49,8 @@ apptainer build realm.sif .docker/realm.def
 > 1. **Build somewhere that is not Lustre.** On Lustre, `apptainer build --fakeroot` fails trying to
 >    change ownership inside the image rootfs. That is a filesystem limitation, not a recipe bug —
 >    build on local disk and move the resulting `.sif`.
-> 2. Use the validated OG391 SIF for benchmark runs. `MODE=oglite` remains available for testing a
->    host OG-lite checkout without rebuilding.
+> 2. Use the validated `realm.sif` for benchmark runs. A host OG-lite bind is a development workflow
+>    for testing fork changes without rebuilding.
 >
 > There is no published prebuilt image. If you are joining an existing deployment, get the `.sif`
 > path from whoever runs it rather than rebuilding.
@@ -122,13 +122,10 @@ sets the same variables when it installs an image.
 
 ## 5. A GPU allocation
 
-REALM needs a GPU. On a SLURM cluster, hold an allocation and run against it rather than allocating
-per command:
-
-```sh
-salloc --no-shell --job-name=realm-interactive --partition=l40s --nodes=1 \
-       --cpus-per-task=32 --gres=gpu:L40S:1 --mem=120G --time=24:00:00
-```
+REALM needs an NVIDIA GPU. On a managed cluster, request an interactive GPU allocation using your
+site's documented scheduler command and run REALM only after entering the assigned compute node.
+Partition names, accounts, GPU resource syntax, memory limits, and time limits are site-specific and
+are intentionally not encoded in this repository.
 
 Then see [Quick start](Quick-Start).
 
@@ -140,13 +137,11 @@ directories for your scheduler.
 
 ## Verifying the install
 
-The strongest check that needs no policy server — it runs all 16 perturbations against one task.
-Like everything else, it runs **inside the container** and **on the allocation**: `rr` starts the
-container wherever you invoke it, so it has to be reached through `srun`.
+The strongest check that needs no policy server runs all 16 perturbations against one task. Open the
+release container on a GPU node as described in [Quick start](Quick-Start), then run:
 
 ```sh
-srun --jobid=<ID> --overlap ./scripts/clara/interactive/rr \
-  python -u tests/test_perturbations_integrity.py --repeats 1 --max_steps 1
+python -u tests/test_perturbations_integrity.py --repeats 1 --max_steps 1
 ```
 
 Success prints `ALL PERTURBATIONS PASSED INTEGRITY CHECK!`, preceded by one `<NAME>: PASS` line per
@@ -156,7 +151,7 @@ listening on a port.
 > **Budget about 45 minutes, and do not leave it in the foreground of a shell you need back.**
 > It runs each of the 16 perturbations in its own subprocess, so it pays a full Isaac boot sixteen
 > times — the `--repeats 1 --max_steps 1` budget is not what costs. Measured 2026-08-16 on one
-> L40S at `MODE=stock`: **16/16 PASS in ~43 min**. The first per-perturbation line does not appear
+> L40S-class GPU using the release image: **16/16 PASS in ~43 min**. The first per-perturbation line does not appear
 > for several minutes; that is the first boot, not a hang.
 >
 > If you want a cheaper install check, `make test-smoke` covers a different slice — one task end to
@@ -167,8 +162,8 @@ no container and no allocation at all — see
 [Running the test suite](Running-the-Test-Suite):
 
 ```sh
-make test-static                 # container-free, ~0.1 s
-ALLOC=<jobid> make test          # the full suite
+make test-static                 # container-free
+python tests/run_suite.py --list # inspect the GPU/container suite
 ```
 
 **Do not run `pytest tests/`.** Every file there is named `test_*.py` and none defines a collectable
@@ -177,6 +172,6 @@ test, so it collects zero items — after importing four modules that each boot 
 ## See also
 
 - [Quick start](Quick-Start)
-- [Running evaluations](Running-Evaluations) — `rr`, `MODE`, and the full flag surface
+- [Running evaluations](Running-Evaluations) — container execution and the full flag surface
 - [Running the test suite](Running-the-Test-Suite) — `make test` and what each tier needs
 - [Known issues and gotchas](Known-Issues-and-Gotchas)
