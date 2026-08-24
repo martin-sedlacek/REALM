@@ -273,7 +273,7 @@ def main():
                         "cannot, since its origin is the world origin.")
     p.add_argument("--repeats", type=int, default=2)
     p.add_argument("--max_steps", type=int, default=5)
-    p.add_argument("--robot", type=str, default="DROID_robolab_v2")
+    p.add_argument("--robot", type=str, default="DROID_mounted")
     p.add_argument("--experiment_name", type=str, default="vector_integrity")
     p.add_argument("--log_dir", type=str, default="/logs")
     p.add_argument("--shard", type=str, default=None,

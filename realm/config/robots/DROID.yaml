@@ -1,8 +1,8 @@
 robots:
-  - name: "DROID_robolab_v2"
-    model: "droid_robolab_v2"
+  - name: "DROID"
+    model: "droid"
     dof: 13
-    has_base_column: true
+    has_base_column: false
     include_sensor_names: ["wrist_camera_flipped"]
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
@@ -65,7 +65,7 @@ robots:
           # THE NAMES LIE, HERE AND IN THE CONTROLLER -- this is what makes it easy to get backwards
           # and cost a day: rollout.binarize_gripper calls +1 "open" (`is_open = value > 0.5`) and
           # droid_gripper_controller calls the same branch `should_open`, but REALM's +1 is CLOSE.
-          # DROID_robolab_v2.yaml says the same thing about the same branch. Trust the measurement,
+          # DROID_mounted.yaml says the same thing about the same branch. Trust the measurement,
           # not the identifier. "Pads in mutual contact" is the geometry-free check; link-origin
           # separation happens to agree for this asset (origins sit 133.3 mm from panda_link8, on
           # the pads) but that is exactly the measurement that read BACKWARDS on robolab.

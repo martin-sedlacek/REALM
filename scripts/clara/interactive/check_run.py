@@ -6,7 +6,7 @@ Exit code 0 is NOT sufficient evidence that an OG-lite run worked. Two independe
     leave artifacts half-written;
   * Isaac's SimulationApp.close() HARD-EXITS the process with status 0, so an unhandled Python
     exception -- a bad --robot, a missing asset, anything that raises before the rollout loop --
-    still leaves `$?` at 0. Job 190683 (2026-08-13) died on `AssertionError: droid_robolab_v2 is
+    still leaves `$?` at 0. Job 190683 (2026-08-13) died on `AssertionError: droid_mounted is
     not a registered robot` after ~6 minutes, wrote zero results, reported exit 0, and Slurm logged
     it COMPLETED.
 

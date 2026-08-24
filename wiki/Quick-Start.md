@@ -159,7 +159,7 @@ the vectorized script with that many environments, `VEC=0` runs the single-env s
 
 > **Two of its defaults will surprise you, which is why `ROBOT=DROID` is set explicitly above.**
 >
-> - **It defaults to `ROBOT=DROID_robolab_v2`**, not the `DROID` that every flag table on this wiki
+> - **It defaults to `ROBOT=DROID_mounted`**, not the `DROID` that every flag table on this wiki
 >   documents. That robot needs `scripts/install_robot_definitions.py` to have been run, and if it
 >   has not, the job fails with `... is not a registered robot` — **and still exits 0, so SLURM
 >   reports COMPLETED.**

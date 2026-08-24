@@ -13,10 +13,10 @@ So the flag and the asset must agree, and the two failure modes are both silent-
     the table; the contact forces NaN the sim within a few steps.
 
 Neither is a crash at load, and a NaN a few steps in reads like a physics problem rather than a
-config one. On 2026-08-19 `droid_robolab_v2` was switched from the bare arm to
-`droid_robolab_v2_mounted.usd`, which is exactly the edit that trips the first case if the flag is
-forgotten -- and the flag lives in TWO files (DROID_robolab_v2.yaml and
-DROID_robolab_v2_ee_control.yaml) that both name the same `model`, so it can also be half-changed.
+config one. On 2026-08-19 `droid_mounted` was switched from the bare arm to
+`droid_mounted.usd`, which is exactly the edit that trips the first case if the flag is
+forgotten -- and the flag lives in TWO files (DROID_mounted.yaml and
+DROID_mounted_ee_control.yaml) that both name the same `model`, so it can also be half-changed.
 
 The release invariant is now stronger: every DROID config uses the single mounted RoboLab v2 model.
 """
@@ -108,20 +108,18 @@ def test_all_droid_profiles_use_robolab_v2():
     assert droid_configs
     for path in droid_configs:
         robot = yaml.safe_load(path.read_text())["robots"][0]
-        expected_model = (
-            "droid_robolab_v2_bare"
-            if path.name == "DROID_robolab_v2_bare.yaml"
-            else "droid_robolab_v2"
-        )
+        mounted = path.name.startswith("DROID_mounted")
+        expected_model = "droid_mounted" if mounted else "droid"
+        expected_name = "DROID_mounted" if mounted else "DROID"
         assert robot.get("model") == expected_model, path
-        assert robot.get("name") == "DROID_robolab_v2", path
+        assert robot.get("name") == expected_name, path
         assert robot.get("dof") == 13, path
-        assert robot.get("has_base_column") is (expected_model == "droid_robolab_v2"), path
+        assert robot.get("has_base_column") is (expected_model == "droid_mounted"), path
 
     retired = (
-        "droid.usd",
-        "droid_mounted.usd",
         "droid_robolab.usd",
+        "droid_robolab_v2.usd",
+        "droid_robolab_v2_mounted.usd",
     )
     asset_root = PROJECT_ROOT / "realm/robots/panda_robotiq"
     assert not [name for name in retired if (asset_root / name).exists()]

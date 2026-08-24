@@ -1,8 +1,8 @@
 robots:
-  - name: "DROID_robolab_v2"
-    model: "droid_robolab_v2"
+  - name: "DROID"
+    model: "droid"
     dof: 13
-    has_base_column: true
+    has_base_column: false
     include_sensor_names: ["wrist_camera_flipped"]
     ee_control: true
     obs_modalities: ["rgb", "proprio"]
@@ -19,7 +19,7 @@ robots:
             mode: "absolute_pose"
             motor_type: "position"
             control_freq: 15
-            height_offset: 0.863891
+            height_offset: 0.0
             use_delta_commands: False
             use_impedances: True
             use_gravity_compensation: False

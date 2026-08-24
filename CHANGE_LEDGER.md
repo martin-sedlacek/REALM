@@ -17,11 +17,10 @@ the perturbations decomposition, Phase-0 dead-code deletion, robots fail-fast + 
 inference-client adapters, logging dedup, `realm/paths.py`, the upstream drawer-fix merge, the
 test-driver dedup, and the CLAUDE.md/wiki realignment. None of that moves a number.
 
-Before the first 1.0.0 release, all default DROID profiles were unified on the mounted RoboLab v2
-asset. Stock and RoboLab v1 definitions were removed; the explicit bare RoboLab v2 no-column variant
-remains supported. EE-control profiles use the measured mounted-arm base offset, `0.863891` m. Thus
-1.0.0 has one DROID embodiment: the compliant 13-DOF mimic-joint gripper with the
-`wrist_camera_flipped` view, offered with or without its base column.
+Before the first 1.0.0 release, DROID was unified on the RoboLab v2 embodiment. The unmounted and
+mounted forms are named `DROID` and `DROID_mounted`; older stock and RoboLab-specific names were
+retired. Mounted EE control uses the measured arm-base offset, `0.863891` m, while unmounted EE uses
+`0.0`. Both expose the compliant 13-DOF mimic-joint gripper and `wrist_camera_flipped` view.
 
 **The three fixes below DO CHANGE BENCHMARK SCORES**, and they are why the major version turns.
 They had been flagged `KNOWN ISSUE` in place and gated since the behaviour-preserving cleanup
@@ -59,7 +58,7 @@ image as a patch.
 | `59af7c0` | prune the object-init queue by **identity**, not name | multi-scene runs only; strictly narrower than the old test | `git revert 59af7c0` |
 | `0eba7e7` | empty contact index tensors, report unqueryable bodies, larger descriptor pool | contact queries generally | `git revert 0eba7e7` |
 | `ef7442b` | scene-file objects loading 100 m too high in scenes `idx != 0` | multi-scene runs only | `git revert ef7442b` |
-| `bf1e416` + `b90febe` | `droid_robolab_v2_mounted.usd`: drop a duplicate articulation root on `/panda/table`, repoint `panda_table_joint` off two dangling body targets | **that asset only** — 2 changed prim specs of 1031, no attribute/mass/pose touched; it did not construct at all before | `git checkout 6154f19 -- realm/robots/panda_robotiq/droid_robolab_v2_mounted.usd` |
+| `bf1e416` + `b90febe` | `droid_mounted.usd`: drop a duplicate articulation root on `/panda/table`, repoint `panda_table_joint` off two dangling body targets | **that asset only** — 2 changed prim specs of 1031, no attribute/mass/pose touched; it did not construct at all before | `git checkout 6154f19 -- realm/robots/panda_robotiq/droid_mounted.usd` |
 
 ### `83b21d5` over-reached, and has been narrowed — `6d04cc9`, `0fed598`
 
@@ -237,7 +236,7 @@ cannot perturb existing results. Deleting the files is a complete revert.
 | `env_vector.py`, `env_base.py`, `env_dynamic.py` | phased vector reset, batched joint resets | as above |
 | historical vector perturbation probe | `DRAWER_Z_MIN = 0.2` for drawer tasks; step budget allows one shared joint-reset loop | harness only; task 0 verified bit-identical |
 | `realm/config/scenes/scenes.yaml`, three task YAMLs | scene/task config | check against 1.1.1 before trusting a comparison |
-| `DROID_robolab_v2.yaml` gripper block | **unchanged** — no gains were ever added here | the `isaac_kp`/`isaac_kd` work was all probe-side |
+| `DROID_mounted.yaml` gripper block | **unchanged** — no gains were ever added here | the `isaac_kp`/`isaac_kd` work was all probe-side |
 
 **Arm physics was held byte-identical throughout and verified, not assumed** — `arm_0` controller
 block, top-level `friction`/`armature`, and the seven `panda_joint*` DOFs, across 133 authored
@@ -252,7 +251,7 @@ cluster scripts resolve their own root.
 
 The `mass-authored` variant generator was in this class too: it wrote a `.usda` into
 `tmp/variants/` on demand and nothing loads it unless a run passes `--variant-usd`. It never writes
-to `droid_robolab_v2.usd` and touches nothing under `data/`. Verified per-variant by
+to `droid.usd` and touches nothing under `data/`. Verified per-variant by
 Its validation found 543 non-gripper prims / 2788 authored attributes identical to the shipped
 asset (523 of them arm prims), and all 22 collision + visual geoms unmoved to 0.0 nm.
 
@@ -288,7 +287,7 @@ Consequences, all measured on `MODE=stock`:
 
 Every `Defeatured_*` **Mesh** prim in the robolab gripper authors `physics:mass`,
 `physics:centerOfMass` and `physics:diagonalInertia` — the real CAD numbers, identical in
-`droid_robolab_v2.usd` and RoboLab's `robolab_franka_robotiq_2f_85_flattened.usd`. **Nothing reads
+`droid.usd` and RoboLab's `robolab_franka_robotiq_2f_85_flattened.usd`. **Nothing reads
 them.** Aggregated into the link frame they give the fingertip pad **0.0392547 kg**; the body PhysX
 actually builds is **0.00951321 kg** — in REALM *and* in RoboLab-through-Isaac-Lab. base_link is
 2.11x apart, the inner knuckle 1.08x.

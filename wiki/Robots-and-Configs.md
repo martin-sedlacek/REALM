@@ -1,7 +1,7 @@
 # Robots and configs
 
 `--robot <name>` selects a YAML from `realm/config/robots/`. The name you pass is the **filename
-stem** — `--robot DROID_robolab_v2` loads `DROID_robolab_v2.yaml`.
+stem** — `--robot DROID_mounted` loads `DROID_mounted.yaml`.
 
 **The default is `DROID`.** That default is set independently in the two eval entry points, the
 environment constructor, and both `evaluate` functions, and the
@@ -17,18 +17,18 @@ Franka Panda arm with a Robotiq 2F-85 gripper. This is what the benchmark runs o
 
 | `--robot` | Arm controller | What distinguishes it |
 |---|---|---|
-| `DROID` | `CustomJointController` | **The baseline.** Task-space-weighted joint PD on the mounted RoboLab v2 asset. |
+| `DROID` | `CustomJointController` | **The baseline.** Task-space-weighted joint PD on RoboLab v2 without the base column. |
 | `DROID_default_pd_control` | stock OmniGibson `JointController` | Swaps REALM's controller for OmniGibson's own, and zeroes friction and armature. No task-space gains, no effort limits. A reference point, not a better config. |
 | `DROID_polaris_control` | `IndividualJointPDController` | Scalar-gain PD. **Orphaned** — nothing in the repo references it. |
 | `DROID_ee_control` | `DroidEndEffectorController` | End-effector control: the policy commands an **absolute** 6-DOF pose, solved by IK. |
 | `DROID_ee_delta_control` | `DroidEndEffectorController` | The same, but the policy commands 6-DOF pose **deltas**. |
 | `DROID_no_wrist_cam` | `CustomJointController` | See the caveat below — the name is ahead of what the file does. |
-| `DROID_robolab_v2` | `CustomJointController` | Explicit alias for the same canonical asset and controller as `DROID`. |
-| `DROID_robolab_v2_ee_control` | `DroidEndEffectorController` | `DROID_robolab_v2` with end-effector control. Carries a required height-offset override. |
+| `DROID_mounted` | `CustomJointController` | The same embodiment and controller with the base column included in the USD. |
+| `DROID_mounted_ee_control` | `DroidEndEffectorController` | `DROID_mounted` with end-effector control. Carries a required height-offset override. |
 
 ### Canonical DROID embodiment
 
-All DROID profiles use the mounted RoboLab v2 asset: a 7-DOF Franka arm plus the compliant Robotiq
+Both DROID forms use the RoboLab v2 embodiment: a 7-DOF Franka arm plus the compliant Robotiq
 four-bar linkage represented by one actuated joint and five mimic followers (13 total DOFs).
 
 **Every REALM robot needs registering before it will load** — including `DROID`. OmniGibson 3.9.1
@@ -38,8 +38,8 @@ REALM's definitions live in the repo, linked in by symlinks that are **not track
 failure, so the state is all-or-nothing. On a machine where it has not been run, **none** are
 registered.
 
-The user-facing `DROID` and explicit `DROID_robolab_v2` filenames resolve to the mounted model;
-`DROID_robolab_v2_bare` retains the same arm and gripper without the base column.
+`DROID` is the unmounted model; `DROID_mounted` is the same robot with its base column authored in
+the USD.
 
 ### Caveat: `DROID_no_wrist_cam` does not remove the wrist camera
 
@@ -75,8 +75,8 @@ REALM 1.0.0 has mounted and unmounted definitions of the same RoboLab v2 embodim
 
 | Definition | Used by |
 |---|---|
-| `droid_robolab_v2` | every default/mounted `DROID*` robot config |
-| `droid_robolab_v2_bare` | explicit `DROID_robolab_v2_bare` no-column variant |
+| `droid` | `DROID` and its controller variants |
+| `droid_mounted` | `DROID_mounted` and `DROID_mounted_ee_control` |
 | `ur` | all three `UR5*` configs |
 
 USD assets live in `realm/robots/panda_robotiq/` and `realm/robots/ur5/` and are committed to the

@@ -65,7 +65,8 @@ OPENPI_ROOT=/mnt/home_lustre/sedlam56/projects/openpi   # a different project; u
 
 TASK_ID=${TASK_ID:-0}                 # 0 = put_green_block_into_bowl
 PERT_ID=${PERT_ID:-0}                 # 0 = Default (no perturbation)
-# Selects realm/config/robots/$ROBOT.yaml. "DROID" is the stock droid_mounted asset; "DROID_robolab_v2"
+# Selects realm/config/robots/$ROBOT.yaml. `DROID` is the unmounted RoboLab v2 asset;
+# `DROID_mounted`
 # is the robolab Franka + Robotiq 2F-85 with the compliant mimic-joint gripper. A non-stock robot
 # also needs its definition registered in the dataset -- 3.9.1 globs <data>/*/models/<name>/<name>.yaml
 # -- which is a symlink NOT tracked in git:

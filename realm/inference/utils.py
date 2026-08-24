@@ -42,15 +42,16 @@ ROBOT_OBS_PROFILES = {
     # it is closed-loop on that signal, so it was told "closed" whenever the hand was open.
     # Do not re-derive this from knuckle or link-origin separation: the four-bar linkage swings the
     # knuckles apart as the pads close, so any such measurement reports the exact opposite.
-    "DROID_robolab_v2": dict(wrist_camera_link="base_link", wrist_camera_idx=0,
+    "DROID_mounted": dict(wrist_camera_link="base_link", wrist_camera_idx=0,
                              wrist_camera_prim="wrist_camera_flipped",
                              gripper_proprio_idx=7, gripper_open_qpos=0.0,
                              gripper_closed_qpos=0.7853982),
 }
+ROBOT_OBS_PROFILES["DROID"] = dict(ROBOT_OBS_PROFILES["DROID_mounted"])
 
 
 def get_robot_obs_profile(robot_name):
-    return ROBOT_OBS_PROFILES.get(robot_name, ROBOT_OBS_PROFILES["DROID_robolab_v2"])
+    return ROBOT_OBS_PROFILES.get(robot_name, ROBOT_OBS_PROFILES["DROID_mounted"])
 
 
 def wrist_camera_obs_key(robot_name):
@@ -119,7 +120,7 @@ def assert_wrist_camera(robot):
     return key
 
 
-def extract_from_obs(obs: dict, robot_name='DROID_robolab_v2', enable_depth=False):
+def extract_from_obs(obs: dict, robot_name='DROID', enable_depth=False):
     # Fallback to zeros if external sensors are missing (e.g. during no_render)
     if 'external' in obs and 'external_sensor0' in obs['external']:
         base_im = obs['external']['external_sensor0']['rgb'].cpu().numpy()[..., :3]

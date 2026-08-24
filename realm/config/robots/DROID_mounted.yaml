@@ -4,14 +4,14 @@
 # mounted model explicitly.
 
 robots:
-  - name: "DROID_robolab_v2"
-    model: "droid_robolab_v2"
+  - name: "DROID_mounted"
+    model: "droid_mounted"
     # 7 arm + 6 gripper DOFs (finger_joint + 5 mimic followers).
     dof: 13
-    # TRUE: this model loads droid_robolab_v2_MOUNTED.usd, which carries its own base, so
+    # TRUE: this model loads droid_mounted_MOUNTED.usd, which carries its own base, so
     # env_config.py:111 must NOT add DROID_BASE_HEIGHT to the spawn point (a REALM_DROID10 task's scene
     # position is the bottom of the column, which the asset now fills itself). Measured panda_link0
-    # height: droid_robolab_v2_mounted.usd has panda_link0 at z=0.863891 above its root.
+    # height: droid_mounted.usd has panda_link0 at z=0.863891 above its root.
     #
     # Getting this flag wrong is not a load-time error: false with a mounted asset floats the arm
     # ~0.86 m; true with the bare arm buries it in the table and NaNs a few steps in.

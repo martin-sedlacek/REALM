@@ -1,5 +1,4 @@
-# v2 of the robolab asset. Identical to droid_robolab except for the USD it points at, so the
-# two can be A/B compared without disturbing the v1 definition.
+# Unmounted form of the canonical RoboLab v2 DROID embodiment.
 # RobotDefinition for the DROID platform using the robolab Franka + Robotiq 2F-85 asset.
 #
 # Same arm as `droid`, different gripper physics. The stock droid.usd models the 2F-85 with extra
@@ -23,14 +22,14 @@
 #   right_inner_finger_knuckle_joint right_inner_finger -> right_inner_knuckle  [mimic]
 #   FixedJoint x2                    *_outer_knuckle    -> *_outer_finger
 #
-# Loaded via `model: droid_robolab`.
+# Loaded via `model: droid`.
 
 raw_controller_order: ["arm_0", "gripper_0"]
 default_controllers:
   arm_0: CustomJointController
   gripper_0: CustomGripperController
 
-usd_path: "/app/realm/robots/panda_robotiq/droid_robolab_v2.usd"
+usd_path: "/app/realm/robots/panda_robotiq/droid.usd"
 
 # Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
 # Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the
@@ -106,7 +105,7 @@ manipulation:
   # is enough -- and listing followers here would have the controller fight its own linkage.
   # NOTE: this joint is inverted relative to OmniGibson's convention (0 rad = open, upper limit =
   # closed), so the gripper controller needs explicit open_qpos/closed_qpos; see
-  # realm/config/robots/DROID_robolab_v2.yaml (DROID_robolab.yaml was deleted 2026-08-19).
+  # realm/config/robots/DROID_mounted.yaml (DROID_robolab.yaml was deleted 2026-08-19).
   finger_joint_names:
     "0": ["finger_joint"]
   teleop_rotation_offset:

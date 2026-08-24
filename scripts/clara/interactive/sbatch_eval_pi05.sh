@@ -17,7 +17,7 @@
 #
 # WHY THIS SCRIPT DOES NOT TRUST THE EVAL'S EXIT CODE: Isaac's SimulationApp.close() hard-exits the
 # process with status 0, so an unhandled Python exception still leaves $? at 0. Job 190683
-# (2026-08-13) died on `AssertionError: droid_robolab_v2 is not a registered robot` after ~6 minutes,
+# (2026-08-13) died on `AssertionError: droid_mounted is not a registered robot` after ~6 minutes,
 # wrote no results at all, printed "[eval] exited 0", and Slurm recorded COMPLETED. Three runs were
 # silently "successful" that day, one of which was read as a result. The authoritative signal is
 # therefore the ARTIFACTS plus a scan of the run's own log -- see check_run.py, and the
@@ -121,7 +121,7 @@ TASK_ID=${TASK_ID:-0}
 REPEATS=${REPEATS:-25}
 MAX_STEPS=${MAX_STEPS:-800}
 HORIZON=${HORIZON:-8}
-ROBOT=${ROBOT:-DROID_robolab_v2}
+ROBOT=${ROBOT:-DROID_mounted}
 MODEL_NAME=${MODEL_NAME:-checkpoints_pi05_droid_jointpos}
 EXPERIMENT=${EXPERIMENT:-vec_pi05_verify}
 JOB=${SLURM_JOB_ID:-local}

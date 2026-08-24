@@ -68,7 +68,7 @@ Other variables include `TASK_ID`, `PERT_ID`, `REPEATS`, `MAX_STEPS`, `HORIZON`,
 
 > **Check two defaults before using it.**
 >
-> - **`ROBOT` defaults to `DROID_robolab_v2`**, not the `DROID` documented everywhere else. Pass
+> - **`ROBOT` defaults to `DROID_mounted`**, not the `DROID` documented everywhere else. Pass
 >   `ROBOT=DROID` unless you specifically want the RoboLab gripper — and note that if its definitions
 >   are not registered, the job fails and **still exits 0**.
 > - **It hard-requires the OG-lite fork** and aborts if it is absent, so it is not usable
