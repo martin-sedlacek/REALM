@@ -107,8 +107,8 @@ either.
 > and GR00T N1.5. **None of those three can be constructed on this branch** — only `openpi`,
 > `dreamzero` and `debug` can. The `openpi` client is the route to a π-family policy, but it is a
 > different client from the one those numbers were produced with. If you are trying to reproduce the
-> paper specifically rather than evaluate your own policy, start from the paper's own release rather
-> than from this branch, and ask before assuming the two are interchangeable.
+> paper specifically rather than evaluate your own policy, follow [Reproducibility](Reproducibility)
+> and use `v0.1.1`.
 
 `debug` is what the integrity tests use, and it is the right choice for checking that the simulation
 and logging path work before you involve a policy.
@@ -166,12 +166,22 @@ recorded trajectory extends past the success moment.
 
 ## Resume
 
-`--run_id <id> --resume` picks an existing run report back up rather than starting over. Useful when
-a sweep cell died partway. The sweep drivers rely on this, and additionally skip cells whose outputs
-already exist.
+If a single-environment run is interrupted, pass `--resume` with its existing `--run_id`. The run ID
+is the timestamp folder inside the experiment's log directory.
+
+```sh
+OMNIGIBSON_HEADLESS=1 python /app/examples/02_evaluate.py \
+    ...same arguments as the original run... \
+    --run_id 20240101_120000 \
+    --resume
+```
+
+Keep every other argument identical to the original run. Completed repeats are skipped. The
+vectorized entry point does not support `--resume`.
 
 ## See also
 
 - [Tasks and perturbations](Tasks-and-Perturbations)
+- [Reproducibility](Reproducibility)
 - [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)

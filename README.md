@@ -16,6 +16,10 @@ against 15 perturbations. Through empirical validation, we show that evaluation 
 in simulation are strongly correlated to real-world performance. 
 
 # Installation 🛠️
+
+See the [Installation guide](https://github.com/martin-sedlacek/REALM/wiki/Installation) for the
+full setup and dataset options.
+
 1. Clone the project repository:
 ```
 git clone https://github.com/martin-sedlacek/REALM.git
@@ -39,6 +43,9 @@ cd REALM
 > It is recommended to use the stable Docker container if possible.
 
 # Quick Start (Pi0.5 evaluation)
+
+See [Quick start](https://github.com/martin-sedlacek/REALM/wiki/Quick-Start) for the complete
+container and evaluation workflow.
 
 1. Start a model server (e.g., [openpi](https://github.com/Physical-Intelligence/openpi)):
 ```bash
@@ -73,7 +80,14 @@ uv run streamlit run tooling/realm_viewer/dashboard.py
 This will open a web UI where you can view results from the experiments. Navigate to the experiment created from step 3
 and scroll to the bottom. Click on the "unpack video parquet" and view the video of your simulated rollout. 
 
+See [Logging](https://github.com/martin-sedlacek/REALM/wiki/Logging) for the report schema and
+dashboard options.
+
 # Full benchmark evaluation:
+
+See [Running evaluations](https://github.com/martin-sedlacek/REALM/wiki/Running-Evaluations) for
+all flags, rendering modes, model clients, and how to resume interrupted runs.
+
 ```bash
 # Example:
 examples/02_evaluate.py \
@@ -87,19 +101,10 @@ examples/02_evaluate.py \
     --experiment_name my_full_eval
 ```
 
-## Resume Functionality
-
-If a run is interrupted, resume from where it left off by providing the `--resume` flag and the `--run_id` of the previous run (the timestamp folder in your logs directory):
-
-```bash
-OMNIGIBSON_HEADLESS=1 python /app/examples/02_evaluate.py \
-    ... (same args as original) ... \
-    --run_id 20240101_120000 --resume
-```
-
-Completed repeats are skipped. Ensure all arguments match the original run.
-
 # Tasks and Perturbations
+
+See [Tasks and perturbations](https://github.com/martin-sedlacek/REALM/wiki/Tasks-and-Perturbations)
+for task progression, perturbation behavior, and compatibility details.
 
 | PERTURBATION_ID | Perturbation | Description                                                                                     | Category |
 |:----------------| :--- |:------------------------------------------------------------------------------------------------| :--- |
