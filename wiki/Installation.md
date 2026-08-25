@@ -172,5 +172,4 @@ test, so it collects zero items — after importing four modules that each boot 
 
 - [Quick start](Quick-Start)
 - [Running evaluations](Running-Evaluations) — container execution and the full flag surface
-- [Test coverage](Test-Coverage) — what the checks establish
 - [Known issues and gotchas](Known-Issues)

@@ -34,7 +34,6 @@ performance.
 | [Logging and results dashboard](Logging) | inspect logs, compare runs, watch videos, and export reports |
 | [Task authoring](Task-Authoring) | build, validate, import, and save task YAML in 2D/3D |
 | [Cluster and parallel runs](Cluster-and-Parallel-Runs) | scheduler-neutral sweeps and vectorized evaluation |
-| [Test coverage](Test-Coverage) | **what a passing test run does and does not establish** |
 
 ## Operating notes
 

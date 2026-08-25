@@ -73,7 +73,7 @@ tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
             debug_probes/, karolina/, cluster_evals/, container launchers
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Robots-and-Configs,
-            Logging, Test-Coverage, Cluster-and-Parallel-Runs, Known-Issues
+            Logging, Cluster-and-Parallel-Runs, Known-Issues
 ```
 
 ## Evaluation pipeline

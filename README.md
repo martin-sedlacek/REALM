@@ -205,8 +205,6 @@ Three things to know before you read a result:
 
 CI (`static-checks`) exercises no simulation; Docker/SIF and GPU validation remain manual.
 
-- What a pass does and does not establish: **[Test coverage](https://github.com/martin-sedlacek/REALM/wiki/Test-Coverage)**
-
 # Roadmap 🚧
 - [x] Streamlined installation
 - [x] Example scripts for getting started

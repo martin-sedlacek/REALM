@@ -53,7 +53,6 @@
 #
 # The validated OG391 SIF includes the OG-lite fixes and is expected to pass in the default
 # MODE=stock. `SUITE_MODE=oglite` remains useful when testing a host fork checkout.
-# Coverage, and the gaps that matter more than either: the wiki's Test coverage page.
 #
 # Knobs: SUITE_OUT= (results JSON), SUITE_XML= (JUnit report), SUITE_MODE= (stock/oglite),
 #        SUITE_ARGS= (passed through), RUFF= (ruff binary), PYTHON=.
