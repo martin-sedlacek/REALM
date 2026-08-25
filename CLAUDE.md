@@ -55,9 +55,7 @@ realm/
 │   ├── vec_init_queue.py      init-queue repair for object-replacing perturbations
 │   └── perturbations/         one module per perturbation + registry.py + _helpers.py
 ├── robots/
-│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, droid_robolab,
-│   │                          droid_robolab_v2, ur) — OG 3.9.1 selects robots by `model`,
-│   │                          there are no per-robot Python classes; WidowX uses stock vx300s
+│   ├── definitions/           DROID RobotDefinition YAMLs; OG 3.9.1 selects robots by `model`
 │   ├── controller_registry.py registers the four custom controllers + default configs
 │   ├── droid_joint_controller.py / custom_joint_controller.py   joint PD (impedance / plain)
 │   ├── droid_ee_controller.py   cartesian EE control; SUPPORTED_MODES = absolute_pose,

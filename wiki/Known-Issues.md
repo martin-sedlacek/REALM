@@ -114,7 +114,6 @@ exist on any parser in the repo.
   aborts on them.
 - `--model_type` values `pi0`, `pi0_FAST` and `hamster` appear in older docs. Only
   `openpi`, `dreamzero` and `debug` construct.
-- `--robot UR5_aligned` appears in older docs. The real config is `UR5_aligned_pd_control`.
 - The repo README's task table spells task 0 `put_green_block_in_bowl`; the real identifier is
   `put_green_block_into_bowl`.
 - The README roadmap lists vectorized environments as not done. They shipped.

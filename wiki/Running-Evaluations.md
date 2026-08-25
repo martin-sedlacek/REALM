@@ -146,13 +146,11 @@ with `--multi-view`; the environment asserts on it.
 
 ## Frequencies
 
-Set per robot family, with physics fixed:
+The DROID control and rendering frequency is fixed:
 
 | Robot | Sim step / rendering |
 |---|---|
-| `WidowX` | 5 Hz |
-| `UR5*` | 30 Hz |
-| everything else, including all `DROID*` | 15 Hz |
+| `DROID*` | 15 Hz |
 
 Physics always runs at **120 Hz**. At 15 Hz that is 8 physics substeps per environment step.
 
