@@ -66,7 +66,7 @@ per-task variation, and on the mechanism.
 
 Environments in a wave shared one progression dictionary, making progression an **OR across
 members**. The tell is identical `task_progression_timestamps` across members. See
-[Logs and outputs](Logs-Outputs-and-Viewer). A success rate of 0.960 over 25 rollouts, from that
+[Logs and outputs](Logging). A success rate of 0.960 over 25 rollouts, from that
 period, is **explicitly retracted**.
 
 ### Reset got slower on the port

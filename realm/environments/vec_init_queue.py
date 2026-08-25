@@ -17,9 +17,7 @@ One wrong pop, two symmetric repairs:
 
 FIXED UPSTREAM 2026-08-14: OG-lite's ``_pre_remove_object`` matches on IDENTITY, and the validated
 SIF includes that implementation, so this module normally finds nothing and prints nothing. It is
-kept as a defensive net for older images. The full account and measurement table
-(historical probe with 2 environments and 3 resets: 4 re-queue warnings per perturbation against
-stock, 0 against OG-lite, both PASS either way) are in ``docs/vector_env/PERTURBATIONS.md`` §2-3.
+kept as a defensive net for older images.
 
 Must run BEFORE the shared ``og.sim.play()``, never after: ``play()`` initializes the queue and THEN
 calls ``update()`` on every object's states, and ``update()`` asserts the state is initialized -- so

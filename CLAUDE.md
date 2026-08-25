@@ -72,10 +72,8 @@ examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
             debug_probes/, karolina/, cluster_evals/, container launchers
-docs/       code_archaeology.md (long-form evidence behind terse docstrings), vector_env/,
-            perf/, evaluation_paths.md
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Robots-and-Configs,
-            Running-the-Test-Suite, Cluster-and-Parallel-Runs, Known-Issues-and-Gotchas
+            Logging, Test-Coverage, Cluster-and-Parallel-Runs, Known-Issues
 ```
 
 ## Evaluation pipeline
@@ -137,18 +135,8 @@ four real pytest modules (`test_perturbation_task_types`, `test_cell_classificat
 directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
-Changes made off-cluster (this machine has no GPU; OmniGibson cannot run locally) need their
-container-side verification steps recorded in the pull request. Durable findings belong in
-`docs/code_archaeology.md` (evidence) or `wiki/Known-Issues-and-Gotchas.md` (traps), not in a
-repository-level temporary checklist.
-
-## Clusters
-
-`scripts/clara/` submits everything; the three sourced libs in `scripts/clara/lib/` are the
-extension points (new server type → `server.sh`; new bind/env → `apptainer.sh`). Required env:
-`REALM_SIF`, `REALM_DATA_PATH`. `make put_clara` / `get_logs_clara` rsync code and logs. The
-lighting fix is ON by default (`REALM_LIGHT_FIX=1`); OG-lite binds via `--og_lite` / MODE=oglite.
-Details: wiki/Cluster-and-Parallel-Runs.md and wiki/Running-Evaluations.md.
+Changes made without a GPU need their container-side verification steps recorded in the pull
+request. Durable operator findings belong in `wiki/Known-Issues.md`.
 
 ## Developer workflows
 
@@ -175,7 +163,7 @@ frequency in `sim_config.set_sim_config`.
   apart; world-frame writes only look right in scene 0). `bounding_box` in a cfg is an EXTENT.
 - Rubric dicts must be deep-copied per env (`TASK_PROGRESSIONS` is module-level and mutated).
 - `og.sim.stop/play/step/render` are GLOBAL across scenes — batch them in vector paths.
-- Docstrings carry contracts; long-form incident evidence lives in `docs/code_archaeology.md` — add
-  new postmortems there, not as 40-line docstrings.
+- Docstrings carry contracts. Keep implementation history out of them unless it explains a current
+  behavioral constraint.
 - `VERSION` at root is the release source of truth (`.github/workflows/release.yml` tags merges
   to main). The lint gate (`make lint`, F401/F811 only) and tier-1 tests are kept at zero/green.

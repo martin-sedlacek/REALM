@@ -14,7 +14,7 @@ demonstration (task 1, no perturbation, one repeat) and silently ignores anythin
 
 > `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. If you find a
 > script invoking `python realm/eval.py --...`, that script is stale — see
-> [Known issues](Known-Issues-and-Gotchas).
+> [Known issues](Known-Issues).
 
 ## Container execution
 
@@ -178,6 +178,6 @@ already exist.
 
 - [Tasks and perturbations](Tasks-and-Perturbations)
 - [Robots and configs](Robots-and-Configs)
-- [Logs, outputs and the viewer](Logs-Outputs-and-Viewer)
+- [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
-- [Known issues and gotchas](Known-Issues-and-Gotchas)
+- [Known issues and gotchas](Known-Issues)

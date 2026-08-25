@@ -36,8 +36,7 @@ the count alone would also be satisfied by a loop that stepped once and wrote no
 
 Found through this path but NOT caused by it: scene 0's cabinet used to be placed lying on its back,
 so its drawers slid vertically and jammed instead of reaching the commanded position. Fixed in
-OG-lite; that account, and the retraction of the "44 mm higher" reading that preceded it, are in
-``docs/vector_env/PERTURBATIONS.md`` under "Open".
+OG-lite.
 """
 from collections import namedtuple
 

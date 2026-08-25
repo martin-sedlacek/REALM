@@ -67,7 +67,7 @@ each appear twice.
 > **Status: observed and parked, not diagnosed.** The project's own note says these may simply
 > differ from the pre-port configuration rather than be a port bug, and flags them for eyeballing in
 > the GUI before anything is changed. Do not report numbers from these two tasks without looking at
-> the frames first. See [Known issues](Known-Issues-and-Gotchas).
+> the frames first. See [Known issues](Known-Issues).
 
 ### Scoring: partial credit, not pass/fail
 
@@ -147,7 +147,7 @@ contrast parameters once per reset and applies them to each observation.
 >
 > Separately, on the tasks that do have distractors, the spawn region is over-subscribed: roughly two
 > objects **per environment** per reset fail collision-free placement and are dropped in from above —
-> at `--num_envs 4` that is about eight. See [Known issues](Known-Issues-and-Gotchas).
+> at `--num_envs 4` that is about eight. See [Known issues](Known-Issues).
 
 ### Semantic — instruction only, scene untouched
 

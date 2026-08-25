@@ -3,8 +3,8 @@
 **What the test suite does and does not establish.** Read this before treating any green run —
 a CI tick, a `make test-suite` pass, an "ALL TASKS PASSED INTEGRITY CHECK!" — as evidence.
 
-How to *run* the tests is [Running the test suite](Running-the-Test-Suite). This page is the
-honest ledger of what running them proves.
+Run the host checks with `uv run make check`. Use `make test-list` to inspect the GPU suite. This
+page is the honest ledger of what running them proves.
 
 > **The one-sentence version.** The suite establishes that **the simulation builds, steps, and
 > writes well-formed artifacts** for every task and every perturbation. It establishes **nothing
@@ -192,6 +192,5 @@ middle column of that table when it only earns the first.
 
 ## See also
 
-- [Running the test suite](Running-the-Test-Suite) — how to run each tier
-- [Known issues and gotchas](Known-Issues-and-Gotchas) — why exit code 0 proves nothing
+- [Known issues and gotchas](Known-Issues) — why exit code 0 proves nothing
 - [Tasks and perturbations](Tasks-and-Perturbations) — `V-SC`'s inert tasks, the unusable camera views

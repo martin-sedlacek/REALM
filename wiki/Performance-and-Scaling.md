@@ -130,7 +130,7 @@ because omitted links silently disappear from task contact queries.
 - **Wrist cameras render at 1280×720.** An earlier profiling note claiming 128×128 was retracted;
   128×128 is the shape of a zero-filled placeholder in one code path, not the render resolution.
 - **Exit codes tell you nothing** about whether a profiling run succeeded — see
-  [Known issues](Known-Issues-and-Gotchas).
+  [Known issues](Known-Issues).
 - Run-to-run variance of around **17%** has been observed on the same configuration. Do not read a
   single pair of runs as a result.
 
@@ -138,4 +138,4 @@ because omitted links silently disappear from task contact queries.
 
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
 - [Running evaluations](Running-Evaluations)
-- [Known issues and gotchas](Known-Issues-and-Gotchas)
+- [Known issues and gotchas](Known-Issues)

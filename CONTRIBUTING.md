@@ -13,7 +13,8 @@ REALM has two deliberately separate environments:
 - **uv is only for host checks.** Run `uv sync --locked`, then `uv run make check`. This environment
   cannot run simulations and must not accumulate runtime dependencies.
 
-See `wiki/Installation.md` and `wiki/Running-the-Test-Suite.md` for full setup and GPU commands.
+See `wiki/Installation.md` for setup and GPU commands, and `wiki/Test-Coverage.md` for what the
+checks establish.
 
 ## Making Changes
 

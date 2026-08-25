@@ -64,9 +64,8 @@ Present, but not what the benchmark is built or validated on.
 
 These appear as defaults in historical debug probes, but the YAML files are **not in
 the repo**: `DROID_robolab_xflat`, `DROID_robolab_curlgrip`, `DROID_robolab_curlgrip_ee_control`,
-`DROID_robolab_padspring`. They were removed when the bendy-gripper investigation was reverted — see
-[Gripper compliance findings](Gripper-Compliance-Findings). The probes that default to them will fail
-on their own defaults. Do not treat them as available.
+`DROID_robolab_padspring`. They were removed when the bendy-gripper investigation was reverted.
+The probes that default to them will fail on their own defaults. Do not treat them as available.
 
 ## Robot definitions and assets
 
@@ -137,4 +136,3 @@ assertion deliberately passes them through.
 
 - [Running evaluations](Running-Evaluations) — where `--robot` fits in the flag surface
 - [Tasks and perturbations](Tasks-and-Perturbations)
-- [OmniGibson deviations](OmniGibson-Deviations) — why the gripper physics differ between assets

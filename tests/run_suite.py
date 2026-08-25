@@ -144,11 +144,8 @@ SUITE = {
         note="10 tasks x 1 step x 1 repeat, --no_render.",
     ),
     "test_perturbations_integrity": dict(
-        # --repeats 3 --max_steps 1 is the invocation docs/og391_cluster_port_prompt.md calls
-        # "the reference result ... 16/16", so run exactly that rather than a cheaper variant whose
-        # outcome could not be compared against it. It also costs almost nothing: the Isaac boot
-        # dominates a cell, and it is the only place in the suite that exercises the per-repeat
-        # reset path.
+        # Keep three repeats because this is the only suite entry that exercises the per-repeat
+        # reset path. Isaac startup dominates the cost of each cell.
         argv=["tests/test_perturbations_integrity.py", "--repeats", "3", "--max_steps", "1"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         verdict=[(r"^\S+: FAILED EXECUTION", "FAIL"),

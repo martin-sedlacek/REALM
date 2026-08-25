@@ -155,11 +155,10 @@ listening on a port.
 > for several minutes; that is the first boot, not a hang.
 >
 > If you want a cheaper install check, `make test-smoke` covers a different slice — one task end to
-> end plus the scene check — in ~12 minutes. See [Running the test suite](Running-the-Test-Suite).
+> end plus the scene check — in ~12 minutes.
 
-That is one test out of twelve. To run the rest — including the two static checks that need no GPU,
-no container and no allocation at all — see
-[Running the test suite](Running-the-Test-Suite):
+That is one test out of twelve. To inspect the rest, including the static checks that need no GPU,
+container or allocation:
 
 ```sh
 make test-static                 # container-free
@@ -173,5 +172,5 @@ test, so it collects zero items — after importing four modules that each boot 
 
 - [Quick start](Quick-Start)
 - [Running evaluations](Running-Evaluations) — container execution and the full flag surface
-- [Running the test suite](Running-the-Test-Suite) — `make test` and what each tier needs
-- [Known issues and gotchas](Known-Issues-and-Gotchas)
+- [Test coverage](Test-Coverage) — what the checks establish
+- [Known issues and gotchas](Known-Issues)
