@@ -55,4 +55,3 @@ support vectorized evaluation but have slower resets.
 ## See also
 
 - [Running evaluations](Running-Evaluations)
-- [Performance and scaling](Performance-and-Scaling)

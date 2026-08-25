@@ -28,9 +28,8 @@ Relevant optional environment variables are:
 `REALM_INCREMENTAL_CONTACT_CACHE`, `REALM_PROXIMITY_GATE`, `REALM_GPU_DYNAMICS`,
 `OMNIGIBSON_HEADLESS` (defaults to `1`).
 
-> **`REALM_GPU_DYNAMICS=1` segfaults at the first reset.** It is passed through because an
-> investigation needed it, not because it works — see
-> [Performance and scaling](Performance-and-Scaling).
+> **`REALM_GPU_DYNAMICS=1` segfaults at the first reset.** It is passed through for debugging, not
+> because it works.
 
 > **Two container traps:**
 > - It uses `apptainer run`, never `exec` — `exec` skips the runscript that activates the conda
