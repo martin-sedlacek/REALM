@@ -105,7 +105,7 @@ frequency; distractor repetition is not evidence of that distribution and should
 
 Bounding-box checks cannot prove mesh clearance, container interior volume, stability, reachability,
 or collision-free settling. Generated configs must still pass an OmniGibson scene-correctness run
-(`SUITE_MODE=oglite`) before they are treated as benchmark-ready.
+(`--mode oglite`) before they are treated as benchmark-ready.
 
 Persist every correction from rendered review in the generator rather than editing only emitted
 YAML. Model substitutions, camera-pair replacements, and position overrides must be named by task

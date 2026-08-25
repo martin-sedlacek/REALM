@@ -124,9 +124,22 @@ configs). Run both after touching task types.
 
 ## Testing
 
-Two tiers (see the Makefile header): tier 1 is container-free (`uv sync --locked`, then
-`uv run make check`; expected GREEN); tier 2 needs the container/GPU and is driven by
-`tests/run_suite.py` (`make test-smoke` / `test-suite` against a Slurm allocation). The tests are
+Two tiers (see `tests/run_suite.py`'s module docstring). Tier 1 is container-free and expected
+GREEN — `uv sync --locked`, then, as separate commands so a lint failure cannot hide the test
+result:
+
+```sh
+uv run ruff check realm examples tests scripts
+uv run python tests/run_suite.py --only local --strict \
+    --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
+uv run python -m pytest -q tests/test_perturbation_task_types.py \
+    tests/test_cell_classification.py tests/test_robot_base_column.py \
+    tests/test_robot_definition_parity.py
+```
+
+Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation:
+`python tests/run_suite.py --jobid <id> --mode stock --level smoke|suite --strict --out … --junit-xml …`.
+The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
 four real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
 `test_robot_base_column`, `test_robot_definition_parity` — all host-safe, ast/yaml based) are run
@@ -164,4 +177,5 @@ frequency in `sim_config.set_sim_config`.
 - Docstrings carry contracts. Keep implementation history out of them unless it explains a current
   behavioral constraint.
 - `VERSION` at root is the release source of truth (`.github/workflows/release.yml` tags merges
-  to main). The lint gate (`make lint`, F401/F811 only) and tier-1 tests are kept at zero/green.
+  to main). The lint gate (`ruff check realm examples tests scripts`, F401/F811 only) and tier-1
+  tests are kept at zero/green.

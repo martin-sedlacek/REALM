@@ -4,7 +4,9 @@ Describe the problem and the change.
 
 ## Validation
 
-- [ ] `uv run make check`
+- [ ] Tier 1: `uv run ruff check realm examples tests scripts` **and**
+      `uv run python tests/run_suite.py --only local --strict --out tmp/suite/results.json --junit-xml tmp/suite/results.xml`
+      **and** the four host pytest modules
 - [ ] Relevant Docker/SIF or GPU checks (list command, image, `MODE`, and allocation below)
 - [ ] Documentation and configuration updated where needed
 

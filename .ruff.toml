@@ -13,7 +13,7 @@
 # Do not widen it casually. This is a research codebase with a large surface of
 # OmniGibson-interface methods whose parameters are required by the framework and unused by REALM;
 # a broad default ruleset produces hundreds of findings that are all noise, and the signal is lost.
-# `make lint` is only worth running while its output is short enough to read.
+# The lint gate is only worth running while its output is short enough to read.
 #
 # CURRENT BASELINE, re-measured 2026-08-18 with ruff 0.16.3: 0 findings across
 # realm/ tests/ examples/ scripts/. Keep it at zero -- with only two dead-code rules active, any

@@ -33,6 +33,9 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REALM_ROOT=$( cd -- "$( dirname -- "${SCRIPT_DIR}" )" &> /dev/null && pwd )
 
 cd $REALM_ROOT
+# Bound at /tmp below. A fresh checkout does not ship it, and apptainer refuses to start when a
+# bind SOURCE is missing, so the launcher has to create it like every other bind target.
+mkdir -p $REALM_ROOT/tmp
 mkdir -p $REALM_DATA_PATH/isaac-sim/cache/kit
 mkdir -p $REALM_DATA_PATH/isaac-sim/cache/ov
 mkdir -p $REALM_DATA_PATH/isaac-sim/cache/pip
@@ -43,8 +46,26 @@ mkdir -p $REALM_DATA_PATH/isaac-sim/config
 mkdir -p $REALM_DATA_PATH/isaac-sim/data
 mkdir -p $REALM_DATA_PATH/isaac-sim/documents
 
+# WHY `run` AND WHY AN EXPLICIT SHELL. Only the image's %runscript activates the conda env
+# `behavior` (python 3.11) that OmniGibson is installed into, and ONLY `apptainer run` executes it.
+#   * `apptainer shell` skips the runscript -- you land in conda env `base` on python 3.13, and the
+#     first REALM command dies at `import omnigibson`. That is what this script used to do.
+#   * `apptainer run` with NO arguments is not enough either: the runscript ends in
+#     `exec /bin/bash --login`, and a LOGIN shell re-sources the HOST ~/.bashrc (apptainer binds
+#     $HOME by default), so a host conda init silently wins -- measured handing back
+#     /home/<user>/miniconda3/bin/python with the container env discarded.
+# So: `run`, always with an explicit command, and the interactive default is a bash that reads no
+# rc files. `--norc --noprofile` is what keeps the host's dotfiles out of the container.
+#
+# Anything passed to this script is run inside the container instead of the interactive shell:
+#   ./scripts/run_apptainer.sh                        # interactive
+#   ./scripts/run_apptainer.sh python -u examples/02_evaluate.py --task_id 0 ...
+if [ $# -eq 0 ]; then
+  set -- bash --norc --noprofile
+fi
+
 echo "Ready to launch singularity"
-apptainer shell \
+apptainer run \
   --userns \
   --nv \
   --writable-tmpfs \
@@ -63,4 +84,5 @@ apptainer shell \
   --env TMPDIR=/tmp \
   --env OMNIGIBSON_HEADLESS=1 \
   --env NVIDIA_DRIVER_CAPABILITIES=all \
-  $REALM_SIF
+  $REALM_SIF \
+  "$@"
