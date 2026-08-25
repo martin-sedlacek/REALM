@@ -97,6 +97,12 @@ repo, not in the dataset, so they have to be linked in:
 python scripts/install_robot_definitions.py
 ```
 
+**Run this once per dataset directory, not on every Docker or SIF startup.** The definitions are
+installed into the host dataset mounted at `/data`, so they remain available across container
+restarts. Run it again only after replacing the dataset directory, moving to a different dataset
+path, or if the registration links were removed. If you used `--copy`, also rerun it after updating
+the robot definitions.
+
 Flags: `--copy` to copy instead of symlinking, `--data-path` to point at a dataset other than
 `$OMNIGIBSON_DATA_PATH`.
 
