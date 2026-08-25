@@ -1,8 +1,8 @@
 # Tasks and perturbations
 
-REALM evaluates a policy on **10 manipulation tasks** crossed with **16 perturbation settings** — a
-dense 160-cell matrix. This page is the reference for both axes: the exact identifiers, what each
-one does, and how you select them.
+The **full REALM10 evaluation** runs **10 manipulation tasks** crossed with **16 perturbation
+settings**, for 160 task and perturbation combinations. This page lists the exact identifiers, what
+each one does, and how you select them.
 
 Both lists are defined once, in `realm/eval.py`, as `SUPPORTED_TASKS` and `SUPPORTED_PERTURBATIONS`.
 **Position in those lists is the ID you pass on the command line.** Everything else in the repo
@@ -203,7 +203,7 @@ so on those two it can generate a fresh substitution; on the other eight it fall
 
 - `SB-NOUN` on task 7 (`push_switch`, type `push`) raises `NotImplementedError` by design.
 - `SB-VRB` on `push` has an empty compatible-verb list, so it has nothing to draw from. *Read from
-  the compatibility matrix and the unguarded selection call — no explicit guard or test was found, so
+  the compatibility table and the unguarded selection call — no explicit guard or test was found, so
   treat the exact failure mode as unverified.*
 
 ### Composition
@@ -213,7 +213,7 @@ logic depends on this: composing `SB-NOUN` with `VB-MOBJ`, for instance, would b
 that `VB-MOBJ` measures against. **Composition is untested and the code says so.** If you need it,
 verify it yourself first.
 
-## Running the matrix
+## Running the full REALM10 evaluation
 
 Per-cell output is keyed `<task>_<perturbation>`, e.g. a report named `pick_spoon_VSB-NOBJ.csv`. That
 naming is what the integrity tests and the log viewer rely on.
@@ -244,7 +244,7 @@ Defaults in `examples/02_evaluate.py` are `--repeats 5 --max_steps 500`, which i
 budget. The published benchmark configuration is `--repeats 25 --max_steps 800`. The vectorized entry
 point defaults to `--repeats 25` and runs them in waves of `--num_envs`.
 
-## Task authoring
+## Creating new task
 
 The task authoring dashboard builds REALM task YAML from OmniGibson assets. It supports manual 2D
 and 3D editing, prompt-based drafts, existing YAML files, camera placement and direct saving to
@@ -365,4 +365,4 @@ OmniGibson and check:
 ## See also
 
 - [Running evaluations](Running-Evaluations) — the full flag surface
-- [Cluster and parallel runs](Cluster-and-Parallel-Runs) — sweeping the matrix
+- [Cluster and parallel runs](Cluster-and-Parallel-Runs) — running the full REALM10 evaluation
