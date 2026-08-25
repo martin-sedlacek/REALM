@@ -38,9 +38,11 @@ cd REALM
 ./setup.sh --apptainer --dataset
 ```
 
-> ❗ **Please note that running with apptainer is currently not stable.**
-> We noticed that the apptainer can crash inexplicably on some systems. 
-> It is recommended to use the stable Docker container if possible.
+[//]: # (> ❗ **Please note that running with apptainer is currently not stable.**)
+
+[//]: # (> We noticed that the apptainer can crash inexplicably on some systems. )
+
+[//]: # (> It is recommended to use the stable Docker container if possible.)
 
 # Quick Start (Pi0.5 evaluation)
 

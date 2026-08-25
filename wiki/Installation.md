@@ -89,28 +89,21 @@ into a shared store rather than a real directory.
 
 ## 3. Register the robot definitions
 
-**Easy to miss, and the failure is confusing.** OmniGibson 3.9.1 discovers robots by globbing the
-dataset directory for `<data>/*/models/<name>/<name>.yaml`. REALM's robot definitions live in the
-repo, not in the dataset, so they have to be linked in:
+OmniGibson 3.9.1 discovers robots by globbing the dataset directory for `<data>/*/models/<name>/<name>.yaml`. REALM's robot definitions live in the
+repo, not in the dataset, so they have to be linked in with:
 
 ```sh
 python scripts/install_robot_definitions.py
 ```
 
-**Run this once per dataset directory, not on every Docker or SIF startup.** The definitions are
-installed into the host dataset mounted at `/data`, so they remain available across container
-restarts. Run it again only after replacing the dataset directory, moving to a different dataset
-path, or if the registration links were removed. If you used `--copy`, also rerun it after updating
-the robot definitions.
+**It is enough to just run this once in the directory during initial installation.**
 
-Flags: `--copy` to copy instead of symlinking, `--data-path` to point at a dataset other than
+Optional flags: 
+
+> `--copy` to copy instead of symlinking
+
+>`--data-path` to point at a dataset other than
 `$OMNIGIBSON_DATA_PATH`.
-
-The script installs every definition in one pass and exits on the first failure — it is
-all-or-nothing, so there is no partially-registered state to diagnose. The links are **not tracked in
-git**, so they do not come with a clone and they do not survive a fresh dataset directory: until you
-run this, **none** of REALM's robots are registered and even `--robot DROID` will fail with
-`... is not a registered robot`. The benchmark currently uses DROID.
 
 ## 4. Check that paths resolve
 
@@ -126,24 +119,10 @@ export REALM_DATA_PATH=/path/to/realm/data
 cache directories. The launcher binds `REALM_DATA_PATH/datasets` to `/data`. `setup.sh --apptainer`
 sets the same variables when it installs an image.
 
-## 5. A GPU allocation
+## (Optional) Verifying the installation
 
-REALM needs an NVIDIA GPU. On a managed cluster, request an interactive GPU allocation using your
-site's documented scheduler command and run REALM only after entering the assigned compute node.
-Partition names, accounts, GPU resource syntax, memory limits, and time limits are site-specific and
-are intentionally not encoded in this repository.
-
-Then see [Quick start](Quick-Start).
-
-Cluster-specific launch harnesses are intentionally not distributed with the repository. Adapt the
-portable launcher to bind the checkout at `/app`, the dataset at `/data`, and writable cache and log
-directories for your scheduler.
->
-> There is currently no site-neutral launcher. If you write one, that is a welcome contribution.
-
-## Verifying the install
-
-The strongest check that needs no policy server runs all 16 perturbations against one task. Open the
+If you suspect there is something wrong with your installation, we recommend running the test suite to verify integrity.
+With a GPU aviailable, you can check that whether all 16 perturbations pass an integrity check on one of the tasks. Open the
 release container on a GPU node as described in [Quick start](Quick-Start), then run:
 
 ```sh
@@ -154,27 +133,24 @@ Success prints `ALL PERTURBATIONS PASSED INTEGRITY CHECK!`, preceded by one `<NA
 perturbation. It uses the `debug` model type, which returns a constant action and needs nothing
 listening on a port.
 
-> **Budget about 45 minutes, and do not leave it in the foreground of a shell you need back.**
-> It runs each of the 16 perturbations in its own subprocess, so it pays a full Isaac boot sixteen
-> times — the `--repeats 1 --max_steps 1` budget is not what costs. Measured 2026-08-16 on one
-> L40S-class GPU using the release image: **16/16 PASS in ~43 min**. The first per-perturbation line does not appear
-> for several minutes; that is the first boot, not a hang.
->
-> If you want a cheaper install check, `make test-smoke` covers a different slice — one task end to
-> end plus the scene check — in ~12 minutes.
+> ❗**Budget about 45 minutes for the test.**
+> It runs each of the 16 perturbations in its own subprocess, so it pays a full Isaac col-start boot sixteen
+> times — the `--repeats 1 --max_steps 1` budget is not what costs. Measured on one
+> L40S GPU using the release image.
 
-That is one test out of twelve. To inspect the rest, including the static checks that need no GPU,
-container or allocation:
+If you want a cheaper install check, `make test-smoke` covers a different slice — one task end to 
+end plus the scene check — in ~12 minutes.
+
+Remaining tests also include:
 
 ```sh
 make test-static                 # container-free
 python tests/run_suite.py --list # inspect the GPU/container suite
 ```
 
-**Do not run `pytest tests/`.** Every file there is named `test_*.py` and none defines a collectable
-test, so it collects zero items — after importing four modules that each boot a full Isaac instance.
+Also see [Quick start](Quick-Start) for next steps once the installation is verified.
 
 ## See also
 
 - [Quick start](Quick-Start)
-- [Running evaluations](Running-Evaluations) — container execution and the full flag surface
+- [Running evaluations](Running-Evaluations)

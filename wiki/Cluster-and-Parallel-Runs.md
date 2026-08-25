@@ -13,8 +13,6 @@ Request a GPU allocation using your cluster's normal workflow and enter the comp
 `REALM_SIF` and `REALM_DATA_PATH` and run `./scripts/run_apptainer.sh` as shown in
 [Quick Start](Quick-Start).
 
-Do not start the simulator on a login node. Check `nvidia-smi` before launching.
-
 ## Batch runs
 
 A batch script should:
