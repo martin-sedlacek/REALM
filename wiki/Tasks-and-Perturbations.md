@@ -247,5 +247,4 @@ point defaults to `--repeats 25` and runs them in waves of `--num_envs`.
 ## See also
 
 - [Running evaluations](Running-Evaluations) — the full flag surface
-- [Robots and configs](Robots-and-Configs) — what `--robot` selects
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs) — sweeping the matrix

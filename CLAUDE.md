@@ -72,8 +72,8 @@ examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
             debug_probes/, karolina/, cluster_evals/, container launchers
-wiki/       the operator docs: Quick-Start, Running-Evaluations, Robots-and-Configs,
-            Logging, Cluster-and-Parallel-Runs, Known-Issues
+wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
+            Cluster-and-Parallel-Runs, Known-Issues
 ```
 
 ## Evaluation pipeline

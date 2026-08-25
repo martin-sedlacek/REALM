@@ -30,7 +30,6 @@ performance.
 |---|---|
 | [Running evaluations](Running-Evaluations) | container execution, flags, rendering modes, model types |
 | [Tasks and perturbations](Tasks-and-Perturbations) | the 10 × 16 matrix, with what each cell means |
-| [Robots and configs](Robots-and-Configs) | what `--robot` selects, and how they differ |
 | [Logging and results dashboard](Logging) | inspect logs, compare runs, watch videos, and export reports |
 | [Task authoring](Task-Authoring) | build, validate, import, and save task YAML in 2D/3D |
 | [Cluster and parallel runs](Cluster-and-Parallel-Runs) | scheduler-neutral sweeps and vectorized evaluation |

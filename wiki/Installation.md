@@ -104,7 +104,7 @@ The script installs every definition in one pass and exits on the first failure 
 all-or-nothing, so there is no partially-registered state to diagnose. The links are **not tracked in
 git**, so they do not come with a clone and they do not survive a fresh dataset directory: until you
 run this, **none** of REALM's robots are registered and even `--robot DROID` will fail with
-`... is not a registered robot`. See [Robots and configs](Robots-and-Configs).
+`... is not a registered robot`. The benchmark currently uses DROID.
 
 ## 4. Check that paths resolve
 

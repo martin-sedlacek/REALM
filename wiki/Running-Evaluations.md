@@ -177,7 +177,6 @@ already exist.
 ## See also
 
 - [Tasks and perturbations](Tasks-and-Perturbations)
-- [Robots and configs](Robots-and-Configs)
 - [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
 - [Known issues and gotchas](Known-Issues)

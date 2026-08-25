@@ -119,4 +119,3 @@ OmniGibson and check:
 ## See also
 
 - [Tasks and perturbations](Tasks-and-Perturbations)
-- [Robots and configs](Robots-and-Configs)
