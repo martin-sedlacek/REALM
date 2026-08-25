@@ -1,85 +1,58 @@
-# Cluster and parallel runs
+# Cluster and Parallel Runs
 
-REALM supports two independent forms of parallelism:
+REALM supports two forms of parallelism:
 
-- **Vectorization:** multiple environments in one simulator process.
-- **Sweeping:** multiple task/perturbation cells as independent scheduler jobs.
+- **Vectorization** runs multiple environments in one simulator process.
+- **Sweeping** runs task and perturbation pairs as separate jobs.
 
-The repository intentionally does not ship site-specific scheduler wrappers. The guidance below is
-scheduler-neutral; translate it to your cluster's partitions, accounts, storage, and module setup.
+Cluster launch scripts are site-specific and are not included in the repository.
 
 ## Interactive runs
 
-Request an interactive GPU allocation according to your site's documentation, enter its compute
-node, and confirm GPU visibility with `nvidia-smi`. Then configure `REALM_SIF` and
-`REALM_DATA_PATH` and launch `./scripts/run_apptainer.sh` as described in [Quick start](Quick-Start).
+Request a GPU allocation using your cluster's normal workflow and enter the compute node. Then set
+`REALM_SIF` and `REALM_DATA_PATH` and run `./scripts/run_apptainer.sh` as shown in
+[Quick Start](Quick-Start).
 
-Never run the simulator directly on a login node. A scheduler allocation alone may not move the
-current shell onto its compute node; verify the hostname and GPU visibility before launching.
+Do not start the simulator on a login node. Check `nvidia-smi` before launching.
 
-## Batch jobs
+## Batch runs
 
-A portable batch script should perform these steps:
+A batch script should:
 
-1. Resolve the repository, `realm.sif`, dataset, cache, log, and checkpoint paths from explicit
-   arguments or environment variables.
-2. Verify those paths on the compute node.
-3. Start the policy server on a job-specific port when the selected model requires one.
-4. Wait until the server socket accepts connections.
-5. Run `examples/02_evaluate.py` or `examples/04_vector_evaluate.py` inside the container.
-6. Verify the expected artifacts and rollout count before declaring success.
+1. check the image, dataset, logs and checkpoint paths;
+2. start the policy server when needed;
+3. wait until the policy port is available;
+4. run the single or vectorized evaluation script;
+5. check the number of output rollouts.
 
-Use a port derived from a scheduler job or array index when several evaluations share a node. Avoid
-embedding usernames, account names, partitions, or absolute site paths in a reusable launcher.
+Use a different port for each parallel policy server. Record the image checksum, repository commit,
+task config, model name and full evaluation command.
 
-### Exit codes are insufficient
+Isaac can exit with status 0 after an exception and can segfault during shutdown after a successful
+run. Check the report files and logs instead of using only the scheduler status.
 
-Isaac's shutdown path can hard-exit with status zero after an unhandled exception. It can also
-segfault during teardown after a valid verdict was printed. Therefore:
+## Sweeps
 
-- do not rely on `atexit` or `finally` for essential result writing;
-- scan logs for tracebacks and fatal markers;
-- verify output modification times and the requested number of rollouts;
-- make the artifact check determine the batch job's final exit status.
+Task and perturbation IDs are defined in `realm/eval.py`. Read them from the code instead of keeping
+a second list in the batch scripts.
 
-## Sweeping the matrix
+Give each task and perturbation pair a unique run ID. A resumed sweep should skip a pair only when
+all expected report rows already exist.
 
-The task and perturbation registries live in `realm/eval.py`. Build scheduler arrays from those
-registries instead of maintaining a second hard-coded list. Each array cell should receive explicit
-task and perturbation IDs and a unique run ID.
+## Vectorized evaluation
 
-Make sweeps resumable by skipping only cells whose complete expected artifact set already exists.
-An output directory by itself is not proof of completion.
+```sh
+python -u examples/04_vector_evaluate.py --num_envs 4 ...
+```
 
-## Vectorization
+`--repeats` are processed in waves of `--num_envs`. Four environments is a reasonable starting
+point on a high-memory GPU. Measure memory and throughput before increasing it.
 
-`examples/04_vector_evaluate.py --num_envs N` builds N environments in one process and runs the
-requested `--repeats` in waves of N.
-
-Around four environments is a conservative starting point on a high-memory datacenter GPU. Memory,
-renderer mode, scene complexity, and policy-server placement all affect the useful value, so measure
-your hardware before increasing it.
-
-Four perturbations need a stopped simulator because they add or remove objects: `V-SC`, `VB-MOBJ`,
-`VSB-NOBJ`, and `SB-VRB`. The vector environment batches one global stop/play cycle around the wave;
-these perturbations are expensive to reset, but they remain vectorizable.
-
-The release image includes the required OmniGibson fixes. A host OG-lite bind is only needed when
-developing and testing changes to that separate fork.
-
-## Scheduler portability notes
-
-- Batch systems commonly spool a copy of the submitted script, so resolving the repository relative
-  to the script file may not work. Pass the repository path explicitly or use the scheduler's submit
-  directory variable.
-- Quote bind paths and arguments; shared storage paths frequently expose weak shell handling.
-- Keep caches on storage suited to many small files. Building an Apptainer image on a distributed
-  filesystem can fail on ownership operations; build on local disk when your site recommends it.
-- Record the image checksum, repository commit, task config, model identifier, and effective command
-  with every run.
+`V-SC`, `VB-MOBJ`, `VSB-NOBJ` and `SB-VRB` add or remove objects and need a simulator stop/play
+cycle. The vector environment performs one cycle for the whole wave, so these perturbations still
+support vectorized evaluation but have slower resets.
 
 ## See also
 
 - [Running evaluations](Running-Evaluations)
 - [Performance and scaling](Performance-and-Scaling)
-- [Known issues and gotchas](Known-Issues-and-Gotchas)

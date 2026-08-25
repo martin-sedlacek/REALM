@@ -1,44 +1,33 @@
-# Quick start
+# Quick Start
 
-This page takes you from a working [installation](Installation) to a small evaluation without
-assuming a particular cluster, scheduler, filesystem, or account.
+This page assumes the container, dataset and robot definitions are installed. See
+[Installation](Installation) first.
 
-## 1. Obtain a GPU shell
+## Start on a GPU
 
-REALM requires an NVIDIA GPU. On a workstation, run the commands below directly. On a managed
-cluster, first request an interactive GPU allocation using the command documented by your site, then
-run them on the allocated compute node. Do not start the simulator on a login node.
-
-Confirm that the GPU is visible and has enough free memory:
+REALM requires an NVIDIA GPU. On a cluster, enter an allocated compute node before starting the
+container.
 
 ```sh
 nvidia-smi
 ```
 
-## 2. Configure the container paths
+## Open the container
 
 From the repository root:
 
 ```sh
 export REALM_SIF=/path/to/realm.sif
 export REALM_DATA_PATH=/path/to/realm/data
-```
-
-`REALM_DATA_PATH` is the parent directory containing `datasets/` and the writable `isaac-sim/`
-cache directories. See [Installation](Installation) for the expected layout.
-
-Open the container:
-
-```sh
 ./scripts/run_apptainer.sh
 ```
 
-The remaining commands on this page run inside that shell. The repository is mounted at `/app`.
+`REALM_DATA_PATH` contains `datasets/` and the writable `isaac-sim/` cache directories. The
+repository is mounted into the container at `/app`.
 
-## 3. Run a server-free smoke evaluation
+## Run a smoke evaluation
 
-The `debug` model returns a constant action, so this checks simulation, rendering, and logging
-without a policy server:
+The debug model returns a constant action and does not need a policy server:
 
 ```sh
 python -u examples/02_evaluate.py \
@@ -48,53 +37,42 @@ python -u examples/02_evaluate.py \
   --experiment_name smoke --run_id first --log_dir /app/logs
 ```
 
-`--port` is required by the CLI even though the debug model never connects to it. A successful run
-creates output under `logs/smoke/debug/first` in the checkout.
+`--port` is required by the CLI but is not used by the debug model. The run should create:
 
-## 4. Run a policy evaluation
+```text
+logs/smoke/debug/first/
+```
 
-REALM is a policy client; it does not ship a policy server. Start a compatible server separately and
-wait until its socket accepts connections. The client retries indefinitely when the endpoint is
-unavailable, so a dead port otherwise looks like a hung evaluation.
+## Run with a policy server
 
-Single environment:
+REALM is a policy client. Start a compatible policy server separately, then pass its host and port:
 
 ```sh
 python -u examples/02_evaluate.py \
   --task_id 0 --perturbation_id 0 \
   --repeats 25 --max_steps 800 --horizon 8 \
-  --model_type openpi --model_name YOUR_MODEL_NAME \
+  --model_type openpi --model_name MODEL_NAME \
   --host POLICY_HOST --port POLICY_PORT \
   --experiment_name evaluation --run_id single --log_dir /app/logs
 ```
 
-Vectorized:
+For vectorized evaluation:
 
 ```sh
 python -u examples/04_vector_evaluate.py \
   --num_envs 4 --repeats 25 --max_steps 800 --horizon 8 \
   --task_id 0 --perturbation_id 0 \
-  --model_type openpi --model_name YOUR_MODEL_NAME \
+  --model_type openpi --model_name MODEL_NAME \
   --host POLICY_HOST --port POLICY_PORT \
   --experiment_name evaluation --run_id vector --log_dir /app/logs
 ```
 
-With `--num_envs 4 --repeats 25`, rollouts run in waves of four. Start at four environments on a
-high-memory GPU and measure before increasing it.
+The policy client retries when the server is unavailable, so check the server before starting a run.
 
-The two entry points do not expose exactly the same flags. In particular, the vectorized script has
-no `--resume` or `--no_render`; see [Running evaluations](Running-Evaluations).
+## Check the output
 
-## 5. Verify artifacts
+Do not trust only the process exit code. Check that the report contains the requested repeats and
+that the expected actions, qpos and videos were written.
 
-Do not use the process or scheduler exit code as the sole success criterion. Isaac can terminate
-with status zero after an unhandled exception and can segfault during teardown after a valid result
-was already written. Check that the expected report, rollout files, and media exist and contain the
-requested number of repeats.
-
-## Next
-
-- [Tasks and perturbations](Tasks-and-Perturbations)
-- [Running evaluations](Running-Evaluations)
-- [Cluster and parallel runs](Cluster-and-Parallel-Runs)
-- [Known issues and gotchas](Known-Issues-and-Gotchas)
+See [Logging](Logging) for the output format and [Running evaluations](Running-Evaluations) for all
+arguments.

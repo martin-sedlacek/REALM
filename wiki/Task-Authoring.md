@@ -1,15 +1,11 @@
-# Task authoring
+# Task Authoring
 
-REALM includes a browser-based editor for building task YAML from OmniGibson assets. It supports
-manual 2D/3D layout, prompt-to-draft generation, existing-config import, task-specific validation,
-camera placement, and direct creation of a config under `realm/config/tasks/REALM_DROID10`.
+The task authoring dashboard builds REALM task YAML from OmniGibson assets. It supports manual 2D
+and 3D editing, prompt-based drafts, existing YAML files, camera placement and direct saving to
+`realm/config/tasks/REALM_DROID10`.
 
-The editor is an authoring aid, not a simulator. Its geometry checks catch common configuration
-mistakes before a GPU run, but every saved task still needs rendered and physics-based review.
+## Running the dashboard
 
-## Start the editor
-
-The editor runs in the host-side uv environment; OmniGibson and Isaac Sim do not need to be imported.
 From the repository root:
 
 ```sh
@@ -18,138 +14,109 @@ OMNIGIBSON_DATASET_PATH=/path/to/datasets \
   uv run streamlit run tooling/task_authoring/dashboard.py --server.port 8503
 ```
 
-Open the URL printed by Streamlit. Use a different port if the results dashboard is already running.
+The dataset path and USD scan limit can also be changed at the top of the page. `N/A` indexes all
+USD files. If the path is empty, the dashboard uses a small demo catalogue.
 
-The dataset root may also be changed at the top of the page. It should contain the extracted
-OmniGibson object catalogue. Set **Maximum USD files** to `N/A` to index the full dataset, or use a
-positive number for a faster development scan. If no assets are found, the editor loads a small demo
-catalogue; do not mistake a demo-only draft for a dataset-backed task.
+## Creating a task
 
-## Authoring workflow
+1. Select a scene and support surface.
+2. Filter the asset list and drag objects into the workspace.
+3. Assign each object a role: main, target, distractor or immutable.
+4. Set the task type and adjust object transforms.
+5. Check both external camera previews.
+6. Resolve the red validation errors.
+7. copy, download or save the generated YAML.
 
-1. **Choose a scene support.** Select a scene and support region loaded from
-   `realm/config/scenes/scenes.yaml`. The orange grid is the valid spawn footprint. In the 2D view,
-   hatched red padding is outside the valid region.
-2. **Add assets.** Filter by category or model name, optionally enable **DROID objects only**, then
-   drag assets onto the workspace. New objects start as distractors.
-3. **Assign semantic roles.** Select an object and choose `main_objects`, `target_objects`,
-   `distractors`, or `immutables`. The editor permits exactly one main and one target; assigning a
-   new unique role demotes the previous object to a distractor.
-4. **Place and orient.** Move objects in 2D or 3D, then edit exact position, bounding-box dimensions,
-   and XYZ rotation in the inspector. Rotations are entered as degrees and serialized as XYZW
-   quaternions.
-5. **Review both cameras.** Select a real DROID extrinsic for each external camera, edit its pose, or
-   use **Shuffle camera extrinsics** to draw another valid pair. The two 16:9 previews show the
-   resulting views.
-6. **Resolve red validation errors.** Yellow messages are recommendations; red messages block direct
-   saving.
-7. **Export or save.** Copy or download YAML at any time. **Save to REALM config** becomes available
-   only when the draft has no red errors.
-8. **Run simulation review.** Load the saved config in OmniGibson, allow objects to settle, and check
-   support contact, reachability, camera framing, initial predicates, and task completion.
+New objects start as distractors. Only one main object and one target object are allowed. Assigning
+either role to another object moves the previous object back to distractors.
+
+Copy and download work for incomplete drafts. **Save to REALM config** is enabled only when all red
+errors are fixed. Saving creates:
+
+```text
+realm/config/tasks/REALM_DROID10/<task_name>/default.yaml
+```
+
+Existing tasks are never overwritten.
 
 ## Workspace controls
 
 | Action | Control |
 |---|---|
-| Select an object or camera | Left click |
-| Move an object on the ground plane | Left drag |
-| Move along one 3D axis | Drag the red X, green Y, or blue Z gizmo handle |
-| Orbit the editor camera | Right drag |
-| Pan without rotation | Middle drag |
+| Select | Left click |
+| Move on XY | Left drag |
+| Move on one axis | Drag the red X, green Y or blue Z arrow |
+| Rotate the view | Right drag |
+| Pan the view | Middle drag |
 | Zoom | Mouse wheel |
-| Delete the selected object | Delete or Backspace |
-| Exact transform editing | Position and rotation fields in the inspector |
+| Delete | Delete or Backspace |
 
-The 2D and 3D views edit the same draft. Bounding boxes use their authored XY dimensions in the
-top-down view; large objects therefore occupy proportionally more of the support. The robot base and
-support pedestal provide a consistent reference for near/far placement. Dataset objects are rendered
-as scale-accurate outlined boxes because encrypted BEHAVIOR USD geometry is not decoded in the host
-viewer. The Panda preview uses lightweight local visual meshes.
+The 2D and 3D views edit the same task. Exact position, bounding box and XYZ rotation values are in
+the object inspector. Rotations are exported as XYZW quaternions.
 
-## Prompt-to-draft authoring
+Dataset objects are shown as bounding boxes because encrypted BEHAVIOR USD meshes cannot be loaded
+by the host viewer. The bounding boxes use the real object dimensions. The Panda robot preview uses
+local visual meshes.
 
-Enter an instruction such as `Put the apple in the bowl` under **Describe the task**, then choose
-**Draft task from instruction**. This is a deterministic local grounding pipeline, not a hosted
-language-model call. It:
+## Prompt-based drafts
 
-1. infers a task type already supported by REALM;
-2. resolves noun phrases against the indexed asset catalogue;
-3. uses edit distance and role-aware container preferences for near matches such as `box` or `bin`;
-4. assigns main, target, and required immutable-source roles;
-5. selects only allowed articulated assets for drawer tasks;
-6. creates a non-overlapping starter layout and up to three DROID distractors;
-7. applies the same validation as a manual draft.
+Enter an instruction such as `Put the apple in the bowl` and click **Draft task from instruction**.
+The local planner:
 
-Approximate category substitutions are reported in the draft status and require human review. The
-planner never invents a category that is absent from the current index, and it does not create new
-task implementations or success criteria. Use the **Agentic Task Authoring** page in the Streamlit
-navigation for examples and the current interpretation rules.
+- selects a supported task type;
+- matches object names to indexed categories;
+- assigns object roles;
+- creates a starter layout;
+- adds up to three DROID distractors;
+- runs the normal task validation.
 
-## Geometry and semantic contract
+This is a deterministic local planner, not an online language model. Small misspellings and generic
+container names can use a nearby valid category. The selected substitution is shown for review.
+Unknown categories are not invented.
 
-The editor and batch generator share the rules in
-`tooling/task_authoring/AUTHORING_RULES.md`. The most important are:
+The planner only uses task types already supported by REALM. It does not create new success criteria.
 
-- **Support clearance:** generated objects start with their bounding-box bottom 50 mm above the
-  configured support plane. A short settling drop is safer than initial interpenetration.
-- **Proportion-preserving resize:** automatic fitting uses one uniform scale for X, Y, and Z. Do not
-  squeeze individual axes to force an object into a receiver.
-- **Yaw first:** prefer no rotation; use Z rotation for footprint alignment. Roll or pitch needs a
-  task-specific reason and a simulation review.
-- **Receiver capacity:** `put` requires the receiver footprint to cover the oriented main footprint
-  with a 1.15 proxy margin. `stack` uses a 0.65 support proxy. These are outer-bbox checks, not proof
-  of interior volume or stability.
-- **Instruction closure:** every object needed to make the instruction meaningful must exist. For
-  example, removing a lid requires a pot or pan in the immutable role and the lid must begin above
-  that source.
-- **Spawn-region margin:** keep complete object footprints inside the configured support; the object
-  centre alone is insufficient.
-- **Clutter diversity:** three distractors are recommended, excluding categories already used by
-  the instructed objects.
+## Placement rules
 
-## Validation and saving
+The complete rules are in `tooling/task_authoring/AUTHORING_RULES.md`. The main ones are:
 
-Red errors include missing or duplicate main/target roles, unsupported role combinations, absent
-source objects, support-plane intersection, inadequate receiver capacity, invalid initial source
-relationships, and non-articulated drawer assets. Yellow warnings include fewer than three
-distractors, roll/pitch use, and excessive settling gaps.
+- Objects start with their bounding-box bottom 5 cm above the support plane.
+- Resizing keeps the original XYZ proportions.
+- Prefer Z rotation. Use roll or pitch only when the instruction needs it.
+- A receiving object must be large enough for the main object.
+- Every object named by the instruction must exist in the scene.
+- A lid-removal task must start with the lid on the pot or pan.
+- Keep the full object bounding box inside the support area.
+- Use at least three distractors when possible.
 
-Copy and download remain enabled for incomplete drafts so they can be reviewed externally. Direct
-save is stricter: it writes a new
-`realm/config/tasks/REALM_DROID10/<task_name>/default.yaml`, validates the YAML shape and task name,
-and refuses to overwrite an existing task. Generated names are derived from the task and object
-categories; an existing name receives a numeric suffix in the editor.
+Red messages make the task invalid. Yellow messages are recommendations and do not block saving.
+
+## Cameras
+
+The dashboard loads robot-relative camera poses from
+`realm/config/env/external_sensors/camera_extrinsics_droid_realm.yaml`.
+
+Both cameras can be moved or rotated manually. **Shuffle camera extrinsics** samples another real
+DROID pair. The two 16:9 views below the editor show what the cameras see.
 
 ## Loading an existing task
 
-Use **Load existing task config** to select a tracked YAML, or upload a `.yaml`/`.yml` file. The
-editor reconstructs the scene, object roles, transforms, bounding boxes, and camera extrinsics.
-Always review the reconstruction before saving: custom object types and legacy fields may not have a
-one-to-one visual representation.
+Select a tracked task from the dropdown or upload a YAML file. The dashboard reconstructs its scene,
+objects, roles, transforms and cameras. Review the result before saving, especially for custom or
+older object types.
 
-## What must still be checked in simulation
+## Simulation check
 
-Bounding boxes cannot establish mesh-level clearance, containment volume, frictional stability,
-robot reachability, collision-free settling, or whether a visual attribute in the instruction is
-actually present. A task is release-ready only after inspecting rendered external and wrist views
-and exercising its success predicate in OmniGibson. When a generated family is repaired, encode the
-correction in its generator or manifest as well as the emitted YAML so regeneration cannot restore a
-known failure.
+The dashboard checks bounding boxes, not physics. Before adding a task to a benchmark, render it in
+OmniGibson and check:
 
-## Troubleshooting
-
-- **No assets indexed:** verify the dataset root and decryption key installation; the demo catalogue
-  is only a fallback.
-- **An object appears as a box:** expected for encrypted dataset USDs in the host editor.
-- **Save is disabled:** resolve every red message below the YAML controls; warnings do not block it.
-- **Save reports that the task exists:** choose a new generated name or load and edit the existing
-  config. The save endpoint intentionally never overwrites.
-- **A valid-looking draft explodes on reset:** increase support clearance, inspect the model origin,
-  and verify mesh-level contact in simulation.
+- objects settle without collisions or large forces;
+- the main object is reachable;
+- receiving objects are actually usable, not only large enough by bounding box;
+- the instruction matches the initial state;
+- both external cameras and the wrist camera show the task.
 
 ## See also
 
 - [Tasks and perturbations](Tasks-and-Perturbations)
 - [Robots and configs](Robots-and-Configs)
-- [Running evaluations](Running-Evaluations)
