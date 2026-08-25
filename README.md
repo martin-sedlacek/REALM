@@ -133,87 +133,8 @@ Completed repeats are skipped. Ensure all arguments match the original run.
 | 8       | open_drawer |
 | 9       | close_drawer |
 
-In our paper, we evaluated three models on each of the 10 tasks, under all 16 perturbation settings
-with a sample size of 25 rollouts at 800 time-steps. Each number in the table below is then obtained by 
-averaging the results over these 10 tasks per perturbation.
-
-Tabular results for the tested VLA models:
-
-| Perturbation |        **$\pi_0$**        |     **$\pi_0$-FAST**      |      **GR00T N1.5**       |
-| :--- |:-------------------------:|:-------------------------:|:-------------------------:|
-| **Default** |           0.44            |           0.61            |           0.19            |
-| **V-AUG** | 0.42 (-0.02 $\downarrow$) |  0.64 (+0.03 $\uparrow$)  |      0.19 (-0.00 -)       |
-| **V-VIEW** |  0.52 (+0.08 $\uparrow$)  |  0.70 (+0.09 $\uparrow$)  |      0.19 (-0.00 -)       |
-| **V-SC** | 0.43 (-0.01 $\downarrow$) | 0.60 (-0.02 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **V-LIGHT** | 0.37 (-0.07 $\downarrow$) | 0.54 (-0.07 $\downarrow$) | 0.16 (-0.03 $\downarrow$) |
-| **S-PROP** | 0.29 (-0.15 $\downarrow$) | 0.53 (-0.08 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **S-LANG** | 0.36 (-0.08 $\downarrow$) | 0.61 (-0.01 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **S-MO** | 0.35 (-0.09 $\downarrow$) | 0.55 (-0.06 $\downarrow$) |  0.20 (+0.01 $\uparrow$)  |
-| **S-AFF** | 0.30 (-0.14 $\downarrow$) | 0.55 (-0.06 $\downarrow$) |  0.21 (+0.01 $\uparrow$)  |
-| **S-INT** | 0.29 (-0.15 $\downarrow$) | 0.54 (-0.07 $\downarrow$) |  0.20 (+0.01 $\uparrow$)  |
-| **B-HOBJ** | 0.32 (-0.12 $\downarrow$) | 0.38 (-0.23 $\downarrow$) | 0.16 (-0.03 $\downarrow$) |
-| **SB-NOUN** | 0.28 (-0.16 $\downarrow$) | 0.39 (-0.22 $\downarrow$) | 0.17 (-0.02 $\downarrow$) |
-| **SB-VRB** | 0.36 (-0.08 $\downarrow$) | 0.57 (-0.04 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **VB-POSE** | 0.32 (-0.12 $\downarrow$) | 0.49 (-0.12 $\downarrow$) | 0.07 (-0.12 $\downarrow$) |
-| **VB-MOBJ** | 0.38 (-0.06 $\downarrow$) | 0.53 (-0.09 $\downarrow$) | 0.09 (-0.10 $\downarrow$) |
-| **VSB-NOBJ** | 0.16 (-0.28 $\downarrow$) | 0.26 (-0.35 $\downarrow$) | 0.09 (-0.10 $\downarrow$) |
-| **V-Avg.** | 0.37 (-0.07 $\downarrow$) | 0.54 (-0.08 $\downarrow$) | 0.14 (-0.05 $\downarrow$) |
-| **S-Avg.** | 0.30 (-0.14 $\downarrow$) | 0.50 (-0.11 $\downarrow$) |      0.19 (-0.00 -)       |
-| **B-Avg.** | 0.30 (-0.13 $\downarrow$) | 0.44 (-0.17 $\downarrow$) | 0.13 (-0.06 $\downarrow$) |
-
-# Tests 🧪
-
-REALM's runtime is the Docker or Apptainer/SIF image; it is not reproduced in a local Python
-environment. A small, separate uv environment provides only the host-safe lint and test tools:
-
-```bash
-uv sync --locked
-uv run make check
-```
-
-**Do not run `pytest tests/`.** Most files there are standalone Isaac scripts, and pytest collection
-can boot the simulator. The four host-safe pytest modules are named explicitly by `HOST_PYTESTS` in
-the `Makefile`; `make check` runs them along with the script-style static checks.
-
-The pipeline has two tiers, split on "does this need Isaac, the container and a GPU".
-
-```bash
-# Tier 1 -- static. No container, no GPU, no dataset. Runs in CI on every push and PR.
-uv run make check                   # lint + all container-free tests
-
-# Tier 2 -- GPU. Needs the ~13 GB image, the ~36 GB dataset and a card.
-ALLOC=<slurm jobid> make test-smoke  # ~11 min   the cheap gate
-ALLOC=<slurm jobid> make test-suite  # ~1.7 h    the gate before trusting a change
-ALLOC=<slurm jobid> make test-matrix # hours     the task x perturbation sweep
-
-make test        # tier 1 only, then a list of exactly what it SKIPPED
-make test-list   # what is in the suite and what each member needs
-```
-
-Three things to know before you read a result:
-
-- **Verdicts never come from exit codes.** Isaac's shutdown hard-exits 0 on an unhandled exception
-  and can segfault at teardown after a pass, so a child's status is meaningless. Verdicts come from
-  each test's own printed verdict line. Two things *are* gateable: `--strict` makes the driver's
-  status mean "everything I ran ended PASS or SKIP", and `--junit-xml` writes a report once at the
-  end — its *absence* is how you detect that the driver itself died.
-- **Tier 1 is kept green.** A failure in `uv run make check` is a regression. The uv environment is
-  host tooling only; passing it says nothing about the container, simulator, dataset, or GPU path.
-- **A green run is worth less than it looks.** Every test drives `--model_type debug`, whose
-  constant action never closes the gripper, so **none of the 22 success conditions is ever
-  evaluated** and every rollout the suite produces stops at `stage=REACH`.
-
-CI (`static-checks`) exercises no simulation; Docker/SIF and GPU validation remain manual.
-
-# Roadmap 🚧
-- [x] Streamlined installation
-- [x] Example scripts for getting started
-- [ ] Improved benchmarking UX:
-  - [ ] End-to-end scripts for producing result plots and tables 
-- [ ] Extended documentation
-- [ ] Performance:
-  - [ ] Support vectorized environments
-  - [ ] Improve parallelism and overall execution speed
+The paper results and the exact evaluation conditions are documented on the
+[Reproducibility](https://github.com/martin-sedlacek/REALM/wiki/Reproducibility) page.
 
 
 # Acknowledgments and Licensing
