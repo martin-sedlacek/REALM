@@ -12,9 +12,8 @@ The complete flag surface, and what the knobs actually do.
 There is also `examples/01_pi0_eval.py`, which takes **no flags at all** — it is a hardcoded
 demonstration (task 1, no perturbation, one repeat) and silently ignores anything you pass it.
 
-> `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. If you find a
-> script invoking `python realm/eval.py --...`, that script is stale — see
-> [Known issues](Known-Issues).
+> `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. A script
+> invoking `python realm/eval.py --...` is stale.
 
 ## Container execution
 
@@ -177,4 +176,3 @@ already exist.
 - [Tasks and perturbations](Tasks-and-Perturbations)
 - [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
-- [Known issues and gotchas](Known-Issues)

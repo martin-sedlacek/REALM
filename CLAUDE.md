@@ -71,7 +71,7 @@ tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
             debug_probes/, karolina/, cluster_evals/, container launchers
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
-            Cluster-and-Parallel-Runs, Known-Issues
+            Cluster-and-Parallel-Runs
 ```
 
 ## Evaluation pipeline
@@ -134,7 +134,7 @@ directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
 Changes made without a GPU need their container-side verification steps recorded in the pull
-request. Durable operator findings belong in `wiki/Known-Issues.md`.
+request.
 
 ## Developer workflows
 

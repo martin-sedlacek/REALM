@@ -38,5 +38,4 @@ performance.
 
 | Page | |
 |---|---|
-| [Known issues](Known-Issues) | **read this before debugging anything** |
 | [Performance and scaling](Performance-and-Scaling) | what is expensive and which levers were measured |
