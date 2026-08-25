@@ -1,6 +1,6 @@
 # Tasks and perturbations
 
-The **full REALM10 evaluation** runs **10 manipulation tasks** crossed with **16 perturbation
+The **full REALM_DROID10 evaluation** runs **10 manipulation tasks** crossed with **16 perturbation
 settings**, for 160 task and perturbation combinations. This page lists the exact identifiers, what
 each one does, and how you select them.
 
@@ -213,7 +213,7 @@ logic depends on this: composing `SB-NOUN` with `VB-MOBJ`, for instance, would b
 that `VB-MOBJ` measures against. **Composition is untested and the code says so.** If you need it,
 verify it yourself first.
 
-## Running the full REALM10 evaluation
+## Running the full REALM_DROID10 evaluation
 
 Per-cell output is keyed `<task>_<perturbation>`, e.g. a report named `pick_spoon_VSB-NOBJ.csv`. That
 naming is what the integrity tests and the log viewer rely on.
@@ -365,4 +365,4 @@ OmniGibson and check:
 ## See also
 
 - [Running evaluations](Running-Evaluations) — the full flag surface
-- [Cluster and parallel runs](Cluster-and-Parallel-Runs) — running the full REALM10 evaluation
+- [Cluster and parallel runs](Cluster-and-Parallel-Runs) — running the full REALM_DROID10 evaluation
