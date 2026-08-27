@@ -12,26 +12,12 @@ import omnigibson as og  # For og.sim.device
 
 
 class IndividualJointPDController(LocomotionController, ManipulationController, GripperController):
-    """Scalar-gain joint PD controller: u = kp (q* - q) + kd (qd* - qd).
-
-    The plain-gain counterpart of `droid_joint_controller.py`, whose gains are weighted by the
-    task-space Jacobian. No Jacobian is involved here, so the whole batch is computed at once and no
-    eef link name is needed. Registered under this class's own name; the Jacobian-weighted
-    controller of the same class name is registered as `CustomJointController`. See
-    `controller_registry.py`.
-
-    `use_gravity_compensation` and `use_cc_compensation` are accepted for config compatibility with
-    the other controllers and are stored, but this controller applies neither.
-
-    The pre-3.9.1 version also overrode `clip_control`, but that override clipped to exactly the
-    same control limits and then copied every index back, making it equivalent to the (now batched)
-    base implementation. Dropped.
-    """
+    """Scalar-gain joint PD controller."""
 
     def __init__(
             self,
             control_freq,
-            motor_type,  # This will be forced to 'effort' for hybrid control
+            motor_type,
             control_limits,
             dof_idx,
             command_input_limits="default",
@@ -41,8 +27,8 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             use_impedances=False,
             use_gravity_compensation=False,
             use_cc_compensation=True,
-            use_delta_commands=False,  # Delta commands are less common for torque control
-            compute_delta_in_quat_space=None,  # Delta commands are less common for torque control
+            use_delta_commands=False,
+            compute_delta_in_quat_space=None,
             max_effort=None,
             min_effort=None,
             **kwargs,
@@ -69,27 +55,19 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         )
 
     def _get_joint_positions(self):
-        """(N, control_dim) current positions of this controller's DOFs, one row per group member."""
         rows = self.view_row_indices
         return ControllableObjectViewAPI.get_all_joint_positions(self.routing_path)[rows, :][:, self.dof_idx]
 
     def _get_joint_velocities(self):
-        """(N, control_dim) current velocities of this controller's DOFs, one row per group member.
-
-        estimate=False on purpose -- see the long note in droid_joint_controller.py. This is an
-        effort impedance law whose damping term consumes the velocity directly, and the pre-3.9.1
-        version read the reported `control_dict["joint_velocity"]`. The stock 3.9.1 idiom
-        (estimate=True, a one-step finite difference) leaves a ~95x larger standing error.
-        """
+        """Use reported velocity; OG's finite-difference estimate causes excessive error."""
         rows = self.view_row_indices
         return ControllableObjectViewAPI.get_all_joint_velocities(
-            self.routing_path, estimate=False  # reported velocity, not the finite-difference
+            self.routing_path, estimate=False
         )[rows, :][
             :, self.dof_idx
         ]
 
     def _update_goal(self, controller_idx, command):
-        """Clip one member's commanded joint positions to their limits and hold velocity at zero."""
         target_joint_pos = cb.to_torch(command).to(og.sim.device)
 
         target_joint_pos = target_joint_pos.clip(
@@ -105,22 +83,11 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         )
 
     def compute_control(self, goals):
-        """
-        Scalar-gain joint PD. Unlike the DROID controller this needs no Jacobian, so the whole
-        batch is computed at once.
+        current_joint_pos = cb.to_torch(self._get_joint_positions()).to(og.sim.device)
+        current_joint_vel = cb.to_torch(self._get_joint_velocities()).to(og.sim.device)
 
-        Args:
-            goals (Dict[str, Array]): batched goals of shape (N, control_dim); must include
-                "target_joint_pos" and "target_joint_vel"
-
-        Returns:
-            Array: (N, control_dim) outputted (non-clipped!) control signal to deploy
-        """
-        current_joint_pos = cb.to_torch(self._get_joint_positions()).to(og.sim.device)  # (N, ctrl_dim)
-        current_joint_vel = cb.to_torch(self._get_joint_velocities()).to(og.sim.device)  # (N, ctrl_dim)
-
-        joint_pos_desired = cb.to_torch(goals["target_joint_pos"]).to(og.sim.device)  # (N, ctrl_dim)
-        joint_vel_desired = cb.to_torch(goals["target_joint_vel"]).to(og.sim.device)  # (N, ctrl_dim)
+        joint_pos_desired = cb.to_torch(goals["target_joint_pos"]).to(og.sim.device)
+        joint_vel_desired = cb.to_torch(goals["target_joint_vel"]).to(og.sim.device)
 
         u = self.kp * (joint_pos_desired - current_joint_pos) + self.kd * (joint_vel_desired - current_joint_vel)
 
@@ -128,7 +95,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
             assert u.shape[-1] == self.max_effort.shape[-1] == self.min_effort.shape[-1]
             u = u.clip(self.min_effort, self.max_effort)
 
-        return cb.from_torch(u)  # (N, control_dim)
+        return cb.from_torch(u)
 
     def compute_no_op_goal(self, controller_idx):
         target_joint_pos = cb.to_torch(self._get_joint_positions()[controller_idx]).to(og.sim.device)

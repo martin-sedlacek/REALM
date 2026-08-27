@@ -9,7 +9,7 @@ can be loaded:
    pre-3.9.1 ``realm/environments/env_base.py``; note in particular that ``CustomJointController`` is
    the Jacobian-weighted controller in ``droid_joint_controller.py``, while the plain
    ``IndividualJointPDController`` name refers to the scalar-gain one in
-   ``custom_joint_controller.py``. They are different classes with the same class name.
+   ``individual_joint_pd_controller.py``. They are different classes with the same class name.
 
 2. **A default controller config must exist under that name.**
    ``Robot._generate_controller_config`` looks the config's ``name`` up in
@@ -37,7 +37,7 @@ from copy import deepcopy
 from omnigibson.controllers import REGISTERED_CONTROLLERS
 from omnigibson.robots.robot import Robot
 
-from realm.robots.custom_joint_controller import IndividualJointPDController
+from realm.robots.individual_joint_pd_controller import IndividualJointPDController
 from realm.robots.droid_ee_controller import DroidEndEffectorController
 from realm.robots.droid_gripper_controller import MultiFingerGripperController as DROIDGripperController
 from realm.robots.droid_joint_controller import IndividualJointPDController as DROIDJointPDController

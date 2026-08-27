@@ -1,65 +1,4 @@
-"""Run REALM's test suite end to end and record what actually happened.
-
-WHY THIS EXISTS, AND WHY IT IS NOT PYTEST
------------------------------------------
-Most files in tests/ are standalone scripts -- a `if __name__ == "__main__":` block, printed
-verdict lines, `sys.exit(1)` on failure -- and that is how this driver runs them:
-`python -u tests/<file>.py`, one process each. `pytest tests/` must NOT be used as the suite:
-collection imports every module, and three boot a full Isaac instance at module scope
-(test_joint_reset_batching and test_scene_object_placement import omnigibson directly;
-test_rollout_camera_selection reaches it through realm.rollout). The eval DRIVERS
-(test_integrity, test_single_task, test_perturbations_integrity, test_vector_integrity) used to
-as well, through realm.eval; they now ast-parse the two lists they need (tests/_paths.py
-eval_const_list) and boot Isaac only in their child processes.
-(pytest IS installed in the container, at
-/opt/conda/envs/behavior/lib/python3.11/site-packages; it is absent from the login python. So
-"pytest is missing" is not the reason.) The exceptions: four real pytest modules, host-safe by
-design (they read code/configs as text with ast/yaml rather than importing anything heavy) -- run
-them directly, not through this driver:
-
-    pytest tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-           tests/test_robot_base_column.py tests/test_robot_definition_parity.py
-
-WHY THE EXIT CODE IS RECORDED BUT NEVER GATED ON
-------------------------------------------------
-Isaac tears down with a segfault on essentially every run, passing or failing, after all work is
-done -- so `returncode` carries no information about the test. Every verdict here comes from
-matching the test's own printed verdict lines. The exit code is stored in the JSON as an
-observation, never as a pass condition. This is the same rule tests/test_vector_integrity.py
-applies to its child processes, for the same reason.
-
-`-u` on every child: Isaac's teardown can hang, so a time-limit kill is routine, and a
-block-buffered child loses everything it printed when it is killed.
-
-RESULTS ARE WRITTEN BEFORE THEY ARE PRINTED. The JSON is rewritten after every test, so a driver
-that is itself killed still leaves a complete record of the tests that finished.
-
-TIERS. `--only` takes test names or a tier: `local`, `fast`, `medium`, `slow`, `server`. Only
-`local` is container-free -- no image, no GPU, no Slurm allocation, ~0.06 s. `fast` still needs the
-container: test_joint_reset_batching stubs `og.sim`, but it `import omnigibson` at module scope, so
-it cannot run on the login python. Do not read `needs_gpu=False` as "runs anywhere".
-
-    python3 tests/run_suite.py --only local --strict          # container-free; what CI runs
-    python3 tests/run_suite.py --jobid <allocation> --out /path/results.json --only medium
-    python3 tests/run_suite.py --list
-    python3 tests/run_suite.py --report --out /path/results.json
-
-LEVELS are the other axis: `--level smoke|suite|matrix` picks a GATE (see LEVELS below) rather than
-a capability class. `--only local` is tier 1 (container-free, no GPU, no allocation); every
-`--level` is tier 2 and needs `--jobid <running slurm jobid>`, the image and the dataset.
-
-Tier 1 in full is:
-
-    ruff check realm examples tests scripts
-    python3 tests/run_suite.py --only local --strict \
-        --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
-    python3 -m pytest -q tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-        tests/test_robot_base_column.py tests/test_robot_definition_parity.py
-
-Run the lint and the tests as SEPARATE commands, not chained with `&&`: a lint failure would abort
-before the tests ran, so the second half of tier 1 would silently stop being exercised the moment
-the first half went red.
-"""
+"""Run standalone REALM tests and record verdicts independent of Isaac exit codes."""
 import argparse
 import json
 import os
@@ -72,17 +11,11 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
-# ---------------------------------------------------------------------------------------------
-# The suite. `verdict` is an ORDERED list of (regex, status). Each pattern is searched against the
-# WHOLE log and the first pattern that matches anywhere wins -- not the match that appears earliest
-# in the file. So failure patterns must come before success patterns: a sweep that fails one cell
-# and passes the rest must read FAIL, however late the failing line appears.
-# `cells` extracts the per-item lines a sweep prints, for the detail column.
-# ---------------------------------------------------------------------------------------------
+# Failure verdicts must precede success verdicts because the first matching pattern wins.
 SUITE = {
     "test_task_progression_rubrics": dict(
         argv=["tests/test_task_progression_rubrics.py"],
-        local=True,   # runs on the login python: no container, no allocation, ~0.06 s
+        local=True,
         needs_gpu=False, needs_server=False, timeout=120, tier="local",
         verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
         cells=r"^\[\d\] .*",
@@ -90,16 +23,13 @@ SUITE = {
     ),
     "test_task_type_literals": dict(
         argv=["tests/test_task_type_literals.py"],
-        local=True,   # login python, stdlib + yaml only: no container, no allocation, ~0.05 s
+        local=True,
         needs_gpu=False, needs_server=False, timeout=120, tier="local",
         verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
         cells=r"^\[\d\] .*",
         note="task_type literals in realm/ vs what the task configs declare; static, no container.",
     ),
     "test_rollout_camera_selection": dict(
-        # Imports realm.rollout, which imports omnigibson, so it needs the container -- but it
-        # builds no environment and touches no GPU. Same tier as test_joint_reset_batching, for
-        # the same reason.
         argv=["tests/test_rollout_camera_selection.py"],
         needs_gpu=False, needs_server=False, timeout=900, tier="fast",
         verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
@@ -107,8 +37,6 @@ SUITE = {
         note="which exterior camera the drawer tasks send the policy, and the None guard.",
     ),
     "test_scene_object_placement": dict(
-        # The only test that looks at the SCENE rather than at the artifacts. It exists because
-        # both drawer tests passed on a build whose scene-0 cabinet was lying on its back.
         argv=["tests/test_scene_object_placement.py", "--num_envs", "2"],
         needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
         verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
@@ -132,10 +60,7 @@ SUITE = {
         note="one task, 1 step, 1 repeat, --no_render.",
     ),
     "test_single_task_drawer": dict(
-        # Task 8 is open_drawer, whose main object is custom_assets/impact_drawer/usd/cabinet.usd.
-        # It is the ONLY task that needs OmniSurfaceMaterialPrim's preset_name default, which the
-        # stock 3.9.1 image does not have and OG-lite / stock_patch do. Run this under MODE=oglite
-        # against the MODE=stock result from test_integrity: same task, same code, different bind.
+        # This drawer task exercises the OmniSurfaceMaterialPrim patch in OG-lite.
         argv=["tests/test_single_task.py", "--task_id", "8"],
         needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
         verdict=[(r"^Task \d+ \(.*\) FAILED!", "FAIL"),
@@ -155,8 +80,6 @@ SUITE = {
         note="10 tasks x 1 step x 1 repeat, --no_render.",
     ),
     "test_perturbations_integrity": dict(
-        # Keep three repeats because this is the only suite entry that exercises the per-repeat
-        # reset path. Isaac startup dominates the cost of each cell.
         argv=["tests/test_perturbations_integrity.py", "--repeats", "3", "--max_steps", "1"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         verdict=[(r"^\S+: FAILED EXECUTION", "FAIL"),
@@ -168,19 +91,9 @@ SUITE = {
     ),
     "test_vector_integrity_tasks": dict(
         argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2",
-              # DISTINCT PER ENTRY. Every vector entry used to default to --experiment_name
-              # "vector_integrity", so they shared ONE /logs tree with no discriminator while the
-              # parquets append. Two consequences, both measured on the 2026-08-21 baseline:
-              # this entry writes t8/t9:Default and so does _drawers, so _drawers reported
-              # FAIL_ROWS in EVERY suite run where both ran; and rows survived across sweeps, so
-              # a fresh run saw 8 where it wanted 2. tests/_paths.py::scratch_log_root documents
-              # the hazard and says this test needs a distinct --experiment_name -- it now has one.
+              # Parquet output appends, so each suite entry needs a distinct experiment tree.
               "--experiment_name", "suite_vector_tasks"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
-        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
-        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
-        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
-        # cells and then reported no verdict at all.
         verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
                   r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
                  (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
@@ -192,22 +105,10 @@ SUITE = {
         note="10 tasks under Default through the vector path, num_envs=2, rendering ON.",
     ),
     "test_vector_integrity_tasks_shard0of2": dict(
-        # Half the task matrix -- cells 0,2,4,6,8, i.e. tasks 0,2,4,6,8 -- for when the allocation
-        # cannot hold the full ten. Deliberately a COMPLETED half rather than a truncated whole: a
-        # run killed on the time limit never prints its verdict line. The sample is not arbitrary:
-        # it covers a PrimitiveObject main object (0), a rotate task (2), a DatasetObject pick (4),
-        # a stack (6) and open_drawer (8) -- the one that could not load at all until 2026-08-14.
         argv=["tests/test_vector_integrity.py", "--matrix", "tasks", "--num_envs", "2",
               "--shard", "0/2",
-              # Distinct from suite_vector_tasks even though it is a SUBSET of the same matrix: the
-              # shard writes the same cell names, so sharing the tree would make whichever ran
-              # second report FAIL_ROWS against rows the other legitimately wrote.
               "--experiment_name", "suite_vector_tasks_shard0of2"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
-        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
-        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
-        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
-        # cells and then reported no verdict at all.
         verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
                   r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
                  (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
@@ -219,17 +120,9 @@ SUITE = {
         note="tasks 0,2,4,6,8 under Default through the vector path, num_envs=2, rendering ON.",
     ),
     "test_vector_integrity_drawers": dict(
-        # The two drawer cells only. A sibling measured 8:Default crashing under MODE=stock with
-        # material_prim.py's missing preset_name default; this is that cell, re-run against the
-        # rebuilt image. Vector rather than single-env because open_drawer/close_drawer are the
-        # only task types that reach run_joint_resets(), and the batching only exists at num_envs>1.
         argv=["tests/test_vector_integrity.py", "--cells", "8:Default,9:Default", "--num_envs", "2",
               "--experiment_name", "suite_vector_drawers"],
         needs_gpu=True, needs_server=False, timeout=5400, tier="slow",
-        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
-        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
-        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
-        # cells and then reported no verdict at all.
         verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
                   r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
                  (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
@@ -244,10 +137,6 @@ SUITE = {
         argv=["tests/test_vector_integrity.py", "--matrix", "perturbations", "--num_envs", "2",
               "--experiment_name", "suite_vector_perturbations"],
         needs_gpu=True, needs_server=False, timeout=21600, tier="slow",
-        # Matches test_vector_integrity's summary line EXACTLY as printed since the refused count
-        # was added to it (2026-08-19) -- the old `\d+ passed, \d+ known-broken` patterns matched
-        # nothing once "N refused (...)" was inserted between them, so every vector entry ran its
-        # cells and then reported no verdict at all.
         verdict=[(r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
                   r"\d+ known-broken, [1-9]\d* failed", "FAIL"),
                  (r"^\d+ passed, \d+ refused \(intentional NotImplementedError\), "
@@ -270,32 +159,11 @@ SUITE = {
     ),
 }
 
-# Hand-driven debug scripts live in scripts/debug/, not here: they print no verdict and assert
-# nothing, so they cannot be suite entries. (tests/debug_eval.py, a hardcoded duplicate of
-# `02_evaluate.py --task_id 8 --model_type debug`, was deleted 2026-08-18.)
-
-
-# ---------------------------------------------------------------------------------------------
-# LEVELS -- the manual, GPU-side pipeline. A `tier` says what a test NEEDS; a `level` says which
-# gate you are running. They are different axes on purpose: `--only slow` is "the expensive ones",
-# `--level suite` is "the gate before you trust a change".
-#
-# Seconds were measured on 2026-08-16 with MODE=stock on one GPU. They are what the
-# `--level smoke` / `suite` runtime
-# estimates quote, so they must not drift into guesses -- if you re-time the suite, update these
-# from the JSON rather than from memory.
-# ---------------------------------------------------------------------------------------------
 LEVELS = {
-    # The cheap gate: static checks, the scheduling test, one task end to end, and the only test
-    # that looks at the SCENE, at num_envs=2. Catches "the port is broken" in about ten minutes.
-    # NOTE: at MODE=stock this level is EXPECTED TO REPORT 2 FAILURES -- the rubric test (a real
-    # code defect, see its docstring) and test_scene_object_placement, which is MODE-sensitive by
-    # design and only passes under oglite. Measured end to end on 2026-08-16: 705.5 s.
     "smoke": ["test_task_progression_rubrics",   #    0.1 s
               "test_joint_reset_batching",       #   53.6 s
               "test_single_task",                #  223.3 s
               "test_scene_object_placement"],    #  428.5 s   -> 705.5 s (~12 min) total
-    # The gate before trusting a change: every task, every perturbation, both drawer paths.
     "suite": ["test_task_progression_rubrics",   #     0.1 s
               "test_joint_reset_batching",       #    83.4 s
               "test_single_task",                #   223.3 s
@@ -304,19 +172,11 @@ LEVELS = {
               "test_vector_integrity_drawers",   #   635.7 s
               "test_integrity",                  #  1834.8 s
               "test_perturbations_integrity"],   #  2584.3 s   -> ~1.7 h total
-    # The full task x perturbation sweep through the vector path. A half-matrix shard exceeded
-    # 1315 s without a verdict. Budget hours, and
-    # expect to shard it -- test_vector_integrity_tasks_shard0of2 exists for exactly that.
     "matrix": ["test_vector_integrity_tasks",
                "test_vector_integrity_perturbations"],
 }
 
-#: Cells whose SCENE correctness depends on the OmniGibson bind. The v2 image carries most of the
-#: patches but NOT the up-axis fix, which lives only in the OG-lite fork; without it a drawer
-#: scene's cabinet can be mis-oriented while every artifact check still passes. After a
-#: `--level suite` run, re-run these under `--mode oglite` as a second invocation, so the JSON
-#: carries both modes and the
-#: per-result `mode` column says which is which.
+# These scene checks depend on the OG-lite up-axis fix.
 OGLITE_SENSITIVE = ["test_single_task_drawer", "test_vector_integrity_drawers",
                     "test_scene_object_placement"]
 
@@ -387,21 +247,7 @@ def run_one(name, spec, args, outdir):
 
 
 def print_table(results, out, blob, ran=None):
-    """The pass/fail table. Exit codes are shown because they are recorded, not because they gate.
-
-    `ran` is the set of test names THIS invocation actually executed; anything else in `results` was
-    merged in from an earlier invocation against the same --out and is marked `*`, with the counts
-    split. Pass None (--report) to mark nothing, since then nothing was run.
-
-    WHY THE MARK EXISTS. Gating was always correct -- `mine` decides the exit status and the JUnit XML
-    -- but the TABLE printed merged rows indistinguishably and the `PASS=n` line counted them. So
-    `--only local`, which runs two container-free tests, printed a 9-row table ending `PASS=9` including
-    `test_perturbations_integrity PASS 48 cells` from a stale earlier run. On 2026-08-19 that stale row
-    directly contradicted a FAIL measured against the same tree twenty minutes earlier (the B-HOBJ
-    dtype crash), and it read as fresh evidence that the GPU tier was green.
-    In a suite whose first rule is that verdicts come from printed lines and never from exit codes, a
-    printed line that silently mixes this run with an old one is the wrong failure mode.
-    """
+    """Print current results separately from rows merged from earlier runs."""
     if blob:
         print(f"generated {blob.get('generated')}  jobid={blob.get('jobid')}")
     # MODE is per RESULT, never a header field: this file accumulates across invocations and the
@@ -446,31 +292,7 @@ OK_STATUSES = frozenset({"PASS", "SKIP"})
 
 
 def write_junit(results, path, suite_name="realm"):
-    """Emit a JUnit XML report, one <testcase> per suite entry.
-
-    WHY, AND WHY IT IS WRITTEN ONLY AT THE END
-    ------------------------------------------
-    This is the CI GATE, and it is deliberately a different artifact from the JSON, which is the
-    RECORD. The pattern is upstream BEHAVIOR-1K's (.github/workflows/tests.yml): run the tests with
-    `continue-on-error`, then judge on the file --
-
-        if [ ! -f results.xml ]; then echo "probably a segfault"; exit 1
-        elif grep -Eq 'failures="[1-9][0-9]*"|errors="[1-9][0-9]*"' results.xml; then exit 1
-
-    -- because an exit code cannot distinguish "passed" from "died before it could tell you". That
-    is the same hazard REALM has everywhere: Isaac hard-exits 0 on an unhandled exception.
-
-    run_suite.py already survives a CHILD dying: it reads the child's log and matches verdict
-    lines. What it could not signal until now is THE DRIVER ITSELF dying -- an OOM, a walltime
-    kill, a node failure. So the XML is written ONCE, after the last test. If the driver is killed,
-    the XML is absent and CI says so, while the JSON -- rewritten after every test, as before --
-    still holds the complete record of the tests that did finish. Writing the XML incrementally
-    would destroy exactly the signal it exists to carry.
-
-    Status mapping: PASS -> bare testcase; SKIP -> <skipped>; FAIL -> <failure>; TIMEOUT /
-    NO_VERDICT / *_AFTER_TIMEOUT -> <error>, because those mean the harness could not establish an
-    outcome, which is a different thing from the test having failed.
-    """
+    """Write the final CI gate; absence signals that the driver died early."""
     import xml.etree.ElementTree as ET
 
     failures = sum(1 for r in results if r["status"] == "FAIL")

@@ -57,7 +57,7 @@ realm/
 ├── robots/
 │   ├── definitions/           DROID RobotDefinition YAMLs; OG 3.9.1 selects robots by `model`
 │   ├── controller_registry.py registers the four custom controllers + default configs
-│   ├── droid_joint_controller.py / custom_joint_controller.py   joint PD (impedance / plain)
+│   ├── droid_joint_controller.py / individual_joint_pd_controller.py   joint PD (impedance / plain)
 │   ├── droid_ee_controller.py   cartesian EE control; SUPPORTED_MODES = absolute_pose,
 │   │                            pose_delta_ori — the other declared modes fail at construction
 │   ├── droid_gripper_controller.py, gains.py

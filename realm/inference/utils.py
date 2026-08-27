@@ -16,13 +16,11 @@ def get_robot_obs_profile(robot_name):
 
 
 def wrist_camera_obs_key(robot_name):
-    """The obs key extract_from_obs() will read the wrist image from, per the robot's profile."""
     profile = get_robot_obs_profile(robot_name)
     return f"{robot_name}:{profile['wrist_camera_link']}:Camera:{profile['wrist_camera_idx']}"
 
 
 def assert_wrist_camera(robot):
-    """Verify that the configured wrist-camera index resolves to the intended prim."""
     if robot.name not in ROBOT_OBS_PROFILES:
         return None
 

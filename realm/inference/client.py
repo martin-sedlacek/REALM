@@ -1,15 +1,4 @@
-"""Policy inference clients: one adapter per model server type, behind one dispatch point.
-
-`InferenceClient` is the only class the evaluation loops construct (`realm/eval.py`,
-`realm/vector_eval.py`). Its `infer()` signature is the harness-side contract -- everything a
-control step can offer a policy -- and each adapter picks what its server wants out of that and
-speaks the server's own observation format. Adapters not listed in `ADAPTERS` are present but
-deliberately disabled (commit 96d71b0 commented the experimental VLA clients out); registering one
-line re-enables them.
-
-Image sizing is per-adapter and matters: openpi pads to 224x224, DreamZero resizes to 320x180 and
-takes strictly 3-D uint8 numpy arrays.
-"""
+"""Model-specific policy-server adapters."""
 import numpy as np
 from PIL import Image
 import omnigibson as og
@@ -22,7 +11,7 @@ from realm.inference.dreamzero import DreamZeroClient
 class _DebugAdapter:
     """No server: canned actions, so the simulation stack can be tested without a policy."""
 
-    client = None  # no transport; InferenceClient.reset() checks this
+    client = None
 
     def __init__(self, host, port):
         pass
@@ -30,7 +19,6 @@ class _DebugAdapter:
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
               use_base_im_second=False, ee_control=False, cartesian_position=None):
         if ee_control:
-            # A reachable fixed pose in the DROID workspace, gripper closed.
             return np.array([0.41402626, -0.13211727, 0.57253086, -3.09742367, 0.2580259, -0.24700592, -1])
         return np.atleast_1d(np.zeros(8))
 
@@ -71,8 +59,6 @@ class _DreamZeroAdapter:
         assert base_im_second is not None, "DreamZero requires --multi-view (second external camera)"
         assert cartesian_position is not None, "DreamZero requires cartesian_position (robot-relative EE pose)"
 
-        # DreamZero expects 180x320 RGB and strictly numpy arrays
-        # H=180, W=320. Initial frames MUST be strictly 3D (H, W, 3) np.ndarray
         base_im_resized = np.array(Image.fromarray(base_im).resize((320, 180)), dtype=np.uint8)
         base_im_second_resized = np.array(Image.fromarray(base_im_second).resize((320, 180)), dtype=np.uint8)
         wrist_im_resized = np.array(Image.fromarray(wrist_im).resize((320, 180)), dtype=np.uint8)
@@ -89,12 +75,6 @@ class _DreamZeroAdapter:
 
         return self.client.infer(obs_dict)
 
-
-# --------------------------------------------------------------------------------------------
-# DISABLED adapters: experimental VLA clients, commented out of the dispatch in 96d71b0. Kept as
-# working reference code -- registering one in ADAPTERS below re-enables it; do not delete a body
-# without checking whether a cluster script still plans to use that server type.
-# --------------------------------------------------------------------------------------------
 
 class _GR00TAdapter:
     """GR00T v1 over the openpi websocket protocol: 320x180 images, batched keys. DISABLED."""
@@ -134,8 +114,8 @@ class _GR00TN16Adapter:
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
               use_base_im_second=False, ee_control=False, cartesian_position=None):
-        base_im_resized = image_tools.resize_with_pad(base_im, 224, 224)[None, None]   # (1,1,224,224,3)
-        wrist_im_resized = image_tools.resize_with_pad(wrist_im, 224, 224)[None, None]  # (1,1,224,224,3)
+        base_im_resized = image_tools.resize_with_pad(base_im, 224, 224)[None, None]
+        wrist_im_resized = image_tools.resize_with_pad(wrist_im, 224, 224)[None, None]
 
         obs_dict = {
             "observation": {
@@ -180,8 +160,7 @@ class _MolmoActAdapter:
         return pred_action_chunk
 
 
-#: model_type -> adapter. The keys are the ONLY values --model_type accepts end to end; the gripper
-#: convention tables in realm/rollout.py are keyed by the same strings.
+# Keep these keys aligned with the gripper conventions in realm.rollout.
 ADAPTERS = {
     "debug": _DebugAdapter,
     "openpi": _OpenPIAdapter,
@@ -193,12 +172,6 @@ ADAPTERS = {
 
 
 class InferenceClient:
-    """Facade the evaluation loops talk to; dispatches to the adapter for `model_type`.
-
-    `model_type` is taken verbatim from the CLI and never inferred from the model's name. `timeout`
-    is accepted for call-site compatibility but unused -- each transport keeps its own default.
-    """
-
     def __init__(self, model_type, port, host="127.0.0.1", timeout=150.0):
         adapter_cls = ADAPTERS.get(model_type)
         if adapter_cls is None:

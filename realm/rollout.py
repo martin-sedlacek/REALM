@@ -1,15 +1,4 @@
-"""What REALM's two evaluation entry points must agree on.
-
-`realm/eval.py` runs rollouts one at a time in a single environment; `realm/vector_eval.py` runs
-`num_envs` of them concurrently in one simulator. A metric or a convention that drifts between the
-two makes their numbers incomparable, which defeats the point of having a second path, so
-everything shared lives here: what a rollout measures, which control steps render, what a result row
-looks like, and where artifacts land.
-
-Where the two paths legitimately differ, the difference is an argument to something in this module
-rather than a second copy-adapted body -- see `resolve_task`'s `name_includes_config` and
-`Rollout`'s `gripper_inverted`.
-"""
+"""Shared single- and vector-evaluation rollout behavior."""
 from queue import Queue
 from typing import Any, NamedTuple
 
@@ -24,52 +13,25 @@ from realm.realm_logging import append_trajectory, append_video
 CONTROL_HZ = 15.0
 CONTROL_DT = 1.0 / CONTROL_HZ
 
-#: Control steps a rollout keeps running after `task_progression` first reaches 1.0.
 TERMINAL_STEPS = 15
 
-#: A trajectory of this many samples or fewer reports zero for every derived metric, rather than a
-#: velocity/acceleration/jerk taken over one or two points.
 SHORT_TRAJECTORY_SAMPLES = 4
 
-#: Task types that end with the object somewhere rather than in the gripper, so a release over the
-#: target is a placement rather than a drop.
 PLACEMENT_TASK_TYPES = ("put", "stack")
 
 
 def wants_base_im_second(task_type, base_im_second):
-    """Whether this step sends the SECOND exterior camera to the policy instead of the first.
-
-    True only for the drawer tasks, and only when a second camera exists (no ``--multi-view``
-    means ``base_im_second`` is None, and the openpi path would crash resizing None rather than
-    falling back). CAVEAT: this is the repaired reading of a branch that was dead since the
-    project's first commit -- the intent (drawer tasks use camera 2) is clear, the justification
-    is not, and it has never been run.
-    """
+    """Use the second exterior view for drawers when it exists."""
     return task_type in DRAWER_TASK_TYPES and base_im_second is not None
 
 
-#: Policies trained on DROID emit the gripper as (open, closed) = (1, 0); molmoact emits (0, 1).
-#: REALM's gripper controller expects (1, -1).
+# Policy and REALM gripper conventions differ.
 GRIPPER_OPEN_ABOVE_HALF = ("debug", "openpi", "GR00T", "GR00T_N16", "dreamzero")
 GRIPPER_OPEN_BELOW_HALF = ("molmoact",)
 
 
 def resolve_task(task_id, task_cfg_path, supported_tasks, name_includes_config):
-    """Resolve a task selection into (artifact name, task config path).
-
-    The artifact name is the basename every artifact of the run is filed under:
-    ``reports/{name}_{perturbation}.csv`` and ``{qpos,actions,videos}/{name}.parquet``.
-
-    Args:
-        task_id: index into `supported_tasks`; used only when `task_cfg_path` is None.
-        task_cfg_path: explicit config path relative to the config root, e.g.
-            "REALM_DROID10/pick_spoon/no_distractors.yaml". Its parent directory names the task.
-        supported_tasks: the task table, i.e. `realm.eval.SUPPORTED_TASKS`.
-        name_includes_config: append `_{config stem}` for a config file other than default.yaml, so
-            two configs of one task do not overwrite each other's artifacts. True on the single-env
-            path only -- the vector path has never done this, and turning it on would rename the
-            artifacts every vector run has produced so far.
-    """
+    """Resolve the artifact name and task-config path."""
     if task_cfg_path is None:
         task = supported_tasks[task_id]
         return task, f"REALM_DROID10/{task}/default.yaml"
@@ -83,13 +45,7 @@ def resolve_task(task_id, task_cfg_path, supported_tasks, name_includes_config):
 
 
 def gripper_is_inverted(model_type):
-    """Whether `model_type` emits the gripper as (0, 1) rather than (1, 0).
-
-    Raises for a policy REALM has no mapping for, rather than defaulting to either convention: a
-    wrong sign here inverts the gripper for a whole evaluation, which reads as a policy failure
-    rather than a harness bug. `model_type` comes from the CLI verbatim and is never inferred from
-    `--model_name`; `realm.inference.InferenceClient` decides what to do with it.
-    """
+    """Reject unknown gripper conventions instead of silently reversing behavior."""
     if model_type in GRIPPER_OPEN_ABOVE_HALF:
         return False
     if model_type in GRIPPER_OPEN_BELOW_HALF:
@@ -98,21 +54,11 @@ def gripper_is_inverted(model_type):
 
 
 def binarize_gripper(gripper_value, inverted=False):
-    """Map a policy's continuous gripper output onto REALM's (1, -1) open/closed convention.
-
-    The gripper is the last element of the action the policy already emits, and is overwritten in
-    place rather than appended as an extra dimension.
-    """
     is_open = gripper_value < 0.5 if inverted else gripper_value > 0.5
     return 1 if is_open else -1
 
 
 def enqueue_action_chunk(buffer, chunk, horizon):
-    """Queue up to `horizon` actions from one policy prediction.
-
-    A chunk is (chunk_length, action_dim); a policy predicting a single action may return it 1D.
-    Anything with more dimensions is a bug in the client, and trips the assert below.
-    """
     if len(chunk.shape) == 2:
         for action in chunk[:horizon]:
             buffer.put(np.squeeze(action))
@@ -126,11 +72,7 @@ def enqueue_action_chunk(buffer, chunk, horizon):
 
 
 def robot_frame_ee_pose(env, ee_pos, ee_quat):
-    """The end-effector pose as (x, y, z, roll, pitch, yaw) in the robot's frame, float32.
-
-    `env.get_ee_pose()` reports the world frame; policies that condition on cartesian state
-    (DreamZero) want it relative to the robot base.
-    """
+    """Convert OmniGibson's world-frame end-effector pose to the robot frame."""
     position = ee_pos.cpu().numpy() if hasattr(ee_pos, "cpu") else np.array(ee_pos)
     quaternion = ee_quat.cpu().numpy() if hasattr(ee_quat, "cpu") else np.array(ee_quat)
     world_pose = np.concatenate([position, Rotation.from_quat(quaternion).as_euler("xyz")])
@@ -138,11 +80,6 @@ def robot_frame_ee_pose(env, ee_pos, ee_quat):
 
 
 def is_placed_on_target(env):
-    """Whether the task's main object is currently on or inside its target.
-
-    Releasing over the target is a placement; releasing anywhere else is a drop. Only placement
-    tasks have a target to check.
-    """
     if getattr(env, "task_type", None) not in PLACEMENT_TASK_TYPES or len(env.target_objects) == 0:
         return False
     main_object, target = env.main_objects[0], env.target_objects[0]
@@ -194,16 +131,7 @@ class RenderSchedule:
 
 
 class RolloutMetrics:
-    """Everything one rollout accumulates, step by step.
-
-    Collisions are counted as EDGES: a contact that persists for many steps counts once. A drop is
-    a grasp that ended with the object neither on nor inside its target.
-
-    Every quantity here reads physics (object poses, contacts) or proprioception, never camera data,
-    and proprioception stays fresh on a blind step -- so metrics are accumulated on every control
-    step in both rendering modes. The pre-3.9.1 OG-lite path had to carry values forward across
-    blind steps; this one does not.
-    """
+    """Per-rollout metrics; persistent contacts count as one collision."""
 
     def __init__(self):
         self.qpos = []
@@ -221,11 +149,6 @@ class RolloutMetrics:
         self._was_grasping = False
 
     def record_step(self, env, obs, robot_state, gripper_state):
-        """Accumulate one control step's proprioception, collisions and grasp transitions.
-
-        Returns the end-effector pose (position, quaternion) it read, which the caller also needs
-        for the policy's cartesian observation.
-        """
         ee_pos, ee_quat = env.get_ee_pose()
         self.ee_positions.append(ee_pos)
 
@@ -246,11 +169,9 @@ class RolloutMetrics:
         return ee_pos, ee_quat
 
     def record_action(self, action):
-        """Record what the policy produced, before REALM's gripper convention is applied to it."""
         self.actions.append(action)
 
     def record_progression(self, task_progression, step):
-        """Fold in this step's task progression, and count the step."""
         if task_progression > self.task_progression:
             self.task_progression = task_progression
             self.progression_timestamps.append(step)
@@ -260,13 +181,10 @@ class RolloutMetrics:
 
     @property
     def is_finished(self):
-        """Whether the task has now been complete for `TERMINAL_STEPS` control steps."""
         return self.terminal_steps <= 0
 
 
 class PolicyObservation(NamedTuple):
-    """What one control step read out of an observation: the policy's inputs, plus the eef pose."""
-
     base_im: Any
     base_im_second: Any
     wrist_im: Any
@@ -277,15 +195,7 @@ class PolicyObservation(NamedTuple):
 
 
 class Rollout:
-    """One rollout in flight: its action buffer, its metrics and its video recorder.
-
-    The single-env path holds one of these and steps it to completion; the vector path holds
-    `num_envs` and steps them together. `active` goes False once the rollout is over -- which the
-    vector path needs, because `og.sim.step()` advances every scene regardless and a finished member
-    cannot simply stop.
-
-    `gripper_inverted` selects the policy's gripper convention; see `binarize_gripper`.
-    """
+    """State for one rollout in a single or vector evaluation."""
 
     def __init__(self, env, run_id, recorder=None, gripper_inverted=False):
         self.env = env
@@ -298,12 +208,7 @@ class Rollout:
         self.active = True
 
     def observe(self, obs, obs_is_fresh):
-        """Take this control step's metrics and video frame out of `obs`.
-
-        `obs_is_fresh` says whether `obs` carries a newly rendered camera frame. Under
-        render-on-demand it does not on every step, and recording the blind steps in between would
-        pad the mp4 with duplicates of the last rendered frame.
-        """
+        """Skip duplicate video frames during render-on-demand evaluation."""
         base_im, _, base_im_second, _, wrist_im, robot_state, gripper_state = extract_from_obs(
             obs, robot_name=self.env.robot.name)
         ee_pos, ee_quat = self.metrics.record_step(self.env, obs, robot_state, gripper_state)
@@ -315,11 +220,6 @@ class Rollout:
                                  ee_pos, ee_quat)
 
     def act(self, observation, client, horizon):
-        """Pop the next action, running inference first if the action buffer ran dry.
-
-        Returns the command to send to the simulator: the policy's action with REALM's gripper
-        convention applied to its last element.
-        """
         if self.action_buffer.empty():
             env = self.env
             chunk = client.infer(
@@ -341,23 +241,16 @@ class Rollout:
         return command
 
     def record_progression(self, task_progression, step):
-        """Fold in this step's task progression. Returns whether the rollout is still active."""
         self.metrics.record_progression(task_progression, step)
         if self.metrics.is_finished:
             self.active = False
         return self.active
 
     def needs_fresh_obs(self):
-        """Whether this rollout's next step feeds inference, and so needs a rendered observation."""
         return self.action_buffer.empty()
 
 
 def joint_space_metrics(qpos):
-    """Smoothness and path metrics over the arm's joint trajectory.
-
-    `qpos` is the (N, 8) stack of seven arm joints plus the gripper state; only the arm joints
-    enter these.
-    """
     joints = qpos[:, :7]
     if len(joints) <= SHORT_TRAJECTORY_SAMPLES:
         return {"joint_vel_var": 0.0, "joint_acc_var": 0.0,
@@ -375,7 +268,6 @@ def joint_space_metrics(qpos):
 
 
 def cartesian_metrics(ee_positions):
-    """Smoothness and path metrics over the end-effector's world-frame path."""
     positions = np.stack(ee_positions)
     if len(positions) <= SHORT_TRAJECTORY_SAMPLES:
         return {"cart_jerk": 0.0, "cart_path_length": 0.0}
@@ -390,7 +282,6 @@ def cartesian_metrics(ee_positions):
 
 
 def first_incomplete_stage(env):
-    """The first task stage still unmet; "SUCCESS" if none are, "N/A" if the task has no rubric."""
     if env.task_progression is None:
         return "N/A"
     for stage, is_completed in env.task_progression.items():
@@ -400,22 +291,13 @@ def first_incomplete_stage(env):
 
 
 def corrected_drops(metrics, env):
-    """Drop count, less the release that completed a placement task.
-
-    A completed put/stack ends in a release, which `RolloutMetrics.record_step` may already have
-    counted as a drop. Floored at zero.
-    """
     if metrics.task_progression == 1.0 and getattr(env, "task_type", None) in PLACEMENT_TASK_TYPES:
         return max(0, metrics.drops - 1)
     return metrics.drops
 
 
 def build_result_entry(rollout, task, perturbation, model_type):
-    """One row of the run report, plus the trajectory arrays the parquets carry.
-
-    Key order is the CSV column order: `realm_logging.save_results` takes its fieldnames from this
-    dict, and downstream tooling reads the report by column.
-    """
+    """Build an ordered report row and its trajectory payloads."""
     env, metrics = rollout.env, rollout.metrics
     qpos = np.stack(metrics.qpos)
     joint = joint_space_metrics(qpos)

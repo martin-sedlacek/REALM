@@ -1,10 +1,4 @@
-"""Fixes applied to a freshly loaded scene and robot, before any rollout runs.
-
-Each of these runs exactly once per environment, between ``og.Environment`` building the scene and
-the first ``reset()``. ``RealmEnvironmentDynamic.post_play_setup()`` orders them for a single env;
-``RealmVectorEnvironment.__init__`` drives the same ones itself so it can batch the global stop/play
-cycle ``apply_scene_fixes_from_cfg`` needs into one cycle for all members.
-"""
+"""Post-load scene and robot corrections."""
 import numpy as np
 import yaml
 
@@ -14,19 +8,9 @@ from omnigibson.utils.usd_utils import create_joint
 
 
 class SceneSetupMixin:
-    """Post-load corrections to the scene and the robot.
-
-    Expects the host to provide ``config_path``, ``scene_model``, ``scene_part``, ``robot_name``,
-    ``robot``, ``cfg`` and ``omnigibson_env``.
-    """
 
     def update_robot_physics(self):
-        """Author the arm's joint friction/armature and make its collision meshes convex.
-
-        Matches on the DROID PREFIX, not on the config literally named "DROID". The robolab asset
-        was silently skipped here, so its arm ran with zero armature -- no rotor inertia against a
-        stiff impedance law -- and the wrist would not hold a commanded pose.
-        """
+        """Apply DROID physics properties required by OmniGibson."""
         if not self.robot_name.startswith("DROID"):
             return
 
@@ -41,7 +25,6 @@ class SceneSetupMixin:
             self._convexify_dynamic_collision_meshes()
 
     def _author_arm_joint_physics(self, joint_names, friction, armature):
-        """Write config/robots/<robot>.yaml's friction and armature onto the seven arm joints."""
         for idx in range(7):
             prim_path = f"{self.robot.prim_path}/panda_link{idx}/{joint_names['0'][idx]}"
             joint_prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(prim_path)
@@ -58,7 +41,6 @@ class SceneSetupMixin:
                 attr.Set(float(value))
 
     def _convexify_dynamic_collision_meshes(self):
-        """Triangle-mesh collision approximations are not valid for dynamic bodies."""
         for link_name, link in self.robot.links.items():
             for collision_mesh in link.collision_meshes.values():
                 prim = lazy.omni.isaac.core.utils.prims.get_prim_at_path(collision_mesh.prim_path)
@@ -68,62 +50,15 @@ class SceneSetupMixin:
                         prim.GetAttribute("physxMeshCollision:approximation").Set("convexHull")
 
     def restore_double_duty_render_purpose(self):
-        """Un-hide geometry that is BOTH the collider and the visual mesh.
+        """Restore render purpose when OmniGibson hides double-duty collision meshes.
 
-        WHAT BREAKS. ``RigidPrim._post_load`` classifies every geom under a link as collision or
-        visual, and writes ``purpose = "guide"`` on the collision ones
-        (``omnigibson/prims/rigid_prim.py:242``). ``guide`` never reaches the colour pass, which is
-        correct for a dedicated collider sitting next to a separate visual mesh -- the shape every
-        BEHAVIOR asset has, because ``convert_urdf_to_usd`` emits ``visuals/`` and ``collisions/``
-        Xforms per link.
-
-        REALM's own assets do not have that shape. ``custom_assets/impact_drawer/usd/cabinet.usd``
-        applies ``UsdPhysics.CollisionAPI`` directly to its render meshes -- one mesh does both jobs
-        -- so OmniGibson guides the only geometry the link has and the object becomes INVISIBLE
-        while staying fully physical. Measured on og391, task 8, over the live stage: all 56 geoms
-        `guide`, the ``default``+``render`` purpose world bound EMPTY, the ``guide`` bound
-        (0.512, 0.669, 0.545); hiding the cabinet changed 27-182 px (the rt noise floor) where
-        hiding the breakfast table changed 245,182; and with every other object hidden the cabinet
-        still contributed 0 px on all three cameras.
-
-        WHY 1.1.1 DREW IT ANYWAY, i.e. why this is a port regression and not a long-standing bug.
-        Two independent changes, and this asset is hit by both:
-
-          * DEPTH. 1.1.1 scanned exactly two levels below each link. 55 of the 56 geoms -- including
-            all five drawer render meshes at ``drawer_blender_cut_0N/ObjectCapture/Geometry/Mesh/
-            Mesh`` -- sit FOUR levels down, so 1.1.1 never visited them and never wrote a purpose.
-            og391's ``_find_geom_prims`` recurses without a depth limit and reaches them.
-          * INHERITANCE. og391 makes its ``is_collision`` flag sticky down the recursion, so a
-            CollisionAPI on an ancestor Xform marks every mesh beneath it. That, not its own API, is
-            what guides the cabinet BODY (``base_link/Geometry_01/Object_Geometry_02``, which has no
-            CollisionAPI of its own and inherits from ``base_link``).
-
-        THE CRITERION, and why it cannot un-hide a real collider. A link is only touched when
-        OmniGibson left it with NO visual meshes at all -- meaning every geom it has was classified
-        collision, so the link would render nothing and its colliders must be doing double duty.
-        Any asset with dedicated visual geometry has a non-empty ``visual_meshes`` and is skipped
-        outright, so this is a no-op on every BEHAVIOR object and on the robot. Within a qualifying
-        link, a geom whose OWN layer authored ``guide`` keeps it: the asset's ``collider_guide`` /
-        ``Cube`` helpers were meant to be hidden and stay hidden. The authored opinion is read off
-        the property stack's first non-anonymous layer, so it survives OmniGibson having already
-        written ``guide`` into the anonymous session layer above it -- and it is the asset's own
-        value that gets restored, not a hardcoded ``default`` (the drawer handles author ``render``).
-
-        RENDER-ONLY. ``purpose`` is a ``UsdGeom.Imageable`` attribute. The CollisionAPI, the
-        contact/rest offsets, the collision approximation and the link centre-of-mass are all left
-        exactly as OmniGibson set them; this writes nothing else. Verified bitwise: joint positions,
-        joint velocities and every link pose of both the cabinet and the robot are identical across
-        the writes, with no simulation step in between.
+        Dedicated visual meshes are left untouched. Asset-authored ``guide`` opinions are also
+        preserved; PXR's property stack distinguishes them from OG's anonymous runtime override.
         """
         Usd, UsdGeom = lazy.pxr.Usd, lazy.pxr.UsdGeom
 
         def asset_authored_purpose(prim):
-            """The `purpose` opinion from the asset's own (non-anonymous) layer, or None.
-
-            OmniGibson's runtime write lands in an anonymous session layer, so a plain
-            `GetPurposeAttr().Get()` returns `guide` for everything and cannot distinguish "the
-            author hid this" from "OmniGibson hid this". The property stack still carries both.
-            """
+            """Read purpose below OmniGibson's anonymous session override."""
             attr = UsdGeom.Imageable(prim).GetPurposeAttr()
             if not attr:
                 return None
@@ -140,7 +75,6 @@ class SceneSetupMixin:
         with og.sim.editing_usd():
             for obj in objects:
                 for link_name, link in (getattr(obj, "links", None) or {}).items():
-                    # Dedicated visual geometry exists -> OmniGibson's guiding is right. Skip.
                     if link.visual_meshes:
                         continue
                     for mesh in link.collision_meshes.values():
@@ -161,11 +95,7 @@ class SceneSetupMixin:
         return restored, kept_guide
 
     def apply_scene_fixes_from_cfg(self, manage_sim_state=True):
-        """Pin or delete the scene objects that config/scenes/scenes.yaml lists for this scene part.
-
-        Adding and removing objects needs a STOPPED sim. @manage_sim_state=False leaves the cycle to
-        the caller, which is how RealmVectorEnvironment runs one cycle for all members instead of N.
-        """
+        """Apply object changes while OmniGibson is stopped."""
         spawn_cfg = yaml.load(open(f"{self.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)
 
         if self.scene_model in spawn_cfg and self.scene_part in spawn_cfg[self.scene_model]:
@@ -188,22 +118,10 @@ class SceneSetupMixin:
                 og.sim.play()
 
     def rebase_initial_file(self):
-        """Make the scene AS FIXED the one reset() restores.
-
-        og.Environment.post_play_load() captures scene._initial_file BEFORE
-        apply_scene_fixes_from_cfg ever runs, so it still lists every object the scene config asked
-        to REMOVE and the first reset undoes the removal. Re-capturing here makes the fixed scene
-        the baseline, so restore() has nothing to add -- which also removes a per-member stop/play
-        cycle from a vector env's first reset.
-
-        Separate from apply_scene_fixes_from_cfg's body rather than at its tail because Scene.save()
-        asserts a non-stopped sim (it dumps joint state) -- the fixes themselves run stopped, and a
-        vector env runs them for every member inside ONE stopped window and plays once afterwards.
-        """
+        """Rebase after scene fixes because OG captures its reset file before them."""
         self.omnigibson_env.scene.update_initial_file()
 
     def disable_visual_toggles(self):
-        # TODO: (martin) for pre-baked OG switches on walls their rotation seems off so we cannot use those without the visual toggle...
         for obj in self.omnigibson_env.scene.objects:
             if og.object_states.ToggledOn in obj.states:
                 obj.states[og.object_states.ToggledOn].visual_marker.visible = False

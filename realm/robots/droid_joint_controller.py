@@ -31,7 +31,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
     than re-deriving it in batched form.
 
     Registered as `CustomJointController`, not under its own class name -- `IndividualJointPDController`
-    resolves to the scalar-gain controller in `custom_joint_controller.py`. See
+    resolves to the scalar-gain controller in `individual_joint_pd_controller.py`. See
     `controller_registry.py`.
 
     The pre-3.9.1 version also overrode `clip_control`, but that override clipped to exactly the same
