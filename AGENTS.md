@@ -25,6 +25,14 @@ Use `--mode oglite` when validating scene correctness. GPU work requires the con
 
 Use four-space indentation and conventional Python naming: `snake_case` for modules, functions, and variables; `PascalCase` for classes; and `UPPER_CASE` for constants. Keep configuration names aligned with existing YAML identifiers. Prefer shared behavior in `realm/rollout.py` over duplicating logic between single and vector evaluation. Do not reorder or remove random draws without treating the change as a benchmark-semantic modification.
 
+Keep source comments brief and human-facing. Explain only non-obvious constraints; put investigation history in `docs/` and operator guidance in `wiki/`. Important maintenance invariants are:
+
+- OmniGibson simulator play, stop, render, and physics steps are global across vector members.
+- Object placement coordinates are scene-relative unless a call explicitly uses the world frame.
+- Wrist-camera indices follow sensor creation order and must match each robot config's sensor filter.
+- Task-progression dictionaries are mutable and must not be shared between environments.
+- Preserve historical controller booleans and RNG draw order unless the change is explicitly reviewed as benchmark-semantic.
+
 ## Testing Guidelines
 
 Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run the tier-1 commands above, or invoke only the four host-safe pytest modules by name (`test_perturbation_task_types`, `test_cell_classification`, `test_robot_base_column`, `test_robot_definition_parity`). Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.

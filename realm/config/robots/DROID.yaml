@@ -19,26 +19,8 @@ robots:
             control_freq: 15
             use_delta_commands: False
             use_impedances: True
-            # REGRESSION FIX (2026-08-11): this said `False,` -- with a trailing comma, which YAML
-            # parses as the STRING "False," and bool("False,") is True. Harmless while the flag was
-            # ignored; dc7b6f8 implemented it in droid_joint_controller.py:176-213, which silently
-            # turned gravity compensation ON for every DROID variant. Measured on the stock asset:
-            # ON -> task_progression 0.000 with ee_z pinned at 1.493 (the arm never descends);
-            # OFF -> the arm reaches the block, ee_z_min 0.970. Keep this a real boolean.
             use_gravity_compensation: false
-            # NOT corrected on purpose. The same trailing-comma typo makes this the truthy string
-            # "False,", so Coriolis/centrifugal compensation is effectively ON -- and has been for
-            # EVERY historical REALM result, including the 1.1.1 SR 0.88-1.00 runs and og391's
-            # SR 0.40; unlike gravity comp, cc was already applied pre-3.9.1. Making it
-            # a real `false` would change a control hyperparameter relative to every validated run.
-            # Measured indistinguishable from ON at n=1 (task_progression 0.200 either way). Needs a
-            # human decision, not a silent flip.
-            # NOTE: this reads `true`, and that is not a change in behaviour. It was written
-            # `False,` -- with a trailing comma, which YAML parses as the *string* "False,",
-            # which is truthy -- so Coriolis/centrifugal compensation has in fact been ON for
-            # every REALM result, including the 1.1.1 runs. (The controllers also default it
-            # to True.) Written explicitly so the file says what it does; flipping it to a
-            # real `false` would be a control-hyperparameter change, not a bug fix.
+            # Historical configs used a truthy "False," string; true preserves that behavior.
             use_cc_compensation: true
             Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
             Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
@@ -51,32 +33,11 @@ robots:
         gripper_0:
           name: "CustomGripperController"
           mode: "binary"
-          # No open_qpos/closed_qpos and no `inverted` override, and that is CORRECT for this asset
-          # -- measured, not assumed. Recorded 2026-08-16 with MODE=oglite on a live mounted build
-          # (verified against the stock gripper grasp path):
-          #
-          #   gripper DOF limits  prismatic [0, 0.05] m,  revolute [0, 0.7854] rad
-          #   REALM action -1     -> lower limits [0,0,0,0]          -> jaw 80.1 mm  (OPEN)
-          #   REALM action +1     -> upper limits [0.05,0.05,.785,.785] -> jaw  7.1 mm  (SHUT)
-          #
-          # so the joints' UPPER limit is the closed grasp, which is what the controller's
-          # target>=0 branch sends them to. `inverted` would break it, not fix it.
-          #
-          # THE NAMES LIE, HERE AND IN THE CONTROLLER -- this is what makes it easy to get backwards
-          # and cost a day: rollout.binarize_gripper calls +1 "open" (`is_open = value > 0.5`) and
-          # droid_gripper_controller calls the same branch `should_open`, but REALM's +1 is CLOSE.
-          # DROID_mounted.yaml says the same thing about the same branch. Trust the measurement,
-          # not the identifier. "Pads in mutual contact" is the geometry-free check; link-origin
-          # separation happens to agree for this asset (origins sit 133.3 mm from panda_link8, on
-          # the pads) but that is exactly the measurement that read BACKWARDS on robolab.
     sensor_config:
       VisionSensor:
         sensor_kwargs:
           image_height: 720
           image_width: 1280
           focal_length: 2.8
-          # Must be set explicitly for OG >= 3.9.1: VisionSensor now writes horizontalAperture
-          # at init (defaulting to 20.995) instead of leaving whatever the camera prim authored.
-          # The wrist camera in droid.usd authors 5.376 x 3.024, i.e. an 87.7 deg HFOV; letting
-          # OmniGibson default it blows the wrist view up to ~150 deg.
+          # Override OmniGibson's wider default aperture.
           horizontal_aperture: 5.376

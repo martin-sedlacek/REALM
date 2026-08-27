@@ -1,10 +1,4 @@
-"""Global simulator and renderer configuration.
-
-Two separate concerns that both have to happen before/around env creation:
-  set_sim_config()     -- OmniGibson macros (frequencies, object states, seeding). Must run
-                          BEFORE og.Environment() is constructed, since the macros are read there.
-  set_rendering_mode() -- carb RTX settings. Applied after the env exists.
-"""
+"""Global simulator and renderer configuration."""
 import os
 import random
 
@@ -16,7 +10,7 @@ from omnigibson.macros import gm
 
 
 def set_sim_config(robot="DROID"):
-    if robot == "WidowX": # TODO: just read this from the yamls...
+    if robot == "WidowX":
         gm.DEFAULT_SIM_STEP_FREQ = 5
         gm.DEFAULT_RENDERING_FREQ = 5
     elif "UR5" in robot:
@@ -27,64 +21,20 @@ def set_sim_config(robot="DROID"):
         gm.DEFAULT_RENDERING_FREQ = 15
 
     gm.DEFAULT_PHYSICS_FREQ = 120
-    gm.ENABLE_TRANSITION_RULES = False # this needs to be off to avoid bug with sludge state during collision: https://github.com/StanfordVL/BEHAVIOR-1K/issues/1201
-    gm.ENABLE_OBJECT_STATES = True # this needs to be on because push_switch task usees the ToggledOn state
-    # Of the 13 state types OmniGibson steps every frame, ToggledOn is the only one REALM reads. The
-    # rest are pure overhead in a kitchen scene, and several are expensive: HeatSourceOrSink issues a
-    # PhysX overlap query per heat source per step (stove/oven/microwave/fridge), AttachedTo does a
-    # full-row contact scan per attachable object, and Temperature/MaxTemperature run a tensorized
-    # update over every object in the scene.
-    #
-    # Safe because Touching / OnTop / Inside -- the states REALM actually queries -- are computed on
-    # demand via KinematicsMixin and never appear in the per-step update list. Every state type is
-    # still globally initialized, so on-demand queries are unaffected.
-    #
-    # The one capability this removes is water: ParticleSource/ParticleSink stop producing, so a
-    # faucet would no longer run. No REALM task uses one.
+    # Transition rules trigger an upstream sludge-state collision bug.
+    gm.ENABLE_TRANSITION_RULES = False
+    gm.ENABLE_OBJECT_STATES = True
+    # ToggledOn is the only state REALM updates each frame; kinematic states remain on demand.
     gm.OBJECT_STATE_UPDATE_WHITELIST = ["ToggledOn"]
-    # Texture/emitter updates for Cooked, Burnt, Frozen, OnFire etc. Nothing REALM renders depends on
-    # them, and the sweep touches every initialized object in the scene each step.
     gm.ENABLE_VISUAL_UPDATES = False
-    # OG-lite-only macro: folds each physics substep into (R, C) accumulators instead of
-    # materializing an (N, R, C) stack per step. Stock OmniGibson never reads it, so setting it in
-    # the stock container is a harmless no-op.
-    #
-    # ON by default as of 2026-08-13. Evidence:
-    #   - correctness: OG-lite's tests/test_contact_cache_equivalence.py drives the real methods with
-    #     synthetic view data and asserts BIT-IDENTICAL matrices -- 16/16 pass across 5 seeds x
-    #     {1,2,8} substeps, plus the nothing-folded no-op case;
-    #   - runtime: clean across 4 pi0.5 rollouts and several debug runs, all four artifacts written,
-    #     collisions row matching the stock container;
-    #   - speed: -31% of Simulator.step median under pi0.5, -9% under debug (the fold's value scales
-    #     with contact load).
-    # Set REALM_INCREMENTAL_CONTACT_CACHE=0 to go back to the batched path.
     gm.INCREMENTAL_CONTACT_CACHE = os.environ.get("REALM_INCREMENTAL_CONTACT_CACHE", "1") == "1"
-    # OG-lite drops bodies further than PROXIMITY_GATE_RADIUS from every robot out of the contact
-    # matrix. It already defaults ON in OG-lite; pinned explicitly here so REALM's behaviour does not
-    # silently follow a change to the fork's default. Set REALM_PROXIMITY_GATE=0 to rule it out if
-    # contact-dependent metrics (collisions_env, is_grasping) start behaving oddly.
-    #
-    # TURN THIS OFF FOR MOBILE MANIPULATION: gate membership is fixed when the contact view is built,
-    # so a base that drives across the room keeps the membership it had at initialization.
+    # Proximity-gate membership is fixed at initialization; disable it for mobile robots.
     gm.PROXIMITY_GATE_ENABLED = os.environ.get("REALM_PROXIMITY_GATE", "1") == "1"
-    # Which device runs rigid-body physics. OmniGibson defaults this to False, i.e. the CPU solver
-    # with the MBP broadphase; True switches PhysX to GPU dynamics with the GPU broadphase
-    # (simulator.py: enable_gpu_dynamics / set_broadphase_type). Unlike the two macros above this is
-    # NOT an OG-lite addition -- it is stock 3.9.1 and works in either container.
-    #
-    # Two things to know before using it:
-    #   - it changes the solver, so trajectories are not bit-identical to a CPU run and results are
-    #     not directly comparable to CPU-collected baselines;
-    #   - the GPU path is bounded by gm.GPU_*_CAPACITY macros. If a scene exceeds them PhysX warns
-    #     and can drop contacts rather than failing, so check the log for capacity messages before
-    #     trusting collision-dependent metrics.
-    # Off by default; export REALM_GPU_DYNAMICS=1 to switch.
+    # GPU dynamics changes trajectories and is therefore opt-in.
     if "REALM_GPU_DYNAMICS" in os.environ:
         gm.USE_GPU_DYNAMICS = os.environ["REALM_GPU_DYNAMICS"] == "1"
     gm.RENDER_VIEWER_CAMERA=False
-    # OG 3.9.1 asserts that isosurface HQ rendering runs at >=60 FPS, but REALM renders at 5-30 Hz
-    # (see above), so enabling it aborts at env creation. Disabled unconditionally until the
-    # rendering frequency is raised to 60.
+    # OmniGibson requires at least 60 Hz for HQ isosurface rendering.
     gm.ENABLE_HQ_RENDERING = False
 
     seed = 1234
@@ -109,7 +59,6 @@ def set_rendering_mode(rendering_mode):
                 )
             carb_settings.set_bool("/rtx/pathtracing/optixDenoiser/enabled", True)
 
-        #carb_settings.set("/persistent/omnihydra/useSceneGraphInstancing", True)
         enable_interactive_path_tracing(carb_settings, samples_per_pixel=8)
     elif rendering_mode == "r":
         carb_settings.set_string("/rtx/rendermode", "RaytracedLighting")

@@ -1,24 +1,11 @@
-"""Turning object configs into collision-free scene placements.
-
-Two cfg dict shapes flow through this module, and they are NOT interchangeable:
-
-* task/sampled configs (what the placement pass consumes):
-  ``{"name", "category", "model", "position", "orientation", "bounding_box", ...}`` --
-  "bounding_box" is an EXTENT (a size, like the ``[0.20, 0.20, 0.07]`` the task YAMLs write) and
-  "position" is SCENE-relative;
-* the read-back configs `get_default_objects_cfg` returns:
-  ``{"category", "pos", "ori", "bounding_box", "relative_prim_path"}``, keyed by object name.
-"""
+"""Collision-free placement of task objects."""
 import numpy as np
 
 import omnigibson as og
 from omnigibson.objects import DatasetObject
 from omnigibson.scenes.interactive_traversable_scene import InteractiveTraversableScene
 
-#: Extent assumed for an object whose cfg carries no "bounding_box" (metres).
 DEFAULT_BBOX_EXTENT = (0.08, 0.08, 0.08)
-
-#: How far above the surface an unplaceable object is dropped from (metres).
 DROP_HEIGHT = 0.1
 
 
@@ -33,15 +20,7 @@ def get_objects_by_names(scene: InteractiveTraversableScene, names: list[str]) -
 
 
 def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: list[str]) -> dict[str, dict]:
-    """Read category/pose/AABB off the live objects, parking each ~20 m up to measure it.
-
-    SIDE EFFECT: every object is teleported ~20 m above its own scene, its AABB read with
-    neighbours out of contact, and then restored to where it was. One og.sim.step() (or render()
-    when the sim is stopped) runs per object to flush the pose before the read.
-
-    Returns ``{object name: {"category", "pos", "ori", "bounding_box", "relative_prim_path"}}`` --
-    note the "pos"/"ori" keys: this is NOT the task-config dict shape (see the module docstring).
-    """
+    """Measure live object poses and AABBs without neighbouring contacts."""
     objects = get_objects_by_names(scene, object_names)
     cfgs = {}
     for obj in objects:
@@ -52,18 +31,10 @@ def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: li
             "relative_prim_path": obj._relative_prim_path
         }
 
-        # frame="scene", so "clear of everything" means clear of the object's OWN scene. In world
-        # frame these coordinates land in scene 0's airspace no matter which scene the object
-        # belongs to -- vector-env scenes are tiled ~25 m apart along +x, so every member's object
-        # would be parked in the same column above member 0, measuring a spot other members are
-        # also using.
+        # Park in the object's scene frame so vectorized scenes remain isolated.
         far_pos = np.random.random((3,)) * 3 + np.array([0, 0, 20])
         obj.set_position_orientation(position=far_pos, orientation=[0, 0, 0, 1], frame="scene")
-        # Flush the pose change before reading the AABB -- this is not a physics settle. OG 3.9.1
-        # asserts is_playing() inside step(), and callers such as V-SC run this while the simulator
-        # is stopped (it has to be, to add/remove objects). Render instead when stopped: it
-        # propagates the transform without advancing physics, and 3.9.1 computes the AABB from live
-        # collision points.
+        # Flush transforms without stepping a stopped simulator.
         if og.sim.is_playing():
             og.sim.step()
         else:
@@ -83,13 +54,7 @@ def _half_footprint(cfg):
 
 
 def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim):
-    """Split @obj_cfg into pre-placed footprints and (cfg, index) pairs still needing a position.
-
-    Main objects keep their authored position and full-size footprint, and must already carry
-    "position" and "bounding_box" (backfill them from the live objects first -- see
-    perturbations/_helpers.backfill_object_cfgs). Skipped objects also stay where they are, but
-    their footprint is shrunk to @maximum_dim and defaulted to DEFAULT_BBOX_EXTENT when absent.
-    """
+    """Separate fixed footprints from objects that still need positions."""
     placed_objects_info = []
     objects_to_randomly_place = []
 
@@ -110,10 +75,7 @@ def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim)
                 max_dim = np.max(np.array(cfg["bounding_box"]))
                 new_scale_factor = maximum_dim / max_dim
                 if new_scale_factor < 1.0:
-                    # Footprint only: the LIVE object is deliberately not rescaled here (unlike
-                    # object_sampling.rescale_to_max_dim), so an oversized skipped object keeps its
-                    # size but reserves a smaller footprint. Pre-existing behaviour, kept because
-                    # changing it would move every placement drawn since.
+                    # Preserve the historical footprint-only scaling.
                     cfg["bounding_box"] = np.array(cfg["bounding_box"]) * new_scale_factor
 
             if "position" not in cfg or len(cfg["position"]) < 2:
@@ -131,11 +93,7 @@ def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim)
 
 def _sample_free_position(placed, half_width, half_depth,
                           xmin, xmax, ymin, ymax, min_separation, max_attempts):
-    """A uniformly drawn (x, y) whose @min_separation-padded footprint clears everything in @placed.
-
-    Returns None after @max_attempts rejections. Draws exactly two np.random.uniform values per
-    attempt -- callers rely on this draw order for reproducibility.
-    """
+    """Sample a clear XY position while preserving RNG draw order."""
     for _ in range(max_attempts):
         x_center = np.random.uniform(xmin + half_width, xmax - half_width)
         y_center = np.random.uniform(ymin + half_depth, ymax - half_depth)
@@ -160,19 +118,7 @@ def get_non_colliding_positions_for_objects(
         objects_to_skip=None,
         maximum_dim=0.12
 ):
-    """Give every cfg in @obj_cfg a collision-free "position" inside [xmin..xmax] x [ymin..ymax].
-
-    MUTATES @obj_cfg's dicts in place AND returns the same list -- the entries are aliased, not
-    copied, so a caller that must not see its configs rewritten has to deepcopy first (v_sc does).
-    Placement is rejection sampling in the XY plane over axis-aligned footprints; "bounding_box"
-    is an EXTENT and "position" is SCENE-relative (see the module docstring).
-
-    @main_object_names keep their authored positions and full footprints. @objects_to_skip stay
-    put too, but get their footprint shrunk to @maximum_dim. Everything else is shuffled and
-    placed at height @z. An object that cannot be placed within @max_attempts_per_object attempts
-    is dropped from the air: it gets a random position at z + DROP_HEIGHT regardless of overlap,
-    and an error is logged.
-    """
+    """Mutate configs with collision-free scene-relative positions."""
     if objects_to_skip is None:
         objects_to_skip = []
 
@@ -204,11 +150,7 @@ def get_non_colliding_positions_for_objects(
 
 
 def place_within(spawn_bbox, obj_cfg, **kwargs):
-    """get_non_colliding_positions_for_objects over a spawn_bbox of [xmin, xmax, ymin, ymax, z].
-
-    @spawn_bbox is the 5-element array env_config builds from scenes.yaml (env.spawn_bbox); every
-    other argument passes through unchanged.
-    """
+    """Place objects within ``[xmin, xmax, ymin, ymax, z]``."""
     xmin, xmax, ymin, ymax, z = spawn_bbox
     return get_non_colliding_positions_for_objects(
         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, z=z, obj_cfg=obj_cfg, **kwargs)

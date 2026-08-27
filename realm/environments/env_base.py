@@ -1,20 +1,13 @@
-"""The task-agnostic half of a REALM environment.
-
-``RealmEnvironmentBase`` owns what a rollout is SCORED against: the start-of-rollout reference pose
-of the main object, and the robot/contact predicates the stage checkers call. The stages themselves
-live in ``task_progression.py``; the drawer reset in ``joint_reset.py``; building the scene all of
-this reads is ``env_dynamic.py``'s job.
-"""
+"""Task-independent environment state and scoring helpers."""
 import numpy as np
 
 import omnigibson as og
-from omnigibson.utils.usd_utils import RigidContactAPI  # replaces ContactBodies, removed in OG 3.9.1
+from omnigibson.utils.usd_utils import RigidContactAPI
 
 from realm.environments.contact_utils import get_impulse_contacts
 from realm.environments.joint_reset import JointResetMixin
 from realm.environments.task_progression import TaskProgressionMixin
-# Imported from the module rather than the package so that pulling in a REALM environment does not
-# also pull in the inference client and its transport deps.
+# Avoid importing inference transport dependencies through the package.
 from realm.inference.utils import get_robot_obs_profile
 from realm.robots.controller_registry import register_realm_controllers
 
@@ -27,15 +20,10 @@ from realm.environments.joint_reset import (  # noqa: F401
 )
 from realm.environments.task_progression import TASK_PROGRESS_RUBRICS  # noqa: F401
 
-# OG 3.9.1 requires a default controller config entry per custom controller, not just a
-# REGISTERED_CONTROLLERS entry -- see realm/robots/controller_registry.py.
 register_realm_controllers()
 
 
 class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
-    # Per-instance in practice -- RealmEnvironmentDynamic.__init__ sets it before og.Environment is
-    # built -- but declared here because RealmEnvironmentBase.__init__ itself calls reset_joints(),
-    # which has to read it.
     in_vec_env = False
 
     def __init__(
@@ -49,12 +37,10 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         self.main_objects = main_objects
         self.target_objects = target_objects
 
-        # Build-time seed only. Correct while main_objects[0] is still the object the task config
-        # declared, which stops being true the moment a perturbation swaps it -- every reset
-        # re-takes these from the live object via capture_mo_reference() below.
+        # Reset refreshes pose references after perturbations replace the main object.
         self.mo_pos_orig = np.array(mo_cfgs[0]["position"])
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
-        # Build-time and STAYS build-time, unlike the two above. See capture_mo_reference().
+        # Bounding-box perturbations remain anchored to the authored size.
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
 
         self.task_type = task_type
@@ -65,39 +51,9 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         self.reset_joints()
 
     def capture_mo_reference(self):
-        """Re-take mo_pos_orig / mo_rot_orig from whatever main_objects[0] points at RIGHT NOW.
-
-        These two are the START-OF-ROLLOUT reference the progression stages are judged against:
-        check_lift_and_distance_condition() (LIFT_SLIGHT, LIFT_LARGE, PUSH) measures both the lift
-        and the travel from mo_pos_orig, and check_rotated() (ROTATED) measures against mo_rot_orig.
-        __init__ seeds them from the task config, which is only right while main_objects[0] is still
-        the object the config declared -- and SB-NOUN, VSB-NOBJ and VB-MOBJ all re-point it DURING
-        reset(), after the seed. Without this the reference described one object while the checks
-        read another: measured 2026-08-13 at 0.111-0.465 m of separation, with LIFT_SLIGHT answering
-        True AT REST on 3 of 6 resets.
-
-        Call this ONLY at the end of a reset, never while stepping. It records where the object
-        STARTED; a reference that followed the object would drive both terms to zero and make every
-        lift/distance check permanently False, silently deleting the stage instead of fixing it.
-
-        Kept as one method rather than a line in each perturbation so a future perturbation that
-        swaps the object cannot forget it: every reset path ends here. A vector env needs its own
-        call in RealmVectorEnvironment.reset(), because apply_perturbations() runs there before the
-        shared play -- exactly as it already needs its own settle and its own deferred post-play
-        drain.
-
-        mo_bbox_orig is DELIBERATELY not re-taken, though it is seeded on the line right after these
-        two and looks like it has the same staleness shape. It is an ANCHOR on the task config, not
-        a description of the current object, and re-taking it would turn VB-MOBJ's per-reset draw
-        into a multiplicative random walk.
-        """
-        # Stored as OmniGibson hands them back (torch, cloned -- RigidDynamicPrim.get_position_
-        # orientation defaults to clone=True, so this is a snapshot and not a view onto the physics
-        # buffer). Deliberately NOT converted to numpy: this is byte-for-byte what warmup() has
-        # always stored, so no historical number moves.
+        """Capture the main object's start-of-rollout pose after perturbations."""
         self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
 
-    # ============================== [STATUS] ==============================
     def get_ee_pose(self):
         ee_link_name = self.robot.eef_link_names[self.robot.default_arm]
         ee_link = self.robot.links[ee_link_name]
@@ -116,16 +72,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         return self._robot_adjacent_links
 
     def check_collisions(self):
-        """(self_collision, env_collision) for the robot this step.
-
-        Contact with a manipulation target does not count as an environment collision, and contact
-        between two links the same joint connects does not count as a self-collision. The root link
-        is skipped outright -- it is usually touching the mount or the floor.
-
-        OG 3.9.1 removed RigidPrim.contact_list(), so contacts and their impulses come from the
-        contact matrix instead: one batched query for all links rather than a per-link call. See
-        realm/environments/contact_utils.py.
-        """
+        """Return robot self- and environment-collision flags."""
         self_collision = False
         env_collision = False
 
@@ -146,9 +93,6 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
                 is_robot = other_path in robot_link_paths or other_path.startswith(robot_prim_path)
 
                 if is_robot:
-                    # Only an exact link path can be tested for adjacency; anything else that
-                    # merely starts with the robot's prim path is assumed to be a real
-                    # self-collision.
                     if other_path in robot_link_paths:
                         if frozenset((link.prim_path, other_path)) in adjacent_link_pairs:
                             continue
@@ -163,17 +107,8 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
 
         return self_collision, env_collision
 
-    # ============================== [SUCCESS METRICS] ==============================
     def _finger_closure_threshold(self):
-        """Finger joint value below which the gripper counts as "closing" on something.
-
-        The 9.0x range scaling reproduces the historical bare literal 0.45 EXACTLY on droid.usd
-        (9 * 0.05 m of travel), where the test has always been vacuously true, while making the
-        robolab 2F-85 -- whose same proprio indices are radians, not metres -- equally vacuous
-        instead of grasp-rejecting (measured: 78/78 genuine grasp steps rejected, freezing every
-        later stage). 0.45 is very likely a typo for 0.045, which would make this a REAL test --
-        deliberately not adopted, since it could move every historical number.
-        """
+        """Preserve the historical 9x gripper-range threshold."""
         profile = get_robot_obs_profile(self.robot.name)
         open_q, closed_q = profile["gripper_open_qpos"], profile["gripper_closed_qpos"]
         return open_q + 9.0 * (closed_q - open_q)
@@ -183,9 +118,6 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         finger_joints = obs[self.robot.name]['proprio'][7:9].cpu().numpy()
         thresh = self._finger_closure_threshold()
         is_either_finger_closing = (thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3)
-        # OG 3.9.1 removed the ContactBodies object state; query the contact matrix directly instead.
-        # get_contact_pairs returns (query_prim_path, with_prim_path) tuples, so the second element of
-        # each pair is the finger link that candidate_obj is touching.
         contact_pairs = RigidContactAPI.get_contact_pairs(
             scene_idx=candidate_obj.scene.idx,
             query_set={candidate_obj},

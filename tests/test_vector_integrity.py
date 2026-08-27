@@ -1,42 +1,4 @@
-"""Integrity test for the VECTORIZED eval path: does every task and every perturbation still run?
-
-The vector-env counterpart of test_integrity.py (which sweeps tasks) and
-test_perturbations_integrity.py (which sweeps perturbations). Those drive
-examples/02_evaluate.py with one env; this drives examples/04_vector_evaluate.py with N, which is
-the path that actually broke: every defect fixed during the vectorization work was invisible with a
-single scene, because scene 0's origin IS the world origin and there is no sibling scene to disturb.
-A single-env integrity test cannot catch any of them by construction.
-
-Two matrices rather than the full cross product, mirroring the two existing tests. 10 tasks x 16
-perturbations at ~7 min a build is ~19 hours serially; tasks-under-Default plus
-perturbations-under-one-task is 26 cells and finishes in well under an hour spread over a few
-allocations.
-
-What counts as a pass, per cell:
-  * the process produced the four artifacts (reports csv, qpos/actions/videos parquets)
-  * the report AND the parquets (filtered to the cell's perturbation) have exactly `repeats` rows
-    -- realm_logging saves after EVERY wave, so a run that dies half way leaves a
-    complete-LOOKING prefix, and row count is what distinguishes them
-  * the log carries no crash signature. Isaac's SimulationApp.close() hard-exits 0 after an
-    unhandled exception, so the exit code proves nothing; three "successful" runs that produced
-    nothing were shipped that way before check_run.py was wired into the eval wrapper.
-
-Rendering is left ON (unlike test_integrity.py's --no_render) so videos/*.parquet has real frames.
---extract-videos then writes them out as mp4 for the visual cross-check, which is the only way to
-catch a rollout that is numerically clean and visually wrong -- e.g. the frame-bug era, where
-members scored plausibly while their object sat in another member's tile.
-
-Usage inside the release container:
-
-    python tests/test_vector_integrity.py --matrix tasks         --num_envs 2
-    python tests/test_vector_integrity.py --matrix perturbations --num_envs 2 --extract-videos
-    python tests/test_vector_integrity.py --cells 4:VSB-NOBJ,0:SB-VRB --num_envs 2
-
-Each cell is one process, so cells are independent; run several allocations in parallel with
---shard i/n rather than trying to share one simulator, since destructive perturbations (SB-VRB
-rewrites task_type, VSB-NOBJ replaces the main object, V-SC replaces distractors) contaminate any
-build they share.
-"""
+"""Exercise vectorized task and perturbation evaluation cells."""
 import argparse
 import re
 import shutil
@@ -47,59 +9,17 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 sys.path.append(str(PROJECT_ROOT))
 
-# eval_const_list ast-parses realm/eval.py rather than importing it, so this DRIVER never boots
-# Isaac -- only its child processes do. See its docstring in tests/_paths.py.
+# Parse constants without booting Isaac in the driver process.
 from tests._paths import check_artifacts, eval_const_list
 
 SUPPORTED_TASKS = eval_const_list("SUPPORTED_TASKS")
 SUPPORTED_PERTURBATIONS = eval_const_list("SUPPORTED_PERTURBATIONS")
 
-# Tasks that cannot currently build at all, so a failure here is expected and is NOT evidence about
-# the vector path. Reported as KNOWN rather than skipped, because silently omitting them would hide
-# the day they start working -- or the day something else joins them.
-#
-# EMPTY since 2026-08-14. Tasks 8 and 9 (open_drawer / close_drawer, the only two whose main object
-# is custom_assets/impact_drawer/usd/cabinet.usd) were the last entries and both now PASS. Three
-# defects in series kept them out, and none of them was in the asset -- cabinet.usd is legitimate
-# USD that happens not to satisfy an unwritten OmniGibson convention:
-#
-#   1. OmniSurfaceMaterialPrim.__init__ requiring preset_name          -- OG-lite 1dcc5bb
-#   2. XFormPrim._set_xform_properties reading the pose through the VIRTUAL
-#      self.get_position_orientation() -- which EntityPrim overrides to return the ROOT LINK's pose
-#      -- while writing it back through the pinned XFormPrim.set_position_orientation, which
-#      authors the ENTITY prim's xformOps. cabinet.usd's base_link sits at Ry(180) + 4 cm from the
-#      entity prim, so the write moved the object by exactly that and the method's own round-trip
-#      assert caught it. Every BEHAVIOR asset has base_link at the entity origin, which is why no
-#      other object ever tripped it.
-#   3. EntityPrim.set_position_orientation's stopped-sim branch asserting outright that the root
-#      link has no relative pose to the entity prim -- the same 4 cm offset.
-#
-# 2 and 3 are fixed in OG-lite; both fixes are no-ops for a root link at the entity origin, so no
-# other asset's placement changes. If a drawer task regresses, suspect the OG-lite bind first.
 KNOWN_BROKEN_TASKS = {}
 
-# The single copies live in tests/_paths.py; they used to be duplicated here "kept identical on
-# purpose", which is exactly the arrangement that drifts.
-#
-# A vector-path note on TEARDOWN_NOISE: Isaac CAN segfault during teardown after all work is done
-# -- but NOT on every run, which this comment once claimed. Measured over the 2026-08-18 matrix
-# re-run on examples/04_vector_evaluate.py: the only cell whose log carried a segfault or a
-# traceback was 8:VB-MOBJ, which raises an intentional NotImplementedError, and a control build
-# where nothing raises passed with zero segfaults. (The "every run" claim is true of
-# the original vector perturbation probe, where it was first written, and was over-generalised here.) So on
-# this path a segfault usually means an uncaught Python exception propagated out -- it correlates
-# with a real failure rather than being pure noise. Do not widen the filter: the CRASH verdict
-# comes from CRASH_MARKERS matching "Traceback", not from the exit code, so a cell reports CRASH
-# even when the process exits 0, and the -11 itself carries no information.
 from tests._paths import CRASH_MARKERS, TEARDOWN_NOISE  # noqa: E402
 
-# Cells where a NotImplementedError is the DESIGNED answer, not a defect. Without this table those
-# four cells report CRASH, identically to a cell that broke -- which is how the header comment above
-# came to note in passing that "8:VB-MOBJ raises an intentional NotImplementedError" while the table
-# still counted it as one of the matrix's failures. A refusal and a breakage are different results
-# and the summary has to be able to say which it saw.
-#
-# Every entry must name the raise site, so a reader can check the claim instead of trusting this dict.
+# Deliberate unsupported combinations, kept distinct from regressions.
 EXPECTED_NOT_IMPLEMENTED = {
     "8:VB-MOBJ": "vb_mobj.py:71 -- the resize branch only handles DatasetObject; both drawer tasks' "
                  "main object is a USDObject (custom_assets/impact_drawer/usd/cabinet.usd)",
@@ -108,28 +28,10 @@ EXPECTED_NOT_IMPLEMENTED = {
                 "SB-VRB down the add-a-receiver branch and it rains an unplaceable object",
     "9:SB-VRB": "sb_vrb.py:99 -- same refusal",
 }
-# A traceback whose LAST exception line is this and which carries no other error type. Both spellings
-# matter: sb_vrb raises with a message ("NotImplementedError: SB-VRB does not support..."), vb_mobj
-# raises bare ("NotImplementedError" with no colon at all).
-#
-# The anchor is load-bearing and must stay. A traceback ALSO echoes the source line that did the
-# raising -- "    raise NotImplementedError(" -- and an unanchored search would accept that as proof
-# the exception propagated, when it is only proof that the line was compiled. Anchoring at
-# line-start-after-prefix is what separates "this exception ended the process" from "this text appears
-# in the file".
+# Anchor to the final exception line, not the echoed source line.
 NOT_IMPL_LINE = re.compile(r"^(?:\w+\.)*NotImplementedError(?::|\s*$)")
 TRACEBACK_LINE = re.compile(r"Traceback \(most recent call last\)")
-# Isaac does not let Python's traceback reach the log untouched: omni.kit routes stderr through its
-# own logger, which stamps every line with a timestamp, an uptime, a level and a channel --
-#
-#   2026-08-19T11:08:58Z [524,717ms] [Error] [omni.kit.app._impl] [py stderr]: NotImplementedError: ...
-#
-# -- so an anchored pattern matches nothing. MEASURED, not guessed: the first drawerpert_0819 run
-# classified 8:SB-VRB and 9:SB-VRB as CRASH while their logs carried the refusal at line 912, because
-# the anchor was applied to the raw line. The tests that were supposed to cover this passed, because I
-# wrote their fixtures in the format I ASSUMED Python would produce rather than the format Isaac
-# actually emits -- which is why test_cell_classification.py now builds its fixtures from lines
-# captured verbatim out of that run.
+# Strip Isaac's logger prefix before matching the exception.
 LOG_PREFIX = re.compile(r"^\S+ \[[\d,]+ms\] \[\w+\] \[[\w.]+\] \[py std(?:err|out)\]: ")
 
 
@@ -138,24 +40,13 @@ def cell_id(task_id, pert):
 
 
 def classify_log(text, cid, returncode):
-    """Crash verdict for one cell's log. Returns (status, detail), or None if the log looks clean.
-
-    Split out of run_cell so it can be exercised on the login node against synthetic logs --
-    tests/test_cell_classification.py. run_cell itself needs a GPU, an Isaac boot and ~7 minutes per
-    cell, so the branch that decides refusal-vs-breakage would otherwise only ever be validated by
-    the very runs whose verdicts depend on it.
-    """
-    # Drop teardown noise before looking for crashes, or every cell "fails".
+    """Return a crash verdict, or ``None`` for a clean log."""
     crash_lines = [ln for ln in text.splitlines()
                    if CRASH_MARKERS.search(ln) and not TEARDOWN_NOISE.search(ln)]
     if not crash_lines:
         return None
 
-    # Separate an intentional refusal from a breakage before calling anything CRASH. Deliberately
-    # narrow: the ONLY crash signatures allowed to be present are the "Traceback" header lines
-    # themselves, so a NotImplementedError that arrives alongside a KeyError or an AssertionError
-    # still reports CRASH -- otherwise a real failure in a declared-refusal cell would be laundered
-    # into an expected result, which is worse than the conflation this fixes.
+    # A mixed traceback remains a crash even in an unsupported cell.
     other = [ln for ln in crash_lines if not TRACEBACK_LINE.search(ln)]
     not_impl = [s for s in (LOG_PREFIX.sub("", ln) for ln in text.splitlines())
                 if NOT_IMPL_LINE.match(s)]
@@ -163,22 +54,12 @@ def classify_log(text, cid, returncode):
         msg = not_impl[-1].strip()[:150]
         if cid in EXPECTED_NOT_IMPLEMENTED:
             return "NOT_IMPL", msg
-        # A refusal nobody declared. Reported as a failure on purpose: either the perturbation grew a
-        # branch it should not refuse, or EXPECTED_NOT_IMPLEMENTED needs the entry and the reason
-        # written down.
         return "UNDECLARED_NOT_IMPL", msg
     return "CRASH", f"exit={returncode} :: {crash_lines[0].strip()[:150]}"
 
 
 def artifact_verdict(results_dir, task, pert, repeats):
-    """(status, detail) for one cell's artifacts, or None if they all check out.
-
-    check_artifacts does the real work -- including row-COUNTING the parquets filtered to this
-    cell's perturbation, which this file's own check used not to do: it accepted "exists and
-    non-empty", the exact check whose inability to fail is documented in check_artifacts'
-    docstring. Split out of run_cell so it can be exercised on the login node against synthetic
-    artifact trees, the same way classify_log is.
-    """
+    """Return an artifact verdict, or ``None`` when all outputs are complete."""
     art = check_artifacts(str(results_dir), task, pert, repeats)
     missing = [k for k, v in art.items()
                if v == "FAIL_MISSING" or v == "FAIL_EMPTY" or v.startswith("FAIL_UNREADABLE")]
@@ -186,7 +67,6 @@ def artifact_verdict(results_dir, task, pert, repeats):
         return "NO_ARTIFACTS", "missing/empty/unreadable: " + ",".join(missing)
     wrong = {k: v for k, v in art.items() if v != "PASS"}
     if wrong:
-        # A partial run is not a pass. This is the case the exit code cannot see.
         return "PARTIAL", ", ".join(f"{k}: {v}" for k, v in wrong.items())
     return None
 
@@ -198,17 +78,9 @@ def run_cell(task_id, pert, args, log_root):
     run_id = f"t{task_id}_{pert.replace('-', '')}"
     log_path = Path(log_root) / f"{run_id}.log"
 
-    # Clear THIS cell's tree before writing it. The parquets are appended to and nothing else ever
-    # removed them, so re-running a cell under an experiment name that had been used before left the
-    # old rows in place and artifact_verdict reported FAIL_ROWS(8!=2) -- a stale-data artifact that
-    # reads exactly like a regression (measured 2026-08-21 on the suite's drawer entry, which had
-    # accumulated rows from 2026-08-16). Deleting is correct here and only here: this is a scratch
-    # tree written by the debug model, and the exact-rows check is what makes a short write visible,
-    # so it must not be relaxed instead.
+    # Clear the cell because parquet output is append-only.
     results_dir = Path(args.log_dir) / args.experiment_name / "debug" / run_id
-    # Guards, because this is an rmtree: refuse anything that is not the specific 4-deep scratch path
-    # this function is about to write. An empty --experiment_name would otherwise aim it at
-    # <log_dir>/debug, and a stray "/" or ".." at something much worse.
+    # Restrict deletion to the expected nested scratch path.
     parts = (args.experiment_name, "debug", run_id)
     if (all(parts) and not any("/" in x or x in (".", "..") for x in parts)
             and results_dir.is_dir() and len(results_dir.parts) > 4):

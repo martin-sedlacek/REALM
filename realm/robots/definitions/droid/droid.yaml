@@ -1,28 +1,4 @@
-# Unmounted form of the canonical RoboLab v2 DROID embodiment.
-# RobotDefinition for the DROID platform using the robolab Franka + Robotiq 2F-85 asset.
-#
-# Same arm as `droid`, different gripper physics. The stock droid.usd models the 2F-85 with extra
-# prismatic joints and relies on the loop-closing joints contributing no articulation DOFs, which
-# makes the fingers effectively rigid. The robolab asset instead models the four-bar linkage as a
-# *tree* (each inner_knuckle is a leaf rather than being joined back to base_link) and reproduces
-# the linkage kinematics with PhysX **mimic joints** -- an Isaac Sim 5.1 feature that OmniGibson
-# 1.1.1 could not use. The result is a single actuated DOF whose followers can flex, so the pads
-# comply on contact instead of behaving as a rigid jaw.
-#
-# The asset was produced from the RoboLab vendor file; the release keeps the resulting USD, which
-# flattens the gripper bodies up to /panda (OmniGibson only treats *direct* Xform children of the
-# robot prim as links). Do not point usd_path at the raw robolab file.
-#
-# Gripper joint topology (base_link is the gripper base, fixed to panda_link8):
-#   finger_joint                     base_link          -> left_outer_knuckle   [ACTUATED, drive]
-#   right_outer_knuckle_joint        base_link          -> right_outer_knuckle  [mimic]
-#   left_inner_finger_joint          left_outer_finger  -> left_inner_finger    [mimic]
-#   right_inner_finger_joint         right_outer_finger -> right_inner_finger   [mimic]
-#   left_inner_finger_knuckle_joint  left_inner_finger  -> left_inner_knuckle   [mimic]
-#   right_inner_finger_knuckle_joint right_inner_finger -> right_inner_knuckle  [mimic]
-#   FixedJoint x2                    *_outer_knuckle    -> *_outer_finger
-#
-# Loaded via `model: droid`.
+# Unmounted DROID with a compliant mimic-joint Robotiq gripper.
 
 raw_controller_order: ["arm_0", "gripper_0"]
 default_controllers:
@@ -31,12 +7,7 @@ default_controllers:
 
 usd_path: "/app/realm/robots/panda_robotiq/droid.usd"
 
-# Self-collision stays on for the arm, but every pair *inside* the 2F-85 linkage is filtered.
-# Without this the auto-generated convex hulls of the knuckles/fingers overlap at rest and the
-# resulting contact forces drive finger_joint hard to its upper limit -- measured: setting the
-# joint to 0.0 and stepping lands it at 0.7854 within ~60 steps, with the pads stuck at the
-# maximum ~8 cm opening regardless of command. OmniGibson's own franka.yaml disables the same
-# 28 pairs for its `robotiq` end-effector variant, which uses these exact link names.
+# Internal gripper collisions destabilize the mimic linkage.
 self_collisions: true
 disabled_collision_pairs:
   - ["left_outer_knuckle", "left_outer_finger"]
@@ -76,9 +47,6 @@ disabled_collision_pairs:
   - ["base_link", "right_inner_finger"]
   - ["base_link", "right_inner_knuckle"]
 
-# 7 arm DOFs + 6 gripper DOFs (the actuated finger_joint plus its five mimic followers, all of which
-# are real articulation DOFs here because the linkage is a tree). Arm values are the measured DROID
-# rest pose carried over from droid.yaml; env_dynamic overwrites the first 7 per task.
 default_joint_pos: [
   0.143628523,
   -0.597331285,
@@ -97,15 +65,9 @@ manipulation:
     "0": ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
   eef_link_names:
     "0": "panda_link8"
-  # The compliant pads that actually contact the object; grasp detection intersects contacts with
-  # these (RealmEnvironmentBase.is_grasping expects exactly two).
   finger_link_names:
     "0": ["left_inner_finger", "right_inner_finger"]
-  # Only the driven joint. Everything else follows through the mimic constraints, so commanding it
-  # is enough -- and listing followers here would have the controller fight its own linkage.
-  # NOTE: this joint is inverted relative to OmniGibson's convention (0 rad = open, upper limit =
-  # closed), so the gripper controller needs explicit open_qpos/closed_qpos; see
-  # realm/config/robots/DROID_mounted.yaml (DROID_robolab.yaml was deleted 2026-08-19).
+  # Mimic constraints drive the follower joints.
   finger_joint_names:
     "0": ["finger_joint"]
   teleop_rotation_offset:
