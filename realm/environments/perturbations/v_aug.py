@@ -22,7 +22,7 @@ from realm.inference.utils import wrist_camera_obs_key
 #: fallback only fires when this function is called standalone. So the canonical range is exactly
 #: what every recorded V-AUG rollout was actually produced with -- but the construction-time draw
 #: itself is now REMOVED, which shifts the shared RNG stream for V-AUG-active runs: V-AUG numbers
-#: recorded before 1.0.0 are not comparable. See CHANGE_LEDGER.md.
+#: recorded before 1.0.0 are not comparable.
 SIGMA_RANGE = (0.0, 2.5)
 ALPHA_RANGE = (0.25, 1.5)
 

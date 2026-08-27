@@ -1,6 +1,6 @@
 #!/bin/bash
 # Stage the OG-lite fork's `omnigibson` package into the build context, so an image built from
-# .docker/realm_og391.{def,Dockerfile} contains it and needs NO runtime bind.
+# .docker/realm.{def,Dockerfile} contains it and needs NO runtime bind.
 #
 # WHY A STAGING STEP AT ALL. Both recipes take the REALM repo root as their build context and the fork
 # is a SEPARATE repository living outside it (github.com/martin-sedlacek/REALM_OG_lite, checked out at
@@ -84,5 +84,5 @@ check "if not light_fix:" "light fix dataset_object" objects/dataset_object.py
 
 n=$(find "$VENDOR/omnigibson" -name '*.py' | wc -l)
 echo "staged $n python files. Now build:"
-echo "  apptainer build realm_og391.sif .docker/realm_og391.def"
-echo "  docker build -f .docker/realm_og391.Dockerfile -t realm_og391 ."
+echo "  apptainer build realm.sif .docker/realm.def"
+echo "  docker build -f .docker/realm.Dockerfile -t realm:latest ."

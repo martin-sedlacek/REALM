@@ -4,8 +4,8 @@ set -e -o pipefail
 BYellow='\033[1;33m'
 Color_Off='\033[0m'
 
-# Image built from .docker/realm_og391.Dockerfile (base: stanfordvl/behavior:3.9.1).
-REALM_IMAGE="${REALM_IMAGE:-realm:og391}"
+# Image built from .docker/realm.Dockerfile (base: stanfordvl/behavior:3.9.1).
+REALM_IMAGE="${REALM_IMAGE:-realm:latest}"
 
 # Parse the command line arguments.
 GUI=true

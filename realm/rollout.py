@@ -43,9 +43,7 @@ def wants_base_im_second(task_type, base_im_second):
     means ``base_im_second`` is None, and the openpi path would crash resizing None rather than
     falling back). CAVEAT: this is the repaired reading of a branch that was dead since the
     project's first commit -- the intent (drawer tasks use camera 2) is clear, the justification
-    is not, and it has never been run. Before relying on it, read the "Second-camera selection"
-    section of docs/code_archaeology.md: the full history, the camera-config mismatch it implies
-    for open_drawer, and why no launcher that exists today reaches it.
+    is not, and it has never been run.
     """
     return task_type in DRAWER_TASK_TYPES and base_im_second is not None
 

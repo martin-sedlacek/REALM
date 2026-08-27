@@ -75,7 +75,7 @@ def b_hobj(env: "RealmEnvironmentDynamic") -> None:
     by an UNRELATED U(0.25, 3) draw and s_mass / s_mvel / s_fric were discarded, so max velocity
     and friction were never perturbed at all. That extra uniform draw is now REMOVED, which shifts
     the shared RNG stream: B-HOBJ numbers recorded before 1.0.0 are not comparable and must be
-    recomputed. See CHANGE_LEDGER.md.
+    recomputed.
     """
     s_mass, s_mvel, s_meff, s_stif, s_damp, s_fric = np.exp(np.random.uniform(-1, 1, size=(6,)))
     for obj in env.main_objects:

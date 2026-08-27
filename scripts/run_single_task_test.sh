@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-# Image built from .docker/realm_og391.Dockerfile (base: stanfordvl/behavior:3.9.1).
-REALM_IMAGE="${REALM_IMAGE:-realm:og391}"
+# Image built from .docker/realm.Dockerfile (base: stanfordvl/behavior:3.9.1).
+REALM_IMAGE="${REALM_IMAGE:-realm:latest}"
 # OmniGibson lives at /behavior-src/OmniGibson in the 3.9.1 image (was /omnigibson-src in 1.1.1).
 OG_SRC_MOUNT=/behavior-src/OmniGibson
 

@@ -53,13 +53,13 @@ def scratch_log_root(name):
 
     Order: an explicit REALM_TEST_LOG_DIR wins, then the container's bound log tree at /logs, then
     PROJECT_ROOT/logs for a plain host checkout. NOT `/app/logs`: in this checkout `logs` is a
-    symlink whose target the clara `rr` binds do not mount, so `/app/logs` dangles in the
-    container and the first makedirs dies (measured; see docs/code_archaeology.md).
+    symlink whose target some container launchers do not mount, so `/app/logs` can dangle in the
+    container and the first makedirs dies.
 
     TWO SUITE RUNS CANNOT SHARE THIS PATH: the name has no per-invocation discriminator, and the
     parquets are appended to, so a concurrent run makes whichever finishes second report
-    FAIL_ROWS(2!=1) -- which reads exactly like a regression and is not one (measured on jobs
-    191494/191495; details in docs/code_archaeology.md). Set REALM_TEST_LOG_DIR to a distinct path
+    FAIL_ROWS(2!=1) -- which reads exactly like a regression and is not one. Set
+    REALM_TEST_LOG_DIR to a distinct path
     per concurrent invocation, or serialize; test_vector_integrity has no override and needs a
     distinct --experiment_name instead -- run_suite's four vector entries now each pass one
     (`suite_vector_*`), because they previously all defaulted to "vector_integrity" and the _tasks

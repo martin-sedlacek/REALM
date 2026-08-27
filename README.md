@@ -16,6 +16,10 @@ against 15 perturbations. Through empirical validation, we show that evaluation 
 in simulation are strongly correlated to real-world performance. 
 
 # Installation 🛠️
+
+See the [Installation guide](https://github.com/martin-sedlacek/REALM/wiki/Installation) for the
+full setup and dataset options.
+
 1. Clone the project repository:
 ```
 git clone https://github.com/martin-sedlacek/REALM.git
@@ -34,11 +38,16 @@ cd REALM
 ./setup.sh --apptainer --dataset
 ```
 
-> ❗ **Please note that running with apptainer is currently not stable.**
-> We noticed that the apptainer can crash inexplicably on some systems. 
-> It is recommended to use the stable Docker container if possible.
+[//]: # (> ❗ **Please note that running with apptainer is currently not stable.**)
+
+[//]: # (> We noticed that the apptainer can crash inexplicably on some systems. )
+
+[//]: # (> It is recommended to use the stable Docker container if possible.)
 
 # Quick Start (Pi0.5 evaluation)
+
+See [Quick start](https://github.com/martin-sedlacek/REALM/wiki/Quick-Start) for the complete
+container and evaluation workflow.
 
 1. Start a model server (e.g., [openpi](https://github.com/Physical-Intelligence/openpi)):
 ```bash
@@ -66,16 +75,21 @@ OMNIGIBSON_HEADLESS=1 python /app/examples/01_pi0_eval.py
 # !!! Set this to point to your local REALM logs folder:
 export REALM_LOGS=</path/to/REALM/logs> # e.g., /home/my_user/projects/REALM/logs
 
-git clone https://github.com/martin-sedlacek/REALM_toolkit.git
-cd REALM_toolkit
-uv sync
-uv run streamlit run realm_viewer/dashboard.py
+uv sync --locked
+uv run streamlit run tooling/realm_viewer/dashboard.py
 ```
 
 This will open a web UI where you can view results from the experiments. Navigate to the experiment created from step 3
 and scroll to the bottom. Click on the "unpack video parquet" and view the video of your simulated rollout. 
 
+See [Logging](https://github.com/martin-sedlacek/REALM/wiki/Logging) for the report schema and
+dashboard options.
+
 # Full benchmark evaluation:
+
+See [Running evaluations](https://github.com/martin-sedlacek/REALM/wiki/Running-Evaluations) for
+all flags, rendering modes, model clients, and how to resume interrupted runs.
+
 ```bash
 # Example:
 examples/02_evaluate.py \
@@ -89,19 +103,10 @@ examples/02_evaluate.py \
     --experiment_name my_full_eval
 ```
 
-## Resume Functionality
-
-If a run is interrupted, resume from where it left off by providing the `--resume` flag and the `--run_id` of the previous run (the timestamp folder in your logs directory):
-
-```bash
-OMNIGIBSON_HEADLESS=1 python /app/examples/02_evaluate.py \
-    ... (same args as original) ... \
-    --run_id 20240101_120000 --resume
-```
-
-Completed repeats are skipped. Ensure all arguments match the original run.
-
 # Tasks and Perturbations
+
+See [Tasks and perturbations](https://github.com/martin-sedlacek/REALM/wiki/Tasks-and-Perturbations)
+for task progression, perturbation behavior, and compatibility details.
 
 | PERTURBATION_ID | Perturbation | Description                                                                                     | Category |
 |:----------------| :--- |:------------------------------------------------------------------------------------------------| :--- |
@@ -135,90 +140,8 @@ Completed repeats are skipped. Ensure all arguments match the original run.
 | 8       | open_drawer |
 | 9       | close_drawer |
 
-In our paper, we evaluated three models on each of the 10 tasks, under all 16 perturbation settings
-with a sample size of 25 rollouts at 800 time-steps. Each number in the table below is then obtained by 
-averaging the results over these 10 tasks per perturbation.
-
-Tabular results for the tested VLA models:
-
-| Perturbation |        **$\pi_0$**        |     **$\pi_0$-FAST**      |      **GR00T N1.5**       |
-| :--- |:-------------------------:|:-------------------------:|:-------------------------:|
-| **Default** |           0.44            |           0.61            |           0.19            |
-| **V-AUG** | 0.42 (-0.02 $\downarrow$) |  0.64 (+0.03 $\uparrow$)  |      0.19 (-0.00 -)       |
-| **V-VIEW** |  0.52 (+0.08 $\uparrow$)  |  0.70 (+0.09 $\uparrow$)  |      0.19 (-0.00 -)       |
-| **V-SC** | 0.43 (-0.01 $\downarrow$) | 0.60 (-0.02 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **V-LIGHT** | 0.37 (-0.07 $\downarrow$) | 0.54 (-0.07 $\downarrow$) | 0.16 (-0.03 $\downarrow$) |
-| **S-PROP** | 0.29 (-0.15 $\downarrow$) | 0.53 (-0.08 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **S-LANG** | 0.36 (-0.08 $\downarrow$) | 0.61 (-0.01 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **S-MO** | 0.35 (-0.09 $\downarrow$) | 0.55 (-0.06 $\downarrow$) |  0.20 (+0.01 $\uparrow$)  |
-| **S-AFF** | 0.30 (-0.14 $\downarrow$) | 0.55 (-0.06 $\downarrow$) |  0.21 (+0.01 $\uparrow$)  |
-| **S-INT** | 0.29 (-0.15 $\downarrow$) | 0.54 (-0.07 $\downarrow$) |  0.20 (+0.01 $\uparrow$)  |
-| **B-HOBJ** | 0.32 (-0.12 $\downarrow$) | 0.38 (-0.23 $\downarrow$) | 0.16 (-0.03 $\downarrow$) |
-| **SB-NOUN** | 0.28 (-0.16 $\downarrow$) | 0.39 (-0.22 $\downarrow$) | 0.17 (-0.02 $\downarrow$) |
-| **SB-VRB** | 0.36 (-0.08 $\downarrow$) | 0.57 (-0.04 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **VB-POSE** | 0.32 (-0.12 $\downarrow$) | 0.49 (-0.12 $\downarrow$) | 0.07 (-0.12 $\downarrow$) |
-| **VB-MOBJ** | 0.38 (-0.06 $\downarrow$) | 0.53 (-0.09 $\downarrow$) | 0.09 (-0.10 $\downarrow$) |
-| **VSB-NOBJ** | 0.16 (-0.28 $\downarrow$) | 0.26 (-0.35 $\downarrow$) | 0.09 (-0.10 $\downarrow$) |
-| **V-Avg.** | 0.37 (-0.07 $\downarrow$) | 0.54 (-0.08 $\downarrow$) | 0.14 (-0.05 $\downarrow$) |
-| **S-Avg.** | 0.30 (-0.14 $\downarrow$) | 0.50 (-0.11 $\downarrow$) |      0.19 (-0.00 -)       |
-| **B-Avg.** | 0.30 (-0.13 $\downarrow$) | 0.44 (-0.17 $\downarrow$) | 0.13 (-0.06 $\downarrow$) |
-
-# Tests 🧪
-
-REALM's runtime is the Docker or Apptainer/SIF image; it is not reproduced in a local Python
-environment. A small, separate uv environment provides only the host-safe lint and test tools:
-
-```bash
-uv sync --locked
-uv run make check
-```
-
-**Do not run `pytest tests/`.** Most files there are standalone Isaac scripts, and pytest collection
-can boot the simulator. The four host-safe pytest modules are named explicitly by `HOST_PYTESTS` in
-the `Makefile`; `make check` runs them along with the script-style static checks.
-
-The pipeline has two tiers, split on "does this need Isaac, the container and a GPU".
-
-```bash
-# Tier 1 -- static. No container, no GPU, no dataset. Runs in CI on every push and PR.
-uv run make check                   # lint + all container-free tests
-
-# Tier 2 -- GPU. Needs the ~13 GB image, the ~36 GB dataset and a card.
-ALLOC=<slurm jobid> make test-smoke  # ~11 min   the cheap gate
-ALLOC=<slurm jobid> make test-suite  # ~1.7 h    the gate before trusting a change
-ALLOC=<slurm jobid> make test-matrix # hours     the task x perturbation sweep
-
-make test        # tier 1 only, then a list of exactly what it SKIPPED
-make test-list   # what is in the suite and what each member needs
-```
-
-Three things to know before you read a result:
-
-- **Verdicts never come from exit codes.** Isaac's shutdown hard-exits 0 on an unhandled exception
-  and can segfault at teardown after a pass, so a child's status is meaningless. Verdicts come from
-  each test's own printed verdict line. Two things *are* gateable: `--strict` makes the driver's
-  status mean "everything I ran ended PASS or SKIP", and `--junit-xml` writes a report once at the
-  end — its *absence* is how you detect that the driver itself died.
-- **Tier 1 is kept green.** A failure in `uv run make check` is a regression. The uv environment is
-  host tooling only; passing it says nothing about the container, simulator, dataset, or GPU path.
-- **A green run is worth less than it looks.** Every test drives `--model_type debug`, whose
-  constant action never closes the gripper, so **none of the 22 success conditions is ever
-  evaluated** and every rollout the suite produces stops at `stage=REACH`.
-
-CI (`static-checks`) exercises no simulation; Docker/SIF and GPU validation remain manual.
-
-- How to run each tier: **[Running the test suite](https://github.com/martin-sedlacek/REALM/wiki/Running-the-Test-Suite)**
-- What a pass does and does not establish: **[Test coverage](https://github.com/martin-sedlacek/REALM/wiki/Test-Coverage)**
-
-# Roadmap 🚧
-- [x] Streamlined installation
-- [x] Example scripts for getting started
-- [ ] Improved benchmarking UX:
-  - [ ] End-to-end scripts for producing result plots and tables 
-- [ ] Extended documentation
-- [ ] Performance:
-  - [ ] Support vectorized environments
-  - [ ] Improve parallelism and overall execution speed
+The paper results and the exact evaluation conditions are documented on the
+[Reproducibility](https://github.com/martin-sedlacek/REALM/wiki/Reproducibility) page.
 
 
 # Acknowledgments and Licensing

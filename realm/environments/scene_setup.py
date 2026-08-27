@@ -194,9 +194,7 @@ class SceneSetupMixin:
         apply_scene_fixes_from_cfg ever runs, so it still lists every object the scene config asked
         to REMOVE and the first reset undoes the removal. Re-capturing here makes the fixed scene
         the baseline, so restore() has nothing to add -- which also removes a per-member stop/play
-        cycle from a vector env's first reset. Measured, and the one-reset pose transient that made
-        the bug look member-dependent, are in docs/vector_env/README.md under "Second, independent
-        bug: reset re-adds the removed chair".
+        cycle from a vector env's first reset.
 
         Separate from apply_scene_fixes_from_cfg's body rather than at its tail because Scene.save()
         asserts a non-stopped sim (it dumps joint state) -- the fixes themselves run stopped, and a

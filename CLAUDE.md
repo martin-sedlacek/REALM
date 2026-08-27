@@ -9,7 +9,7 @@ directory is the maintained operator documentation — prefer pointing at it ove
 A simulation benchmark for evaluating generalization of robotic manipulation policies (VLA models
 such as Pi0/Pi0.5 via openpi, and DreamZero). Ten manipulation tasks are evaluated against 16
 perturbation types (visual, semantic, behavioral) on OmniGibson **3.9.1** / IsaacSim. Everything
-sim-side runs inside a container (`.docker/realm_og391.Dockerfile` / `realm_og391.def`); nothing
+sim-side runs inside a container (`.docker/realm.Dockerfile` / `.docker/realm.def`); nothing
 here is pip-installable — code runs with the repo on `PYTHONPATH`.
 
 ## The one rule that governs all changes
@@ -20,7 +20,7 @@ wrong.** Concretely:
   reordering a single `np.random`/`random` call shifts every draw after it. Dead draws are kept
   and commented rather than deleted.
 - Known number-moving bugs are flagged `KNOWN ISSUE` in place and fixed only in a gated batch
-  behind a `VERSION` bump. The 1.0.0 batch (2026-08-19, see CHANGE_LEDGER.md) shipped the last
+  behind a `VERSION` bump. The 1.0.0 batch (2026-08-19) shipped the last
   gated set — `b_hobj`'s discarded scale factors, `vb_pose`'s compounding `init_poses` drift, the
   V-AUG range disagreement — so B-HOBJ / push-task VB-POSE / V-AUG numbers recorded before 1.0.0
   are not comparable and are being recomputed.
@@ -55,9 +55,7 @@ realm/
 │   ├── vec_init_queue.py      init-queue repair for object-replacing perturbations
 │   └── perturbations/         one module per perturbation + registry.py + _helpers.py
 ├── robots/
-│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, droid_robolab,
-│   │                          droid_robolab_v2, ur) — OG 3.9.1 selects robots by `model`,
-│   │                          there are no per-robot Python classes; WidowX uses stock vx300s
+│   ├── definitions/           DROID RobotDefinition YAMLs; OG 3.9.1 selects robots by `model`
 │   ├── controller_registry.py registers the four custom controllers + default configs
 │   ├── droid_joint_controller.py / custom_joint_controller.py   joint PD (impedance / plain)
 │   ├── droid_ee_controller.py   cartesian EE control; SUPPORTED_MODES = absolute_pose,
@@ -72,10 +70,8 @@ examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
             debug_probes/, karolina/, cluster_evals/, container launchers
-docs/       code_archaeology.md (long-form evidence behind terse docstrings), CHANGE_LEDGER.md
-            (root), vector_env/, perf/, evaluation_paths.md
-wiki/       the operator docs: Quick-Start, Running-Evaluations, Robots-and-Configs,
-            Running-the-Test-Suite, Cluster-and-Parallel-Runs, Known-Issues-and-Gotchas
+wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
+            Cluster-and-Parallel-Runs
 ```
 
 ## Evaluation pipeline
@@ -128,31 +124,30 @@ configs). Run both after touching task types.
 
 ## Testing
 
-Two tiers (see the Makefile header): tier 1 is container-free (`uv sync --locked`, then
-`uv run make check`; expected GREEN); tier 2 needs the container/GPU and is driven by
-`tests/run_suite.py` (`make test-smoke` / `test-suite` against a Slurm allocation). The tests are
+Two tiers (see `tests/run_suite.py`'s module docstring). Tier 1 is container-free and expected
+GREEN — `uv sync --locked`, then, as separate commands so a lint failure cannot hide the test
+result:
+
+```sh
+uv run ruff check realm examples tests scripts
+uv run python tests/run_suite.py --only local --strict \
+    --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
+uv run python -m pytest -q tests/test_perturbation_task_types.py \
+    tests/test_cell_classification.py tests/test_robot_base_column.py \
+    tests/test_robot_definition_parity.py
+```
+
+Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation:
+`python tests/run_suite.py --jobid <id> --mode stock --level smoke|suite --strict --out … --junit-xml …`.
+The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
 four real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
 `test_robot_base_column`, `test_robot_definition_parity` — all host-safe, ast/yaml based) are run
 directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
-Changes made off-cluster (this machine has no GPU; OmniGibson cannot run locally) need their
-container-side verification steps written down somewhere before they are forgotten. There was a
-`TODO_CLARA.MD` at the root for this; it was deleted 2026-08-21 once its queue was empty (the
-2026-08-19/20 sweep passed, the `DROID_robolab_v2` blocker was fixed and verified, and vectorized
-SB-VRB came back 5/5). Recreate it, or start a fresh queue, when off-cluster work next accumulates —
-an empty checklist in the tree is worse than none, because it reads as "nothing to verify". Durable
-findings do NOT belong in that queue: they go to `docs/code_archaeology.md` (evidence),
-`CHANGE_LEDGER.md` (a change and its revert), or `wiki/Known-Issues-and-Gotchas.md` (traps).
-
-## Clusters
-
-`scripts/clara/` submits everything; the three sourced libs in `scripts/clara/lib/` are the
-extension points (new server type → `server.sh`; new bind/env → `apptainer.sh`). Required env:
-`REALM_SIF`, `REALM_DATA_PATH`. `make put_clara` / `get_logs_clara` rsync code and logs. The
-lighting fix is ON by default (`REALM_LIGHT_FIX=1`); OG-lite binds via `--og_lite` / MODE=oglite.
-Details: wiki/Cluster-and-Parallel-Runs.md and wiki/Running-Evaluations.md.
+Changes made without a GPU need their container-side verification steps recorded in the pull
+request.
 
 ## Developer workflows
 
@@ -179,7 +174,8 @@ frequency in `sim_config.set_sim_config`.
   apart; world-frame writes only look right in scene 0). `bounding_box` in a cfg is an EXTENT.
 - Rubric dicts must be deep-copied per env (`TASK_PROGRESSIONS` is module-level and mutated).
 - `og.sim.stop/play/step/render` are GLOBAL across scenes — batch them in vector paths.
-- Docstrings carry contracts; long-form incident evidence lives in `docs/code_archaeology.md`
-  and `CHANGE_LEDGER.md` — add new postmortems there, not as 40-line docstrings.
+- Docstrings carry contracts. Keep implementation history out of them unless it explains a current
+  behavioral constraint.
 - `VERSION` at root is the release source of truth (`.github/workflows/release.yml` tags merges
-  to main). The lint gate (`make lint`, F401/F811 only) and tier-1 tests are kept at zero/green.
+  to main). The lint gate (`ruff check realm examples tests scripts`, F401/F811 only) and tier-1
+  tests are kept at zero/green.

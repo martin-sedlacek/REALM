@@ -90,9 +90,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         mo_bbox_orig is DELIBERATELY not re-taken, though it is seeded on the line right after these
         two and looks like it has the same staleness shape. It is an ANCHOR on the task config, not
         a description of the current object, and re-taking it would turn VB-MOBJ's per-reset draw
-        into a multiplicative random walk. The full argument, the measurement above, and what would
-        have to change if perturbations were ever composed are in docs/vector_env/PERTURBATIONS.md
-        under "The scoring reference".
+        into a multiplicative random walk.
         """
         # Stored as OmniGibson hands them back (torch, cloned -- RigidDynamicPrim.get_position_
         # orientation defaults to clone=True, so this is a snapshot and not a view onto the physics
@@ -175,8 +173,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         robolab 2F-85 -- whose same proprio indices are radians, not metres -- equally vacuous
         instead of grasp-rejecting (measured: 78/78 genuine grasp steps rejected, freezing every
         later stage). 0.45 is very likely a typo for 0.045, which would make this a REAL test --
-        deliberately not adopted, since it could move every historical number. Full evidence and
-        the asset-by-asset numbers: docs/code_archaeology.md, "The finger-closure threshold".
+        deliberately not adopted, since it could move every historical number.
         """
         profile = get_robot_obs_profile(self.robot.name)
         open_q, closed_q = profile["gripper_open_qpos"], profile["gripper_closed_qpos"]

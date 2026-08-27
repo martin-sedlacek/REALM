@@ -45,8 +45,7 @@ class RealmVectorEnvironment:
                 is not running until the first og.Environment is created, so carb settings cannot be
                 touched before then -- but they must be set BEFORE the remaining scenes load if they
                 are to affect how the renderer sizes its pools. Passing a lighter renderer profile
-                here is what makes higher member counts reachable; docs/vector_env/SCALING.md has the
-                measurement and the settings that raise the ceiling to 16.
+                here is what makes higher member counts reachable.
             **env_kwargs: forwarded verbatim to each RealmEnvironmentDynamic
         """
         assert num_envs >= 1, f"num_envs must be >= 1, got {num_envs}"

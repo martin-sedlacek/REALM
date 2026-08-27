@@ -44,10 +44,21 @@ it cannot run on the login python. Do not read `needs_gpu=False` as "runs anywhe
     python3 tests/run_suite.py --list
     python3 tests/run_suite.py --report --out /path/results.json
 
-LEVELS are the other axis, and the one the Makefile exposes: `--level smoke|suite|matrix` picks a
-GATE (see LEVELS below) rather than a capability class. `make check` / `make test-static` are
-tier 1; `make test-smoke` / `test-suite` / `test-matrix` are tier 2. `make test` runs ONLY the
-`local` tier and prints what it skipped -- it is not the suite.
+LEVELS are the other axis: `--level smoke|suite|matrix` picks a GATE (see LEVELS below) rather than
+a capability class. `--only local` is tier 1 (container-free, no GPU, no allocation); every
+`--level` is tier 2 and needs `--jobid <running slurm jobid>`, the image and the dataset.
+
+Tier 1 in full is:
+
+    ruff check realm examples tests scripts
+    python3 tests/run_suite.py --only local --strict \
+        --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
+    python3 -m pytest -q tests/test_perturbation_task_types.py tests/test_cell_classification.py \
+        tests/test_robot_base_column.py tests/test_robot_definition_parity.py
+
+Run the lint and the tests as SEPARATE commands, not chained with `&&`: a lint failure would abort
+before the tests ran, so the second half of tier 1 would silently stop being exercised the moment
+the first half went red.
 """
 import argparse
 import json
@@ -144,11 +155,8 @@ SUITE = {
         note="10 tasks x 1 step x 1 repeat, --no_render.",
     ),
     "test_perturbations_integrity": dict(
-        # --repeats 3 --max_steps 1 is the invocation docs/og391_cluster_port_prompt.md calls
-        # "the reference result ... 16/16", so run exactly that rather than a cheaper variant whose
-        # outcome could not be compared against it. It also costs almost nothing: the Isaac boot
-        # dominates a cell, and it is the only place in the suite that exercises the per-repeat
-        # reset path.
+        # Keep three repeats because this is the only suite entry that exercises the per-repeat
+        # reset path. Isaac startup dominates the cost of each cell.
         argv=["tests/test_perturbations_integrity.py", "--repeats", "3", "--max_steps", "1"],
         needs_gpu=True, needs_server=False, timeout=14400, tier="slow",
         verdict=[(r"^\S+: FAILED EXECUTION", "FAIL"),
@@ -272,9 +280,10 @@ SUITE = {
 # gate you are running. They are different axes on purpose: `--only slow` is "the expensive ones",
 # `--level suite` is "the gate before you trust a change".
 #
-# Seconds are MEASURED, from logs/suite_results_v2.json and a `make test-smoke` run on job 191496
-# (both 2026-08-16, MODE=stock, one L40S). They are what `make test-smoke` / `test-suite` quote, so they must not drift into
-# guesses -- if you re-time the suite, update these from the JSON rather than from memory.
+# Seconds are MEASURED, from logs/suite_results_v2.json and a `--level smoke` run on job 191496
+# (both 2026-08-16, MODE=stock, one L40S). They are what the `--level smoke` / `suite` runtime
+# estimates quote, so they must not drift into guesses -- if you re-time the suite, update these
+# from the JSON rather than from memory.
 # ---------------------------------------------------------------------------------------------
 LEVELS = {
     # The cheap gate: static checks, the scheduling test, one task end to end, and the only test
@@ -304,8 +313,9 @@ LEVELS = {
 
 #: Cells whose SCENE correctness depends on the OmniGibson bind. The v2 image carries most of the
 #: patches but NOT the up-axis fix, which lives only in the OG-lite fork; without it a drawer
-#: scene's cabinet can be mis-oriented while every artifact check still passes. `make test-suite`
-#: re-runs these under MODE=oglite as a second invocation, so the JSON carries both modes and the
+#: scene's cabinet can be mis-oriented while every artifact check still passes. After a
+#: `--level suite` run, re-run these under `--mode oglite` as a second invocation, so the JSON
+#: carries both modes and the
 #: per-result `mode` column says which is which.
 OGLITE_SENSITIVE = ["test_single_task_drawer", "test_vector_integrity_drawers",
                     "test_scene_object_placement"]
@@ -385,7 +395,7 @@ def print_table(results, out, blob, ran=None):
 
     WHY THE MARK EXISTS. Gating was always correct -- `mine` decides the exit status and the JUnit XML
     -- but the TABLE printed merged rows indistinguishably and the `PASS=n` line counted them. So
-    `make check`, which runs two container-free tests, printed a 9-row table ending `PASS=9` including
+    `--only local`, which runs two container-free tests, printed a 9-row table ending `PASS=9` including
     `test_perturbations_integrity PASS 48 cells` from a stale earlier run. On 2026-08-19 that stale row
     directly contradicted a FAIL measured against the same tree twenty minutes earlier (the B-HOBJ
     dtype crash), and it read as fresh evidence that the GPU tier was green.
@@ -530,7 +540,7 @@ def main():
                    help="make THIS DRIVER's exit status meaningful: 1 if any test did not end "
                         "PASS or SKIP, else 0. Off by default, because the normal use of this "
                         "script is to record what happened, and a suite with a known-failing "
-                        "member is still a useful record. This flag is what `make test` and CI "
+                        "member is still a useful record. This flag is what CI "
                         "gate on. It says nothing about any CHILD's exit code, which is still "
                         "recorded and still never trusted -- see the header.")
     p.add_argument("--level", default=None, choices=sorted(LEVELS),

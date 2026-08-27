@@ -12,43 +12,26 @@ The complete flag surface, and what the knobs actually do.
 There is also `examples/01_pi0_eval.py`, which takes **no flags at all** — it is a hardcoded
 demonstration (task 1, no perturbation, one repeat) and silently ignores anything you pass it.
 
-> `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. If you find a
-> script invoking `python realm/eval.py --...`, that script is stale — see
-> [Known issues](Known-Issues-and-Gotchas).
+> `realm/eval.py` is a **library module**. It has no `__main__` and no argument parser. A script
+> invoking `python realm/eval.py --...` is stale.
 
-## `rr` and `MODE`
+## Container execution
 
-Everything runs inside the container. `scripts/clara/interactive/rr` puts you there. It takes **no
-flags of its own** — everything after `rr` is the in-container command, and configuration is by
-environment variable.
+Everything runs inside the release container. Set `REALM_SIF` and `REALM_DATA_PATH`, then open it
+with `./scripts/run_apptainer.sh`; see [Quick start](Quick-Start). On a managed cluster, invoke the
+launcher only after entering an allocated GPU node using your site's scheduler instructions.
 
-**`rr` starts the container wherever it is invoked.** It does not allocate and it does not `srun`, so
-it has to be reached through one:
+The release image contains OmniGibson 3.9.1 and the required REALM fixes. Binding a host OG-lite
+checkout over the installed package is a development workflow, not part of a normal evaluation.
 
-```sh
-MODE=stock srun --jobid=<ID> --overlap \
-  ./scripts/clara/interactive/rr python -u examples/02_evaluate.py --task_id 0 ...
-```
-
-Run bare on a login node you get a container with no GPU. The `go` wrapper does the `srun` for you
-and adds logging — see [Cluster and parallel runs](Cluster-and-Parallel-Runs).
-
-`MODE` selects which OmniGibson the run sees. **`stock` is the default.**
-
-| `MODE` | What it binds |
-|---|---|
-| `stock` | the image's own OmniGibson 3.9.1. Nothing bound. **Default.** |
-| `oglite` | the host OG-lite fork bound over the image's package — the whole fork |
-
-Other environment variables `rr` passes through, only when you set them:
+Relevant optional environment variables are:
 `REALM_INCREMENTAL_CONTACT_CACHE`, `REALM_PROXIMITY_GATE`, `REALM_GPU_DYNAMICS`,
 `OMNIGIBSON_HEADLESS` (defaults to `1`).
 
-> **`REALM_GPU_DYNAMICS=1` segfaults at the first reset.** It is passed through because an
-> investigation needed it, not because it works — see
-> [Performance and scaling](Performance-and-Scaling).
+> **`REALM_GPU_DYNAMICS=1` segfaults at the first reset.** It is passed through for debugging, not
+> because it works.
 
-> **Two container traps, both encoded in `rr`'s own comments:**
+> **Two container traps:**
 > - It uses `apptainer run`, never `exec` — `exec` skips the runscript that activates the conda
 >   environment, and you land on a Python with no `omnigibson`.
 > - **Never wrap the command in `bash -lc`.** A *login* shell re-sources your host `~/.bashrc`,
@@ -124,8 +107,8 @@ either.
 > and GR00T N1.5. **None of those three can be constructed on this branch** — only `openpi`,
 > `dreamzero` and `debug` can. The `openpi` client is the route to a π-family policy, but it is a
 > different client from the one those numbers were produced with. If you are trying to reproduce the
-> paper specifically rather than evaluate your own policy, start from the paper's own release rather
-> than from this branch, and ask before assuming the two are interchangeable.
+> paper specifically rather than evaluate your own policy, follow [Reproducibility](Reproducibility)
+> and use `v0.1.1`.
 
 `debug` is what the integrity tests use, and it is the right choice for checking that the simulation
 and logging path work before you involve a policy.
@@ -161,13 +144,11 @@ with `--multi-view`; the environment asserts on it.
 
 ## Frequencies
 
-Set per robot family, with physics fixed:
+The DROID control and rendering frequency is fixed:
 
 | Robot | Sim step / rendering |
 |---|---|
-| `WidowX` | 5 Hz |
-| `UR5*` | 30 Hz |
-| everything else, including all `DROID*` | 15 Hz |
+| `DROID*` | 15 Hz |
 
 Physics always runs at **120 Hz**. At 15 Hz that is 8 physics substeps per environment step.
 
@@ -185,14 +166,22 @@ recorded trajectory extends past the success moment.
 
 ## Resume
 
-`--run_id <id> --resume` picks an existing run report back up rather than starting over. Useful when
-a sweep cell died partway. The sweep drivers rely on this, and additionally skip cells whose outputs
-already exist.
+If a single-environment run is interrupted, pass `--resume` with its existing `--run_id`. The run ID
+is the timestamp folder inside the experiment's log directory.
+
+```sh
+OMNIGIBSON_HEADLESS=1 python /app/examples/02_evaluate.py \
+    ...same arguments as the original run... \
+    --run_id 20240101_120000 \
+    --resume
+```
+
+Keep every other argument identical to the original run. Completed repeats are skipped. The
+vectorized entry point does not support `--resume`.
 
 ## See also
 
 - [Tasks and perturbations](Tasks-and-Perturbations)
-- [Robots and configs](Robots-and-Configs)
-- [Logs, outputs and the viewer](Logs-Outputs-and-Viewer)
+- [Reproducibility](Reproducibility)
+- [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
-- [Known issues and gotchas](Known-Issues-and-Gotchas)

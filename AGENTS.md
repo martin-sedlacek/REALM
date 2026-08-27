@@ -4,19 +4,22 @@
 
 `realm/` contains evaluation entry points, rollout logic, environments, inference adapters, robot definitions, and layered YAML configuration. Put usage examples in `examples/`, tests in `tests/`, cluster and debugging utilities in `scripts/`, and operator documentation in `wiki/`. Longer investigations belong in `docs/`. Simulation assets live under `realm/robots/`, `custom_assets/`, and `images/`; avoid committing generated output from `logs/` or `tmp/`.
 
-REALM is a reproducibility-sensitive benchmark. Preserve behavior and RNG draw order during refactors. Changes that intentionally alter benchmark numbers require explicit review, a `VERSION` bump, and an entry in `CHANGE_LEDGER.md`.
+REALM is a reproducibility-sensitive benchmark. Preserve behavior and RNG draw order during refactors. Changes that intentionally alter benchmark numbers require explicit review and a `VERSION` bump.
 
 ## Build, Test, and Development Commands
 
 - `./setup.sh --docker --dataset` prepares the recommended container and dataset.
 - `uv sync --locked` creates the host-only lint/static-test environment; it is not a runtime.
-- `uv run make check` runs all host-safe checks: Ruff plus static tests.
-- `make lint` runs the narrow ruleset in `.ruff.toml` over `realm`, `examples`, `tests`, and `scripts`.
-- `make test-list` displays suite entries and their runtime requirements.
-- `ALLOC=<jobid> make test-smoke` runs the approximately 12-minute GPU gate.
-- `ALLOC=<jobid> make test-suite` runs the full approximately 1.7-hour suite.
+- `uv run ruff check realm examples tests scripts` runs the narrow ruleset in `.ruff.toml`.
+- `uv run python tests/run_suite.py --only local --strict --out tmp/suite/results.json --junit-xml tmp/suite/results.xml`
+  runs the container-free tests. Follow it with
+  `uv run python -m pytest -q tests/test_perturbation_task_types.py tests/test_cell_classification.py tests/test_robot_base_column.py tests/test_robot_definition_parity.py`.
+  Those two commands plus the lint above are tier 1 in full.
+- `python tests/run_suite.py --list` displays suite entries and their runtime requirements.
+- `python tests/run_suite.py --jobid <ALLOC> --mode stock --level smoke --strict --out tmp/suite/results.json --junit-xml tmp/suite/results.xml`
+  runs the approximately 12-minute GPU gate; `--level suite` runs the full approximately 1.7-hour suite.
 
-Use `SUITE_MODE=oglite` when validating scene correctness. GPU work requires the container, dataset, and an active Slurm allocation.
+Use `--mode oglite` when validating scene correctness. GPU work requires the container, dataset, and an active Slurm allocation, and `--jobid` must name a RUNNING one — without it the suite starts the container on the login node, gets no GPU, and fails confusingly.
 
 ## Coding Style & Naming Conventions
 
@@ -24,7 +27,7 @@ Use four-space indentation and conventional Python naming: `snake_case` for modu
 
 ## Testing Guidelines
 
-Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run `uv run make check`, or invoke only the four host-safe pytest modules listed by `HOST_PYTESTS` in the `Makefile`. Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in `TODO_CLARA.MD`.
+Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run the tier-1 commands above, or invoke only the four host-safe pytest modules by name (`test_perturbation_task_types`, `test_cell_classification`, `test_robot_base_column`, `test_robot_definition_parity`). Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.
 
 ## Commit & Pull Request Guidelines
 
