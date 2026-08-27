@@ -29,7 +29,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TASK_CONFIG_GLOB = "realm/config/tasks/**/*.yaml"
 PROGRESSIONS = PROJECT_ROOT / "realm/config/tasks/task_progressions.yaml"
-SB_VRB = PROJECT_ROOT / "realm/environments/perturbations/sb_vrb.py"
+SHARED = PROJECT_ROOT / "realm/config/shared.py"
 
 
 def module_level_dict(path, name):
@@ -77,12 +77,12 @@ def progression_task_types():
 
 @pytest.fixture(scope="module")
 def matrix():
-    return module_level_dict(SB_VRB, "COMPATIBILITY_MATRIX")
+    return module_level_dict(SHARED, "COMPATIBILITY_MATRIX")
 
 
 @pytest.fixture(scope="module")
 def verb_phrase():
-    return module_level_dict(SB_VRB, "VERB_PHRASE")
+    return module_level_dict(SHARED, "VERB_PHRASE")
 
 
 def test_every_declared_task_type_is_a_matrix_key(matrix):
@@ -176,7 +176,7 @@ def module_level_set(path, name):
 
 @pytest.fixture(scope="module")
 def unsupported():
-    return module_level_set(SB_VRB, "UNSUPPORTED_TASK_TYPES")
+    return module_level_set(SHARED, "UNSUPPORTED_TASK_TYPES")
 
 
 def test_unsupported_task_types_are_exactly_the_drawer_tasks(unsupported):

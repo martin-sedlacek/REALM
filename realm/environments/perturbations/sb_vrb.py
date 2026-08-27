@@ -24,6 +24,11 @@ from realm.environments.perturbations.object_sampling import (
     rescale_to_max_dim,
     sample_objects,
 )
+from realm.config.shared import (
+    COMPATIBILITY_MATRIX,
+    UNSUPPORTED_TASK_TYPES,
+    VERB_PHRASE,
+)
 from realm.environments.utils import load_task_progressions
 from realm.placement import place_within
 
@@ -32,32 +37,7 @@ if TYPE_CHECKING:
 
 TASK_PROGRESSIONS = load_task_progressions()
 
-# Keys and values use task_type identifiers, not natural-language verbs.
-COMPATIBILITY_MATRIX = {
-    "put": ["pick", "rotate", "stack"],
-    "push": [],
-    "pick": ["put", "rotate", "stack"],
-    "rotate": ["put", "pick", "stack"],
-    "stack": ["put", "pick", "rotate"],
-    "open_drawer": ["close_drawer"],
-    "close_drawer": ["open_drawer"],
-}
-
-VERB_PHRASE = {
-    "pick": "pick up",
-    "put": "put",
-    "rotate": "rotate",
-    "stack": "stack",
-    "push": "push",
-    "open_drawer": "open",
-    "close_drawer": "close",
-}
-
 RECEIVER_MAX_DIM = 0.185
-
-
-# Drawer scenes cannot place the extra receiver SB-VRB would require.
-UNSUPPORTED_TASK_TYPES = {"open_drawer", "close_drawer"}
 
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:

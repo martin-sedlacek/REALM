@@ -1,5 +1,4 @@
 
-import os
 import random
 
 import numpy as np
@@ -7,6 +6,7 @@ import torch
 
 import omnigibson.lazy as lazy
 from omnigibson.macros import gm
+from realm.config.shared import env_flag, env_is_set
 
 
 def set_sim_config(robot="DROID"):
@@ -27,12 +27,12 @@ def set_sim_config(robot="DROID"):
     # ToggledOn is the only state REALM updates each frame; kinematic states remain on demand.
     gm.OBJECT_STATE_UPDATE_WHITELIST = ["ToggledOn"]
     gm.ENABLE_VISUAL_UPDATES = False
-    gm.INCREMENTAL_CONTACT_CACHE = os.environ.get("REALM_INCREMENTAL_CONTACT_CACHE", "1") == "1"
+    gm.INCREMENTAL_CONTACT_CACHE = env_flag("REALM_INCREMENTAL_CONTACT_CACHE", True)
     # Proximity-gate membership is fixed at initialization; disable it for mobile robots.
-    gm.PROXIMITY_GATE_ENABLED = os.environ.get("REALM_PROXIMITY_GATE", "1") == "1"
+    gm.PROXIMITY_GATE_ENABLED = env_flag("REALM_PROXIMITY_GATE", True)
     # GPU dynamics changes trajectories and is therefore opt-in.
-    if "REALM_GPU_DYNAMICS" in os.environ:
-        gm.USE_GPU_DYNAMICS = os.environ["REALM_GPU_DYNAMICS"] == "1"
+    if env_is_set("REALM_GPU_DYNAMICS"):
+        gm.USE_GPU_DYNAMICS = env_flag("REALM_GPU_DYNAMICS", False)
     gm.RENDER_VIEWER_CAMERA=False
     # OmniGibson requires at least 60 Hz for HQ isosurface rendering.
     gm.ENABLE_HQ_RENDERING = False

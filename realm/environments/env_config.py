@@ -14,6 +14,7 @@ from realm.environments.constants import (
     DROID_BASE_HEIGHT,
     DROID_DEFAULT_DOF,
 )
+from realm.config.shared import env_flag, env_value
 from realm.environments.perturbations.object_sampling import sample_objects
 from realm.placement import place_within
 
@@ -174,8 +175,8 @@ def _apply_env_cfg(cfg):
         cfg["env"] = {
             "initial_pos_z_offset": 0.2
         }
-    if os.environ.get("REALM_GPU_DYNAMICS") == "1":
-        cfg["env"]["device"] = os.environ.get("REALM_TORCH_DEVICE", "cuda:0")
+    if env_flag("REALM_GPU_DYNAMICS", False):
+        cfg["env"]["device"] = env_value("REALM_TORCH_DEVICE", "cuda:0")
 
 
 def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
