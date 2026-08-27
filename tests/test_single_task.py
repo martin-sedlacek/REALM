@@ -35,8 +35,8 @@ MAX_STEPS = 1
 #:
 #: Which asset this SHOULD be is a separate question, and not one this test can settle: with
 #: --model_type debug and --max_steps 1 no rollout moves, so no success condition is reachable on
-#: any asset. See the run recorded in ~/runbook/streams/realm_og391_port.md for the measurement
-#: that can tell the assets apart.
+#: any asset. This threshold was measured during the OmniGibson 3.9.1 port; this test cannot tell
+#: the assets apart.
 DEFAULT_ROBOT = "DROID"
 
 
