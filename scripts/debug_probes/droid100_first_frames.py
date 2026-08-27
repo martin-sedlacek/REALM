@@ -273,7 +273,7 @@ def teardown(log_fh):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", required=True, help="run directory; frames/ and shard*.json go here")
-    p.add_argument("--suite", default="DROID100_tabletop")
+    p.add_argument("--suite", default="REALM_DROID100")
     p.add_argument("--shard", type=int, default=0)
     p.add_argument("--num_shards", type=int, default=1)
     p.add_argument("--tasks", default=None, help="comma-separated task dir names, overrides sharding")
