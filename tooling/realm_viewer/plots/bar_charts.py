@@ -150,6 +150,6 @@ def render_metric_bar_chart(df, metric_col, title, ylabel, model_to_marker, mode
         model_names = stats['model'].tolist()
 
         fig = plot_grouped_bars_with_symbols(labels, values, colors, symbols, model_names, model_colors=model_to_color, ylabel=ylabel, title=title, hline=hline, hline_label=hline_label)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Error plotting {title}: {e}")

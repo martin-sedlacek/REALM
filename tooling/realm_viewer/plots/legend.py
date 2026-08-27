@@ -49,4 +49,4 @@ def plot_model_legend(model_to_marker, model_to_color):
 
 def render_model_legend(model_to_marker, model_to_color):
     fig = plot_model_legend(model_to_marker, model_to_color)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)

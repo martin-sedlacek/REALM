@@ -443,7 +443,7 @@ if selected_runs:
                         model_names.append(row['model'])
 
                     fig = plot_bayesian_violin(labels, successes, failures, colors, symbols=symbols, model_names=model_names, model_colors=model_to_color, fontsize=12)
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
 
             with c2:
                 st.subheader("Success Rate per Perturbation")
@@ -461,7 +461,7 @@ if selected_runs:
                     model_names = pert_stats['model'].tolist()
 
                     fig = plot_bayesian_violin(labels, successes, failures, colors, symbols=symbols, model_names=model_names, model_colors=model_to_color, fontsize=12)
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No binary_SR column found for plots.")
 
@@ -478,7 +478,7 @@ if selected_runs:
                         model_to_marker=model_to_marker,
                         show_average=True,
                     )
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No task_progression column found for plots.")
 
@@ -491,7 +491,7 @@ if selected_runs:
                         model_to_color=model_to_color,
                         model_to_marker=model_to_marker,
                     )
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No task_progression column found for plots.")
 
@@ -501,12 +501,12 @@ if selected_runs:
             with c5:
                 st.subheader("Failure Stage Frequency")
                 fig = plot_stage_frequency(df, model_to_marker=model_to_marker, model_to_color=model_to_color)
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
             with c6:
                 st.subheader("Failure Stage Frequency per Task")
                 fig = plot_stage_frequency_per_task(df, model_to_marker=model_to_marker, model_to_color=model_to_color)
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
             st.caption("*Note: Data for perturbation 'SB-VRB' is excluded from the 'Failure Stage Frequency per Task' plot.*")
 
@@ -552,7 +552,7 @@ if selected_runs:
                                 model_names = task_time['model'].tolist()
 
                                 fig = plot_grouped_bars_with_symbols(labels, values, colors, symbols, model_names, model_colors=model_to_color, ylabel="Average Completion Time")
-                                st.plotly_chart(fig, width="stretch")
+                                st.plotly_chart(fig, use_container_width=True)
                             except Exception as e:
                                 st.error(f"Error parsing timestamps: {e}")
                         else:
@@ -565,7 +565,7 @@ if selected_runs:
             with c8:
                 st.subheader("Stage Timesteps per Task")
                 fig = plot_task_progression_timesteps_per_task(df, model_to_marker=model_to_marker, model_to_color=model_to_color)
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
             st.caption("*Note: Data for perturbation 'SB-VRB' is excluded from the 'Stage Timesteps per Task' plot.*")
 
