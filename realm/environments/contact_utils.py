@@ -15,6 +15,7 @@ The impulse magnitudes themselves are not retained by the aggregation (``update_
 reduces them to booleans and clears its pending buffers), so they are re-read from the live contact
 view at query time.
 """
+from realm.config.shared import DEFAULT_IMPULSE_THRESHOLD
 
 from collections import defaultdict
 
@@ -25,7 +26,6 @@ from omnigibson.utils.usd_utils import RigidContactAPI
 
 # Matches the pre-3.9.1 filter in RealmEnvironmentBase.check_collisions: contacts weaker than this
 # are resting contacts, not collisions.
-DEFAULT_IMPULSE_THRESHOLD = 1e-3
 
 
 def _live_impulse_matrix(scene_idx):

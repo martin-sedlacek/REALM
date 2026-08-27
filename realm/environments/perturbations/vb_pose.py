@@ -1,5 +1,6 @@
 
 from __future__ import annotations
+from realm.config.shared import SWITCH_DZ_RANGE, SWITCH_DXY_RANGE, DRAWER_YAW_NOISE_STD, DRAWER_YAW_NOISE_MEAN, DRAWER_YAW_CLIP_MIN, DRAWER_YAW_CLIP_MAX, TABLETOP_YAW_NOISE_STD, DRAWER_Z_OFFSET
 
 import numpy as np
 from typing import TYPE_CHECKING
@@ -12,17 +13,9 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
-SWITCH_DZ_RANGE = 0.15
-SWITCH_DXY_RANGE = 0.075
 
-DRAWER_YAW_NOISE_STD = (0, 0, 0.12)
-DRAWER_YAW_NOISE_MEAN = (0, 0, 0.25)
-DRAWER_YAW_CLIP_MIN = [-3.14, -3.14, 0]
-DRAWER_YAW_CLIP_MAX = [3.14, 3.14, 0.57]
 
-TABLETOP_YAW_NOISE_STD = (0, 0, 3.14)
 
-DRAWER_Z_OFFSET = 0.3
 
 
 def _place(obj, position=None, orientation=None, frame="scene"):

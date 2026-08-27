@@ -1,5 +1,6 @@
 
 from __future__ import annotations
+from realm.config.shared import SETTLE_STEPS
 
 from typing import TYPE_CHECKING
 
@@ -11,7 +12,6 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
-SETTLE_STEPS = 30
 
 # OmniGibson requires a stopped simulator when objects are added or removed.
 NEEDS_STOPPED_SIM = frozenset({"V-SC", "VB-MOBJ", "VSB-NOBJ", "SB-VRB"})

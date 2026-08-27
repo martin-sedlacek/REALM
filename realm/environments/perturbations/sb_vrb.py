@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import copy
@@ -26,6 +25,7 @@ from realm.environments.perturbations.object_sampling import (
 )
 from realm.config.shared import (
     COMPATIBILITY_MATRIX,
+    RECEIVER_MAX_DIM,
     UNSUPPORTED_BY_PERTURBATION,
     VERB_PHRASE,
 )
@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 
 TASK_PROGRESSIONS = load_task_progressions()
 
-RECEIVER_MAX_DIM = 0.185
 
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:

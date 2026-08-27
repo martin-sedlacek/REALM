@@ -1,3 +1,4 @@
+from realm.config.shared import SIGMA_RANGE, ALPHA_RANGE
 
 import cv2
 import numpy as np
@@ -5,8 +6,6 @@ import torch
 
 from realm.inference.utils import wrist_camera_obs_key
 
-SIGMA_RANGE = (0.0, 2.5)
-ALPHA_RANGE = (0.25, 1.5)
 
 
 def apply_blur_and_contrast(obs, sigma=None, alpha=None, robot_name='DROID'):

@@ -1,3 +1,12 @@
+from realm.config.shared import (  # noqa: F401
+    CONTROL_DT,
+    CONTROL_HZ,
+    GRIPPER_OPEN_ABOVE_HALF,
+    GRIPPER_OPEN_BELOW_HALF,
+    PLACEMENT_TASK_TYPES,
+    SHORT_TRAJECTORY_SAMPLES,
+    TERMINAL_STEPS,
+)
 
 from queue import Queue
 from typing import Any, NamedTuple
@@ -10,14 +19,9 @@ from realm.environments.task_progression import DRAWER_TASK_TYPES
 from realm.inference import extract_from_obs
 from realm.realm_logging import append_trajectory, append_video
 
-CONTROL_HZ = 15.0
-CONTROL_DT = 1.0 / CONTROL_HZ
 
-TERMINAL_STEPS = 15
 
-SHORT_TRAJECTORY_SAMPLES = 4
 
-PLACEMENT_TASK_TYPES = ("put", "stack")
 
 
 def wants_base_im_second(task_type, base_im_second):
@@ -26,8 +30,6 @@ def wants_base_im_second(task_type, base_im_second):
 
 
 # Policy and REALM gripper conventions differ.
-GRIPPER_OPEN_ABOVE_HALF = ("debug", "openpi", "GR00T", "GR00T_N16", "dreamzero")
-GRIPPER_OPEN_BELOW_HALF = ("molmoact",)
 
 
 def resolve_task(task_id, task_cfg_path, supported_tasks, name_includes_config):

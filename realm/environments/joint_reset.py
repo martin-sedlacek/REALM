@@ -1,3 +1,4 @@
+from realm.config.shared import INIT_OPENNESS_FRACTION, JOINT_SETTLE_STEPS, JOINT_HOLD_STEPS
 
 from collections import namedtuple
 
@@ -12,10 +13,7 @@ from realm.environments.utils import (
     reset_joints_batched,
 )
 
-INIT_OPENNESS_FRACTION = 1.0
 
-JOINT_SETTLE_STEPS = 30
-JOINT_HOLD_STEPS = 10
 
 JointResetPlan = namedtuple("JointResetPlan", ["cabinet", "joints", "reset_states"])
 JointResetPlan.__doc__ = """One member's reset state, excluding global simulator steps."""

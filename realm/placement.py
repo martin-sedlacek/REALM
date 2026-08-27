@@ -1,3 +1,4 @@
+from realm.config.shared import DEFAULT_BBOX_EXTENT, DROP_HEIGHT
 
 import numpy as np
 
@@ -5,8 +6,6 @@ import omnigibson as og
 from omnigibson.objects import DatasetObject
 from omnigibson.scenes.interactive_traversable_scene import InteractiveTraversableScene
 
-DEFAULT_BBOX_EXTENT = (0.08, 0.08, 0.08)
-DROP_HEIGHT = 0.1
 
 
 def get_objects_by_names(scene: InteractiveTraversableScene, names: list[str]) -> list[DatasetObject]:

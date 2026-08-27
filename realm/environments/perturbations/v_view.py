@@ -1,4 +1,5 @@
 from __future__ import annotations
+from realm.config.shared import MAX_POS_DEVIATION, MAX_PITCH_DEVIATION, MAX_YAW_DEVIATION
 
 import numpy as np
 import torch
@@ -10,9 +11,6 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 #: Camera jitter: uniform position offset (metres, per axis) and pitch/yaw offsets (radians).
-MAX_POS_DEVIATION = 0.2
-MAX_PITCH_DEVIATION = 0.2
-MAX_YAW_DEVIATION = 0.2
 
 
 def _perturb_camera_pose(cam_pos: list[float], cam_orientation: list[float]) -> tuple[list[float], list[float]]:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from realm.config.shared import MASS_CLIP_KG
 
 import numpy as np
 from typing import TYPE_CHECKING
@@ -9,7 +10,6 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 
-MASS_CLIP_KG = 2.0  # heaviest payload B-HOBJ is allowed to hand the policy
 
 
 def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:

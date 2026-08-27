@@ -1,4 +1,5 @@
 from __future__ import annotations
+from realm.config.shared import LIGHT_INTENSITY_RANGE, LIGHT_COLOR_MEAN, LIGHT_COLOR_STD
 
 import numpy as np
 from typing import TYPE_CHECKING
@@ -10,11 +11,8 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 #: Intensity draw (lux): spans dim indoor lighting to studio-bright.
-LIGHT_INTENSITY_RANGE = (20000, 750000)
 
 #: Color noise: per-channel normal around a warm white (8-bit RGB), then normalised to [0, 1].
-LIGHT_COLOR_MEAN = (255, 214, 170)
-LIGHT_COLOR_STD = 15
 
 
 def v_light(env: "RealmEnvironmentDynamic", intensity=None) -> None:

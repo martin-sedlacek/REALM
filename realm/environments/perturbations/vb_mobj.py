@@ -6,6 +6,7 @@ scene itself. Drawer tasks clip to cabinet-sized bounds and fix the base. USDObj
 supported.
 """
 from __future__ import annotations
+from realm.config.shared import RESCALE_RANGE, MAX_VOLUME_FACTOR, RESCALE_MAX_TRIES, DRAWER_BBOX_CLIP, TABLETOP_BBOX_CLIP
 
 import numpy as np
 import torch
@@ -22,14 +23,9 @@ if TYPE_CHECKING:
 #: Per-axis scale factor draw, and the cap on the factors' product -- rejecting draws whose
 #: combined volume factor exceeds it keeps the object recognisable. P(1000 consecutive rejections)
 #: is effectively zero; if it ever happened, the last (rejected) draw would be used as-is.
-RESCALE_RANGE = (0.5, 1.5)
-MAX_VOLUME_FACTOR = 1.5
-RESCALE_MAX_TRIES = 1000
 
 #: Post-scale bbox clips (metres): cabinets must stay reachable with usable drawers, everything
 #: else must remain graspable.
-DRAWER_BBOX_CLIP = (0.4, 0.75)
-TABLETOP_BBOX_CLIP = (0.02, 0.175)
 
 
 def vb_mobj(env: "RealmEnvironmentDynamic") -> None:

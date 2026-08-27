@@ -7,6 +7,7 @@ keep their authored poses; only distractors move and change identity. Requires `
 (a task with a spawn region).
 """
 from __future__ import annotations
+from realm.config.shared import DISTRACTOR_MAX_DIM
 
 import copy
 from typing import TYPE_CHECKING
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
 #: Largest bbox dimension (metres) a distractor may have after the swap.
-DISTRACTOR_MAX_DIM = 0.12
 
 
 def v_sc(env: "RealmEnvironmentDynamic") -> None:

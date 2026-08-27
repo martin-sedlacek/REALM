@@ -8,6 +8,7 @@ Layout contract (frozen -- downstream tooling and tests/test_vector_integrity.py
 The parquet "append" is read-concat-rewrite, so cost grows with rows already written -- fine at 25
 repeats, worth a real row-group append if repeats ever grow by an order of magnitude.
 """
+from realm.config.shared import VIDEO_TARGET_HEIGHT
 import numpy as np
 import os
 import csv
@@ -18,7 +19,6 @@ from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import omnigibson as og
 
 #: Recorded videos are downscaled to this height (keeping aspect) before encoding.
-VIDEO_TARGET_HEIGHT = 480
 
 
 def save_results(results, log_dir, task, perturbation, filename=None):

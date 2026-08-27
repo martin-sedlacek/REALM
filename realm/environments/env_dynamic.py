@@ -1,3 +1,4 @@
+from realm.config.shared import WARMUP_STEPS
 
 import copy
 from functools import partial
@@ -24,7 +25,6 @@ from realm.geometry import (
 from realm.inference.utils import assert_wrist_camera
 from realm.sim_config import set_rendering_mode
 
-WARMUP_STEPS = 30
 
 
 class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
