@@ -1,10 +1,10 @@
-"""Repair OmniGibson's global object-init queue after sibling-scene removal."""
+
 import omnigibson as og
 import omnigibson.lazy as lazy
 
 
 def repair_init_queue(envs):
-    """Requeue registered objects that are still uninitialized."""
+
     our_scenes = {id(env.omnigibson_env.scene) for env in envs}
 
     stale = [
@@ -42,7 +42,7 @@ def repair_init_queue(envs):
 
 
 def _is_dead(obj):
-    """Return whether a queued object was removed from its scene."""
+
     registered = obj.scene.object_registry("name", obj.name)
     if registered is obj:
         return False        # the live object, about to be initialized normally

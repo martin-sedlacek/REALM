@@ -1,4 +1,4 @@
-"""Global simulator and renderer configuration."""
+
 import os
 import random
 

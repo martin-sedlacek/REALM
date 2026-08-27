@@ -28,17 +28,17 @@ class RobotArm(robot_arm.RobotArm):
 
     @property
     def joints(self):
-        """List of joint elements belonging to the arm."""
+
         return self._joints
 
     @property
     def actuators(self):
-        """List of actuator elements belonging to the arm."""
+
         return self._actuators
 
     @property
     def mjcf_model(self):
-        """Returns the `mjcf.RootElement` object corresponding to this robot."""
+
         return self._mjcf_root
 
     def update_state(self, physics: mjcf.Physics, qpos: np.ndarray, qvel: np.ndarray) -> None:
@@ -57,7 +57,7 @@ class RobotArm(robot_arm.RobotArm):
         return self._wrist_site
 
     def initialize_episode(self, physics: mjcf.Physics, random_state: np.random.RandomState):
-        """Function called at the beginning of every episode."""
+
         del random_state  # Unused.
         return
 

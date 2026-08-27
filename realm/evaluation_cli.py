@@ -1,10 +1,10 @@
-"""Shared command-line interface for single and vectorized REALM evaluations."""
+
 
 import argparse
 
 
 def build_evaluation_parser(*, vectorized=False):
-    """Build an evaluation parser while preserving each entry point's public defaults."""
+
     parser = argparse.ArgumentParser(
         description="Vectorized REALM evaluation" if vectorized else "REALM evaluation"
     )
@@ -53,7 +53,7 @@ def build_evaluation_parser(*, vectorized=False):
 
 
 def run_evaluation_cli(*, vectorized=False):
-    """Parse arguments, construct the run directory, and execute an evaluation."""
+
     args = build_evaluation_parser(vectorized=vectorized).parse_args()
 
     # Heavy simulator imports stay behind argument parsing so --help remains lightweight.

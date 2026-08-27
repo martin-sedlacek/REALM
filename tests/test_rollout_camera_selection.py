@@ -42,7 +42,7 @@ IMAGE = np.zeros((128, 128, 3), dtype=np.uint8)   # stands in for a rendered fra
 
 
 def declared_task_types():
-    """Every `task_type` the task configs declare, so the tuple above cannot drift from them."""
+
     declared = {}
     for path in sorted(PROJECT_ROOT.glob("realm/config/tasks/**/*.yaml")):
         try:

@@ -1,4 +1,4 @@
-"""S-*: language-only perturbations -- they swap the instruction and touch nothing in the scene."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def apply_cached_semantic_perturbations(env: "RealmEnvironmentDynamic", perturbation: str) -> None:
-    """Swap the instruction for one of the rewrites the task config pre-computed for @perturbation."""
+
     tmp = env.cfg["cached_semantic_perturbations"][perturbation]
     idx = np.random.randint(0, len(tmp))
     env.instruction = tmp[idx]

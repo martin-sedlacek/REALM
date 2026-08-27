@@ -90,7 +90,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         assert self.Kxd.shape == th.Size([6, 6])
 
     def _get_joint_positions(self):
-        """(N, control_dim) current positions of this controller's DOFs, one row per group member."""
+
         rows = self.view_row_indices
         return ControllableObjectViewAPI.get_all_joint_positions(self.routing_path)[rows, :][:, self.dof_idx]
 
@@ -115,7 +115,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         ]
 
     def _get_relative_jacobians(self):
-        """(N, 6, control_dim) base-relative Jacobian of the eef link for this controller's DOFs."""
+
         rows = self.view_row_indices
         eef_body_idx = ControllableObjectViewAPI.get_link_index(self.routing_path, self._link_name)
         jac_all = ControllableObjectViewAPI.get_all_relative_jacobians(self.routing_path)  # (N, n_links, 6, n_dof)
@@ -138,11 +138,11 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         return [idx + base_dof_offset for idx in self.dof_idx]
 
     def _generalized_forces(self, getter):
-        """One of ControllableObjectViewAPI's (N, n_dof) generalized-force arrays, on sim device."""
+
         return cb.to_torch(getter(self.routing_path)).to(og.sim.device)[self.view_row_indices, :]
 
     def _update_goal(self, controller_idx, command):
-        """Clip one member's commanded joint positions to their limits and hold velocity at zero."""
+
         target_joint_pos = cb.to_torch(command).to(og.sim.device)
 
         target_joint_pos = target_joint_pos.clip(

@@ -56,7 +56,7 @@ def module_level_dict(path, name):
 
 
 def declared_task_types():
-    """Every `task_type` the task configs declare, mapped to the files that declare it."""
+
     declared = {}
     for path in sorted(PROJECT_ROOT.glob(TASK_CONFIG_GLOB)):
         try:
@@ -86,7 +86,7 @@ def verb_phrase():
 
 
 def test_every_declared_task_type_is_a_matrix_key(matrix):
-    """The bug that hid for a day: a declared task_type absent from the matrix is a silent no-op."""
+
     declared = declared_task_types()
     missing = {t: files for t, files in declared.items() if t not in matrix}
     assert not missing, (
@@ -97,7 +97,7 @@ def test_every_declared_task_type_is_a_matrix_key(matrix):
 
 
 def test_every_matrix_value_is_a_real_task_type(matrix):
-    """A value outside the task_type namespace KeyErrors on the TASK_PROGRESSIONS lookup."""
+
     valid = progression_task_types()
     bad = {key: [v for v in vals if v not in valid] for key, vals in matrix.items()}
     bad = {k: v for k, v in bad.items() if v}
@@ -109,7 +109,7 @@ def test_every_matrix_value_is_a_real_task_type(matrix):
 
 
 def test_every_matrix_key_is_a_real_task_type(matrix):
-    """Catches the other direction: a key nothing declares is dead weight that looks like coverage."""
+
     valid = progression_task_types()
     unknown = sorted(k for k in matrix if k not in valid)
     assert not unknown, (
@@ -119,7 +119,7 @@ def test_every_matrix_key_is_a_real_task_type(matrix):
 
 
 def test_no_key_lists_itself(matrix):
-    """sb_vrb's docstring promises the drawn task_type always differs, which tests rely on."""
+
     self_listed = sorted(k for k, vals in matrix.items() if k in vals)
     assert not self_listed, (
         "COMPATIBILITY_MATRIX key(s) list themselves, so SB-VRB can draw the task_type it already "
@@ -128,7 +128,7 @@ def test_no_key_lists_itself(matrix):
 
 
 def test_opt_outs_are_deliberate_and_few(matrix):
-    """An empty list is a documented opt-out. Keep it explicit, so a typo cannot become one."""
+
     empty = sorted(k for k, vals in matrix.items() if not vals)
     assert empty == ["push"], (
         "The only deliberate SB-VRB opt-out is 'push' (commented out in the matrix rather than "
@@ -138,7 +138,7 @@ def test_opt_outs_are_deliberate_and_few(matrix):
 
 
 def test_every_reachable_task_type_has_a_verb_phrase(matrix, verb_phrase):
-    """Reachable from the matrix but missing a phrasing = the NotImplementedError at the end."""
+
     reachable = {v for vals in matrix.values() for v in vals}
     missing = sorted(reachable - set(verb_phrase))
     assert not missing, (
@@ -148,7 +148,7 @@ def test_every_reachable_task_type_has_a_verb_phrase(matrix, verb_phrase):
 
 
 def test_verb_phrases_are_not_task_types_verbatim(verb_phrase):
-    """The drawer entries are the whole point: "open_drawer the top drawer" must not be reachable."""
+
     leaked = sorted(k for k, phrase in verb_phrase.items() if "_" in phrase)
     assert not leaked, (
         "VERB_PHRASE value(s) still contain an underscore, so the instruction would read like "
@@ -164,7 +164,7 @@ def test_verb_phrases_are_not_task_types_verbatim(verb_phrase):
 
 
 def module_level_set(path, name):
-    """Same trick as module_level_dict, for a set literal."""
+
     tree = ast.parse(path.read_text(), filename=str(path))
     for node in tree.body:
         if isinstance(node, ast.Assign):
@@ -180,7 +180,7 @@ def unsupported():
 
 
 def test_unsupported_task_types_are_exactly_the_drawer_tasks(unsupported):
-    """SB-VRB refuses the drawer tasks by design. Pin the set so it cannot quietly grow."""
+
     assert unsupported == {"open_drawer", "close_drawer"}, (
         "SB-VRB's UNSUPPORTED_TASK_TYPES changed. It refuses the two drawer tasks because their "
         "configs declare target_objects: [], which sends it down the receiver-adding branch and "
@@ -190,7 +190,7 @@ def test_unsupported_task_types_are_exactly_the_drawer_tasks(unsupported):
 
 
 def test_unsupported_task_types_stay_matrix_keys(matrix, unsupported):
-    """A refused task_type must still be a matrix key, or it raises the wrong error."""
+
     missing = sorted(t for t in unsupported if t not in matrix)
     assert not missing, (
         "task_type(s) in UNSUPPORTED_TASK_TYPES are absent from COMPATIBILITY_MATRIX. sb_vrb would "

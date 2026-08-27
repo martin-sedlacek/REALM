@@ -186,7 +186,7 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         ).to(og.sim.device)
 
     def _get_eef_pose_relative(self):
-        """((N, 3), (N, 4)) eef position/quaternion in the robot base frame."""
+
         rows = self.view_row_indices
         pos, quat = ControllableObjectViewAPI.get_all_link_relative_position_orientation(
             self.routing_path, self._link_name
@@ -194,7 +194,7 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         return cb.to_torch(pos)[rows], cb.to_torch(quat)[rows]
 
     def _get_relative_jacobians(self):
-        """(N, 6, control_dim) base-relative Jacobian of the eef link for this controller's DOFs."""
+
         rows = self.view_row_indices
         eef_body_idx = ControllableObjectViewAPI.get_link_index(self.routing_path, self._link_name)
         jac = cb.to_torch(ControllableObjectViewAPI.get_all_relative_jacobians(self.routing_path))[rows, eef_body_idx]
@@ -374,7 +374,7 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         return th.tensor(joint_position, dtype=th.float32, device=og.sim.device)
 
     def _cartesian_velocity_command(self, goal, pos_current, quat_current):
-        """The 6-D cartesian velocity the IK solver should track, for this controller's mode."""
+
         if self.mode == "cartesian_velocity":
             return th.cat([goal["target_cartesian_pos_vel"], goal["target_cartesian_rot_vel"]])
 
@@ -412,7 +412,7 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         return {k: cb.from_torch(v) for k, v in goal_dict.items()}
 
     def _compute_no_op_command(self, controller_idx):
-        """A command that asks for no motion: zero deltas, or the current pose in absolute modes."""
+
         all_pos_relative, all_quat_relative = self._get_eef_pose_relative()
         pos_relative = all_pos_relative[controller_idx]
         quat_relative = all_quat_relative[controller_idx]

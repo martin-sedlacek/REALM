@@ -34,7 +34,7 @@ def get_stage_progression_and_colors(df_plot):
 
 
 def _group_annotations_and_shapes(unique_groups, unique_indices, n_labels, x_positions, fontsize, y_sep=1.1):
-    """Return shapes (vertical separators) and annotations (group labels) for a grouped x-axis."""
+
     shapes = []
     annotations = []
     for i, group_label in enumerate(unique_groups):

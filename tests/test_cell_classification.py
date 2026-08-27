@@ -48,7 +48,7 @@ PFX = "2026-08-19T11:08:58Z [524,717ms] [Error] [omni.kit.app._impl] [py stderr]
 
 
 def isaac(*lines):
-    """Wrap plain traceback lines in the omni.kit stderr prefix, as the real logs carry them."""
+
     return "\n".join(PFX + ln for ln in lines)
 
 
@@ -104,7 +104,7 @@ def test_clean_log_has_no_crash_verdict():
 
 
 def test_teardown_segfault_alone_is_not_a_crash():
-    """The filter that predates this file: Isaac can segfault after all work is done."""
+
     log = CLEAN + "\nFatal Python error: Segmentation fault\nsrun: error: node: Segmentation fault"
     assert tvi.classify_log(log, "9:Default", -11) is None
 
@@ -160,7 +160,7 @@ def test_bare_not_implemented_is_recognised():
 
 
 def test_undeclared_refusal_is_a_failure():
-    """A refusal from a cell nobody declared means the code and the table disagree. Loud, not quiet."""
+
     status, detail = tvi.classify_log(SB_VRB_REFUSAL, "0:SB-VRB", 1)
     assert status == "UNDECLARED_NOT_IMPL", (
         f"an undeclared NotImplementedError must not be waved through as expected: {status} {detail}")

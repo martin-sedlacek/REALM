@@ -1,4 +1,4 @@
-"""Constants shared between the environment and its config builder."""
+
 import numpy as np
 
 # Neutral DROID arm pose, used when neither the task nor the scene names a reset pose.

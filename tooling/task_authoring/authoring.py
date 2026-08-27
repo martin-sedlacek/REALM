@@ -1,4 +1,4 @@
-"""Asset discovery and REALM task-config helpers for the authoring dashboard."""
+
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ _REALM_PAIR_CACHE: dict[int, tuple[int, list[list[tuple[str, dict[str, list[floa
 
 
 def load_panda_preview_meshes(mesh_root: Path, triangles_per_link: int = 1200) -> list[dict[str, object]]:
-    """Load the Panda's compact, closed collision surfaces for browser rendering."""
+
     meshes = []
     for link_index in range(8):
         path = mesh_root / f"link{link_index}.stl"
@@ -45,7 +45,7 @@ def load_panda_preview_meshes(mesh_root: Path, triangles_per_link: int = 1200) -
 
 
 def default_dataset_roots(repo_root: Path) -> list[Path]:
-    """Return likely local OmniGibson dataset roots, preserving priority."""
+
     candidates = [
         os.environ.get("OMNIGIBSON_DATASET_PATH"),
         os.environ.get("OG_DATASET_PATH"),
@@ -63,7 +63,7 @@ def default_dataset_roots(repo_root: Path) -> list[Path]:
 
 
 def asset_from_usd(path: Path, root: Path) -> dict[str, object]:
-    """Infer OmniGibson category/model identifiers from a USD path."""
+
     relative = path.relative_to(root)
     parts = relative.parts
     model = path.stem
@@ -93,7 +93,7 @@ def asset_from_usd(path: Path, root: Path) -> dict[str, object]:
 
 
 def load_asset_bbox(metadata_path: Path, category: str) -> tuple[list[float], str]:
-    """Read the model-space bounds shipped with Behavior-1K assets."""
+
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         bbox = metadata.get("bbox_size")
@@ -105,7 +105,7 @@ def load_asset_bbox(metadata_path: Path, category: str) -> tuple[list[float], st
 
 
 def load_scene_regions(path: Path) -> list[dict[str, object]]:
-    """Load the valid XY spawn rectangles defined by REALM scenes.yaml."""
+
     if not path.is_file():
         return []
     document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -138,7 +138,7 @@ def load_scene_regions(path: Path) -> list[dict[str, object]]:
 
 
 def discover_task_types(config_root: Path) -> list[str]:
-    """Return task types actually declared by repository task configurations."""
+
     task_types = set()
     if config_root.is_dir():
         for path in config_root.rglob("*.yaml"):
@@ -154,14 +154,14 @@ def discover_task_types(config_root: Path) -> list[str]:
 
 
 def discover_existing_task_names(config_root: Path) -> list[str]:
-    """Return directory names that already contain task YAML configurations."""
+
     if not config_root.is_dir():
         return []
     return sorted({path.parent.name for path in config_root.rglob("default.yaml")})
 
 
 def load_drawer_cabinet_models(path: Path) -> list[str]:
-    """Read the drawer-model allowlist directly from object_sampling.py without importing Isaac."""
+
     try:
         module = ast.parse(path.read_text(encoding="utf-8"))
     except (OSError, SyntaxError):
@@ -177,7 +177,7 @@ def load_drawer_cabinet_models(path: Path) -> list[str]:
 
 
 def load_droid_categories(path: Path) -> list[str]:
-    """Flatten the DROID category themes used by REALM's object perturbations."""
+
     try:
         document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError):
@@ -194,7 +194,7 @@ def load_droid_categories(path: Path) -> list[str]:
 
 
 def load_camera_extrinsics(path: Path) -> dict[str, dict[str, list[float]]]:
-    """Load named robot-relative external camera poses."""
+
     poses = {}
     current_name = None
     try:
@@ -218,7 +218,7 @@ def load_camera_extrinsics(path: Path) -> dict[str, dict[str, list[float]]]:
 def sample_opposite_camera_pair(
     poses: dict[str, dict[str, list[float]]], rng: random.Random
 ) -> dict[str, dict[str, list[float]]]:
-    """Sample a real DROID pair, converted from CV camera axes to OmniGibson axes."""
+
     cached = _DROID_PAIR_CACHE.get(id(poses))
     if cached and cached[0] == len(poses):
         valid_pairs = cached[1]
@@ -290,7 +290,7 @@ def sample_opposite_camera_pair(
 
 
 def _plausible_droid_camera(pose: dict[str, list[float]]) -> bool:
-    """Reject raw solves outside a conservative real tabletop-camera envelope."""
+
     x, y, z = pose["pos"]
     radial = (x * x + y * y) ** 0.5
     if not 0.15 <= radial <= 1.5 or not 0.15 <= z <= 1.5:
@@ -311,7 +311,7 @@ def _plausible_droid_camera(pose: dict[str, list[float]]) -> bool:
 def _droid_cv_pose_to_omnigibson(
     pose: dict[str, list[float]],
 ) -> dict[str, list[float]]:
-    """Convert CV (+Z forward, +Y down) to OG (-Z forward, +Y up)."""
+
     qx, qy, qz, qw = pose["rot"]
     # Right-multiply by RotX(pi), quaternion [1, 0, 0, 0] in xyzw order.
     return {
@@ -323,7 +323,7 @@ def _droid_cv_pose_to_omnigibson(
 def _canonicalize_droid_pair(
     pair: list[tuple[str, dict[str, list[float]]]],
 ) -> list[tuple[str, dict[str, list[float]]]]:
-    """Rotate an intact multi-lab pair into REALM's workspace-facing -X convention."""
+
     converted = [(name, _droid_cv_pose_to_omnigibson(pose)) for name, pose in pair]
     first, second = converted[0][1]["pos"], converted[1][1]["pos"]
     dx, dy = first[0] - second[0], first[1] - second[1]
@@ -348,7 +348,7 @@ def _canonicalize_droid_pair(
 
 
 def _multiply_quaternions_xyzw(left: list[float], right: list[float]) -> list[float]:
-    """Return the xyzw Hamilton product ``left * right``."""
+
     lx, ly, lz, lw = left
     rx, ry, rz, rw = right
     return [
@@ -360,7 +360,7 @@ def _multiply_quaternions_xyzw(left: list[float], right: list[float]) -> list[fl
 
 
 def suggested_bbox(category: str) -> list[float]:
-    """Provide editable starter dimensions when USD bounds are not indexed yet."""
+
     name = category.lower()
     if "apple" in name or "orange" in name:
         return [0.09, 0.09, 0.09]
@@ -378,7 +378,7 @@ def suggested_bbox(category: str) -> list[float]:
 
 
 def discover_assets(root: Path, limit: Optional[int] = None) -> list[dict[str, object]]:
-    """Scan a dataset tree for USD assets without importing OmniGibson or Isaac."""
+
     if not root.is_dir():
         return []
     assets = []
@@ -391,7 +391,7 @@ def discover_assets(root: Path, limit: Optional[int] = None) -> list[dict[str, o
 
 
 def demo_assets() -> list[dict[str, object]]:
-    """Keep the workspace usable while the real dataset is still downloading."""
+
     return [
         {"id": "demo/apple", "name": "apple", "category": "apple", "model": "", "usd_path": "", "bbox": [0.09, 0.09, 0.09], "bbox_source": "demo estimate"},
         {"id": "demo/bowl", "name": "bowl", "category": "bowl", "model": "", "usd_path": "", "bbox": [0.18, 0.18, 0.08], "bbox_source": "demo estimate"},

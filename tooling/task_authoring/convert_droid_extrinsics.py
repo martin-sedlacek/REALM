@@ -1,4 +1,4 @@
-"""Convert raw DROID world-to-camera solves into filtered REALM camera poses."""
+
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ WORKSPACE_PROBE = np.array([0.55, 0.0, 0.10])
 
 
 def convert_pose(raw: dict[str, list[float]]) -> dict[str, list[float]]:
-    """Invert raw T_cam_base and convert its local CV axes to OmniGibson axes."""
+
     rotation_cam_base = Rotation.from_quat(raw["rot"]).as_matrix()
     translation_cam_base = np.asarray(raw["pos"], dtype=float)
     rotation_base_cam = rotation_cam_base.T
@@ -38,7 +38,7 @@ def convert_pose(raw: dict[str, list[float]]) -> dict[str, list[float]]:
 
 
 def rejection_reasons(pair: dict[str, dict[str, list[float]]]) -> list[str]:
-    """Return conservative geometry failures for one converted physical pair."""
+
     reasons = []
     positions = []
     for camera_name, pose in pair.items():
@@ -67,7 +67,7 @@ def rejection_reasons(pair: dict[str, dict[str, list[float]]]) -> list[str]:
 def convert(
     source: Path, output: Path, rejection_output: Path | None = None
 ) -> dict[str, int]:
-    """Convert, filter, and write a REALM-ready paired pose catalogue."""
+
     raw_poses = load_camera_extrinsics(source)
     episodes: dict[str, dict[str, dict[str, list[float]]]] = {}
     for name, pose in raw_poses.items():

@@ -1,4 +1,4 @@
-"""VB-POSE object-pose perturbation."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -26,7 +26,7 @@ DRAWER_Z_OFFSET = 0.3
 
 
 def _place(obj, position=None, orientation=None, frame="scene"):
-    """Teleport an object and clear residual velocity; positions default to scene frame."""
+
     obj.set_position_orientation(position=position, orientation=orientation, frame=frame)
     obj.keep_still()
 
@@ -41,7 +41,7 @@ def vb_pose(env: "RealmEnvironmentDynamic") -> None:
 
 
 def _perturb_switch(env: "RealmEnvironmentDynamic") -> None:
-    """Nudge the light switch across its wall plane."""
+
     delta_z = np.random.uniform(-SWITCH_DZ_RANGE, SWITCH_DZ_RANGE)
     delta_xy = np.random.uniform(-SWITCH_DXY_RANGE, SWITCH_DXY_RANGE)
     for obj_cfg in env.cfg["objects"]:
@@ -55,7 +55,7 @@ def _perturb_switch(env: "RealmEnvironmentDynamic") -> None:
 
 
 def _perturb_tabletop(env: "RealmEnvironmentDynamic") -> None:
-    """Re-place the movable objects collision-free, then add rotation noise to the main objects."""
+
     backfill_object_cfgs(env.main_objects + env.distractors + env.target_objects,
                          env.cfg["objects"])
 

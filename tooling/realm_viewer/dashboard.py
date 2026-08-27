@@ -99,7 +99,7 @@ def _toggle_folder(path):
         st.session_state.expanded_folders.add(path)
 
 def _update_selection_recursive(path, val):
-    """Recursively update the selection state of all experiments under a folder."""
+
     if get_cached_is_experiment_folder(path):
         st.session_state[f"chk_{path}"] = val
 
@@ -110,17 +110,17 @@ def _update_selection_recursive(path, val):
         _update_selection_recursive(os.path.join(path, d), val)
 
 def _on_folder_checkbox_change(path):
-    """Callback when a folder checkbox is toggled."""
+
     val = st.session_state.get(f"fold_{path}", False)
     _update_selection_recursive(path, val)
 
 def _on_experiment_checkbox_change(path):
-    """Callback when an individual experiment checkbox is toggled."""
+
     val = st.session_state.get(f"chk_{path}", False)
     _update_selection_recursive(path, val)
 
 def has_experiments_recursively(base_path, search_query="", match_found_in_path=False):
-    """Check if the given path or any of its subdirectories contain an experiment matching the search query."""
+
     if search_query and not match_found_in_path:
         match_found_in_path = search_query.lower() in os.path.basename(base_path).lower()
 
@@ -138,7 +138,7 @@ def has_experiments_recursively(base_path, search_query="", match_found_in_path=
 
 # --- Tree rendering ---
 def render_tree(base_path, depth=0, search_query="", match_found_in_path=False):
-    """Render a collapsible directory tree in the sidebar with proper indentation."""
+
     if depth > 5:
         return
 
@@ -216,7 +216,7 @@ def render_video_section(video_paths, selected_tasks, selected_perts, run_paths=
                     if os.path.exists(v_dir) and any(f.endswith(".parquet") for f in os.listdir(v_dir)):
                         has_parquets = True
                         break
-            
+
             if has_parquets:
                 st.info("No MP4 videos found, but parquet videos are available. Use the **Unpack Parquet Videos** button above to view them.")
             else:
@@ -835,7 +835,7 @@ spike and elevated collisions).
     vid_col1, vid_col2 = st.columns([1, 1])
     with vid_col1:
         st.header("Videos")
-    
+
     # Check for parquets to show the button
     has_parquets = False
     for rp in selected_runs:
@@ -843,7 +843,7 @@ spike and elevated collisions).
         if os.path.exists(v_dir) and any(f.endswith(".parquet") for f in os.listdir(v_dir)):
             has_parquets = True
             break
-            
+
     if has_parquets:
         with vid_col2:
             st.write("") # Spacer
@@ -858,7 +858,7 @@ spike and elevated collisions).
                             success, msg = dashboard_utils.unpack_parquet_videos(p_path, v_dir)
                             if success:
                                 unpacked_any = True
-                
+
                 if unpacked_any:
                     st.success("Successfully unpacked parquet videos!")
                     st.cache_data.clear()

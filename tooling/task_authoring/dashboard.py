@@ -1,4 +1,4 @@
-"""Streamlit entry point for visual REALM task authoring."""
+
 
 from __future__ import annotations
 

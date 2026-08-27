@@ -49,7 +49,7 @@ MAX_CONTROL_ITERATIONS = 300  # per solve; on non-convergence the effector retur
 
 
 class RobotIKSolver:
-    """One dm_robotics differential-IK stack: Franka MJCF model + 6-D cartesian velocity effector."""
+
 
     def __init__(self):
         self.relative_max_joint_delta = RELATIVE_MAX_JOINT_DELTA
@@ -101,7 +101,7 @@ class RobotIKSolver:
         return self.joint_delta_to_velocity(joint_delta)
 
     def cartesian_velocity_to_delta(self, cartesian_velocity):
-        """Normalised 6-D velocity -> physical delta, clipping lin/rot into their unit balls first."""
+
         cartesian_velocity = np.asarray(cartesian_velocity)
 
         lin_vel, rot_vel = cartesian_velocity[:3], cartesian_velocity[3:6]
@@ -120,7 +120,7 @@ class RobotIKSolver:
         return np.concatenate([lin_delta, rot_delta])
 
     def joint_velocity_to_delta(self, joint_velocity):
-        """Normalised joint velocity -> physical delta, scaled down if any joint exceeds its limit."""
+
         joint_velocity = np.asarray(joint_velocity)
 
         relative_max_joint_vel = self.joint_delta_to_velocity(self.relative_max_joint_delta)
@@ -132,7 +132,7 @@ class RobotIKSolver:
         return joint_velocity * self.max_joint_delta
 
     def cartesian_delta_to_velocity(self, cartesian_delta):
-        """Physical 6-D delta -> normalised velocity (no clipping; the inverse of the mapping above)."""
+
         cartesian_delta = np.asarray(cartesian_delta)
 
         cartesian_velocity = np.zeros_like(cartesian_delta)
@@ -142,6 +142,6 @@ class RobotIKSolver:
         return cartesian_velocity
 
     def joint_delta_to_velocity(self, joint_delta):
-        """Physical joint delta -> normalised velocity."""
+
         joint_delta = np.asarray(joint_delta)
         return joint_delta / self.max_joint_delta

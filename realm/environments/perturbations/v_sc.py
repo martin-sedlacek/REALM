@@ -76,7 +76,7 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
 
 
 def _swap_distractor_models(env: "RealmEnvironmentDynamic") -> None:
-    """Swap each distractor for a random model outside its own theme and the task's categories."""
+
     distractor_obj_cfgs = get_default_objects_cfg(env.omnigibson_env.scene,
                                                   [obj.name for obj in env.distractors])
     distractor_objs = get_objects_by_names(env.omnigibson_env.scene,

@@ -29,7 +29,7 @@ def reset_joints(
         closing_steps: int = 10,
         still_steps: int = 5
 ):
-    """Drive ONE member's joints to @reset_states. See reset_joints_batched for the vector form."""
+
     reset_joints_batched([(joints, reset_states)], closing_steps=closing_steps, still_steps=still_steps)
 
 

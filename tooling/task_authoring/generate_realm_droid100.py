@@ -1,4 +1,4 @@
-"""Generate grounded configs for the REALM_DROID100 task family."""
+
 
 from __future__ import annotations
 
@@ -123,12 +123,12 @@ COLORS = {
 
 
 def slug(value: str) -> str:
-    """Return a stable config-directory component."""
+
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
 
 
 def reviewed_task(task: dict[str, object]) -> tuple[str, str, dict[str, str] | None]:
-    """Apply human-reviewed semantic corrections while retaining their provenance."""
+
     explicit = REVIEWED_TASK_OVERRIDES.get(int(task["rank"]))
     if explicit:
         return explicit["instruction"], explicit["task_type"], explicit
@@ -152,7 +152,7 @@ def reviewed_task(task: dict[str, object]) -> tuple[str, str, dict[str, str] | N
 
 
 def fit_bbox(values: list[float], max_xy: tuple[float, float]) -> tuple[list[float], float]:
-    """Uniformly shrink an asset to the authored tabletop footprint when necessary."""
+
     scale = min(1.0, max_xy[0] / values[0], max_xy[1] / values[1])
     return [round(float(value) * scale, 7) for value in values], scale
 
@@ -160,7 +160,7 @@ def fit_bbox(values: list[float], max_xy: tuple[float, float]) -> tuple[list[flo
 def sample_camera_pair(
     poses: dict[str, dict[str, list[float]]], rng: random.Random
 ) -> dict[str, dict[str, list[float]]]:
-    """Sample robot-relative DROID cameras on opposite sides of the robot."""
+
     sampled = sample_opposite_camera_pair(poses, rng)
     pair = list(sampled.items())
     return {
@@ -170,7 +170,7 @@ def sample_camera_pair(
 
 
 def instruction_terms(instruction: str, task_type: str) -> list[str]:
-    """Extract literal ordered object phrases for semantic substitution fields."""
+
     found = [match.group(1).lower() for match in CONCEPT_PATTERN.finditer(instruction)]
     required = 2 if task_type in {"put", "stack"} or initial_relation_type(instruction, task_type) else 1
     if task_type == "stack" and len(found) == 1 and found[0] == "cups":
@@ -181,7 +181,7 @@ def instruction_terms(instruction: str, task_type: str) -> list[str]:
 
 
 def initial_relation_type(instruction: str, task_type: str) -> str | None:
-    """Return the initial spatial predicate implied by a pick instruction."""
+
     if task_type != "pick":
         return None
     lowered = instruction.lower()
@@ -197,7 +197,7 @@ def initial_relation_type(instruction: str, task_type: str) -> str | None:
 
 
 def concepts(instruction: str, task_type: str) -> list[str]:
-    """Normalize literal instruction terms into asset-grounding concepts."""
+
     found = instruction_terms(instruction, task_type)
     normalized = []
     for value in found:
@@ -216,7 +216,7 @@ def concepts(instruction: str, task_type: str) -> list[str]:
 
 
 def primitive(concept: str, instruction: str, occurrence: int) -> dict[str, object]:
-    """Create a colored block for generic block/object language."""
+
     color_words = re.findall(r"\b(?:blue|green|yellow|orange|red|white|black|silver)\b", instruction.lower())
     color = color_words[min(occurrence, len(color_words) - 1)] if color_words else "blue"
     name = f"{color}_{'block' if concept == 'block' else 'object'}"
@@ -236,7 +236,7 @@ def dataset_object(
     *,
     prefer_large: bool = False,
 ) -> dict[str, object]:
-    """Choose a compact movable model or a roomy receiving/support model."""
+
     category = CATEGORY_BY_CONCEPT.get(concept, concept)
     candidates = assets_by_category.get(category, [])
     if not candidates:
@@ -258,7 +258,7 @@ def apply_model_override(
     assets_by_category: dict[str, list[dict[str, object]]],
     max_xy: tuple[float, float],
 ) -> dict[str, object]:
-    """Apply a render-reviewed model choice while retaining uniform bbox scaling."""
+
     category = str(config["category"])
     asset = next((item for item in assets_by_category[category] if item["model"] == model), None)
     if asset is None:
@@ -277,7 +277,7 @@ def apply_model_override(
 
 
 def overlaps(candidate: dict[str, object], placed: list[dict[str, object]], margin: float = 0.012) -> bool:
-    """Return whether candidate overlaps an already placed XY bounding box."""
+
     x, y, _ = candidate["relative_bbox_position"]
     bx, by, _ = candidate["bounding_box"]
     return any(
@@ -295,7 +295,7 @@ def bbox_fits_support(
     depth: float,
     elliptical: bool = False,
 ) -> bool:
-    """Return whether the complete XY bbox lies on the usable support footprint."""
+
     half_x, half_y = float(bbox[0]) / 2, float(bbox[1]) / 2
     if elliptical:
         radius_x = width / 2 - SUPPORT_EDGE_CLEARANCE
@@ -321,7 +321,7 @@ def place(
     *,
     elliptical: bool = False,
 ) -> None:
-    """Place a resized bbox at the first collision-free normalized candidate."""
+
     candidates = (
         (0.30, 0.30), (0.70, 0.70), (0.30, 0.70), (0.70, 0.30),
         (0.50, 0.50), (0.25, 0.50), (0.75, 0.50), (0.50, 0.25),
@@ -345,7 +345,7 @@ def ensure_receiver_capacity(
     target: dict[str, object],
     task_type: str,
 ) -> dict[str, object]:
-    """Make the main footprint compatible with its receiver/support using uniform scaling and yaw."""
+
     margin = 1.15 if task_type == "put" else 0.65
     main_x, main_y = (float(value) for value in main["bounding_box"][:2])
     target_x, target_y = (float(value) for value in target["bounding_box"][:2])
@@ -375,7 +375,7 @@ def place_initial_relation(
     source: dict[str, object],
     relation: str,
 ) -> dict[str, object]:
-    """Place a pick object in the source/support state required by its instruction."""
+
     source_x, source_y, source_z = (float(value) for value in source["relative_bbox_position"])
     main_height = float(main["bounding_box"][2])
     source_height = float(source["bounding_box"][2])
@@ -414,7 +414,7 @@ def object_for(
     assets_by_category: dict[str, list[dict[str, object]]],
     max_xy: tuple[float, float],
 ) -> tuple[dict[str, object], dict[str, object] | None]:
-    """Ground one concept and return its config plus optional resize audit."""
+
     if concept in {"block", "object"}:
         config = primitive(concept, instruction, occurrence)
         config["orientation"] = [0.0, 0.0, 0.0, 1.0]
@@ -429,7 +429,7 @@ def object_for(
 
 
 def distractor_family(category: str) -> str:
-    """Group visually repetitive product categories for balanced sampling."""
+
     for prefix in ("bottle_of_", "jar_of_", "can_of_", "box_of_", "bag_of_"):
         if category.startswith(prefix):
             return prefix.removesuffix("_of_")
@@ -444,7 +444,7 @@ def sample_distractors(
     family_usage: Counter[str],
     rng: random.Random,
 ) -> list[dict[str, object]]:
-    """Choose three portable distractors while balancing categories and visual families."""
+
     ties = {category: rng.random() for category in eligible_categories}
     ranked = sorted(
         (category for category in eligible_categories if category not in excluded_categories),
@@ -476,7 +476,7 @@ def generate(
     camera_extrinsics: Path = DEFAULT_CAMERA_EXTRINSICS,
     seed: int = DEFAULT_SEED,
 ) -> dict[str, object]:
-    """Generate the full task family and return its audit manifest."""
+
     scene_rng = random.Random(seed)
     camera_rng = random.Random(seed + 1)
     distractor_rng = random.Random(seed + 2)

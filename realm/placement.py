@@ -1,4 +1,4 @@
-"""Collision-free placement of task objects."""
+
 import numpy as np
 
 import omnigibson as og
@@ -10,7 +10,7 @@ DROP_HEIGHT = 0.1
 
 
 def get_objects_by_names(scene: InteractiveTraversableScene, names: list[str]) -> list[DatasetObject]:
-    """The scene objects whose names appear in @names, in scene iteration order."""
+
     objects = []
     for obj in scene.objects:
         obj: DatasetObject
@@ -20,7 +20,7 @@ def get_objects_by_names(scene: InteractiveTraversableScene, names: list[str]) -
 
 
 def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: list[str]) -> dict[str, dict]:
-    """Measure live object poses and AABBs without neighbouring contacts."""
+
     objects = get_objects_by_names(scene, object_names)
     cfgs = {}
     for obj in objects:
@@ -49,12 +49,12 @@ def get_default_objects_cfg(scene: InteractiveTraversableScene, object_names: li
 
 
 def _half_footprint(cfg):
-    """(half_width, half_depth) of a cfg's bounding_box extent, for XY overlap tests."""
+
     return cfg["bounding_box"][0] / 2, cfg["bounding_box"][1] / 2
 
 
 def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim):
-    """Separate fixed footprints from objects that still need positions."""
+
     placed_objects_info = []
     objects_to_randomly_place = []
 
@@ -93,7 +93,7 @@ def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim)
 
 def _sample_free_position(placed, half_width, half_depth,
                           xmin, xmax, ymin, ymax, min_separation, max_attempts):
-    """Sample a clear XY position while preserving RNG draw order."""
+
     for _ in range(max_attempts):
         x_center = np.random.uniform(xmin + half_width, xmax - half_width)
         y_center = np.random.uniform(ymin + half_depth, ymax - half_depth)
@@ -118,7 +118,7 @@ def get_non_colliding_positions_for_objects(
         objects_to_skip=None,
         maximum_dim=0.12
 ):
-    """Mutate configs with collision-free scene-relative positions."""
+
     if objects_to_skip is None:
         objects_to_skip = []
 
@@ -150,7 +150,7 @@ def get_non_colliding_positions_for_objects(
 
 
 def place_within(spawn_bbox, obj_cfg, **kwargs):
-    """Place objects within ``[xmin, xmax, ymin, ymax, z]``."""
+
     xmin, xmax, ymin, ymax, z = spawn_bbox
     return get_non_colliding_positions_for_objects(
         xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, z=z, obj_cfg=obj_cfg, **kwargs)

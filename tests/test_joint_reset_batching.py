@@ -62,7 +62,7 @@ N_MEMBERS = 4
 
 
 class FakeSim:
-    """Just enough og.sim to run the joint-reset loops: a step counter and the render context."""
+
 
     def __init__(self, log):
         self.log = log
@@ -143,13 +143,13 @@ class FakeMember(RealmEnvironmentBase):
 
 
 def owner(event):
-    """Which member an event belongs to, or None for the shared ones (step, render context)."""
+
     name = event[1]
     return name.split(".")[0] if name else None
 
 
 def project(log, member):
-    """@log as that member experienced it: its own calls, plus every shared step, in order."""
+
     out = []
     for kind, name, arg in log:
         who = owner((kind, name, arg))

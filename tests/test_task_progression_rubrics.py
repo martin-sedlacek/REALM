@@ -32,7 +32,7 @@ SOURCE = PROJECT_ROOT / "realm/environments/task_progression.py"
 
 
 def registry_and_checkers():
-    """(stage -> method name, method name -> [arg names]) read out of the module's source."""
+
     tree = ast.parse(SOURCE.read_text())
 
     registry, checkers = {}, {}
@@ -58,7 +58,7 @@ def registry_and_checkers():
 
 
 def delegations():
-    """method name -> the set of sibling `self.check_*` methods its body calls."""
+
     tree = ast.parse(SOURCE.read_text())
     out = {}
     for node in ast.walk(tree):

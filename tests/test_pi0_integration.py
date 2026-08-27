@@ -38,7 +38,7 @@ PI0_LOG_DIR = "/app/logs"
 
 
 def preflight():
-    """Report every reason this test cannot run, before spending an Isaac boot to find out."""
+
     blockers = []
 
     if not os.path.isdir(PI0_LOG_DIR):

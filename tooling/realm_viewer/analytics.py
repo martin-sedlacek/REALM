@@ -1,4 +1,4 @@
-"""Statistical findings for REALM experiment data."""
+
 
 import numpy as np
 import pandas as pd
@@ -40,7 +40,7 @@ def _bh_adjusted_pvalues(p_values: list) -> list:
 def _bayesian_sr_p_equiv(
     s_cell: int, n_cell: int, s_rest: int, n_rest: int, n_samples: int = 8000
 ) -> float:
-    """Compare Beta posteriors with a fixed seed for stable dashboard results."""
+
     rng = np.random.default_rng(42)
     theta_cell = rng.beta(1 + s_cell, 1 + (n_cell - s_cell), n_samples)
     theta_rest = rng.beta(1 + s_rest, 1 + (n_rest - s_rest), n_samples)

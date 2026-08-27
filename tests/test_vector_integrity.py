@@ -1,4 +1,4 @@
-"""Exercise vectorized task and perturbation evaluation cells."""
+
 import argparse
 import re
 import shutil
@@ -40,7 +40,7 @@ def cell_id(task_id, pert):
 
 
 def classify_log(text, cid, returncode):
-    """Return a crash verdict, or ``None`` for a clean log."""
+
     crash_lines = [ln for ln in text.splitlines()
                    if CRASH_MARKERS.search(ln) and not TEARDOWN_NOISE.search(ln)]
     if not crash_lines:
@@ -59,7 +59,7 @@ def classify_log(text, cid, returncode):
 
 
 def artifact_verdict(results_dir, task, pert, repeats):
-    """Return an artifact verdict, or ``None`` when all outputs are complete."""
+
     art = check_artifacts(str(results_dir), task, pert, repeats)
     missing = [k for k, v in art.items()
                if v == "FAIL_MISSING" or v == "FAIL_EMPTY" or v.startswith("FAIL_UNREADABLE")]
@@ -72,7 +72,7 @@ def artifact_verdict(results_dir, task, pert, repeats):
 
 
 def run_cell(task_id, pert, args, log_root):
-    """Run one (task, perturbation) cell and classify it. Returns (status, detail)."""
+
     pert_id = SUPPORTED_PERTURBATIONS.index(pert)
     task = SUPPORTED_TASKS[task_id]
     run_id = f"t{task_id}_{pert.replace('-', '')}"
@@ -119,7 +119,7 @@ def run_cell(task_id, pert, args, log_root):
 
 
 def extract_videos(args, run_ids):
-    """Write the mp4s out of each cell's videos/*.parquet for visual cross-check."""
+
     tool = PROJECT_ROOT / "scripts/videos_parquet_to_mp4.py"
     for run_id in run_ids:
         d = Path(args.log_dir) / args.experiment_name / "debug" / run_id

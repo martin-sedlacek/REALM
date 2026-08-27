@@ -16,7 +16,7 @@ MAX_YAW_DEVIATION = 0.2
 
 
 def _perturb_camera_pose(cam_pos: list[float], cam_orientation: list[float]) -> tuple[list[float], list[float]]:
-    """@cam_pos/@cam_orientation with uniform position jitter and pitch/yaw jitter added."""
+
     cam_pos = np.array(cam_pos)
     delta_pos = np.random.uniform(-MAX_POS_DEVIATION, MAX_POS_DEVIATION, 3)
     cam_pos += delta_pos
@@ -37,7 +37,7 @@ def _opposite_side_keys(
     extrinsics: dict[str, dict[str, list[float]]],
     first_camera_y: float,
 ) -> list[str]:
-    """Return poses whose robot-base-frame Y is strictly opposite @first_camera_y."""
+
     return [key for key in keys if extrinsics[key]["pos"][1] * first_camera_y < 0]
 
 

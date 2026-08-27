@@ -25,7 +25,7 @@ import pandas as pd
 
 
 def load_report(run_dir):
-    """Map run_id -> (task_progression, stage) from the CSV report, if present."""
+
     out = {}
     rep_dir = os.path.join(run_dir, "reports")
     if not os.path.isdir(rep_dir):

@@ -1,4 +1,4 @@
-"""Object-category catalogue loaded from realm/config/objects/categories.yaml."""
+
 import copy
 import os
 

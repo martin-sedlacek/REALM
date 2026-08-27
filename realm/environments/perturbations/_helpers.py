@@ -1,4 +1,4 @@
-"""Batch perturbation simulator operations across vectorized scenes."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -33,7 +33,7 @@ def sim_step(env: "RealmEnvironmentDynamic") -> None:
 
 
 def after_play(env: "RealmEnvironmentDynamic", fn) -> None:
-    """Defer work that requires OmniGibson's global simulator to be playing."""
+
     if env.in_vec_env:
         env.deferred_post_play.append(fn)
     else:
@@ -45,7 +45,7 @@ def settle_action(env: "RealmEnvironmentDynamic"):
 
 
 def settle(env: "RealmEnvironmentDynamic", steps: int = SETTLE_STEPS) -> None:
-    """Settle once globally when the environment is vectorized."""
+
     if env.in_vec_env:
         env.wants_settle = True
         return
@@ -56,7 +56,7 @@ def settle(env: "RealmEnvironmentDynamic", steps: int = SETTLE_STEPS) -> None:
 
 
 def backfill_object_cfgs(scene_objects, cfgs) -> None:
-    """Backfill placement fields in the scene frame used by vectorized environments."""
+
     for scene_obj in scene_objects:
         for cfg in cfgs:
             if cfg["name"] == scene_obj.name:
@@ -73,7 +73,7 @@ def set_scene_positions(env: "RealmEnvironmentDynamic", cfgs) -> None:
 
 
 def rebase_after_play(env: "RealmEnvironmentDynamic", vec_only_rebase: bool, extra=None) -> None:
-    """Rebase object-changing perturbations after OmniGibson resumes."""
+
     def _post_play():
         og.sim.step()
         if not vec_only_rebase or env.in_vec_env:

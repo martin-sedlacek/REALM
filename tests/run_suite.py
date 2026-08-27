@@ -1,4 +1,4 @@
-"""Run standalone REALM tests and record verdicts independent of Isaac exit codes."""
+
 import argparse
 import json
 import os
@@ -247,7 +247,7 @@ def run_one(name, spec, args, outdir):
 
 
 def print_table(results, out, blob, ran=None):
-    """Print current results separately from rows merged from earlier runs."""
+
     if blob:
         print(f"generated {blob.get('generated')}  jobid={blob.get('jobid')}")
     # MODE is per RESULT, never a header field: this file accumulates across invocations and the
@@ -292,7 +292,7 @@ OK_STATUSES = frozenset({"PASS", "SKIP"})
 
 
 def write_junit(results, path, suite_name="realm"):
-    """Write the final CI gate; absence signals that the driver died early."""
+
     import xml.etree.ElementTree as ET
 
     failures = sum(1 for r in results if r["status"] == "FAIL")
@@ -332,7 +332,7 @@ def write_junit(results, path, suite_name="realm"):
 
 
 def verdict_status(results, strict):
-    """Exit status for the DRIVER. 0 unless --strict and something did not end PASS/SKIP."""
+
     if not strict:
         return 0
     bad = [r for r in results if r["status"] not in OK_STATUSES]

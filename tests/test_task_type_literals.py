@@ -55,7 +55,7 @@ NEVER_A_STRING = {"task_progression"}
 
 
 def _declared_task_types():
-    """Every value of `task_type` any task config declares."""
+
     declared = {}
     for path in sorted(PROJECT_ROOT.glob(TASK_CFG_GLOB)):
         try:
@@ -69,7 +69,7 @@ def _declared_task_types():
 
 
 def _target_name(node):
-    """The name a comparison operand refers to: `self.task_type`, `task_type`, `cfg["task_type"]`."""
+
     if isinstance(node, ast.Attribute):
         return node.attr
     if isinstance(node, ast.Name):
@@ -86,7 +86,7 @@ def _target_name(node):
 
 
 def _string_literals(node):
-    """String constants in a comparator: `"put"`, `["a", "b"]`, `("a", "b")`, `{"a"}`."""
+
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return [node.value]
     if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
@@ -96,7 +96,7 @@ def _string_literals(node):
 
 
 def _comparisons(path):
-    """(lineno, name, [string literals]) for every `<name> ==/!=/in/not in <strings>` in a file."""
+
     try:
         tree = ast.parse(path.read_text())
     except SyntaxError:

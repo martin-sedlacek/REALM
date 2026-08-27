@@ -89,7 +89,7 @@ def append_trajectory(log_dir, task, perturbation, repeat, qpos_arr, actions_arr
 
 
 def append_video(log_dir, task, perturbation, repeat, video_bytes):
-    """Append one repeat's encoded video bytes to videos/{task}.parquet. None is a silent no-op."""
+
     if video_bytes is None:
         return
     _append_parquet_row(
@@ -99,7 +99,7 @@ def append_video(log_dir, task, perturbation, repeat, video_bytes):
 
 
 def _to_uint8(img):
-    """@img as uint8: floats are assumed [0, 1] and scaled by 255, everything else is cast."""
+
     if img.dtype.kind == 'f':
         return (img * 255).astype(np.uint8)
     if img.dtype != np.uint8:
@@ -132,7 +132,7 @@ class VideoRecorder:
             self.frames = []
 
     def _build_frame(self, base_im, wrist_im, base_im_second=None):
-        """Tile one step's views into a single even-dimensioned uint8 frame of <= 480p height."""
+
         base_im = _to_uint8(base_im)
         wrist_im = _to_uint8(wrist_im)
         if base_im_second is not None:
@@ -182,7 +182,7 @@ class VideoRecorder:
         self.count += 1
 
     def _build_clip(self, fps):
-        """An ImageSequenceClip over the recorded frames, or None when nothing was recorded."""
+
         source = self.frame_filenames if self.disk_mode else self.frames
         if not source:
             return None
@@ -199,7 +199,7 @@ class VideoRecorder:
         clip.write_videofile(save_filename + ".mp4", codec="libx264")
 
     def get_video_bytes(self, fps=15):
-        """The recording encoded to mp4, as bytes -- what append_video stores. None if no frames."""
+
         clip = self._build_clip(fps)
         if clip is None:
             return None
@@ -217,6 +217,6 @@ class VideoRecorder:
                 os.remove(tmp_name)
 
     def cleanup(self):
-        """Remove the spooled PNG frames (disk_mode only)."""
+
         if self.disk_mode and os.path.exists(self.temp_frame_dir):
             shutil.rmtree(self.temp_frame_dir)

@@ -13,7 +13,7 @@ from plots.legend import plot_model_legend
 
 
 def prepare_report_data(df):
-    """Pre-processes the dataframe for reporting, calculating additional metrics."""
+
     df = df.copy()
 
     col_name = None
@@ -40,7 +40,7 @@ def prepare_report_data(df):
 
 
 def generate_comprehensive_report(df_full, model_to_marker, model_to_color):
-    """Generates a multi-page PDF report with all plots for all perturbations."""
+
     df_report = prepare_report_data(df_full)
 
     metrics = [

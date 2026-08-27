@@ -1,4 +1,4 @@
-"""Vectorized REALM environments sharing one simulator."""
+
 import omnigibson as og
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic, WARMUP_STEPS
@@ -12,10 +12,10 @@ from realm.environments.vec_init_queue import repair_init_queue
 
 
 class RealmVectorEnvironment:
-    """N independent REALM scenes advanced by one simulator step."""
+
 
     def __init__(self, num_envs, on_first_env_built=None, **env_kwargs):
-        """Build ``num_envs`` members from the same environment arguments."""
+
         assert num_envs >= 1, f"num_envs must be >= 1, got {num_envs}"
         self.num_envs = num_envs
 
@@ -50,7 +50,7 @@ class RealmVectorEnvironment:
         og.log.info(f"{num_envs} environments ready.")
 
     def reset(self):
-        """Reset every member while batching global simulator transitions."""
+
         results = [env.reset_pre_perturbation() for env in self.envs]
         self._drain_joint_resets()
 
@@ -92,11 +92,11 @@ class RealmVectorEnvironment:
         return [(obs, res[1]) for obs, res in zip(obss, results)]
 
     def _drain_joint_resets(self):
-        """Run pending joint resets on one shared step loop."""
+
         run_joint_resets(self.envs)
 
     def _settle(self, steps=SETTLE_STEPS):
-        """Settle all scenes without updating task progression."""
+
         actions = [settle_action(env) for env in self.envs]
         with og.sim.render_on_step(False):
             for _ in range(steps):
@@ -107,7 +107,7 @@ class RealmVectorEnvironment:
                     env.omnigibson_env._post_step(action)
 
     def step(self, actions, n_render_iterations=1):
-        """Apply one action per member and advance the simulator once."""
+
         assert len(actions) == self.num_envs, f"expected {self.num_envs} actions, got {len(actions)}"
         for env, action in zip(self.envs, actions):
             env.pre_step(action)
@@ -117,7 +117,7 @@ class RealmVectorEnvironment:
         return [env.post_step(action) for env, action in zip(self.envs, actions)]
 
     def warmup(self):
-        """Warm up all members on one shared step loop."""
+
         og.log.info("Starting vector warmup...")
         for _ in range(30):
             og.sim.render()

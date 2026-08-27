@@ -1,4 +1,4 @@
-"""REALM environment construction, reset, and stepping."""
+
 import copy
 from functools import partial
 
@@ -97,14 +97,14 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
             self.post_play_setup()
 
     def post_play_setup(self):
-        """Finish setup that requires a playing simulator."""
+
         self.bind_scene_handles()
         self.apply_scene_fixes_from_cfg()
         self.rebase_initial_file()
         self.finalize_setup()
 
     def bind_scene_handles(self):
-        """Resolve scene handles and robot physics overrides."""
+
         mo_cfgs, to_cfgs, dist_cfgs = self._mo_cfgs, self._to_cfgs, self._dist_cfgs
 
         assert len(self.omnigibson_env.robots) == 1
@@ -131,7 +131,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         self.restore_double_duty_render_purpose()
 
     def finalize_setup(self):
-        """Apply rendering settings and initialize the base environment."""
+
         self.disable_visual_toggles()
         set_rendering_mode(self.rendering_mode)
 
@@ -163,13 +163,13 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return base_cam_pos, base_cam_rot
 
     def reset(self):
-        """Reset a single environment and apply its perturbations."""
+
         obs, info = self.reset_pre_perturbation()
         obs = self.apply_perturbations(obs)
         return obs, info
 
     def reset_pre_perturbation(self):
-        """Restore scene state and clear task bookkeeping."""
+
         obs, info = self.omnigibson_env.reset()
         self.reset_joints()
 
@@ -182,7 +182,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return obs, info
 
     def apply_perturbations(self, obs):
-        """Apply perturbations and refresh the scoring reference."""
+
         for p in self.active_perturbations:
             self.supported_pertrubations[p]()
         if "V-AUG" in self.active_perturbations:
@@ -196,7 +196,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return obs
 
     def step(self, action, n_render_iterations=1):
-        """Advance one action and recompute task progression."""
+
         obs, rew, terminated, truncated, info = self.omnigibson_env.step(
             action, n_render_iterations=n_render_iterations
         )
@@ -204,17 +204,17 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
 
     def pre_step(self, action):
-        """Apply an action without advancing shared physics."""
+
         self.omnigibson_env._pre_step(action)
 
     def post_step(self, action):
-        """Read observations after a shared simulator step."""
+
         obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
         task_progression = self.recompute_task_progression(obs)
         return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
 
     def _distort_if_v_aug(self, obs):
-        """Apply V-AUG's blur/contrast to @obs, or return it untouched when V-AUG is not active."""
+
         if "V-AUG" not in self.active_perturbations:
             return obs
         return apply_blur_and_contrast(obs, self.v_aug_sigma, self.v_aug_alpha,
@@ -238,7 +238,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return obs, rew, terminated, truncated, info
 
     def warmup_ee_cmd(self):
-        """Return a hold-still EE command, or None for joint control."""
+
         if not self.ee_control:
             return None
         entry = self.robot._controllers.get("arm_0")
@@ -250,7 +250,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return self._world2robot(np.concatenate([ee_pos, ee_euler]))
 
     def warmup_action(self, t, ee_cmd):
-        """Warmup action for step @t: hold the arm still, open the gripper then close it."""
+
         gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
         base = ee_cmd if self.ee_control else self.reset_qpos[:7]
         return np.concatenate((base, gripper_val))

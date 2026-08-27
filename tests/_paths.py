@@ -88,7 +88,7 @@ TEARDOWN_NOISE = re.compile(r"Fatal Python error: Segmentation fault|"
 
 
 def crash_lines(output):
-    """Lines in a child's combined output that indicate a real failure, teardown noise removed."""
+
     return [ln for ln in (output or "").splitlines()
             if CRASH_MARKERS.search(ln) and not TEARDOWN_NOISE.search(ln)]
 
@@ -150,7 +150,7 @@ def check_artifacts(task_log_dir, task, perturbation, repeats):
 
 
 def summarize(cell_results):
-    """(all_passed, one-line detail) for a dict of {artifact: status}."""
+
     ok = all(v == "PASS" for v in cell_results.values())
     return ok, ", ".join(f"{k}: {v}" for k, v in cell_results.items())
 

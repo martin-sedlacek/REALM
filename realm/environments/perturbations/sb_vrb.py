@@ -1,4 +1,4 @@
-"""SB-VRB switches a task to a compatible verb and supplies any required receiver."""
+
 from __future__ import annotations
 
 import copy
@@ -103,7 +103,7 @@ def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
 
 
 def _draw_new_task_type(env: "RealmEnvironmentDynamic", available_task_types) -> str:
-    """Draw the replacement task_type; rebase env.task_type and the progression rubric onto it."""
+
     new_task_type = random.choice(available_task_types)
     env.task_type = new_task_type
     # Progression dictionaries are mutated per environment.
@@ -112,7 +112,7 @@ def _draw_new_task_type(env: "RealmEnvironmentDynamic", available_task_types) ->
 
 
 def _spawn_receiver(env: "RealmEnvironmentDynamic", included_categories) -> None:
-    """Sample and place a receiver for a task that lacks one."""
+
     sampled = sample_objects(num_objects=1, included_categories=included_categories)
     if not sampled:
         raise RuntimeError(
@@ -153,7 +153,7 @@ def _spawn_receiver(env: "RealmEnvironmentDynamic", included_categories) -> None
 
 
 def _record_receiver_pose(env: "RealmEnvironmentDynamic", new_obj) -> None:
-    """Apply a scene-relative draw and record its world pose for reset."""
+
     receiver_cfg = env.cfg["objects"][-1]
     pos = torch.tensor(receiver_cfg["position"])
     rot = torch.tensor(receiver_cfg["orientation"] if "orientation" in receiver_cfg else [0, 0, 0, 1])
@@ -163,7 +163,7 @@ def _record_receiver_pose(env: "RealmEnvironmentDynamic", new_obj) -> None:
 
 
 def _swap_target(env: "RealmEnvironmentDynamic", included_categories) -> None:
-    """Replace the existing put/stack target with a sampled receiver."""
+
     sim_stop(env)
     nobj, nobj_cfg = replace_obj(env, env.target_objects[0],
                                  included_categories=included_categories,
@@ -175,7 +175,7 @@ def _swap_target(env: "RealmEnvironmentDynamic", included_categories) -> None:
 
 
 def _rebuild_instruction(env: "RealmEnvironmentDynamic", new_task_type: str) -> None:
-    """Rewrite the instruction for the selected task type."""
+
     if new_task_type in ("rotate", "push", "pick", "open_drawer", "close_drawer"):
         env.instruction = f"{VERB_PHRASE[new_task_type]} the {env.cfg['instruction_obj_to_replace']}"
     elif new_task_type == "stack":

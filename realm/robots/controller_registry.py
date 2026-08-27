@@ -62,7 +62,7 @@ _PATCHED_FLAG = "_realm_default_controller_config_patched"
 
 
 def _realm_arm_configs(robot, arm):
-    """Base config dicts for REALM's arm controllers, keyed by REALM controller name."""
+
     joint_base = robot._default_arm_joint_controller_configs[arm]
     ik_base = robot._default_arm_ik_controller_configs[arm]
 
@@ -85,7 +85,7 @@ def _realm_arm_configs(robot, arm):
 
 
 def _realm_gripper_configs(robot, arm):
-    """Base config dicts for REALM's gripper controllers, keyed by REALM controller name."""
+
     gripper_base = robot._default_gripper_multi_finger_controller_configs[arm]
     configs = {}
     for name in _GRIPPER_CONTROLLERS:
@@ -96,7 +96,7 @@ def _realm_gripper_configs(robot, arm):
 
 
 def _patch_default_controller_config():
-    """Wrap ``Robot._default_controller_config`` so it also advertises REALM's controllers."""
+
     if getattr(Robot, _PATCHED_FLAG, False):
         return
 
@@ -117,6 +117,6 @@ def _patch_default_controller_config():
 
 
 def register_realm_controllers():
-    """Make REALM's controllers loadable by name. Idempotent; safe to call on every import."""
+
     REGISTERED_CONTROLLERS.update(REALM_CONTROLLERS)
     _patch_default_controller_config()

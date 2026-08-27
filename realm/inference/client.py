@@ -1,4 +1,4 @@
-"""Model-specific policy-server adapters."""
+
 import numpy as np
 from PIL import Image
 import omnigibson as og
@@ -9,7 +9,7 @@ from realm.inference.dreamzero import DreamZeroClient
 
 
 class _DebugAdapter:
-    """No server: canned actions, so the simulation stack can be tested without a policy."""
+
 
     client = None
 
@@ -24,7 +24,7 @@ class _DebugAdapter:
 
 
 class _OpenPIAdapter:
-    """Pi0 / Pi0-FAST family over the openpi websocket protocol. Images padded to 224x224."""
+
 
     def __init__(self, host, port):
         og.log.info("Connecting to server...")
@@ -49,7 +49,7 @@ class _OpenPIAdapter:
 
 
 class _DreamZeroAdapter:
-    """DreamZero websocket server: 320x180 uint8 images, both exterior views, cartesian state."""
+
 
     def __init__(self, host, port):
         self.client = DreamZeroClient(host=host, port=port)
@@ -77,7 +77,7 @@ class _DreamZeroAdapter:
 
 
 class _GR00TAdapter:
-    """GR00T v1 over the openpi websocket protocol: 320x180 images, batched keys. DISABLED."""
+
 
     def __init__(self, host, port):
         og.log.info("Connecting to server...")
@@ -104,7 +104,7 @@ class _GR00TAdapter:
 
 
 class _GR00TN16Adapter:
-    """GR00T N1.5/N1.6 over ZMQ (ExternalRobotInferenceClient): 224x224 padded images. DISABLED."""
+
 
     def __init__(self, host, port):
         # Imported here, not at module level: realm.inference.base needs zmq + msgpack, which the

@@ -69,7 +69,7 @@ def pose_diff(target, source, degrees=False):
 # DROID policies act in the robot frame; OmniGibson wants world. base_height accounts for the
 # base column when the robot is mounted (see environments/constants.DROID_BASE_HEIGHT).
 def robot_to_world(action, robot_pos, robot_yaw, base_height=0.0):
-    """Convert a 7D EE action (xyz + RPY + gripper) from robot-local to world frame."""
+
     assert action.shape[-1] == 7
     action = action.copy()
     cos_y, sin_y = np.cos(robot_yaw), np.sin(robot_yaw)
@@ -84,7 +84,7 @@ def robot_to_world(action, robot_pos, robot_yaw, base_height=0.0):
 
 
 def world_to_robot(action, robot_pos, robot_yaw, base_height=0.0):
-    """Convert a 7D EE action (xyz + RPY + gripper) from world frame to robot-local frame."""
+
     action = action.copy()
     cos_y, sin_y = np.cos(robot_yaw), np.sin(robot_yaw)
     dx = action[0] - robot_pos[0]

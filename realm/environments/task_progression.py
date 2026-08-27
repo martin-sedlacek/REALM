@@ -1,4 +1,4 @@
-"""Ordered, monotone task-progression scoring."""
+
 import copy
 
 import numpy as np
@@ -14,10 +14,10 @@ DRAWER_TASK_TYPES = ("open_drawer", "close_drawer")
 
 
 class TaskProgressionMixin:
-    """Stage checks used by REALM environments."""
+
 
     def _init_task_progression(self, task_type):
-        """Give this environment its own rubric copy and its own stage -> checker map."""
+
         self.was_lifted = False
         self.task_progression = (
             copy.deepcopy(TASK_PROGRESS_RUBRICS[task_type])
@@ -50,7 +50,7 @@ class TaskProgressionMixin:
         }
 
     def recompute_task_progression(self, obs):
-        """Fraction of this task's rubric reached, latching every stage passed."""
+
         reward = 0.0
 
         if self.task_progression is not None:
@@ -66,7 +66,7 @@ class TaskProgressionMixin:
         return reward
 
     def check_reach_condition(self, obs):
-        """Check finger proximity; drawers require contact because their origin is unreachable."""
+
         mo = self.main_objects[0]
 
         if self.task_type in DRAWER_TASK_TYPES:
@@ -99,7 +99,7 @@ class TaskProgressionMixin:
         return abs(rot_diff) > rot_threshold
 
     def check_lift_and_distance_condition(self, distance_threshold=0.05, lift_threshold=0.01):
-        """Check lift and travel from the start-of-rollout pose."""
+
         mo = self.main_objects[0]
         mo_pos_curr = mo.get_position_orientation()[0]
 
@@ -150,7 +150,7 @@ class TaskProgressionMixin:
         return mo.states[og.object_states.ToggledOn].get_value()
 
     def check_pour(self, obs):
-        """Stop an unimplemented pour rubric without crashing."""
+
         return False
 
     def get_mo_joint_openness_fraction(self):
@@ -158,7 +158,7 @@ class TaskProgressionMixin:
         return (self.mo_joint.get_state()[0][0] - self.mo_joint.lower_limit) / self.joint_range
 
     def get_mo_joint_delta(self):
-        """How far the drawer has moved since the reset, as a fraction of its range."""
+
         openness_fraction = self.get_mo_joint_openness_fraction()
         delta_openness_fraction = self.init_openness_fraction - openness_fraction
         return delta_openness_fraction
@@ -197,5 +197,5 @@ class TaskProgressionMixin:
         return self.check_closed_mo_joint_large(obs) or self.check_opened_mo_joint_large(obs)
 
     def check_moved_mo_joint_full(self, obs):
-        """Preserve the historical LARGE thresholds used for MOVE_JOINT_FULL."""
+
         return self.check_closed_mo_joint_large(obs) or self.check_opened_mo_joint_large(obs)

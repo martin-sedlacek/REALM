@@ -1,4 +1,4 @@
-"""Batch drawer resets around OmniGibson's global simulator step."""
+
 from collections import namedtuple
 
 import torch
@@ -22,7 +22,7 @@ JointResetPlan.__doc__ = """One member's reset state, excluding global simulator
 
 
 def run_joint_resets(envs):
-    """Run all pending joint resets with one shared set of simulator steps."""
+
     pending = [env for env in envs if env.pending_joint_reset is not None]
     if not pending:
         return
@@ -49,12 +49,12 @@ def run_joint_resets(envs):
 
 
 class JointResetMixin:
-    """Drawer-reset behavior shared by REALM environments."""
+
 
     pending_joint_reset = None
 
     def reset_joints(self, target_drawer_loc: str = "top"):
-        """Reset immediately, or queue the reset for vectorized batching."""
+
         if self.task_type not in ("open_drawer", "close_drawer"):
             self.mo_joint = None
             return
@@ -64,7 +64,7 @@ class JointResetMixin:
             run_joint_resets([self])
 
     def _prepare_joint_reset(self, target_drawer_loc: str) -> JointResetPlan:
-        """Prepare per-member state without advancing the global simulator."""
+
         cabinet = self.main_objects[0]
         init_state_open = self.task_type == "close_drawer"
         self.mo_joint = get_target_drawer_joint(cabinet, target_drawer_loc=target_drawer_loc)
@@ -80,7 +80,7 @@ class JointResetMixin:
         return JointResetPlan(cabinet=cabinet, joints=openable_joints, reset_states=reset_states)
 
     def _record_joint_openness(self):
-        """Capture settled rather than commanded drawer openness."""
+
         self.joint_range = self.mo_joint.upper_limit - self.mo_joint.lower_limit
         self.init_openness_fraction = (self.mo_joint.get_state()[0][
                                            0] - self.mo_joint.lower_limit) / self.joint_range

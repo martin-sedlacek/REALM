@@ -13,7 +13,7 @@ MASS_CLIP_KG = 2.0  # heaviest payload B-HOBJ is allowed to hand the policy
 
 
 def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:
-    """Capture an object's unscaled properties, refreshing after object replacement."""
+
     if not hasattr(env, "b_hobj_baselines"):
         env.b_hobj_baselines = {}
     key = obj._relative_prim_path  # relative prim path as unique id, as in init_poses
@@ -30,7 +30,7 @@ def _baselines(env: "RealmEnvironmentDynamic", obj) -> dict:
 
 
 def b_hobj(env: "RealmEnvironmentDynamic") -> None:
-    """Scale mass and joint properties from their pristine baselines."""
+
     s_mass, s_mvel, s_meff, s_stif, s_damp, s_fric = np.exp(np.random.uniform(-1, 1, size=(6,)))
     for obj in env.main_objects:
         base = _baselines(env, obj)

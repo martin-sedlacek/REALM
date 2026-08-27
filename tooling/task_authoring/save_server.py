@@ -1,4 +1,4 @@
-"""Local, repository-scoped save endpoint for the embedded authoring workspace."""
+
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ TASK_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 def save_task_config(repo_root: Path, task_name: str, yaml_text: str) -> Path:
-    """Validate and exclusively create a REALM_DROID10 task configuration."""
+
     if not TASK_NAME_PATTERN.fullmatch(task_name):
         raise ValueError("Task name may contain only lowercase letters, numbers, underscores, and hyphens.")
     document = yaml.safe_load(yaml_text)
@@ -41,7 +41,7 @@ def save_task_config(repo_root: Path, task_name: str, yaml_text: str) -> Path:
 def start_save_server(
     repo_root: Path, camera_poses: dict[str, dict[str, list[float]]]
 ) -> tuple[ThreadingHTTPServer, str, str]:
-    """Start a loopback-only HTTP endpoint and return its server and URL."""
+
 
     class SaveHandler(BaseHTTPRequestHandler):
         def do_GET(self):

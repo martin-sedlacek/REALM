@@ -1,4 +1,4 @@
-"""Task-independent environment state and scoring helpers."""
+
 import numpy as np
 
 import omnigibson as og
@@ -51,7 +51,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         self.reset_joints()
 
     def capture_mo_reference(self):
-        """Capture the main object's start-of-rollout pose after perturbations."""
+
         self.mo_pos_orig, self.mo_rot_orig = self.main_objects[0].get_position_orientation()
 
     def get_ee_pose(self):
@@ -60,7 +60,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         return ee_link.get_position_orientation()
 
     def _adjacent_link_pairs(self):
-        """Robot link pairs joined by a joint, whose mutual contact is not a self-collision."""
+
         if not hasattr(self, "_robot_adjacent_links"):
             self._robot_adjacent_links = set()
             if hasattr(self.robot, "joints"):
@@ -72,7 +72,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         return self._robot_adjacent_links
 
     def check_collisions(self):
-        """Return robot self- and environment-collision flags."""
+
         self_collision = False
         env_collision = False
 
@@ -108,13 +108,13 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         return self_collision, env_collision
 
     def _finger_closure_threshold(self):
-        """Preserve the historical 9x gripper-range threshold."""
+
         profile = get_robot_obs_profile(self.robot.name)
         open_q, closed_q = profile["gripper_open_qpos"], profile["gripper_closed_qpos"]
         return open_q + 9.0 * (closed_q - open_q)
 
     def is_grasping(self, obs, candidate_obj):
-        """Both fingers on @candidate_obj, the robot touching it, and the gripper still closing."""
+
         finger_joints = obs[self.robot.name]['proprio'][7:9].cpu().numpy()
         thresh = self._finger_closure_threshold()
         is_either_finger_closing = (thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3)

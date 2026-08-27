@@ -12,7 +12,7 @@ import omnigibson as og  # For og.sim.device
 
 
 class IndividualJointPDController(LocomotionController, ManipulationController, GripperController):
-    """Scalar-gain joint PD controller."""
+
 
     def __init__(
             self,
@@ -59,7 +59,7 @@ class IndividualJointPDController(LocomotionController, ManipulationController, 
         return ControllableObjectViewAPI.get_all_joint_positions(self.routing_path)[rows, :][:, self.dof_idx]
 
     def _get_joint_velocities(self):
-        """Use reported velocity; OG's finite-difference estimate causes excessive error."""
+
         rows = self.view_row_indices
         return ControllableObjectViewAPI.get_all_joint_velocities(
             self.routing_path, estimate=False

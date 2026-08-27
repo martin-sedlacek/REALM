@@ -1,4 +1,4 @@
-"""Post-load scene and robot corrections."""
+
 import numpy as np
 import yaml
 
@@ -10,7 +10,7 @@ from omnigibson.utils.usd_utils import create_joint
 class SceneSetupMixin:
 
     def update_robot_physics(self):
-        """Apply DROID physics properties required by OmniGibson."""
+
         if not self.robot_name.startswith("DROID"):
             return
 
@@ -58,7 +58,7 @@ class SceneSetupMixin:
         Usd, UsdGeom = lazy.pxr.Usd, lazy.pxr.UsdGeom
 
         def asset_authored_purpose(prim):
-            """Read purpose below OmniGibson's anonymous session override."""
+
             attr = UsdGeom.Imageable(prim).GetPurposeAttr()
             if not attr:
                 return None
@@ -95,7 +95,7 @@ class SceneSetupMixin:
         return restored, kept_guide
 
     def apply_scene_fixes_from_cfg(self, manage_sim_state=True):
-        """Apply object changes while OmniGibson is stopped."""
+
         spawn_cfg = yaml.load(open(f"{self.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)
 
         if self.scene_model in spawn_cfg and self.scene_part in spawn_cfg[self.scene_model]:
@@ -118,7 +118,7 @@ class SceneSetupMixin:
                 og.sim.play()
 
     def rebase_initial_file(self):
-        """Rebase after scene fixes because OG captures its reset file before them."""
+
         self.omnigibson_env.scene.update_initial_file()
 
     def disable_visual_toggles(self):

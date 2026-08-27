@@ -32,7 +32,7 @@ DEFINITIONS = PROJECT_ROOT / "realm/robots/definitions"
 
 
 def robot_entries():
-    """(config path, robot dict) for every robot entry that declares a model."""
+
     out = []
     for path in ROBOT_CONFIGS:
         try:
@@ -48,7 +48,7 @@ def robot_entries():
 
 
 def usd_for_model(model):
-    """The usd_path the RobotDefinition for `model` loads, or None if there is no definition."""
+
     d = DEFINITIONS / model / f"{model}.yaml"
     if not d.is_file():
         return None
@@ -56,7 +56,7 @@ def usd_for_model(model):
 
 
 def test_there_are_robot_entries_to_check():
-    """Guard against the whole suite passing because a glob silently matched nothing."""
+
     entries = robot_entries()
     assert entries, f"no robot entries found under {ROBOT_CONFIGS!r} -- the test is inert"
 
@@ -103,7 +103,7 @@ def test_configs_sharing_a_model_agree_on_has_base_column():
 
 
 def test_all_droid_profiles_use_robolab_v2():
-    """Prevent a generic profile from silently reintroducing a retired stock or v1 asset."""
+
     droid_configs = [path for path in ROBOT_CONFIGS if path.name.startswith("DROID")]
     assert droid_configs
     for path in droid_configs:

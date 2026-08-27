@@ -1,4 +1,4 @@
-"""Build an OmniGibson environment config from REALM's YAML layers."""
+
 import copy
 import math
 import os
@@ -19,7 +19,7 @@ from realm.placement import place_within
 
 
 def build_environment_config(env):
-    """Build the OmniGibson env config. Returns (cfg, mo_cfgs, to_cfgs, dist_cfgs)."""
+
     cfg = dict()
     task_cfg = yaml.load(open(f"{env.config_path}/tasks/{env.task_cfg_path}", "r"), Loader=yaml.FullLoader)
     cfg.update(task_cfg)
@@ -36,7 +36,7 @@ def build_environment_config(env):
 
 
 def _apply_scene_cfg(env, cfg, task_cfg):
-    """Resolve the scene and its spawn bounds."""
+
     for k in ["external_sensors", "robots"]:
         assert k not in cfg, f"{k} should be defined outside the scene file!"
 
@@ -75,7 +75,7 @@ def _apply_scene_cfg(env, cfg, task_cfg):
 
 
 def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
-    """Merge the robot config and resolve its spawn pose."""
+
     assert "pos" in scene_data and "rot" in scene_data
     robot_pos = scene_data['pos']
     robot_rot = [math.radians(angle_deg) for angle_deg in scene_data['rot']]
@@ -115,7 +115,7 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
 
 
 def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
-    """Place task objects, distractors, and immutables."""
+
     obj_list = task_cfg["main_objects"] + task_cfg["target_objects"]
     if "distractors" in task_cfg:
         obj_list += task_cfg["distractors"]
@@ -169,7 +169,7 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
 
 
 def _apply_env_cfg(cfg):
-    """Create cfg["env"] and align its device with GPU dynamics."""
+
     if "env" not in cfg:
         cfg["env"] = {
             "initial_pos_z_offset": 0.2
@@ -179,7 +179,7 @@ def _apply_env_cfg(cfg):
 
 
 def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
-    """Add the external camera sensors to cfg["env"] (skipped when rendering is off)."""
+
     if not env.no_rendering:
         ext_cam1_pose = task_cfg["camera_extrinsics"]["cam1"] if "camera_extrinsics" in task_cfg else "default"
         if "camera_extrinsics" in task_cfg and "cam2" in task_cfg["camera_extrinsics"]:

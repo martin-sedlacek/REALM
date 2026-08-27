@@ -175,7 +175,7 @@ def _run_rollout(rollout, client, max_steps, horizon,
 
 
 def _new_recorder(log_dir, run_id, task, perturbation):
-    """A video recorder for one rollout, named after the wall-clock time the rollout started."""
+
     timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H:%M:%S")
     return VideoRecorder(log_dir, timestamp, run_id, task, perturbation)
 

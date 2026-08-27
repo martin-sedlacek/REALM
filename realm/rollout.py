@@ -1,4 +1,4 @@
-"""Shared single- and vector-evaluation rollout behavior."""
+
 from queue import Queue
 from typing import Any, NamedTuple
 
@@ -21,7 +21,7 @@ PLACEMENT_TASK_TYPES = ("put", "stack")
 
 
 def wants_base_im_second(task_type, base_im_second):
-    """Use the second exterior view for drawers when it exists."""
+
     return task_type in DRAWER_TASK_TYPES and base_im_second is not None
 
 
@@ -31,7 +31,7 @@ GRIPPER_OPEN_BELOW_HALF = ("molmoact",)
 
 
 def resolve_task(task_id, task_cfg_path, supported_tasks, name_includes_config):
-    """Resolve the artifact name and task-config path."""
+
     if task_cfg_path is None:
         task = supported_tasks[task_id]
         return task, f"REALM_DROID10/{task}/default.yaml"
@@ -45,7 +45,7 @@ def resolve_task(task_id, task_cfg_path, supported_tasks, name_includes_config):
 
 
 def gripper_is_inverted(model_type):
-    """Reject unknown gripper conventions instead of silently reversing behavior."""
+
     if model_type in GRIPPER_OPEN_ABOVE_HALF:
         return False
     if model_type in GRIPPER_OPEN_BELOW_HALF:
@@ -72,7 +72,7 @@ def enqueue_action_chunk(buffer, chunk, horizon):
 
 
 def robot_frame_ee_pose(env, ee_pos, ee_quat):
-    """Convert OmniGibson's world-frame end-effector pose to the robot frame."""
+
     position = ee_pos.cpu().numpy() if hasattr(ee_pos, "cpu") else np.array(ee_pos)
     quaternion = ee_quat.cpu().numpy() if hasattr(ee_quat, "cpu") else np.array(ee_quat)
     world_pose = np.concatenate([position, Rotation.from_quat(quaternion).as_euler("xyz")])
@@ -131,7 +131,7 @@ class RenderSchedule:
 
 
 class RolloutMetrics:
-    """Per-rollout metrics; persistent contacts count as one collision."""
+
 
     def __init__(self):
         self.qpos = []
@@ -195,7 +195,7 @@ class PolicyObservation(NamedTuple):
 
 
 class Rollout:
-    """State for one rollout in a single or vector evaluation."""
+
 
     def __init__(self, env, run_id, recorder=None, gripper_inverted=False):
         self.env = env
@@ -208,7 +208,7 @@ class Rollout:
         self.active = True
 
     def observe(self, obs, obs_is_fresh):
-        """Skip duplicate video frames during render-on-demand evaluation."""
+
         base_im, _, base_im_second, _, wrist_im, robot_state, gripper_state = extract_from_obs(
             obs, robot_name=self.env.robot.name)
         ee_pos, ee_quat = self.metrics.record_step(self.env, obs, robot_state, gripper_state)
@@ -297,7 +297,7 @@ def corrected_drops(metrics, env):
 
 
 def build_result_entry(rollout, task, perturbation, model_type):
-    """Build an ordered report row and its trajectory payloads."""
+
     env, metrics = rollout.env, rollout.metrics
     qpos = np.stack(metrics.qpos)
     joint = joint_space_metrics(qpos)
