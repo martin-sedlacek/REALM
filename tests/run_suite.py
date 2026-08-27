@@ -40,7 +40,7 @@ container: test_joint_reset_batching stubs `og.sim`, but it `import omnigibson` 
 it cannot run on the login python. Do not read `needs_gpu=False` as "runs anywhere".
 
     python3 tests/run_suite.py --only local --strict          # container-free; what CI runs
-    python3 tests/run_suite.py --jobid 191441 --out /path/results.json --only medium
+    python3 tests/run_suite.py --jobid <allocation> --out /path/results.json --only medium
     python3 tests/run_suite.py --list
     python3 tests/run_suite.py --report --out /path/results.json
 
@@ -64,13 +64,13 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-RR = str(PROJECT_ROOT / "scripts/clara/interactive/rr")
 
 # ---------------------------------------------------------------------------------------------
 # The suite. `verdict` is an ORDERED list of (regex, status). Each pattern is searched against the
@@ -280,8 +280,8 @@ SUITE = {
 # gate you are running. They are different axes on purpose: `--only slow` is "the expensive ones",
 # `--level suite` is "the gate before you trust a change".
 #
-# Seconds are MEASURED, from logs/suite_results_v2.json and a `--level smoke` run on job 191496
-# (both 2026-08-16, MODE=stock, one L40S). They are what the `--level smoke` / `suite` runtime
+# Seconds were measured on 2026-08-16 with MODE=stock on one GPU. They are what the
+# `--level smoke` / `suite` runtime
 # estimates quote, so they must not drift into guesses -- if you re-time the suite, update these
 # from the JSON rather than from memory.
 # ---------------------------------------------------------------------------------------------
@@ -290,7 +290,7 @@ LEVELS = {
     # that looks at the SCENE, at num_envs=2. Catches "the port is broken" in about ten minutes.
     # NOTE: at MODE=stock this level is EXPECTED TO REPORT 2 FAILURES -- the rubric test (a real
     # code defect, see its docstring) and test_scene_object_placement, which is MODE-sensitive by
-    # design and only passes under oglite. Measured end to end on job 191496, 2026-08-16: 705.5 s.
+    # design and only passes under oglite. Measured end to end on 2026-08-16: 705.5 s.
     "smoke": ["test_task_progression_rubrics",   #    0.1 s
               "test_joint_reset_batching",       #   53.6 s
               "test_single_task",                #  223.3 s
@@ -304,8 +304,8 @@ LEVELS = {
               "test_vector_integrity_drawers",   #   635.7 s
               "test_integrity",                  #  1834.8 s
               "test_perturbations_integrity"],   #  2584.3 s   -> ~1.7 h total
-    # The full task x perturbation sweep through the vector path. NO COMPLETED RUN IS ON RECORD:
-    # the half-matrix shard reached NO_VERDICT after 1315 s in job 191441. Budget hours, and
+    # The full task x perturbation sweep through the vector path. A half-matrix shard exceeded
+    # 1315 s without a verdict. Budget hours, and
     # expect to shard it -- test_vector_integrity_tasks_shard0of2 exists for exactly that.
     "matrix": ["test_vector_integrity_tasks",
                "test_vector_integrity_perturbations"],
@@ -325,11 +325,11 @@ def run_one(name, spec, args, outdir):
     log_path = outdir / f"{name}.log"
     if spec.get("local"):
         # No container, no allocation: a pure-Python test that reads source and config. Sending it
-        # through rr+srun would cost ~40 s of apptainer start to run something that takes 0.06 s.
+        # through Slurm and Apptainer would cost far more than this test itself.
         cmd = [sys.executable, "-u"] + [str(PROJECT_ROOT / spec["argv"][0])] + spec["argv"][1:]
     else:
-        inner = "cd %s && exec ./scripts/clara/interactive/rr python -u %s" % (
-            PROJECT_ROOT, " ".join(spec["argv"]))
+        container_cmd = ["./scripts/run_apptainer.sh", "python", "-u", *spec["argv"]]
+        inner = f"cd {shlex.quote(str(PROJECT_ROOT))} && exec {shlex.join(container_cmd)}"
         if args.jobid:
             cmd = ["srun", "--jobid", str(args.jobid), "--overlap", "bash", "-c", inner]
         else:

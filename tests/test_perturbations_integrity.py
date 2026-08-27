@@ -3,7 +3,7 @@
 Sweeps all 16 entries of SUPPORTED_PERTURBATIONS through examples/02_evaluate.py, one process
 each. The task-sweeping counterpart is tests/test_integrity.py.
 
-    ./scripts/clara/interactive/rr python -u tests/test_perturbations_integrity.py --task_id 0
+    ./scripts/run_apptainer.sh python -u tests/test_perturbations_integrity.py --task_id 0
 
 Rendering is left ON here (unlike test_integrity.py), so videos/<task>.parquet holds real frames.
 

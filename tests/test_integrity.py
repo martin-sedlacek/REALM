@@ -3,7 +3,7 @@
 Sweeps all 10 tasks under Default through examples/02_evaluate.py, one process each, and checks
 the reports csv plus the qpos/actions/videos parquets.
 
-    ./scripts/clara/interactive/rr python -u tests/test_integrity.py
+    ./scripts/run_apptainer.sh python -u tests/test_integrity.py
 
 WHICH IMAGE YOU ARE ON DECIDES WHETHER THIS PASSES. Tasks 8 and 9 (open_drawer / close_drawer) are
 the only two whose main object is `custom_assets/impact_drawer/usd/cabinet.usd`, and loading it
@@ -18,10 +18,7 @@ Three measured runs, 2026-08-16, differing only in image and bind:
     realm_og391.sif     MODE=oglite   task 8 PASSES  (the fork carries the default)
     realm_og391_v2.sif  MODE=stock    10/10 ALL TASKS PASSED
 
-`realm_og391_v2.sif` (built 2026-08-14) ships that patch and six others, and
-`scripts/clara/lib/paths.sh` now selects it by default, so plain `rr` is sufficient. If you are
-reproducing a result recorded before 2026-08-16, pin the old image --
-`REALM_SIF_OG391=$REALM_SHARED/realm_og391.sif` -- and expect 8/10 here.
+The release image includes the required patch. Older images may pass only 8 of 10 tasks.
 
 WHAT THIS DOES NOT COVER -- read before treating a green run as evidence
 -----------------------------------------------------------------------

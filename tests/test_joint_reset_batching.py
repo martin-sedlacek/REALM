@@ -36,7 +36,7 @@ What is asserted below:
 It does NOT check that a real cabinet ends up at the right openness, or that the drive gains are
 right. Those need the asset.
 
-    ./scripts/clara/interactive/rr python -u tests/test_joint_reset_batching.py
+    ./scripts/run_apptainer.sh python -u tests/test_joint_reset_batching.py
 """
 import contextlib
 import sys

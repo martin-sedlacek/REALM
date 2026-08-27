@@ -26,7 +26,7 @@ Rendering is left ON (unlike test_integrity.py's --no_render) so videos/*.parque
 catch a rollout that is numerically clean and visually wrong -- e.g. the frame-bug era, where
 members scored plausibly while their object sat in another member's tile.
 
-Usage (inside the container, e.g. via scripts/clara/interactive/rr):
+Usage inside the release container:
 
     python tests/test_vector_integrity.py --matrix tasks         --num_envs 2
     python tests/test_vector_integrity.py --matrix perturbations --num_envs 2 --extract-videos

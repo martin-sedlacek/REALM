@@ -25,7 +25,7 @@ Needs the container (importing `realm.rollout` pulls in omnigibson) but NO GPU a
 nothing here builds an environment. The static counterpart, which needs neither, is
 tests/test_task_type_literals.py.
 
-    ./scripts/clara/interactive/rr python -u tests/test_rollout_camera_selection.py
+    ./scripts/run_apptainer.sh python -u tests/test_rollout_camera_selection.py
 """
 import sys
 from pathlib import Path

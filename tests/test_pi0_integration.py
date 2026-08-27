@@ -7,7 +7,7 @@ placement or success machinery is exercised at all.
 
     # in one shell: bring up the openpi policy server on :8000
     # in another:
-    ./scripts/clara/interactive/rr python -u tests/test_pi0_integration.py
+    ./scripts/run_apptainer.sh python -u tests/test_pi0_integration.py
 
 PRECONDITIONS, both of which this test now checks up front instead of discovering 15 minutes in:
 
@@ -17,10 +17,8 @@ PRECONDITIONS, both of which this test now checks up front instead of discoverin
      connection, which is why the socket is probed first.
 
   2. examples/01_pi0_eval.py takes NO arguments and writes to its `evaluate()` default of
-     "/app/logs". In this checkout `logs` is a symlink to an absolute host path that
-     scripts/clara/interactive/rr does not bind, so inside the container `/app/logs` is a DANGLING
-     symlink and the child dies in `os.makedirs` before it loads anything. Nothing this test can
-     do fixes that from the outside -- 01_pi0_eval.py accepts no --log_dir -- so the condition is
+     "/app/logs". The container must bind that path to writable storage. Nothing this test can
+     do fixes a missing bind from the outside -- 01_pi0_eval.py accepts no --log_dir -- so the condition is
      reported, loudly, rather than worked around. `/app/logs` being resolvable is checked first.
 """
 import os

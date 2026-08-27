@@ -66,7 +66,7 @@ robots:
           # MultiFingerGripperController assumes (droid_gripper_controller.py:49-60 sends the
           # target>=0 branch, i.e. REALM's CLOSE, to the joint's UPPER limit).
           #
-          # Measured 2026-08-11 on l40s-02 (job 189066), pad separation between the re-origined
+          # Measured 2026-08-11 from the pad separation between the re-origined
           # left/right_inner_finger links, which sit on the pad centroids:
           #     finger_joint 0.0    -> 116.2 mm  (jaws wide open, ~85 mm gap plus pad thickness)
           #     finger_joint 0.7854 ->  33.0 mm  (jaws shut)

@@ -19,8 +19,7 @@ are the same task config built N times, so whatever the right orientation is, ev
 agree on it. That invariant needs no golden value, cannot drift when a task config is retuned, and
 is exactly what the defect breaks. The `unitsResolve` check is the direct form of the same thing.
 
-    MODE=oglite ./scripts/clara/interactive/rr python -u tests/test_scene_object_placement.py
-    MODE=stock  ./scripts/clara/interactive/rr python -u tests/test_scene_object_placement.py
+    ./scripts/run_apptainer.sh python -u tests/test_scene_object_placement.py
 
 Costs one vector build (~4 min). Defaults to open_drawer because that is the only asset in the
 repo authored upAxis=Y; pass --task_cfg_path to check another.

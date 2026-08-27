@@ -105,7 +105,7 @@ def test_clean_log_has_no_crash_verdict():
 
 def test_teardown_segfault_alone_is_not_a_crash():
     """The filter that predates this file: Isaac can segfault after all work is done."""
-    log = CLEAN + "\nFatal Python error: Segmentation fault\nsrun: error: l40s-03: Segmentation fault"
+    log = CLEAN + "\nFatal Python error: Segmentation fault\nsrun: error: node: Segmentation fault"
     assert tvi.classify_log(log, "9:Default", -11) is None
 
 
@@ -185,22 +185,6 @@ def test_ordinary_tracebacks_still_crash(err):
     log = "\n".join([TRACEBACK, '  File "/app/x.py", line 1, in f', err])
     status, _ = tvi.classify_log(log, "9:Default", 1)
     assert status == "CRASH"
-
-
-REAL_LOG = Path("/mnt/home_lustre/sedlam56/projects/REALM/logs/drawerpert_0819/_runlogs/t8_SBVRB.log")
-
-
-@pytest.mark.skipif(not REAL_LOG.is_file(), reason=f"{REAL_LOG} not on this machine")
-def test_against_the_real_captured_log():
-    """The one case no fixture can fake: classify the actual 8:SB-VRB log off disk.
-
-    Every other test here uses a string I wrote, and a string I wrote is exactly what let the prefix
-    bug through. This one reads the 1000-line log Isaac really produced -- Kit banners, teardown
-    warnings, the -11 exit and all -- and is the reason to keep drawerpert_0819 around."""
-    status, detail = tvi.classify_log(REAL_LOG.read_text(errors="replace"), "8:SB-VRB", -11)
-    assert status == "NOT_IMPL", f"real log misclassified as {status}: {detail}"
-    assert "does not support task_type 'open_drawer'" in detail, (
-        f"classified correctly but reported the wrong line: {detail!r}")
 
 
 def test_expected_not_implemented_keys_are_real_cells():

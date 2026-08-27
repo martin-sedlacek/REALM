@@ -68,8 +68,7 @@ realm/
 examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
             04_vector_evaluate.py (vectorized CLI)
 tests/      script-style tests + run_suite.py driver (see Testing below)
-scripts/    clara/ (SLURM + lib/{common,server,apptainer}.sh), debug/ (hand-driven scripts),
-            debug_probes/, karolina/, cluster_evals/, container launchers
+scripts/    portable container launchers and evaluation utilities
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
             Cluster-and-Parallel-Runs
 ```
@@ -161,8 +160,7 @@ sim-state wrappers; write the what-it-mutates docstring; call `rebase_after_play
 adds/removes objects.
 
 **Add a model:** one adapter class in `realm/inference/client.py` + an `ADAPTERS` entry; add the
-model_type to the gripper-convention tables in `realm/rollout.py`; a new server launch branch
-goes in `scripts/clara/lib/server.sh`.
+model_type to the gripper-convention tables in `realm/rollout.py`.
 
 **Add a robot:** definition YAML under `realm/robots/definitions/`; config under
 `realm/config/robots/`; a `ROBOT_OBS_PROFILES` entry in `realm/inference/utils.py`; control

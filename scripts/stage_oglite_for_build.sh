@@ -3,8 +3,8 @@
 # .docker/realm.{def,Dockerfile} contains it and needs NO runtime bind.
 #
 # WHY A STAGING STEP AT ALL. Both recipes take the REALM repo root as their build context and the fork
-# is a SEPARATE repository living outside it (github.com/martin-sedlacek/REALM_OG_lite, checked out at
-# ../OG-lite_og391 on Clara). `docker build` cannot COPY from outside its context, and hardcoding a host
+# is a SEPARATE repository living outside it (github.com/martin-sedlacek/REALM_OG_lite). `docker build`
+# cannot COPY from outside its context, and hardcoding a host
 # path into the .def would make the recipe work on exactly one machine. So the fork is copied into
 # .docker/vendor/ (gitignored) first, and both recipes read it from there -- one mechanism for both.
 #

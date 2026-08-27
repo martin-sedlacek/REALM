@@ -1,6 +1,6 @@
 """One task's slice of tests/test_integrity.py, for when you only care about one task.
 
-    ./scripts/clara/interactive/rr python -u tests/test_single_task.py --task_id 4
+    ./scripts/run_apptainer.sh python -u tests/test_single_task.py --task_id 4
 
 Same coverage limits as tests/test_integrity.py -- read that module's docstring. In short:
 `--model_type debug` commands a hold-still action with the gripper open, `--max_steps 1` skips

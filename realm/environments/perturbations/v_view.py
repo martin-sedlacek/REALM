@@ -52,7 +52,7 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
     #
     # No og.sim.stop()/play() around this loop. That cycle is GLOBAL while REALM applies
     # perturbations per member inside reset(), so vectorized it tore down every other member's scene
-    # mid-reset -- the failure mode measured for VB-POSE in job 190555, where three of four members
+    # mid-reset -- the measured VB-POSE failure mode, where three of four members
     # lost their main object from the contact view and silently scored zero. Nothing here needs a
     # stopped sim: these are external VisionSensor prims, i.e. XForms rather than rigid bodies, so a
     # pose write is a USD transform update that applies whether or not physics is running, and there

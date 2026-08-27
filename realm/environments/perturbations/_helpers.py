@@ -3,7 +3,7 @@
 ``og.sim.stop()``/``play()`` and ``og.sim.step()`` are GLOBAL: they act on every scene in the
 simulator, not on one member. REALM applies perturbations per member inside ``reset()``, so a
 perturbation that calls them directly does N times the work in a vector env AND disturbs its
-siblings mid-reset. Measured (job 190555, VB-POSE Vec=4): three of four members lost their main
+siblings mid-reset. With VB-POSE and four environments, three of four members lost their main
 object from the contact view and scored TP=0.00, 18 of 25 rollouts logged zero environment
 collisions and never left REACH, and the job still exited 0.
 

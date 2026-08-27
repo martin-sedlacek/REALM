@@ -73,7 +73,7 @@ OMNIGIBSON_HEADLESS=1 python /app/examples/01_pi0_eval.py
 4. View results in the REALM viewer:
 ```bash
 # !!! Set this to point to your local REALM logs folder:
-export REALM_LOGS=</path/to/REALM/logs> # e.g., /home/my_user/projects/REALM/logs
+export REALM_LOGS=/path/to/REALM/logs
 
 uv sync --locked
 uv run streamlit run tooling/realm_viewer/dashboard.py

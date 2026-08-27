@@ -18,8 +18,7 @@ from realm.environments.task_progression import TaskProgressionMixin
 from realm.inference.utils import get_robot_obs_profile
 from realm.robots.controller_registry import register_realm_controllers
 
-# Re-exported: these five are imported from here by tests/test_joint_reset_batching.py and by
-# scripts/clara/interactive/{t9,t13}*.py, which predate the split.
+# Re-exported for tests/test_joint_reset_batching.py.
 from realm.environments.joint_reset import (  # noqa: F401
     JOINT_HOLD_STEPS,
     JOINT_SETTLE_STEPS,

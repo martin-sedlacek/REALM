@@ -35,7 +35,7 @@ ROBOT_OBS_PROFILES = {
     # THE INDEX AND THE YAML FILTER MUST CHANGE TOGETHER -- see wrist_camera_idx above.
     #
     # finger_joint follows the standard Robotiq 2F-85 convention: 0 rad = OPEN, 0.7854 rad = CLOSED.
-    # Measured 2026-08-11 (job 189066) from the separation of the two inner_finger links once
+    # Measured 2026-08-11 from the separation of the two inner_finger links once
     # The shipped RoboLab asset has its finger origins on the pad centroids:
     #     0.0 rad -> 116.2 mm apart (open)     0.7854 rad -> 33.0 mm apart (shut)
     # These were the other way round until 2026-08-11, which fed pi0.5 an INVERTED gripper_state --

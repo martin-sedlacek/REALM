@@ -93,8 +93,7 @@ def b_hobj(env: "RealmEnvironmentDynamic") -> None:
             # tensor -> set_masses' `dst[indices] = src` against a float32 destination:
             #   RuntimeError: Index put requires the source and destination dtypes match,
             #                 got Float for the destination and Double for the source.
-            # then a SIGSEGV at teardown. Measured 2026-08-19, first live B-HOBJ run after the 1.0.0
-            # batch (logs/todo_clara/item3_logs); object masses here sit well under 2 kg, so the bad
+            # then a SIGSEGV at teardown. Object masses here sit well under 2 kg, so the bad
             # branch is the usual one. No number moves: Isaac stores masses as float32 either way.
             link.mass = float(min(base["mass"][name] * s_mass, MASS_CLIP_KG))  # clip at 2.0kg payload
 

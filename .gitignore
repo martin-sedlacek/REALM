@@ -16,8 +16,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-# ... but the cluster scripts' shared bash modules are source, not build output.
-!scripts/clara/lib/
 lib64/
 parts/
 sdist/
@@ -169,11 +167,6 @@ singularity/
 isaac-sim/
 .claude/
 realm-container.skill
-
-# Private site-specific cluster harnesses. These remain local to their operators and are not part
-# of the portable REALM release.
-scripts/clara/
-scripts/karolina/
 
 # Local visual-review utility for generated REALM_DROID100 renders; not part of the release.
 tooling/droid100_frame_browser/

@@ -47,7 +47,7 @@ def _place(obj, position=None, orientation=None, frame="scene"):
     it builds a scene (scene_base.py, "local then works out to exactly the authored pose").
     Writing them as world coordinates is a no-op in scene 0 -- whose origin IS the world origin --
     and silently wrong in every other scene, which is why this only ever showed up vectorized.
-    Measured (job 190555 and the t9 smoke test): all four members' cubes landed within 0.2 m of
+    Measured in a four-environment smoke test: all four members' cubes landed within 0.2 m of
     each other in WORLD space, i.e. every member's object was teleported into scene 0's tile.
     Scenes are tiled along +x, so those objects ended up many metres from their own robot, well
     outside gm.PROXIMITY_GATE_RADIUS (1.5 m); the proximity gate then dropped them from the
@@ -61,7 +61,7 @@ def _place(obj, position=None, orientation=None, frame="scene"):
     This exists so VB-POSE does not have to cycle og.sim.stop()/play(). That cycle is GLOBAL, and
     REALM applies perturbations per member inside reset(), so in a vector env one member's
     perturbation tears down and rebuilds every other member's scene mid-reset. Measured cost of that
-    (job 190555, VB-POSE Vec=4): the main object dropped out of the contact view for scenes 1, 2 and
+    with VB-POSE and four environments: the main object dropped out of the contact view for scenes 1, 2 and
     3 -- 18 of 25 rollouts recorded zero environment collisions and never advanced past REACH, i.e.
     three quarters of the run measured nothing while still exiting 0.
 

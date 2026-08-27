@@ -212,7 +212,7 @@ def _apply_env_cfg(cfg):
     OmniGibson's "cpu" default, the PhysX articulation view lives on the GPU and
     ArticulationView.get_joint_positions() returns None to a CPU reader, so the first get_obs()
     after reset dies with `AttributeError: 'NoneType' object has no attribute 'view'`
-    (entity_prim.py:864), which Isaac then turns into a segfault. Measured 2026-08-13, job 190243.
+    (entity_prim.py:864), which Isaac then turns into a segfault. Measured 2026-08-13.
     """
     if "env" not in cfg:
         cfg["env"] = {

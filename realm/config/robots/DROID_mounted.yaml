@@ -78,7 +78,7 @@ robots:
             # NOT corrected on purpose. The same trailing-comma typo makes this the truthy string
             # "False,", so Coriolis/centrifugal compensation is effectively ON -- and has been for
             # EVERY historical REALM result, including the 1.1.1 SR 0.88-1.00 runs and og391's
-            # SR 0.40 (job 187497); unlike gravity comp, cc was already applied pre-3.9.1. Making it
+            # SR 0.40; unlike gravity comp, cc was already applied pre-3.9.1. Making it
             # a real `false` would change a control hyperparameter relative to every validated run.
             # Measured indistinguishable from ON at n=1 (task_progression 0.200 either way). Needs a
             # human decision, not a silent flip.
@@ -105,7 +105,7 @@ robots:
           # MultiFingerGripperController assumes (droid_gripper_controller.py:49-60 sends the
           # target>=0 branch, i.e. REALM's CLOSE, to the joint's UPPER limit).
           #
-          # Measured 2026-08-11 on l40s-02 (job 189066), pad separation between the re-origined
+          # Measured 2026-08-11 from the pad separation between the re-origined
           # left/right_inner_finger links, which sit on the pad centroids:
           #     finger_joint 0.0    -> 116.2 mm  (jaws wide open, ~85 mm gap plus pad thickness)
           #     finger_joint 0.7854 ->  33.0 mm  (jaws shut)
