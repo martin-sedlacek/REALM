@@ -79,7 +79,7 @@ def delegations():
 #:
 #: check_moved_mo_joint_full calls the _LARGE pair, not the _FULL pair. That reads like a
 #: copy-paste slip and IS NOT ONE TO FIX: it is identical to the pre-port 1.1.1 implementation
-#: (~/projects/REALM/realm/environments/env_base.py:330-331), so it is the behaviour every REALM
+#: (the original environment progression implementation), so it is the behaviour every REALM
 #: number was ever scored against, and under the standing rule that pre-port behaviour is
 #: presumed intentional it stays. Changing it would tighten MOVE_JOINT_FULL from openness
 #: >0.65/<0.35 to >0.95/<0.05. Nothing reaches it today -- only the `turn_faucet` rubric names

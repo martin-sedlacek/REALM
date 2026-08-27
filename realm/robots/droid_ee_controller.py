@@ -68,7 +68,7 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
       has never had an effect on this controller.
 
       CHECKED AGAINST PRE-PORT AND DELIBERATELY LEFT ALONE (2026-08-16). The 1.1.1 controller
-      (`~/projects/REALM/realm/robots/droid_ee_controller.py:46,62`) also only ASSIGNS
+      (`realm/robots/droid_ee_controller.py`) also only ASSIGNS
       `self._use_gravity_compensation` and never reads it -- the two occurrences in that file are
       the constructor default and the assignment, exactly as here. So this controller's behaviour
       is identical to the reference implementation, which is the definition of correct for
@@ -228,8 +228,8 @@ class DroidEndEffectorController(LocomotionController, ManipulationController, G
         asserts exactly that (see `__init__`), so in the one mode where the `+=` executes, the
         write does reach the caller's command array. The aliasing is real, not theoretical.
 
-        It is also pre-port behaviour, byte for byte:
-        `~/projects/REALM/realm/robots/droid_ee_controller.py:113-115` is the same two lines with
+        It is also pre-port behaviour, byte for byte: the 1.1.1
+        `realm/robots/droid_ee_controller.py` has the same two lines with
         the same view semantics. Whatever depends on it has depended on it since before the 3.9.1
         port, and this controller is a reference implementation that worked as intended. Copying
         (`command[:3].clone()`) would be a behaviour change to a controller, undertaken to fix a

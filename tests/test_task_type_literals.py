@@ -9,7 +9,7 @@ is never true" apart from "this condition happens not to hold right now".
 
 That is not hypothetical. `"open_close_drawer"` was compared against at two live sites and is not a
 value any config has ever produced, in this checkout OR in the pre-port 1.1.1 tree
-(`~/projects/REALM`, `realm/environments/env_base.py:234` and `realm/eval.py:422`):
+(`realm/environments/env_base.py` and `realm/eval.py` in the original implementation):
 
   * `realm/rollout.py` -- selects the SECOND exterior camera for the drawer tasks. Constant False
     means `--multi-view` drawer runs fed the policy the first camera, for every run ever recorded.

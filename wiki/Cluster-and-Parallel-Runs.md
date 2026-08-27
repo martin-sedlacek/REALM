@@ -5,7 +5,8 @@ REALM supports two forms of parallelism:
 - **Vectorization** runs multiple environments in one simulator process.
 - **Sweeping** runs task and perturbation pairs as separate jobs.
 
-Cluster launch scripts are site-specific and are not included in the repository.
+The repository includes scheduler-neutral Slurm templates in `scripts/cluster_evals/`. Site-specific
+launchers, partitions, account names and filesystem paths are intentionally not included.
 
 ## Interactive runs
 
@@ -14,6 +15,11 @@ Request a GPU allocation using your cluster's normal workflow and enter the comp
 [Quick Start](Quick-Start).
 
 ## Batch runs
+
+`scripts/cluster_evals/run_evals_for_ckpt.sh` submits one job per task and perturbation pair through
+`scripts/cluster_evals/run_single_eval.sh`. Set the image and data paths through environment
+variables, then pass any site-specific `sbatch` options from your shell or configure them for your
+cluster. The templates do not select a partition or account.
 
 A batch script should:
 

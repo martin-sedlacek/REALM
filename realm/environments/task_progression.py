@@ -118,7 +118,7 @@ class TaskProgressionMixin:
         is not a proximity test on a point a rollout can approach.
 
         THIS BRANCH WAS DEAD UNTIL 2026-08-16, in this checkout and in the pre-port 1.1.1 one
-        (`~/projects/REALM/realm/environments/env_base.py:234`). It read
+        (the original `realm/environments/env_base.py`). It read
         ``if self.task_progression in ["open_close_drawer"]``, which is wrong twice over:
         ``self.task_progression`` is this environment's rubric -- an ``OrderedDict`` of
         stage -> bool -- not a task type, and ``"open_close_drawer"`` is not a value any task
@@ -300,8 +300,8 @@ class TaskProgressionMixin:
         DELIBERATELY LEFT AS IS. It reads like a copy-paste slip -- `_small` calls the `_small`
         pair, `_large` calls the `_large` pair, and this one calls the `_large` pair again instead
         of `check_closed_mo_joint_full` / `check_opened_mo_joint_full` -- but it is identical to
-        the pre-port 1.1.1 implementation (`~/projects/REALM`,
-        `realm/environments/env_base.py:330-331`). So this is not port breakage, and the behaviour
+        the pre-port 1.1.1 implementation (`realm/environments/env_base.py`). So this is not port
+        breakage, and the behaviour
         it produces is the behaviour every REALM number was ever scored against.
 
         What "fixing" it would do: MOVE_JOINT_FULL would demand openness > 0.95 or < 0.05 instead
