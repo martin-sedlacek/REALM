@@ -23,7 +23,11 @@ VERB_PHRASE = {
     "close_drawer": "close",
 }
 
-UNSUPPORTED_TASK_TYPES = {"open_drawer", "close_drawer"}
+UNSUPPORTED_BY_PERTURBATION = {
+    "SB-VRB": {"open_drawer", "close_drawer"},
+    "SB-NOUN": {"push"},
+    "VB-MOBJ": {"open_drawer", "close_drawer"},
+}
 
 
 def env_flag(name: str, default: bool) -> bool:

@@ -10,6 +10,7 @@ from omnigibson.controllers.controller_view import ControllerView
 from scipy.spatial.transform import Rotation as R
 
 from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIGHT
+from realm.config.shared import UNSUPPORTED_BY_PERTURBATION
 from realm.environments.env_base import RealmEnvironmentBase
 from realm.environments.env_config import build_environment_config
 from realm.environments.perturbations.registry import PERTURBATION_FNS
@@ -69,7 +70,8 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         assert len(mo_cfgs) == 1
         assert len(to_cfgs) <= 1
         assert "position" in mo_cfgs[0], "mo must have a specified position"
-        if "SB-NOUN" in self.active_perturbations and cfg["task_type"] == "push":
+        if (cfg["task_type"] in UNSUPPORTED_BY_PERTURBATION["SB-NOUN"]
+                and "SB-NOUN" in self.active_perturbations):
             raise NotImplementedError()
 
         if common_freq is not None:

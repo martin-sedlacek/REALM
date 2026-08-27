@@ -26,7 +26,7 @@ from realm.environments.perturbations.object_sampling import (
 )
 from realm.config.shared import (
     COMPATIBILITY_MATRIX,
-    UNSUPPORTED_TASK_TYPES,
+    UNSUPPORTED_BY_PERTURBATION,
     VERB_PHRASE,
 )
 from realm.environments.utils import load_task_progressions
@@ -41,7 +41,7 @@ RECEIVER_MAX_DIM = 0.185
 
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
-    if env.task_type in UNSUPPORTED_TASK_TYPES:
+    if env.task_type in UNSUPPORTED_BY_PERTURBATION["SB-VRB"]:
         raise NotImplementedError(
             f"SB-VRB does not support task_type {env.task_type!r}: the drawer configs declare "
             f"target_objects: [], so the perturbation would inject a 'receiver' object that has no "

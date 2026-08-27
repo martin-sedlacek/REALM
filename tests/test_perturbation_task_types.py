@@ -176,24 +176,26 @@ def module_level_set(path, name):
 
 @pytest.fixture(scope="module")
 def unsupported():
-    return module_level_set(SHARED, "UNSUPPORTED_TASK_TYPES")
+    return module_level_dict(SHARED, "UNSUPPORTED_BY_PERTURBATION")
 
 
-def test_unsupported_task_types_are_exactly_the_drawer_tasks(unsupported):
+def test_unsupported_task_types_are_explicit(unsupported):
 
-    assert unsupported == {"open_drawer", "close_drawer"}, (
-        "SB-VRB's UNSUPPORTED_TASK_TYPES changed. It refuses the two drawer tasks because their "
-        "configs declare target_objects: [], which sends it down the receiver-adding branch and "
-        "drops an unplaceable object from the air. If a task_type is added here, say why at the set "
-        f"and update this test deliberately. Found: {sorted(unsupported)}"
+    assert unsupported == {
+        "SB-VRB": {"open_drawer", "close_drawer"},
+        "SB-NOUN": {"push"},
+        "VB-MOBJ": {"open_drawer", "close_drawer"},
+    }, (
+        "Unexpected unsupported task registry; update it deliberately with a reason. "
+        f"Found: {unsupported}"
     )
 
 
 def test_unsupported_task_types_stay_matrix_keys(matrix, unsupported):
 
-    missing = sorted(t for t in unsupported if t not in matrix)
+    missing = sorted({t for types in unsupported.values() for t in types if t not in matrix})
     assert not missing, (
-        "task_type(s) in UNSUPPORTED_TASK_TYPES are absent from COMPATIBILITY_MATRIX. sb_vrb would "
+        "task_type(s) in UNSUPPORTED_BY_PERTURBATION are absent from COMPATIBILITY_MATRIX. sb_vrb would "
         "then raise KeyError ('table and configs disagree') instead of the NotImplementedError that "
         f"says the refusal is deliberate: {missing}"
     )

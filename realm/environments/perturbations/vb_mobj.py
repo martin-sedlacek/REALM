@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from omnigibson.objects import DatasetObject, PrimitiveObject, USDObject
 from realm.placement import get_default_objects_cfg
+from realm.config.shared import UNSUPPORTED_BY_PERTURBATION
 from realm.environments.perturbations._helpers import rebase_after_play, settle, sim_play, sim_stop
 
 if TYPE_CHECKING:
@@ -85,6 +86,10 @@ def vb_mobj(env: "RealmEnvironmentDynamic") -> None:
             new_obj.set_bbox_center_position_orientation(obj_cfg["pos"], obj_cfg["ori"])
         else:
             assert type(mo) is USDObject
+            if env.task_type in UNSUPPORTED_BY_PERTURBATION["VB-MOBJ"]:
+                raise NotImplementedError(
+                    f"VB-MOBJ does not support task_type {env.task_type!r}: its main object is a USD asset"
+                )
             raise NotImplementedError()
 
         env.main_objects = [new_obj]
