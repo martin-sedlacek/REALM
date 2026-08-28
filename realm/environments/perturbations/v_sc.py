@@ -66,9 +66,24 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
 
     # The rebase is REQUIRED, not an optimisation, for a perturbation that replaces objects -- see
     # rebase_after_play for the vector-env failure mode it prevents (and vec_init_queue.py for the
-    # related init-queue fix). vec-only because single-env V-SC has never rebased and works, so
-    # rebasing there would be an unverified change to a working path.
-    rebase_after_play(env, vec_only_rebase=True)
+    # related init-queue fix).
+    #
+    # It runs in BOTH paths. It was vec-only on the grounds that single-env V-SC had never rebased
+    # and worked -- true only at repeats=1, the one shape that never resets a second time. At
+    # repeats>1 the single-env path restored a scene file describing the PRE-swap distractors onto
+    # the post-swap objects and died in scene.reset() with
+    #     KeyError: 'joint_pos'
+    # from entity_prim._load_state -- the saved state has no joints, the replacement is articulated
+    # -- followed by a segfault. Measured 2026-08-28 on task 0 with --repeats 3.
+    #
+    # This matches vb_mobj and vsb_nobj, the other two object-replacing perturbations, which have
+    # always passed False. sb_vrb.py replaces objects and still passes True, so it carries the same
+    # latent defect; not touched here because it is a separate perturbation and a separate call.
+    #
+    # KNOWN ISSUE -- MOVES NUMBERS, needs the VERSION gate: rebasing makes repeats 2..N start from
+    # the perturbed scene rather than the authored one, so single-env V-SC numbers recorded before
+    # this are not comparable. The vector path has always behaved this way.
+    rebase_after_play(env, vec_only_rebase=False)
 
     # Let the re-placed objects come to rest. No-op in a vector env, where the shared settle runs
     # once for all members instead of stepping the global sim 30 times per member.
