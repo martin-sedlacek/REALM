@@ -66,11 +66,32 @@ def sample_objects(num_objects=3, included_categories=None, excluded_categories=
             if cat in whitelisted_categories:
                 whitelisted_categories.remove(cat)
 
+    # get_all_object_models() globs `<DATA_PATH>/*/objects/*/*` -- EVERY dataset directory under
+    # /data, not just the one objects load from. DatasetObject.get_usd_path pins loading to
+    # `behavior-1k-assets`, so a leftover dataset dir (og_dataset, the 1.1.1-era tree) contributes
+    # candidates whose USD does not exist at the path the loader will use, and the swap dies with
+    #     FileNotFoundError: .../objects/jar/mefezc/usd/mefezc.encrypted.usd
+    # deep inside scene.add_object(), after the object it replaces has already been removed.
+    # `jar/mefezc` is real in og_dataset and absent from behavior-1k-assets, which renamed the
+    # category to hingeless_jar.
+    #
+    # So the guard is on the file the LOADER will open, not on the sampled directory, and a
+    # candidate that fails it is dropped from the pool rather than drawn and raised on. Dedup by
+    # (category, model) because two dataset dirs can offer the same pair, which would otherwise
+    # weight that object twice in the draw. Order stays deterministic: get_all_object_models()
+    # returns sorted paths and first occurrence wins.
+    seen = set()
     for model_path in get_all_object_models():
-        if os.path.exists(model_path):
-            category = model_path.split("/")[-2]
-            if category in whitelisted_categories:
-                available_object_paths.append(model_path)
+        if not os.path.exists(model_path):
+            continue
+        category = model_path.split("/")[-2]
+        model_id = model_path.split("/")[-1]
+        if category not in whitelisted_categories or (category, model_id) in seen:
+            continue
+        if not os.path.exists(DatasetObject.get_usd_path(category=category, model=model_id)):
+            continue
+        seen.add((category, model_id))
+        available_object_paths.append(model_path)
 
     if not available_object_paths:
         return []
