@@ -12,6 +12,11 @@ perturbation types (visual, semantic, behavioral) on OmniGibson **3.9.1** / Isaa
 sim-side runs inside a container (`.docker/realm.Dockerfile` / `.docker/realm.def`); nothing
 here is pip-installable — code runs with the repo on `PYTHONPATH`.
 
+The image build is **self-contained**: `.docker/patches/` carries REALM's complete delta from stock
+OmniGibson 3.9.1 (twelve patches + `MANIFEST.sha256` + `PROVENANCE`), so no sibling OG-lite checkout
+and no runtime bind are involved. `MANIFEST.sha256` is verified during the build and again in
+`%test` — regenerate it in the same pass as any patch edit, never by hand.
+
 ## The one rule that governs all changes
 
 **REALM is a benchmark: a change that moves a number is a bug, even when the old number was

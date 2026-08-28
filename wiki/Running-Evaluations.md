@@ -21,8 +21,9 @@ Everything runs inside the release container. Set `REALM_SIF` and `REALM_DATA_PA
 with `./scripts/run_apptainer.sh`; see [Quick start](Quick-Start). On a managed cluster, invoke the
 launcher only after entering an allocated GPU node using your site's scheduler instructions.
 
-The release image contains OmniGibson 3.9.1 and the required REALM fixes. Binding a host OG-lite
-checkout over the installed package is a development workflow, not part of a normal evaluation.
+The release image contains OmniGibson 3.9.1 with REALM's patch set already applied, so no bind is
+needed. Binding a host OmniGibson checkout over the installed package is a development workflow for
+testing a change without rebuilding, not part of a normal evaluation.
 
 Relevant optional environment variables are:
 `REALM_INCREMENTAL_CONTACT_CACHE`, `REALM_PROXIMITY_GATE`, `REALM_GPU_DYNAMICS`,

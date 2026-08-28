@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 sys.path.append(str(PROJECT_ROOT))
 
 # Parse constants without booting Isaac in the driver process.
-from tests._paths import check_artifacts, eval_const_list
+from tests._paths import check_artifacts, eval_const_list, scratch_log_base
 
 SUPPORTED_TASKS = eval_const_list("SUPPORTED_TASKS")
 SUPPORTED_PERTURBATIONS = eval_const_list("SUPPORTED_PERTURBATIONS")
@@ -147,12 +147,18 @@ def main():
     p.add_argument("--max_steps", type=int, default=5)
     p.add_argument("--robot", type=str, default="DROID_mounted")
     p.add_argument("--experiment_name", type=str, default="vector_integrity")
-    p.add_argument("--log_dir", type=str, default="/logs")
+    # Resolved, not hardcoded to "/logs": that path is unbound under
+    # scripts/run_apptainer.sh, so child logs were written into a throwaway overlay.
+    p.add_argument("--log_dir", type=str, default=None,
+                   help="root for this run's artifacts and per-cell logs "
+                        "(default: $REALM_TEST_LOG_DIR, else /logs if it exists, else <repo>/logs)")
     p.add_argument("--shard", type=str, default=None,
                    help="'i/n' -- run only every n-th cell, for fanning across allocations")
     p.add_argument("--extract-videos", action="store_true",
                    help="write each cell's mp4s out of the video parquet for visual inspection")
     args = p.parse_args()
+    if args.log_dir is None:
+        args.log_dir = scratch_log_base()
 
     if args.cells:
         cells = []

@@ -1,0 +1,31 @@
+--- a/omnigibson/objects/dataset_object.py
++++ b/omnigibson/objects/dataset_object.py
+@@ -223,11 +223,27 @@
+ 
+         # Apply any forced light intensity updates.
+         if gm.FORCE_LIGHT_INTENSITY is not None:
++            # REALM_LIGHT_FIX -- resolved in macros.py, at the FORCE_LIGHT_INTENSITY definition, which
++            # carries the full rationale. OFF BY DEFAULT: `light_fix` False reproduces stock OG 3.9.1
++            # here statement for statement.
++            #
++            # Read through gm, never from os.environ again: the intensity above and the normalize
++            # write below are two halves of ONE decision, and 150000 WITH normalize=True is ~35x too
++            # bright. A missing gm.REALM_LIGHT_FIX means macros.py does NOT carry the companion hunk
++            # -- the stock-patch path binds files individually, so a half-applied fix is reachable.
++            # Fail loudly here instead of silently rendering the wrong lighting for 300 frames.
++            light_fix = getattr(gm, "REALM_LIGHT_FIX", None)
++            assert light_fix is not None, (
++                "gm.REALM_LIGHT_FIX is absent: omnigibson/macros.py is missing the REALM_LIGHT_FIX "
++                "block that must accompany this one. Both files change together -- see "
++                "realm/misc/light_normalize_*_og391.patch."
++            )
+ 
+             def recursive_light_update(child_prim):
+                 if "Light" in child_prim.GetPrimTypeInfo().GetTypeName():
+                     child_prim.GetAttribute("inputs:intensity").Set(gm.FORCE_LIGHT_INTENSITY)
+-                    child_prim.GetAttribute("inputs:normalize").Set(True)
++                    if not light_fix:
++                        child_prim.GetAttribute("inputs:normalize").Set(True)
+ 
+                 for child_child_prim in child_prim.GetChildren():
+                     recursive_light_update(child_child_prim)

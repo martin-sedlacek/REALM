@@ -7,8 +7,6 @@ so anything that reads a single-env run reads this too.
         --task_id 0 --perturbation_id 0 --model_type openpi --model_name pi05 --port 8000
 
 Inference is sequential: one policy call per member per action-chunk boundary, never batched.
-Requires the OG-lite bind (MODE=oglite) -- the scene z-offset fix that makes scenes 1..N-1 usable
-lives in the fork, not the image.
 """
 from realm.evaluation_cli import run_evaluation_cli
 

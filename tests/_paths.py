@@ -68,12 +68,25 @@ def scratch_log_root(name):
     writing it now, which is what stops rows surviving from one sweep into the next. Do not "fix" this by relaxing the exact-rows check -- it
     is what made the collision visible, and what stops a half-finished sweep reading as complete.
     """
+    return os.path.join(scratch_log_base(), name)
+
+
+def scratch_log_base():
+    """The ROOT that scratch_log_root(name) puts `name` under, resolved the same way.
+
+    test_vector_integrity needs the root itself rather than a named subtree, because it composes
+    `<root>/<experiment_name>/debug/<run_id>` and `<root>/<experiment_name>/_runlogs`. It used to
+    hardcode `/logs`, which scripts/run_apptainer.sh does NOT bind -- so every per-cell child log
+    landed in the container's --writable-tmpfs overlay (64 MB, discarded on exit) and a crashed
+    cell could not be diagnosed at all: the parent keeps only the first traceback line. Resolving
+    it here means the artifacts and logs reach real disk under the repo.
+    """
     override = os.environ.get("REALM_TEST_LOG_DIR")
     if override:
-        return os.path.join(override, name)
+        return override
     if os.path.isdir("/logs"):
-        return os.path.join("/logs", name)
-    return os.path.join(PROJECT_ROOT, "logs", name)
+        return "/logs"
+    return os.path.join(PROJECT_ROOT, "logs")
 
 
 # Signatures that mean a child eval died even if its exit status says otherwise. Same list as

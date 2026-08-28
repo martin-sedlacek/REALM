@@ -7,20 +7,17 @@ From: stanfordvl/behavior:3.9.1
 #   - base image ships conda (env "behavior", python 3.11) instead of micromamba ("omnigibson", 3.10)
 #   - OmniGibson lives at /behavior-src/OmniGibson, not /omnigibson-src, and is a PEP-660 editable install
 #   - one OMNIGIBSON_DATA_PATH=/data replaces the four separate dataset/asset/key path variables
-#   - the entity_prim patch is a diff instead of a whole-file copy, and a second patch is needed
 #   - dm-robotics is pinned to 0.9.0 (0.10.0 requires numpy>=2, which OmniGibson 3.9.1 forbids)
+#
+# THIS BUILD IS SELF-CONTAINED. It needs only this repository: no sibling OG-lite checkout, no
+# staging script to run first, and no runtime bind. .docker/patches/ holds the image's complete
+# delta from stock 3.9.1 -- read .docker/patches/PROVENANCE for how it was derived and how to
+# regenerate it.
 
 # NOTE: %files below takes bare `src dest` pairs -- apptainer parses a leading '#' as a source
-# PATH, not a comment, so the explanation lives here instead.
-#   .docker/vendor/omnigibson  the OG-lite fork's package, staged by
-#                              scripts/stage_oglite_for_build.sh (RUN IT FIRST -- the path does not
-#                              exist otherwise). Copied to /opt and moved into place in %post so the
-#                              stock package can be REMOVED rather than merged over: %files merges
-#                              into an existing directory and would leave stock strays behind.
-
+# PATH, not a comment, so explanations live outside the section.
 %files
-    .docker/vendor/omnigibson /opt/oglite/omnigibson
-    .docker/vendor/OGLITE_PROVENANCE /opt/oglite/OGLITE_PROVENANCE
+    .docker/patches /opt/realm-patches
     .docker/constraints.txt /opt/realm-constraints.txt
     packages/openpi-client /opt/openpi-client
 
@@ -28,69 +25,50 @@ From: stanfordvl/behavior:3.9.1
     set -e
 
     # ==========================================================================================
-    # INSTALL THE OG-LITE FORK WHOLESALE. THIS IMAGE NEEDS NO RUNTIME BIND.
+    # APPLY REALM'S DELTA FROM STOCK OMNIGIBSON 3.9.1.
     #
-    # Was: nine `patch -p1` invocations against the stock package. Those nine are still described
-    # below, because a reader needs to know WHAT this image differs from stock by -- but they are no
-    # longer applied, because the fork already contains every one of them (verified 2026-08-20: all
-    # nine grep guards present in the fork) AND carries work the patch set never covered at all:
-    # the incremental contact cache, the proximity gate, the descriptor-pool raise and the
-    # render-on-demand plumbing, in envs/env_base.py, envs/vec_env_base.py, prims/rigid_prim.py and
-    # utils/usd_utils.py. Measured fork-vs-image delta: 8 files, 691 changed lines.
+    # Twelve patches, applied in filename order, then verified two ways:
+    #   MANIFEST.sha256   every patched file hashes to the tree the patches were generated from.
+    #                     This is the drift guard: a patch that applies with fuzz, or a base image
+    #                     whose content moved under us, changes a hash and fails the build.
+    #   nine grep guards  the semantic changes, by name, so a failure says WHICH behaviour is gone
+    #                     rather than only that a hash moved. Listed in %test as well.
     #
-    # WHY WHOLESALE RATHER THAN MORE PATCHES. `MODE=oglite` bind-mounts this same directory over the
-    # image's copy, so installing it reproduces that runtime BIT-FOR-BIT BY CONSTRUCTION. A patch set
-    # could only approximate it, and this repo has twice been bitten by a generated patch tree
-    # drifting from the fork it came from. There is no pristine 3.9.1 to diff against locally either:
-    # realm_og391.sif already carries entity_prim + usd_object, realm_og391_v2.sif carries seven.
+    # A future base image's upstream fixes to these twelve files will make a patch FAIL TO APPLY.
+    # That is deliberate: the build stops rather than silently discarding an upstream fix. Rebase
+    # the patch and regenerate the manifest -- see PROVENANCE.
     #
-    # THE COST, so it can be reversed knowingly: this image no longer documents its delta from stock,
-    # and a future base image's upstream fixes to these eight files would be silently overwritten.
-    # The nine grep guards below are the mitigation: they fail the build if a semantic change is
-    # missing, while the recorded fork commit preserves exact provenance.
+    # WHAT THE TWELVE CARRY, in one line each: render-on-demand plumbing (envs/env_base,
+    # envs/vec_env_base); the perf switches and REALM_LIGHT_FIX (macros); the normalize gate that is
+    # REALM_LIGHT_FIX's other half (objects/dataset_object); relaxed kinematic-tree assertions for
+    # REALM's custom robot USDs (objects/usd_object, prims/entity_prim); placing an articulation by
+    # its ROOT LINK, without which impact_drawer's base_link at Ry(180) + 4 cm stopped the drawer
+    # tasks loading (prims/entity_prim, prims/xform_prim); OmniSurfaceMaterialPrim's preset_name
+    # default, without which any asset resolving to OmniSurface failed to load (prims/material_prim);
+    # the incremental contact cache (prims/rigid_prim); the scene z-offset, without which scene-file
+    # objects load ~100 m high in every scene but 0 and the vectorized path is unusable
+    # (scenes/scene_base); the object-init queue matched by identity instead of by NAME, so removing
+    # one vector member's object no longer evicts a sibling's uninitialised one, plus the proximity
+    # gate (simulator); and the descriptor-pool raise (utils/usd_utils).
     #
-    # rm -rf then cp -a, NOT a merge: a file the fork DELETED must not survive from the stock tree.
-    # cp/rm rather than rsync because rsync is not guaranteed in the base image.
-    # EXISTING IMAGES STILL NEED THE BIND. realm_og391.sif and _v2.sif were built from the old
-    # patch-based recipe and carry only 2 and 7 of the nine respectively, plus none of the perf work,
-    # so MODE=oglite remains REQUIRED against them. rr's modes are deliberately left alone: flipping
-    # the default now would silently change what every run loads, against images that do not have
-    # this. Once an image built from THIS recipe is in place, MODE=stock is enough and MODE=oglite
-    # becomes a way to test a fork change without rebuilding.
-    test -d /opt/oglite/omnigibson || { echo "OG-lite not staged; run scripts/stage_oglite_for_build.sh" >&2; exit 1; }
-    rm -rf /behavior-src/OmniGibson/omnigibson
-    cp -a /opt/oglite/omnigibson /behavior-src/OmniGibson/omnigibson
-    cp -a /opt/oglite/OGLITE_PROVENANCE /behavior-src/OmniGibson/OGLITE_PROVENANCE
+    # REALM_LIGHT_FIX IS ON BY DEFAULT, so THIS IMAGE IS 1.1.1-LIT unless a run sets
+    # REALM_LIGHT_FIX=0. 3.9.1 took FORCE_LIGHT_INTENSITY 150000 -> 10000 while also writing
+    # inputs:normalize=True; the two cancel exactly at light area 1/15 m^2, leaving a PER-SCENE
+    # error. Restoring 1.1.1's configuration tightens the per-task spread 0.551 -> 0.201 over the 6
+    # comparable tasks (2.74x), turning a per-scene domain shift into one global gain. macros.py
+    # prints the resolved state at import, so no run is ambiguous about which lighting it used.
+    cd /behavior-src/OmniGibson
+    for p in /opt/realm-patches/*.patch; do
+        echo "--- applying $(basename "$p")"
+        patch -p1 --forward --batch --no-backup-if-mismatch < "$p"
+    done
+    sha256sum -c /opt/realm-patches/MANIFEST.sha256
+    cp /opt/realm-patches/PROVENANCE /behavior-src/OmniGibson/REALM_PATCH_PROVENANCE
     # No stale bytecode: a .pyc that outlives the source it was compiled from is a miserable bug to
-    # chase inside a container. The stage excludes __pycache__; this is belt and braces.
+    # chase inside a container.
     find /behavior-src/OmniGibson/omnigibson -name '__pycache__' -type d -prune -exec rm -rf {} + || true
-    echo "--- OG-lite installed into the image ---"; cat /behavior-src/OmniGibson/OGLITE_PROVENANCE
+    echo "--- REALM patch set applied and hash-verified ---"
     # ==========================================================================================
-    #
-    # The nine changes this image carries, for the record (all now supplied by the fork):
-    #   entity_prim / usd_object      relaxed kinematic-tree assertions for REALM's custom robot USDs
-    #   scene_base_zoffset            scene-file objects loaded ~100 m too high in scenes idx != 0,
-    #                                 which made the vectorized path unusable (scene 0's origin IS
-    #                                 the world origin, so a single env never sees it)
-    #   simulator_initqueue           the global object-init queue was pruned by NAME, so removing
-    #                                 one vector member's object evicted a sibling's uninitialised one
-    #   material_prim_preset          OmniSurfaceMaterialPrim required preset_name positionally, so
-    #                                 any asset resolving to OmniSurface failed to load
-    #   xform_prim_rootlink /         an articulation was placed by whichever prim was read rather
-    #   entity_prim_rootlink          than by its ROOT LINK; impact_drawer's base_link is at
-    #                                 Ry(180) + 4 cm, so the drawer tasks could not load
-    #   light_normalize_{macros,      REALM_LIGHT_FIX, ON BY DEFAULT: 3.9.1 took
-    #   dataset_object}               FORCE_LIGHT_INTENSITY 150000 -> 10000 while also writing
-    #                                 inputs:normalize=True (emission / area). They cancel exactly at
-    #                                 area 1/15 m^2, leaving a PER-SCENE error. The flag restores
-    #                                 1.1.1's configuration: per-task spread 0.551 -> 0.201 over the
-    #                                 6 comparable tasks (2.74x), turning a per-scene domain shift
-    #                                 into one global gain. AN IMAGE BUILT FROM THIS RECIPE IS
-    #                                 1.1.1-LIT UNLESS A RUN SETS REALM_LIGHT_FIX=0.
-
-    # /opt/oglite/omnigibson has been copied into place, so drop the staging copy -- ~40 MB of an
-    # identical tree.
-    rm -rf /opt/oglite/omnigibson
 
     CONDA_PIP=/opt/conda/envs/behavior/bin/pip
 
@@ -155,7 +133,10 @@ assert numpy.__version__.startswith("1.26"), numpy.__version__
 print("omnigibson", version("omnigibson"), "| numpy", numpy.__version__, "| torch", torch.__version__)
 print("dm_control", version("dm-control"), "| dm-robotics-moma", version("dm-robotics-moma"))
 PY
-    # The two REALM patches must be baked in, or custom robot USDs fail their kinematic-tree checks.
+    # The patched tree still hashes to what the patch set was generated from.
+    ( cd /behavior-src/OmniGibson && sha256sum -c /opt/realm-patches/MANIFEST.sha256 )
+    # The nine semantic changes, by name, so a failure says which behaviour is missing.
+    # The two REALM patches without which custom robot USDs fail their kinematic-tree checks.
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py
     grep -q "REALM: relaxed" /behavior-src/OmniGibson/omnigibson/objects/usd_object.py
     # And the z-offset fix, without which every scene except 0 loads its objects 100 m high.
@@ -167,7 +148,12 @@ PY
         /behavior-src/OmniGibson/omnigibson/prims/xform_prim.py
     grep -q "root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))" \
         /behavior-src/OmniGibson/omnigibson/prims/entity_prim.py
-    # Both halves of the opt-in light fix. Half of it is worse than none of it.
+    # Both halves of the light fix. Half of it is worse than none of it.
     grep -q "gm.REALM_LIGHT_FIX = " /behavior-src/OmniGibson/omnigibson/macros.py
     grep -q "if not light_fix:" /behavior-src/OmniGibson/omnigibson/objects/dataset_object.py
-    echo "REALM patches present"
+    # The perf switches REALM sets in realm/sim_config.py must exist to be settable.
+    for m in ENABLE_VISUAL_UPDATES OBJECT_STATE_UPDATE_WHITELIST INCREMENTAL_CONTACT_CACHE \
+             PROXIMITY_GATE_ENABLED RENDER_ON_STEP; do
+        grep -q "gm.$m" /behavior-src/OmniGibson/omnigibson/macros.py || { echo "missing gm.$m" >&2; exit 1; }
+    done
+    echo "REALM patch set present and verified"

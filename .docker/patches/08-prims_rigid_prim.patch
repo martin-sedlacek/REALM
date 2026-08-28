@@ -1,0 +1,58 @@
+--- a/omnigibson/prims/rigid_prim.py
++++ b/omnigibson/prims/rigid_prim.py
+@@ -28,6 +28,32 @@
+ # Create settings for this module
+ m = create_module_macros(module_path=__file__)
+ 
++
++# Compiled form of gm.CONTACT_REPORTING_PATTERNS, rebuilt whenever the macro changes.
++_CONTACT_REPORTING_PATTERNS_SRC = None
++_CONTACT_REPORTING_REGEXES = None
++
++
++def _contact_reporting_wanted(prim_path):
++    """
++    Returns:
++        bool: Whether @prim_path should have contact reporting enabled, per gm.CONTACT_REPORTING_PATTERNS.
++            Always True when the macro is unset, which is the upstream behavior.
++    """
++    global _CONTACT_REPORTING_PATTERNS_SRC, _CONTACT_REPORTING_REGEXES
++
++    patterns = gm.CONTACT_REPORTING_PATTERNS
++    if patterns is None:
++        return True
++
++    # Recompile only when the macro itself changed
++    if patterns is not _CONTACT_REPORTING_PATTERNS_SRC:
++        _CONTACT_REPORTING_PATTERNS_SRC = patterns
++        _CONTACT_REPORTING_REGEXES = [re.compile(pattern) for pattern in patterns]
++
++    return any(regex.search(prim_path) for regex in _CONTACT_REPORTING_REGEXES)
++
++
+ m.DEFAULT_CONTACT_OFFSET = 0.001
+ m.DEFAULT_REST_OFFSET = 0.0
+ m.LEGACY_META_LINK_PATTERN = re.compile(r".*:(\w+)_([A-Za-z0-9]+)_(\d+)_link")
+@@ -105,7 +131,7 @@
+             else False
+         )
+ 
+-        if not self._visual_only:
++        if not self._visual_only and _contact_reporting_wanted(self.prim_path):
+             contact_api = ensure_usd_api(self._prim, lazy.pxr.PhysxSchema.PhysxContactReportAPI)
+             with og.sim.editing_usd():
+                 contact_api.GetThresholdAttr().Set(0.0)
+@@ -431,7 +457,12 @@
+         Returns:
+             bool: Whether contact reporting is enabled for this rigid prim or not
+         """
+-        return self._prim.HasAPI(lazy.pxr.PhysxSchema.PhysxContactReportAPI)
++        # Also honor the macro here, not just at load time: a source USD may already declare
++        # PhysxContactReportAPI, in which case skipping the apply in _post_load is not enough to keep
++        # the link out of the RigidContactAPI matrix.
++        return self._prim.HasAPI(lazy.pxr.PhysxSchema.PhysxContactReportAPI) and _contact_reporting_wanted(
++            self.prim_path
++        )
+ 
+     def _compute_points_on_convex_hull(self, visual):
+         """

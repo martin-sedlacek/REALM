@@ -1,0 +1,215 @@
+--- a/omnigibson/simulator.py
++++ b/omnigibson/simulator.py
+@@ -48,6 +48,7 @@
+     CollisionAPI,
+     ControllableObjectViewAPI,
+     RigidContactAPI,
++    compute_proximity_gated_objects,
+ )
+ from omnigibson.utils.usd_utils import clear as clear_usd_utils
+ from omnigibson.controllers import ControllerView
+@@ -258,6 +259,27 @@
+         global_data_dir.mkdir(parents=True, exist_ok=True)
+         sys.argv.append(f"--/app/tokens/omni_global_data={str(global_data_dir)}")
+ 
++        # Raise the RTX ResourceManager's descriptor-set capacity.
++        #
++        # /rtx/descriptorSets defaults to 10000 (registered in libgpu.foundation.plugin.so) and is
++        # the max descriptor-set count handed to createDescriptorPool. Multi-scene vector envs blow
++        # through it: descriptor sets scale as (render products x RTX passes x frames-in-flight), so
++        # at 3 cameras per scene, ~10 scenes crosses 10000 and allocation fails with
++        #     [gpu.foundation.plugin] Unable to allocate descriptor sets.
++        #     [rtx.denoising.plugin] Failed to allocate ParameterBlock resources.
++        # which Isaac turns into a segfault DURING scene load -- with GPU memory nearly empty
++        # (17 GB of 46 GB used), because a descriptor pool is a fixed-count arena, not a heap.
++        #
++        # 360000 / 900000 are the values NVIDIA itself passes in 71 extension.toml files in this
++        # install (e.g. isaacsim.core.api/config/extension.toml) -- but only inside [[test]] blocks,
++        # so nothing sets them at normal app launch and OmniGibson runs on the bare default.
++        # reservedDescriptors is clamped against a queried device limit, so it degrades gracefully.
++        #
++        # These are read once during RTX ResourceManager init, so they MUST be set before startup:
++        # carb.settings and app.set_setting() are post-launch and have no effect on them.
++        sys.argv.append("--/rtx/descriptorSets=360000")
++        sys.argv.append("--/rtx/reservedDescriptors=900000")
++
+         with launch_context(None):
+             app = lazy.isaacsim.SimulationApp(config_kwargs, experience=str(kit_file_target.resolve(strict=True)))
+     finally:
+@@ -426,7 +448,7 @@
+             self._n_steps_per_loop = int(sim_step_dt // rendering_dt)
+             self._viewer_camera = None
+             self._camera_mover = None
+-            self._render_on_step = True
++            self._render_on_step = gm.RENDER_ON_STEP
+             self.currently_stepping = (
+                 False  # Whether we are currently in a physics step lifecycle, including pre-and-post-step callbacks.
+             )
+@@ -502,11 +524,27 @@
+ 
+             # Set of categories that can be grasped by assisted grasping
+             self.object_state_types = get_states_by_dependency_order()
+-            self.object_state_types_requiring_update = [
++            # Every state that supports per-step updates. Used for global (de)initialization, which
++            # must cover all state types regardless of the whitelist so that on-demand queries and
++            # class-level data structures stay valid.
++            self._all_update_state_types = [
+                 state
+                 for state in self.object_state_types
+                 if (issubclass(state, UpdateStateMixin) or issubclass(state, GlobalUpdateStateMixin))
+             ]
++            # The subset actually stepped every frame -- this is the hot path.
++            if gm.OBJECT_STATE_UPDATE_WHITELIST is not None:
++                whitelist = set(gm.OBJECT_STATE_UPDATE_WHITELIST)
++                unknown = whitelist - {state.__name__ for state in self._all_update_state_types}
++                assert not unknown, (
++                    f"gm.OBJECT_STATE_UPDATE_WHITELIST contains state types that do not require per-step "
++                    f"updates (or do not exist): {sorted(unknown)}"
++                )
++                self.object_state_types_requiring_update = [
++                    state for state in self._all_update_state_types if state.__name__ in whitelist
++                ]
++            else:
++                self.object_state_types_requiring_update = self._all_update_state_types
+             self.object_state_types_on_joint_break = {
+                 state for state in self.object_state_types if issubclass(state, JointBreakSubscribedStateMixin)
+             }
+@@ -525,7 +563,9 @@
+             self.play()
+             self.stop()
+ 
+-            for state in self.object_state_types_requiring_update:
++            # Initialize ALL global states, not just whitelisted ones, so their class-level data
++            # structures are ready even when we skip their per-step updates.
++            for state in self._all_update_state_types:
+                 if issubclass(state, GlobalUpdateStateMixin):
+                     state.global_initialize()
+ 
+@@ -1046,9 +1086,19 @@
+             for callback in self._callbacks_on_remove_obj.values():
+                 callback(obj)
+ 
+-            # If it was queued up to be initialized, remove it from the queue as well
++            # If it was queued up to be initialized, remove it from the queue as well.
++            #
++            # Matched on IDENTITY, not on name. The queue is per-SIMULATOR while object names are
++            # only unique per SCENE (scene.add_object asserts against that scene's registry, and
++            # nothing wider), so once several scenes share one stage -- a vector env, where every
++            # member is typically built from the same config and therefore holds an object of the
++            # same name -- a name match pops whichever same-named object is queued FIRST. That is
++            # usually a sibling scene's freshly added object, which then stays on the stage and in
++            # its own registry but is never initialized, while the object actually being removed
++            # keeps its slot and gets initialize()d after its prim is already gone.
++            # Identity is strictly narrower than the name test and is always the correct entry.
+             for i, initialize_obj in enumerate(self._objects_to_initialize):
+-                if obj.name == initialize_obj.name:
++                if initialize_obj is obj:
+                     self._objects_to_initialize.pop(i)
+                     break
+ 
+@@ -1199,9 +1249,16 @@
+             ControllableObjectViewAPI.initialize_view()
+ 
+         @with_profiler(name="_non_physics_step_profiler")
+-        def _non_physics_step(self):
++        def _non_physics_step(self, blind=False):
+             """
+             Complete any non-physics steps such as state updates.
++
++            Args:
++                blind (bool): If True, skip the semantic work whose results are only observed
++                    through object states / visuals / transition rules. Bookkeeping that the
++                    simulator itself depends on -- draining the accumulated contact data and
++                    initializing pending objects -- always runs, since skipping it would leak
++                    per-substep contact buffers and leave new objects uninitialized.
+             """
+             # If we don't have a valid scene, immediately return
+             if len(self.scenes) == 0:
+@@ -1244,6 +1301,11 @@
+                     for system in scene.active_systems.values():
+                         system.update()
+ 
++                # Everything below is observable only through object states, visuals or transition
++                # rules, so a blind step can skip all of it.
++                if blind:
++                    return
++
+                 # Propagate states if the feature is enabled
+                 if gm.ENABLE_OBJECT_STATES:
+                     # Step the object states in global topological order (if the scene exists)
+@@ -1252,17 +1314,25 @@
+                             state_type.global_update()
+                         if issubclass(state_type, UpdateStateMixin):
+                             for scene in self.scenes:
++                                gated = compute_proximity_gated_objects(scene)
+                                 for obj in scene.get_objects_with_state(state_type):
++                                    # Objects beyond the proximity gate are out of the robot's reach,
++                                    # so nothing it does this step can change their state
++                                    if obj in gated:
++                                        continue
+                                     # Update the state (object should already be initialized since
+                                     # this step will only occur after objects are initialized and sim
+                                     # is playing
+                                     obj.states[state_type].update()
+ 
+-                    for scene in self.scenes:
+-                        for obj in scene.objects:
+-                            # Only update visuals for objects that have been initialized so far
+-                            if obj.initialized:
+-                                obj.update_visuals()
++                    # Visual state only drives textures / emitters, so it is skippable when nothing
++                    # is going to look at the scene.
++                    if gm.ENABLE_VISUAL_UPDATES:
++                        for scene in self.scenes:
++                            for obj in scene.objects:
++                                # Only update visuals for objects that have been initialized so far
++                                if obj.initialized:
++                                    obj.update_visuals()
+ 
+                 # Possibly run transition rule step
+                 if gm.ENABLE_TRANSITION_RULES:
+@@ -1357,14 +1427,22 @@
+             return int(n_physics_timesteps_per_render)
+ 
+         @with_profiler(name="_step_profiler")
+-        def step(self):
++        def step(self, render=None, blind=False):
+             """
+             Step the simulation at self.get_sim_step_dt() rate
++
++            Args:
++                render (None or bool): Whether to render this step. If None, falls back to
++                    self._render_on_step (which defaults to gm.RENDER_ON_STEP).
++                blind (bool): If True, additionally skip per-step object state, visual and
++                    transition-rule updates, and force render off. Use for physics-only advances
++                    where no observation is consumed until later. Note that rendering and state
++                    updates are independent: render=False alone still updates object states.
+             """
+             self._check_usd_guard()
+             assert self.is_playing(), "Simulator must be playing to step"
+ 
+-            render = self._render_on_step
++            render = (self._render_on_step if render is None else render) and not blind
+             if self.stage is None:
+                 raise Exception("There is no stage currently opened, init_stage needed before calling this func")
+ 
+@@ -1391,7 +1469,7 @@
+                 self._in_sim_lifecycle -= 1
+ 
+             # Additionally run non physics things
+-            self._non_physics_step()
++            self._non_physics_step(blind=blind)
+ 
+             # TODO (eric): After stage changes (e.g. pose, texture change), it will take two _sim_context.step(render=True) for
+             #  the result to propagate to the rendering. We could have called _sim_context.render() here but it will introduce
+@@ -1954,8 +2032,8 @@
+             # Clear the vision sensor cache
+             VisionSensor.clear()
+ 
+-            # Clear all global update states
+-            for state in self.object_state_types_requiring_update:
++            # Clear all global update states (full list, not the whitelisted subset)
++            for state in self._all_update_state_types:
+                 if issubclass(state, GlobalUpdateStateMixin):
+                     state.global_initialize()
+ 

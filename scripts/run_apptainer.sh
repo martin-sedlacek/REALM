@@ -30,6 +30,14 @@ REALM_ROOT=$( cd -- "$( dirname -- "${SCRIPT_DIR}" )" &> /dev/null && pwd )
 cd $REALM_ROOT
 # Apptainer requires bind sources to exist.
 mkdir -p $REALM_ROOT/tmp
+# OMNIGIBSON_APPDATA_PATH=/cache/appdata in the 3.9.1 image, and Isaac is started with
+# --portable-root under it. Unbound, that lands in apptainer's --writable-tmpfs overlay, which is
+# capped by `sessiondir max size` in apptainer.conf (64 MiB on some hosts) -- the material-library
+# cache then fills it and Kit raises OSError: [Errno 28] No space left on device from an async
+# preload task. That exception is non-fatal, so the run continues, but tests/test_vector_integrity
+# classifies any child log containing "Traceback" as a CRASH -- so a full-disk overlay reads as a
+# simulator crash. scripts/run_docker.sh already binds this; keep the two launchers in step.
+mkdir -p $REALM_DATA_PATH/cache
 mkdir -p $REALM_DATA_PATH/isaac-sim/cache/kit
 mkdir -p $REALM_DATA_PATH/isaac-sim/cache/ov
 mkdir -p $REALM_DATA_PATH/isaac-sim/cache/pip
@@ -54,6 +62,7 @@ apptainer run \
   --writable-tmpfs \
   --bind $(pwd):/app \
   --bind $REALM_DATA_PATH/datasets:/data \
+  --bind $REALM_DATA_PATH/cache:/cache \
   --bind $REALM_DATA_PATH/isaac-sim/cache/kit:/isaac-sim/kit/cache/Kit \
   --bind $REALM_DATA_PATH/isaac-sim/cache/ov:/root/.cache/ov \
   --bind $REALM_DATA_PATH/isaac-sim/cache/pip:/root/.cache/pip \

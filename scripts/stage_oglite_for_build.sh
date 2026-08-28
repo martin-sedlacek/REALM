@@ -1,4 +1,15 @@
 #!/bin/bash
+# RETIRED 2026-08-28. The image build no longer stages a sibling OG-lite checkout: .docker/patches/
+# is the complete delta from stock OmniGibson 3.9.1 and is applied by .docker/realm.Dockerfile /
+# .docker/realm.def directly. See .docker/patches/PROVENANCE.
+#
+# This script also cannot succeed as written: its own guard requires both halves of REALM_LIGHT_FIX
+# in the fork, and they were never committed to it.
+echo "stage_oglite_for_build.sh is retired -- the build applies .docker/patches/ directly." >&2
+echo "See .docker/patches/PROVENANCE." >&2
+exit 1
+
+# ---- original script kept below for reference ----
 # Stage OG-lite inside the container build context; builders cannot copy from a sibling checkout.
 #
 #     ./scripts/stage_oglite_for_build.sh                     # uses ../OG-lite_og391

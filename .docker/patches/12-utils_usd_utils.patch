@@ -1,0 +1,388 @@
+--- a/omnigibson/utils/usd_utils.py
++++ b/omnigibson/utils/usd_utils.py
+@@ -1,6 +1,7 @@
+ import collections
+ import os
+ import re
++import weakref
+ from collections.abc import Iterable
+ from typing import Tuple
+ 
+@@ -232,6 +233,10 @@
+         self._PATH_TO_ROW_IDX = dict()
+         self._PATH_TO_COL_IDX = dict()
+ 
++        # (scene_idx, sorted prim paths) sets already reported by get_contact_row_indices as absent
++        # from the contact view. Warn-once bookkeeping only; never read for correctness.
++        self._MISSING_ROW_WARNED = set()
++
+         # Arrays of rigid body prim paths where each array index maps directly to the contact matrix row / col
+         self._ROW_IDX_TO_PATH = dict()
+         self._COL_IDX_TO_PATH = dict()
+@@ -267,6 +272,14 @@
+         self._PENDING_TRANSFORMS = dict()
+         self._PENDING_NET_FORCES = dict()
+ 
++        # Incremental accumulators, used instead of the _PENDING_* lists when
++        # gm.INCREMENTAL_CONTACT_CACHE is set. Each physics step is folded into these (R, C) buffers
++        # immediately, so no per-substep clone / stack / (N, R, C) intermediate is ever materialized.
++        self._ACC_EVER_AWAKE = dict()  # (R, C) bool: pair was awake at some folded step
++        self._ACC_RECENT_CONTACT = dict()  # (R, C) bool: contact at some awake folded step
++        self._ACC_PREV_TRANSFORMS = dict()  # (n_bodies, 7): previous folded step's transforms
++        self._ACC_COUNT = dict()  # int: number of steps folded since the last flush
++
+         # Position / orientation tolerances for deciding whether a pair should be updated
+         self._POS_EPS = 1e-6
+         self._ORI_EPS = 1e-4
+@@ -281,7 +294,10 @@
+             if og.sim.floor_plane is not None:
+                 filters[scene_idx].append(og.sim.floor_plane.prim_path + "/collisionPlane")
+ 
++            gated = compute_proximity_gated_objects(scene)
+             for obj in scene.objects:
++                if obj in gated:
++                    continue
+                 if obj.prim_type == PrimType.RIGID:
+                     for link in obj.links.values():
+                         from omnigibson.prims.rigid_dynamic_prim import RigidDynamicPrim
+@@ -312,6 +328,10 @@
+         # Rebuild views from scratch to pick up any new/removed bodies.
+         self.clear()
+ 
++        # Object set and poses may have changed since the last build, so re-evaluate the gate once
++        # here and let both passes below share the result.
++        clear_proximity_gate_cache()
++
+         body_filters = self.get_body_filters()
+ 
+         # If there are no valid bodies, clear all views / mappings and terminate early
+@@ -327,24 +347,53 @@
+                     continue
+ 
+                 # Rows correspond to dynamic rigid prims only, while columns correspond to all rigid prims.
++                # Track the ungated set too: the wildcard sensor pattern below expands to every
++                # dynamic body, so it is only a valid way to select rows when nothing was gated out.
+                 scene_dynamic_body_filters = []
++                n_ungated_dynamic_bodies = 0
++                gated = compute_proximity_gated_objects(og.sim.scenes[scene_idx])
+                 for obj in og.sim.scenes[scene_idx].objects:
+                     if obj.prim_type == PrimType.RIGID:
+                         for link in obj.links.values():
+                             from omnigibson.prims.rigid_dynamic_prim import RigidDynamicPrim
+ 
+                             if isinstance(link, RigidDynamicPrim) and link.contact_reporting_enabled:
+-                                scene_dynamic_body_filters.append(link.prim_path)
++                                n_ungated_dynamic_bodies += 1
++                                if obj not in gated:
++                                    scene_dynamic_body_filters.append(link.prim_path)
+ 
+                 # If there are only kinematic/static bodies, skip view creation for this scene.
+                 if len(scene_dynamic_body_filters) == 0:
+                     continue
+ 
++                if len(scene_dynamic_body_filters) == n_ungated_dynamic_bodies:
++                    # Nothing gated out of the rows: keep the cheap wildcard, which PhysX expands to
++                    # exactly this set. A per-sensor filter list would make the backend process
++                    # n_sensors * n_filters patterns at build time for no benefit.
++                    sensor_pattern = f"/World/scene_{scene_idx}/*/*"
++                    filter_patterns = scene_body_filters
++                else:
++                    # Rows were gated, so the sensors have to be named explicitly. Per the tensors API,
++                    # a list sensor pattern requires a list of filter lists, one per sensor.
++                    sensor_pattern = scene_dynamic_body_filters
++                    filter_patterns = [scene_body_filters] * len(scene_dynamic_body_filters)
++
+                 self._CONTACT_VIEW[scene_idx] = og.sim.physics_sim_view.create_rigid_contact_view(
+-                    pattern=f"/World/scene_{scene_idx}/*/*",
+-                    filter_patterns=scene_body_filters,
++                    pattern=sensor_pattern,
++                    filter_patterns=filter_patterns,
+                     max_contact_data_count=self.get_max_contact_data_count(len(scene_body_filters)),
+                 )
++
++                # The view exposes filter_paths, not filter_patterns, so col_paths below falls back to
++                # scene_body_filters -- i.e. we assume the backend resolved our explicit prim paths
++                # 1:1 and in order. Check the count so a mismatch fails loudly here rather than
++                # silently misindexing every contact lookup downstream.
++                filter_count = self._CONTACT_VIEW[scene_idx].filter_count
++                assert filter_count == len(scene_body_filters), (
++                    f"RigidContactAPI contact-view column mismatch. Expected {len(scene_body_filters)} "
++                    f"filter columns, got {filter_count}."
++                )
++
+                 row_paths = list(self._CONTACT_VIEW[scene_idx].sensor_paths)
+                 col_paths = list(getattr(self._CONTACT_VIEW[scene_idx], "filter_patterns", scene_body_filters))
+ 
+@@ -410,6 +459,7 @@
+                 self._PENDING_IMPULSES[scene_idx] = []
+                 self._PENDING_TRANSFORMS[scene_idx] = []
+                 self._PENDING_NET_FORCES[scene_idx] = []
++                self._reset_incremental_accumulators(scene_idx)
+ 
+                 # Finally, remap data from the old matrices into the new ones. This lets us avoid losing our
+                 # cached data when new bodies are added or removed.
+@@ -462,12 +512,104 @@
+             # Get the body transforms for this scene
+             transforms = self._RIGID_BODY_VIEW[scene_idx].get_transforms()
+ 
++            if gm.INCREMENTAL_CONTACT_CACHE:
++                # Consume the buffers immediately instead of deferring. No clone is needed: the views
++                # reuse their buffers, but we are done reading them before the next physics step.
++                self._fold_physics_step(scene_idx, impulses, net_forces, transforms)
++                continue
++
+             # Append the data to the pending lists. Note that we have to clone these matrices because
+             # the view actually reuses the buffer.
+             self._PENDING_IMPULSES[scene_idx].append(impulses.clone())
+             self._PENDING_TRANSFORMS[scene_idx].append(transforms.clone())
+             self._PENDING_NET_FORCES[scene_idx].append(net_forces.clone())
+ 
++    def _reset_incremental_accumulators(self, scene_idx):
++        """
++        Resets the incremental accumulators for @scene_idx to "nothing folded yet".
++        """
++        contact_matrix = self._CONTACT_MATRIX.get(scene_idx, None)
++        if contact_matrix is None:
++            return
++        self._ACC_EVER_AWAKE[scene_idx] = th.zeros_like(contact_matrix)
++        self._ACC_RECENT_CONTACT[scene_idx] = th.zeros_like(contact_matrix)
++        # The first step folded after a flush diffs against the last-awake transform cache, matching
++        # the batched path's prepend of _BODY_TRANSFORMS onto the pending stack.
++        # Cloned rather than aliased: _fold_physics_step mutates _BODY_TRANSFORMS in place.
++        self._ACC_PREV_TRANSFORMS[scene_idx] = self._BODY_TRANSFORMS[scene_idx].clone()
++        self._ACC_COUNT[scene_idx] = 0
++
++    def _fold_physics_step(self, scene_idx, impulses, net_forces, transforms):
++        """
++        Folds a single physics step's contact data into the running accumulators for @scene_idx.
++
++        Exactly equivalent to what update_contact_cache's batched reduction computes for this step,
++        but without retaining the step: awakeness is diffed against the previous folded step, the
++        "current" matrix is overwritten for awake pairs (so the last awake step wins, as the batched
++        gather does), and the "recent" accumulator ORs contact over awake steps.
++
++        Args:
++            scene_idx (int): Scene to fold into
++            impulses (th.Tensor): (R, C, 3) contact force matrix for this step
++            net_forces (th.Tensor): (R, 3) net contact forces for this step
++            transforms (th.Tensor): (n_bodies, 7) body transforms for this step
++        """
++        prev_transforms = self._ACC_PREV_TRANSFORMS[scene_idx]
++
++        # Position-based sleep approximation, diffed against the previous step
++        pos_changed = th.any(th.abs(transforms[:, :3] - prev_transforms[:, :3]) > self._POS_EPS, dim=-1)
++        quat_dot = th.sum(transforms[:, 3:7] * prev_transforms[:, 3:7], dim=-1)
++        ori_changed = th.abs(quat_dot) < (1.0 - self._ORI_EPS)
++        awake = pos_changed | ori_changed  # (n_bodies,)
++
++        # A body cannot be asleep if it reports a nonzero net contact force
++        row_to_rigid = self._CONTACT_MATRIX_ROWS_TO_RIGID_BODY_ROWS[scene_idx]
++        awake[row_to_rigid] = awake[row_to_rigid] | th.any(net_forces != 0, dim=-1)
++
++        # Expand body awakeness to contact-matrix rows and columns
++        row_awake = awake[row_to_rigid]  # (R,)
++        col_to_rigid = self._CONTACT_MATRIX_COLS_TO_RIGID_BODY_ROWS[scene_idx]
++        valid_col_mask = self._CONTACT_MATRIX_COLS_HAS_RIGID_BODY[scene_idx]
++        col_awake = th.zeros(len(col_to_rigid), dtype=th.bool)  # (C,)
++        col_awake[valid_col_mask] = awake[col_to_rigid[valid_col_mask]]
++        awake_pairs = row_awake[:, None] | col_awake[None, :]  # (R, C)
++
++        any_contact = th.any(impulses != 0, dim=-1)  # (R, C)
++
++        # "Current": awake pairs take this step's value. Later steps overwrite earlier ones, which is
++        # exactly the batched path's "impulses from the last awake step per pair".
++        self._CURRENT_CONTACT_MATRIX[scene_idx][awake_pairs] = any_contact[awake_pairs]
++
++        # "Recent": OR of contact across awake steps, plus which pairs were ever awake
++        self._ACC_RECENT_CONTACT[scene_idx] |= any_contact & awake_pairs
++        self._ACC_EVER_AWAKE[scene_idx] |= awake_pairs
++
++        # Body transform cache advances only for awake bodies, so an asleep body keeps the transform
++        # from the last step it moved
++        self._BODY_TRANSFORMS[scene_idx][awake] = transforms[awake]
++
++        # The next fold diffs against this step regardless of awakeness, matching the batched path's
++        # consecutive-frame diff. Cloned because the view reuses its buffer.
++        self._ACC_PREV_TRANSFORMS[scene_idx] = transforms.clone()
++        self._ACC_COUNT[scene_idx] += 1
++
++    def _flush_incremental_accumulators(self):
++        """
++        Applies the incrementally folded contact data to the persistent "recent" contact matrix and
++        resets the accumulators. The "current" matrix is already up to date -- _fold_physics_step
++        writes it directly.
++        """
++        for scene_idx in list(self._CONTACT_VIEW.keys()):
++            if self._ACC_COUNT.get(scene_idx, 0) == 0:
++                # Nothing folded since the last flush. Leave both matrices untouched, matching the
++                # batched path's early-out on an empty pending list.
++                continue
++            ever_awake = self._ACC_EVER_AWAKE[scene_idx]
++            self._CONTACT_MATRIX[scene_idx] = th.where(
++                ever_awake, self._ACC_RECENT_CONTACT[scene_idx], self._CURRENT_CONTACT_MATRIX[scene_idx]
++            )
++            self._reset_incremental_accumulators(scene_idx)
++
+     def update_contact_cache(self):
+         """
+         Processes all accumulated physics-step data (collected via add_contacts_from_physics_step)
+@@ -478,6 +620,10 @@
+         transforms and diffing consecutive frames.  Bodies that report any nonzero net contact
+         force are also treated as awake.  Contact matrices are only updated from awake steps.
+         """
++        if gm.INCREMENTAL_CONTACT_CACHE:
++            self._flush_incremental_accumulators()
++            return
++
+         for scene_idx in list(self._CONTACT_VIEW.keys()):
+             # Get the pending data for this scene
+             pending_impulses = self._PENDING_IMPULSES[scene_idx]
+@@ -612,7 +758,33 @@
+         # Otherwise, convert to prim paths, filtering out kinematic-only bodies that are not rows
+         prim_paths = self._get_prim_paths(objects_links_or_prim_paths)
+         row_map = self._PATH_TO_ROW_IDX.get(scene_idx, {})
+-        return th.tensor([row_map[path] for path in prim_paths if path in row_map])
++        idxs = [row_map[path] for path in prim_paths if path in row_map]
++
++        # A caller that asked about specific bodies and got NOTHING back is a different situation
++        # from a caller that asked about nothing. The first means every queried body is missing from
++        # the contact view -- it is kinematic-only, or the view was rebuilt without it (a stop/play
++        # cycle will do this) -- and the honest answer is "cannot tell", not "no contact". Returning
++        # an empty index set here makes get_contact_pairs return set() and is_in_contact return
++        # False, so a grasp check on such a body silently reads as "never grasping" for an entire
++        # run. Warn loudly and once per (scene, body set) so that shows up as a bug rather than as a
++        # plausible score of zero.
++        if prim_paths and not idxs:
++            key = (scene_idx, tuple(sorted(prim_paths)))
++            if key not in self._MISSING_ROW_WARNED:
++                self._MISSING_ROW_WARNED.add(key)
++                log.error(
++                    f"RigidContactAPI: none of the {len(prim_paths)} queried bodies are rows of "
++                    f"scene {scene_idx}'s contact view, so contact CANNOT be evaluated for them and "
++                    f"will read as 'no contact'. Any grasp/touch check on these bodies is therefore "
++                    f"unreliable. Bodies: {sorted(prim_paths)}. "
++                    f"View has {len(row_map)} rows."
++                )
++
++        # dtype is load-bearing: the list can legitimately be empty (the caller passed an empty
++        # query set), and th.tensor([]) defaults to float32, which is not a legal index tensor.
++        # Callers that index the contact matrix with it would die on "tensors used as indices must
++        # be long, int, byte or bool tensors" instead of returning an empty result.
++        return th.tensor(idxs, dtype=th.long)
+ 
+     def get_contact_col_indices(self, scene_idx, objects_links_or_prim_paths):
+         """
+@@ -631,9 +803,10 @@
+         if isinstance(objects_links_or_prim_paths, th.Tensor):
+             return objects_links_or_prim_paths
+ 
+-        # Otherwise, convert to prim paths
++        # Otherwise, convert to prim paths. dtype for the same reason as get_contact_row_indices:
++        # an empty query set must still yield a valid (empty) index tensor, not a float one.
+         prim_paths = self._get_prim_paths(objects_links_or_prim_paths)
+-        return th.tensor([self._PATH_TO_COL_IDX[scene_idx][path] for path in prim_paths])
++        return th.tensor([self._PATH_TO_COL_IDX[scene_idx][path] for path in prim_paths], dtype=th.long)
+ 
+     def get_contact_pairs(self, scene_idx, query_set, with_set, current_only):
+         """
+@@ -821,6 +994,10 @@
+         self._PENDING_IMPULSES = dict()
+         self._PENDING_TRANSFORMS = dict()
+         self._PENDING_NET_FORCES = dict()
++        self._ACC_EVER_AWAKE = dict()
++        self._ACC_RECENT_CONTACT = dict()
++        self._ACC_PREV_TRANSFORMS = dict()
++        self._ACC_COUNT = dict()
+ 
+ 
+ # Instantiate the RigidContactAPI
+@@ -2687,6 +2864,89 @@
+             yield child
+ 
+ 
++# Cache of proximity-gated objects, keyed weakly by scene so entries die with their scene. Keyed by
++# the scene object rather than scene.idx (which asserts before the scene is loaded) or id(scene)
++# (which CPython may reuse after a scene is freed, silently handing a new scene a stale gate).
++# Recomputed whenever the contact view is rebuilt (see RigidContactAPI.initialize_view), not per step.
++_PROXIMITY_GATE_CACHE = weakref.WeakKeyDictionary()
++
++
++def clear_proximity_gate_cache():
++    """
++    Drops the cached proximity-gate membership so it is recomputed on next use. Called whenever the
++    set of objects or their poses may have changed materially (scene load, handle rebuild).
++    """
++    _PROXIMITY_GATE_CACHE.clear()
++
++
++def compute_proximity_gated_objects(scene, force_recompute=False):
++    """
++    Objects in @scene that are far enough from every robot to be excluded from per-step bookkeeping.
++
++    Distance is measured between axis-aligned bounding boxes, not origins, so a large object counts
++    as near if any part of it is within reach. Robots themselves are never gated.
++
++    Args:
++        scene (Scene): Scene to evaluate
++        force_recompute (bool): If True, ignore any cached result
++
++    Returns:
++        set: Objects that lie outside gm.PROXIMITY_GATE_RADIUS of every robot. Empty when the gate is
++            disabled or the scene has no robots.
++    """
++    if not gm.PROXIMITY_GATE_ENABLED:
++        return set()
++
++    key = scene
++    if not force_recompute and key in _PROXIMITY_GATE_CACHE:
++        return _PROXIMITY_GATE_CACHE[key]
++
++    robots = list(scene.robots)
++    if not robots:
++        # Nothing to be near; leave everything active rather than silently freezing the whole scene.
++        _PROXIMITY_GATE_CACHE[key] = set()
++        return _PROXIMITY_GATE_CACHE[key]
++
++    radius = gm.PROXIMITY_GATE_RADIUS
++    robot_aabbs = []
++    for robot in robots:
++        try:
++            robot_aabbs.append(robot.aabb)
++        except Exception:
++            # A robot whose AABB cannot be read yet should not cause the whole scene to be gated
++            _PROXIMITY_GATE_CACHE[key] = set()
++            return _PROXIMITY_GATE_CACHE[key]
++
++    gated = set()
++    for obj in scene.objects:
++        if obj in robots:
++            continue
++        try:
++            obj_lower, obj_upper = obj.aabb
++        except Exception:
++            # If we cannot place it, keep it active -- gating is an optimization, never a correctness
++            # requirement, so the safe failure direction is to do the work.
++            continue
++        near = False
++        for robot_lower, robot_upper in robot_aabbs:
++            # Axis-aligned box-to-box gap, zero on any axis where the boxes overlap
++            gap = th.clamp(robot_lower - obj_upper, min=0.0) + th.clamp(obj_lower - robot_upper, min=0.0)
++            if th.linalg.norm(gap).item() <= radius:
++                near = True
++                break
++        if not near:
++            gated.add(obj)
++
++    if gated:
++        log.info(
++            f"Proximity gate: {len(gated)}/{len(scene.objects)} objects beyond {radius}m of any robot "
++            f"are excluded from per-step contact and state updates. Set gm.PROXIMITY_GATE_ENABLED = "
++            f"False to disable (required for mobile manipulation)."
++        )
++    _PROXIMITY_GATE_CACHE[key] = gated
++    return gated
++
++
+ def compute_kinematic_only(fixed_base, scale, n_joints, n_fixed_joints, kinematic_only_config, has_attachment):
+     """
+     Determine whether an object should be kinematic-only based on its properties.

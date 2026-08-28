@@ -1,0 +1,63 @@
+--- a/omnigibson/objects/usd_object.py
++++ b/omnigibson/objects/usd_object.py
+@@ -294,10 +294,17 @@
+             if len(body0_rel.GetTargets()) > 0 and len(body1_rel.GetTargets()) > 0:
+                 joint_children.add(body1_rel.GetTargets()[0].pathString.split("/")[-1])
+         valid_roots = list(set(link_names) - joint_children)
+-        assert len(valid_roots) == 1, (
+-            f"Exactly one root link should have been found for {default_prim.GetName()}, "
+-            f"but found none/multiple instead: {valid_roots}"
+-        )
++        # REALM: relaxed -- our custom robot USDs can expose several candidate roots. The Robotiq
++        # 2F-85 linkage on the DROID/UR platforms declares its *_outer_finger links as body0 of
++        # every joint they take part in and never as body1, so they look root-like to this
++        # heuristic. Fall back to an explicitly named "base_link", mirroring the fallback
++        # OmniGibson itself uses in EntityPrim._load_links, instead of hard-failing.
++        if len(valid_roots) != 1:
++            assert "base_link" in valid_roots, (
++                f"Exactly one root link should have been found for {default_prim.GetName()}, "
++                f"but found none/multiple instead: {valid_roots} (and no 'base_link' to fall back on)"
++            )
++            valid_roots = ["base_link"]
+         root_link = default_prim.GetPrimAtPath(valid_roots[0])
+ 
+         if self.fixed_base and not kinematic_only:
+@@ -324,6 +331,38 @@
+                 bool(self._load_config.get("self_collisions", False))
+             )
+ 
++        # Make the exported layer's up axis agree with the sim stage's.
++        #
++        # Referencing a layer whose upAxis disagrees with the stage's makes Kit's metrics assembler
++        # compensate by APPENDING a rotation to the referencing prim's xformOpOrder:
++        #
++        #     xformOpOrder = [xformOp:translate, xformOp:orient, xformOp:scale,
++        #                     xformOp:rotateX:unitsResolve]        # the last one being Rx(+90)
++        #
++        # Every pose setter in OmniGibson writes only xformOp:translate and xformOp:orient, and
++        # XFormPrim._set_xform_properties strips only the UNSUFFIXED rotate*/transform ops, so that
++        # trailing op is invisible to all of them while silently post-multiplying every pose they
++        # set: set_position_orientation(orientation=Q) leaves the prim at Q * Rx(90).
++        #
++        # And it is applied INCONSISTENTLY, which is what makes it a correctness bug rather than a
++        # convention. Measured on REALM's impact_drawer cabinet.usd (upAxis=Y; the stage is Z) at
++        # num_envs=2: scene 0's copy of the asset got the resolve op and scene 1's did not -- the
++        # assembler's UnitsAdjust layer is content-hash keyed and only materialized for the first
++        # reference. Same asset, same commanded pose, and the cabinet stood upright in scene 1 while
++        # lying on its back in scene 0, where its drawers then slid vertically and jammed against the
++        # floor at 0.229 m of a 0.300 m range instead of closing.
++        #
++        # So leave the assembler nothing to do. This rotates NOTHING: the up axis is layer metadata,
++        # every caller places the object explicitly afterwards, and for the Z-up assets in the
++        # BEHAVIOR dataset the two axes already agree and this is a no-op.
++        stage_up_axis = (
++            lazy.pxr.UsdGeom.GetStageUpAxis(og.sim.stage)
++            if og.sim is not None
++            else lazy.pxr.UsdGeom.Tokens.z
++        )
++        if lazy.pxr.UsdGeom.GetStageUpAxis(stage) != stage_up_axis:
++            lazy.pxr.UsdGeom.SetStageUpAxis(stage, stage_up_axis)
++
+         # Export to a temp file
+         basename = os.path.basename(usd_path)
+         tempdir_path = tempfile.mkdtemp(basename, dir=og.tempdir)

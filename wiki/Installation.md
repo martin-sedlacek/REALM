@@ -33,19 +33,26 @@ The image is `realm.sif`, roughly 13 GB. Build recipes are in the repo and kept 
 - `.docker/realm.Dockerfile` — the Docker counterpart
 - `.docker/constraints.txt` — the version pins that make the stack cohere
 
-Both recipes start from the upstream BEHAVIOR 3.9.1 image, install the staged OG-lite OmniGibson
-package wholesale, then install the robotics and logging dependencies plus the vendored
+- `.docker/patches/` — REALM's complete delta from stock OmniGibson 3.9.1, twelve patches plus
+  `MANIFEST.sha256` and a `PROVENANCE` note recording how they were derived
+
+Both recipes start from the upstream BEHAVIOR 3.9.1 image, apply `.docker/patches/` to the
+installed OmniGibson, then install the robotics and logging dependencies plus the vendored
 `openpi-client`.
 
-The build records the exact OG-lite commit and `%test` greps for each required semantic marker.
+**The build is self-contained** — it needs this repository and nothing else. No sibling checkout,
+no staging step, no runtime bind.
+
+Every patched file is checked against `MANIFEST.sha256` during the build, so a patch that applies
+with fuzz — or a base image whose content moved — fails the build rather than silently changing
+behaviour. `%test` additionally greps for each required semantic marker and re-checks the manifest.
 **The greps are in `%test`, so
 `apptainer build --notest` skips them** — do not build with `--notest` and assume the image is
 verified.
 
-First stage OG-lite, then build from the repository root:
+Build from the repository root:
 
 ```sh
-./scripts/stage_oglite_for_build.sh
 apptainer build realm.sif .docker/realm.def
 ```
 
@@ -54,8 +61,8 @@ apptainer build realm.sif .docker/realm.def
 > 1. **Build somewhere that is not Lustre.** On Lustre, `apptainer build --fakeroot` fails trying to
 >    change ownership inside the image rootfs. That is a filesystem limitation, not a recipe bug —
 >    build on local disk and move the resulting `.sif`.
-> 2. Use the validated `realm.sif` for benchmark runs. A host OG-lite bind is a development workflow
->    for testing fork changes without rebuilding.
+> 2. Use the validated `realm.sif` for benchmark runs. Binding a host OmniGibson checkout over the
+>    installed package is a development workflow for testing a change without rebuilding.
 >
 > There is no published prebuilt image. If you are joining an existing deployment, get the `.sif`
 > path from whoever runs it rather than rebuilding.
@@ -128,7 +135,21 @@ repo, not in the dataset, so they have to be linked in with:
 python scripts/install_robot_definitions.py
 ```
 
-**It is enough to just run this once in the directory during initial installation.**
+**Run this once per dataset, not once per machine.** Any download or update of
+`omnigibson-robot-assets` replaces its `models/` directory and therefore removes these links —
+after which every task fails at `og.Environment` construction with
+`AssertionError: droid is not a registered robot.` Re-run the script after any robot-assets
+change. Verify with:
+
+```sh
+python -c 'from omnigibson.robots import REGISTERED_ROBOTS; print(sorted(REGISTERED_ROBOTS))'
+```
+
+`droid`, `droid_mounted` and `ur` must appear alongside the stock robots.
+
+> The default installs **symlinks pointing at `/app/...`**, so they resolve only inside the
+> container and read as broken on the host. That is intended; use `--copy` if you need the dataset
+> directory to be self-contained.
 
 Optional flags: 
 
