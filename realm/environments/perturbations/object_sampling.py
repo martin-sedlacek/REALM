@@ -45,6 +45,11 @@ DRAWER_CABINET_MODELS = [
 ]
 
 
+#: The dataset DatasetObject.get_usd_path loads from. get_all_object_models() globs every dataset
+#: directory under DATA_PATH, so candidates from any other one cannot be loaded.
+LOADABLE_DATASET = "behavior-1k-assets"
+
+
 def sample_objects(num_objects=3, included_categories=None, excluded_categories=None):
     """@num_objects object configs drawn without replacement from the installed models.
 
@@ -88,7 +93,13 @@ def sample_objects(num_objects=3, included_categories=None, excluded_categories=
         model_id = model_path.split("/")[-1]
         if category not in whitelisted_categories or (category, model_id) in seen:
             continue
-        if not os.path.exists(DatasetObject.get_usd_path(category=category, model=model_id)):
+        # The loader opens <DATA_PATH>/behavior-1k-assets/objects/<cat>/<model>/usd/
+        # <model>.encrypted.usd, so a candidate is only usable if it lives in THAT dataset and
+        # carries that file. og_dataset/jar/mefezc has its own encrypted usd, so testing the
+        # sampled path alone is not enough -- the dataset root is what decides.
+        if f"/{LOADABLE_DATASET}/objects/" not in model_path:
+            continue
+        if not os.path.exists(os.path.join(model_path, "usd", f"{model_id}.encrypted.usd")):
             continue
         seen.add((category, model_id))
         available_object_paths.append(model_path)

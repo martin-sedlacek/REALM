@@ -125,7 +125,8 @@ droid_categories_by_theme:
     - bottle_of_vodka
     - bottle_of_water
     - bottle_of_whiskey
-    - bottle_of_winecarafe
+    - bottle_of_wine
+    - carafe
     - wine_bottle
     - beer_bottle
     - water_bottle
@@ -155,12 +156,12 @@ droid_categories_by_theme:
     - can_of_tomatoes
     Cup:
     - coffee_cup
-    - teacup_cup
-    - beaker_cup
+    - teacup
+    - beaker
     - soda_cup
     - mug
     Jar:
-    - jar
+    - hingeless_jar
     - jar_of_bath_salt
     - jar_of_chilli_powder
     - jar_of_clove
@@ -175,7 +176,6 @@ droid_categories_by_theme:
     - jar_of_jelly
     - jar_of_kidney_beans
     - jar_of_mayonnaise
-    - jar_of_orange_jam
     - jar_of_orange_sauce
     - jar_of_pepper
     - jar_of_pepper_seasoning
@@ -256,9 +256,9 @@ droid_categories_by_theme:
     - cherry_tomato
     - beefsteak_tomato
     vegetable:
-    - chillividalia_onionbell_pepper
+    - vidalia_onion
+    - bell_pepper
     yogurt:
-    - yogurt
     - yogurt_carton
     zucchini:
     - zucchini
@@ -280,7 +280,6 @@ droid_categories_by_theme:
     - plier
     - hammer
     Wrench:
-    - wrench
     - allen_wrench
     - open_end_wrench
   Kitchen Tools:
@@ -393,7 +392,6 @@ non_droid_categories:
 - bar_soap
 - basil
 - basil_jar
-- bath_rug
 - bath_towel
 - battery
 - batting_gloves
@@ -408,9 +406,7 @@ non_droid_categories:
 - bell
 - belt
 - bicycle_chain
-- bidet
 - bikini
-- binder
 - bird_feed_bag
 - biscuit
 - biscuit_dough
@@ -455,12 +451,10 @@ non_droid_categories:
 - box_of_rice
 - box_of_rum
 - box_of_sake
-- box_of_salt
 - box_of_sanitary_napkins
 - box_of_shampoo
 - box_of_takeout
 - box_of_tissues
-- box_of_tomato_juice
 - box_of_vegetable_juice
 - box_of_whiskey
 - box_of_yogurt
@@ -545,7 +539,6 @@ non_droid_categories:
 - chicken_leg
 - chicken_soup_carton
 - chicken_tender
-- chicken_thigh
 - chicken_wing
 - chicken_wire
 - chickpea_can
@@ -579,8 +572,6 @@ non_droid_categories:
 - club_sandwich
 - coaster
 - cocktail_glass
-- cocoa_box
-- cocoa_powder_box
 - coconut_fruit
 - coffee_bean_jar
 - cola_bottle
@@ -665,7 +656,6 @@ non_droid_categories:
 - enchilada
 - envelope
 - eyeglasses
-- face_mask
 - facsimile
 - fairy_light
 - farm_stand
@@ -722,7 +712,6 @@ non_droid_categories:
 - gravy_boat
 - green_bean
 - green_onion
-- griddle
 - ground_beef_package
 - gym_shoe
 - hall_tree
@@ -767,7 +756,6 @@ non_droid_categories:
 - jigsaw_puzzle
 - jigsaw_puzzle_piece
 - jimmies_jar
-- joystick
 - kabob
 - kale
 - kebab
@@ -776,7 +764,6 @@ non_droid_categories:
 - key_chain
 - keyboard
 - keys
-- kid_glove
 - kielbasa
 - kitchen_analog_scale
 - knife_block
@@ -797,7 +784,6 @@ non_droid_categories:
 - lid
 - light_bulb
 - lighter
-- lingerie
 - lint_roller
 - lint_screen
 - lip_balm
@@ -819,7 +805,6 @@ non_droid_categories:
 - mallet
 - mango
 - map
-- margarine_box
 - marigold
 - marinara_jar
 - marjoram_shaker
@@ -903,12 +888,10 @@ non_droid_categories:
 - paving_stone
 - pay_phone
 - pea_pod
-- peanut_nut
 - pearl
 - pebble
 - pegboard
 - pellet
-- pencil_box
 - pencil_case
 - pencil_holder
 - pennant
@@ -1022,7 +1005,6 @@ non_droid_categories:
 - shoulder_bag
 - shrimp
 - sieve
-- silver_coins
 - skateboard_wheel
 - skiff
 - skirt
@@ -1031,7 +1013,6 @@ non_droid_categories:
 - sliced_cucumber
 - sliced_eggplant
 - sliced_lemon
-- sliced_lime
 - sliced_melon
 - sliced_onion
 - sliced_papaya
@@ -1044,12 +1025,10 @@ non_droid_categories:
 - soap_dish
 - sock
 - sod
-- soda_can
 - soda_water_bottle
 - sodium_carbonate_jar
 - soft_roll
 - solvent_bottle
-- soybean
 - sparkler
 - spice_cookie
 - spice_cookie_dough
@@ -1066,7 +1045,6 @@ non_droid_categories:
 - steel_wool
 - sticker
 - sticky_note
-- stocking
 - straw
 - sugar_cookie
 - sugar_cookie_dough
