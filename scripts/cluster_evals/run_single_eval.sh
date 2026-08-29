@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name omnigibson-test
-#SBATCH --partition l40s
 #SBATCH --gpus 1
 #SBATCH --mem 120G
 #SBATCH --ntasks-per-node 1
@@ -19,6 +18,9 @@ TASK_CFG_PATH=""
 NO_RENDER_FLAG=""
 ROBOT_FLAG=""
 BASE_PORT=8000
+
+: "${REALM_SIF:?Set REALM_SIF to the REALM Apptainer image}"
+: "${REALM_DATA_PATH:?Set REALM_DATA_PATH to the REALM data directory}"
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -59,33 +61,31 @@ port=$((BASE_PORT + PERTURBATION_ID + 100 * TASK_ID))
 
 if [ "$DEBUG" = "false" ]; then
   if [ "$MODEL_TYPE" = "openpi" ]; then
-    POLICY_SIF="/scratch/project/open-34-32/sedlam/projects/REALM_openpi/uv_cuda128.sif"
+    : "${OPENPI_SIF:?Set OPENPI_SIF to the OpenPI Apptainer image}"
     cd "$POLICY_RUN_DIR" || exit
     apptainer exec \
       --writable-tmpfs \
       --nv \
-      --bind /scratch \
       --bind "$(pwd)":/app \
       --bind $CHECKPOINT_PATH:/checkpoint \
       --env XLA_PYTHON_CLIENT_MEM_FRACTION=0.25 \
       --env XDG_CACHE_HOME=$XDG_CACHE_HOME \
       --env GIT_LFS_SKIP_SMUDGE=1 \
-      $POLICY_SIF uv run /app/scripts/serve_policy.py \
+      "$OPENPI_SIF" uv run /app/scripts/serve_policy.py \
         --port=$port \
         policy:checkpoint \
         --policy.config=$POLICY_CONFIG \
         --policy.dir=/checkpoint & SERVER_PID=$!
     sleep 120
   elif [ "$MODEL_TYPE" = "molmoact" ]; then
-    POLICY_SIF="/scratch/project/open-34-32/sedlam/projects/molmoact/apptainer/molmoact.sif"
+    : "${MOLMOACT_SIF:?Set MOLMOACT_SIF to the MolmoAct Apptainer image}"
     cd "$POLICY_RUN_DIR" || exit
     apptainer exec \
       --writable-tmpfs \
       --nv \
-      --bind /scratch \
       --bind "$(pwd)":/app \
       --bind $CHECKPOINT_PATH:/checkpoint \
-      $POLICY_SIF /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate && pip install tyro && pip install /app/packages/openpi-client && python /app/inference/run_molmoact_server.py --port=${port}"
+      "$MOLMOACT_SIF" /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && conda activate && pip install tyro && pip install /app/packages/openpi-client && python /app/inference/run_molmoact_server.py --port=${port}"
     sleep 120
   elif [ "$MODEL_TYPE" == "GR00T" ]; then
     cd "$POLICY_RUN_DIR" || exit

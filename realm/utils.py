@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import os
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
-import omnigibson as og
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 

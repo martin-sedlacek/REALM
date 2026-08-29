@@ -1,0 +1,49 @@
+--- a/omnigibson/envs/env_base.py
++++ b/omnigibson/envs/env_base.py
+@@ -646,6 +646,46 @@
+         # Run final post-processing
+         return self._post_step(action)
+ 
++    def step_blind(self, action):
++        """
++        Physics-only step: apply an action and advance physics without rendering or computing
++        observations, rewards or termination conditions. Intended for blind action chunks where
++        observations are only consumed after the final step of the chunk.
++
++        Call render_obs() after the last blind step to get fresh observations.
++
++        Note that object states are not updated during a blind step, so any state that integrates
++        over time (e.g. ToggledOn's step counter) will not advance. Use step() if a task depends
++        on such a state.
++
++        Args:
++            action (gym.spaces.Dict or dict or th.tensor): robot actions, same format as step()
++        """
++        assert not self.in_vec_env, (
++            "Environment.step_blind() cannot be used inside a VectorEnvironment: og.sim.step() "
++            "advances every scene at once, so this would step all environments while applying only "
++            "this one's action. Use VectorEnvironment.step_blind() instead."
++        )
++        action = self._convert_action_to_tensor(action)
++        self._pre_step(action)
++        og.sim.step(blind=True)
++        self._current_step += 1
++
++    def render_obs(self):
++        """
++        Render the scene and return fresh observations. Call this after one or more step_blind()
++        calls to bring object states and sensor data back up to date.
++
++        Returns:
++            2-tuple:
++                - dict: keyword-mapped observations, which are prefixed with the corresponding
++                    modality name
++                - dict: information about the observations
++        """
++        og.sim.render()
++        og.sim._non_physics_step()
++        return self.get_obs()
++
+     def render(self):
+         """Render the environment for debug viewing."""
+         # Only works if there is an external sensor

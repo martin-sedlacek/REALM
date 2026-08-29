@@ -211,6 +211,24 @@ if [ "$DOWNLOAD_DATASET" = true ]; then
     echo "Downloading dataset to $DATA_PATH..."
     mkdir -p "$DATA_PATH/datasets"
 
+    # THE DOWNLOAD ENTRY POINT MOVED IN OMNIGIBSON 3.9.1. There is no `omnigibson.download_datasets`
+    # module any more (and no micromamba env named `omnigibson` -- 3.9.1 ships conda env `behavior`
+    # on python 3.11). Downloads now go through omnigibson/utils/asset_utils.py's __main__:
+    #   --download_behavior_1k_assets      behavior-1k-assets 3.9.0  (~29 GiB zip -> ~33 GB)
+    #   --download_omnigibson_robot_assets omnigibson-robot-assets 3.8.2  (~2.8 GB)
+    #   --accept_license                   skips the interactive BEHAVIOR EULA prompt; the
+    #                                      decryption key is fetched only if <data>/omnigibson.key
+    #                                      is absent
+    # Both are pulled from HuggingFace (behavior-1k/zipped-datasets), so the host needs outbound
+    # HTTPS to huggingface.co.
+    OG_DOWNLOAD_ARGS="--download_behavior_1k_assets --download_omnigibson_robot_assets"
+
+    # download_and_unpack_zipped_dataset() stages the whole zip in tempfile.mkdtemp() before
+    # extracting, so TMPDIR needs ~30 GiB of REAL disk. Under apptainer's --writable-tmpfs that
+    # would be a 64 MB in-RAM overlay and the download would die with ENOSPC part-way, which is why
+    # a host directory is bound over /tmp below rather than leaving it to the container.
+    mkdir -p "$DATA_PATH/download_tmp"
+
     if [ "$CONTAINER_TYPE" == "docker" ]; then
         echo "The NVIDIA Omniverse License Agreement (EULA) must be accepted before"
         echo "Omniverse Kit can start. The license terms for this product can be viewed at"
@@ -232,9 +250,11 @@ if [ "$DOWNLOAD_DATASET" = true ]; then
             -e OMNIVERSE_EULA_ACCEPTED=1 \
             -e OMNIGIBSON_HEADLESS=1 \
             -e OMNI_KIT_ALLOW_ROOT=1 \
+            -e TMPDIR=/download_tmp \
             -v "${DATA_PATH}/datasets:/data" \
+            -v "${DATA_PATH}/download_tmp:/download_tmp" \
             --network=host --rm -it realm:latest \
-            micromamba run -n omnigibson python -m omnigibson.download_datasets
+            python -m omnigibson.utils.asset_utils $OG_DOWNLOAD_ARGS --accept_license
 
     elif [ "$CONTAINER_TYPE" == "apptainer" ]; then
         if [[ -z "${REALM_SIF:-}" ]]; then
@@ -252,13 +272,16 @@ if [ "$DOWNLOAD_DATASET" = true ]; then
           exit 1
         fi
         
-        $BUILDER exec \
-            --nv \
+        # `run`, not `exec`: only the %runscript activates the conda env OmniGibson lives in.
+        # No --writable-tmpfs and no --nv: the download needs neither a GPU nor a writable rootfs,
+        # and the tmpfs overlay is only 64 MB (see the TMPDIR note above).
+        $BUILDER run \
             --userns \
-            --writable-tmpfs \
             --bind "${DATA_PATH}/datasets:/data" \
+            --bind "${DATA_PATH}/download_tmp:/download_tmp" \
+            --env TMPDIR=/download_tmp \
             "$REALM_SIF" \
-            micromamba run -n omnigibson python -m omnigibson.download_datasets
+            python -m omnigibson.utils.asset_utils $OG_DOWNLOAD_ARGS --accept_license
     fi
 
     # ensure Isaac Sim directories exist (may be missing after download)

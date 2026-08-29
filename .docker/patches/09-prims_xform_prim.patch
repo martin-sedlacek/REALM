@@ -1,0 +1,32 @@
+--- a/omnigibson/prims/xform_prim.py
++++ b/omnigibson/prims/xform_prim.py
+@@ -99,7 +99,18 @@
+         super().remove()
+ 
+     def _set_xform_properties(self):
+-        current_position, current_orientation = self.get_position_orientation()
++        # Read THIS prim's own pose, not self.get_position_orientation()'s. That accessor is
++        # virtual and EntityPrim overrides it to return the ROOT LINK's pose, while the write below
++        # is deliberately pinned to XFormPrim.set_position_orientation, which authors xformOps on
++        # THIS prim. Reading through one and writing through the other means that for an entity
++        # whose root link sits at a non-identity transform relative to the entity Xform, this
++        # method moves the object by exactly that transform and then fails its own round-trip
++        # assert. Every BEHAVIOR dataset asset has base_link at the entity origin, so the two poses
++        # coincide and the asymmetry is invisible; a DCC-exported asset whose base_link carries its
++        # own rotation/offset (REALM's impact_drawer cabinet.usd: base_link at Ry(180) + 4 cm) trips
++        # it on load. Rewriting this prim's op order must be pose-preserving FOR THIS PRIM, so read
++        # and write have to address the same prim.
++        current_position, current_orientation = XFormPrim.get_position_orientation(self)
+         properties_to_remove = [
+             "xformOp:rotateX",
+             "xformOp:rotateXZY",
+@@ -146,7 +157,8 @@
+ 
+         # This creates its own editing_usd context.
+         XFormPrim.set_position_orientation(self, position=current_position, orientation=current_orientation)
+-        new_position, new_orientation = self.get_position_orientation()
++        # Same prim as the read above -- see the comment there.
++        new_position, new_orientation = XFormPrim.get_position_orientation(self)
+         r1 = T.quat2mat(current_orientation)
+         r2 = T.quat2mat(new_orientation)
+         # Make sure setting is done correctly

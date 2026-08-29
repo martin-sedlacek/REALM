@@ -36,14 +36,14 @@ while [[ "$#" -gt 0 ]]; do
     --task_cfg_path) TASK_CFG_PATH="$2"; shift 2 ;;
     --perturbation_ids) P_RAW="$2"; mapfile -t PERT_IDS < <(expand_ids "$2"); shift 2 ;;
     --model_type) MODEL_TYPE="$2"; shift 2 ;;
-    --debug) DEBUG=true; shift 1;; 
-    --multi-view) MULTI_VIEW_FLAG="--multi-view"; shift 1;; 
+    --debug) DEBUG=true; shift 1;;
+    --multi-view) MULTI_VIEW_FLAG="--multi-view"; shift 1;;
     --no_render) NO_RENDER_FLAG="--no_render"; shift 1;;
-    --run-id) RUN_ID="$2"; shift 2 ;; 
-    --resume) RESUME=true; RESUME_FLAG="--resume"; shift 1;; 
+    --run-id) RUN_ID="$2"; shift 2 ;;
+    --resume) RESUME=true; RESUME_FLAG="--resume"; shift 1;;
     --rendering_mode) RENDERING_MODE="$2"; shift 2 ;;
     --robot) ROBOT_FLAG="--robot $2"; shift 2 ;;
-    *) shift ;; 
+    *) shift ;;
   esac
 done
 

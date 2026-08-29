@@ -16,6 +16,10 @@ against 15 perturbations. Through empirical validation, we show that evaluation 
 in simulation are strongly correlated to real-world performance. 
 
 # Installation 🛠️
+
+See the [Installation guide](https://github.com/martin-sedlacek/REALM/wiki/Installation) for the
+full setup and dataset options.
+
 1. Clone the project repository:
 ```
 git clone https://github.com/martin-sedlacek/REALM.git
@@ -34,11 +38,16 @@ cd REALM
 ./setup.sh --apptainer --dataset
 ```
 
-> ❗ **Please note that running with apptainer is currently not stable.**
-> We noticed that the apptainer can crash inexplicably on some systems. 
-> It is recommended to use the stable Docker container if possible.
+[//]: # (> ❗ **Please note that running with apptainer is currently not stable.**)
+
+[//]: # (> We noticed that the apptainer can crash inexplicably on some systems. )
+
+[//]: # (> It is recommended to use the stable Docker container if possible.)
 
 # Quick Start (Pi0.5 evaluation)
+
+See [Quick start](https://github.com/martin-sedlacek/REALM/wiki/Quick-Start) for the complete
+container and evaluation workflow.
 
 1. Start a model server (e.g., [openpi](https://github.com/Physical-Intelligence/openpi)):
 ```bash
@@ -64,18 +73,23 @@ OMNIGIBSON_HEADLESS=1 python /app/examples/01_pi0_eval.py
 4. View results in the REALM viewer:
 ```bash
 # !!! Set this to point to your local REALM logs folder:
-export REALM_LOGS=</path/to/REALM/logs> # e.g., /home/my_user/projects/REALM/logs
+export REALM_LOGS=/path/to/REALM/logs
 
-git clone https://github.com/martin-sedlacek/REALM_toolkit.git
-cd REALM_toolkit
-uv sync
-uv run streamlit run realm_viewer/dashboard.py
+uv sync --locked
+uv run streamlit run tooling/realm_viewer/dashboard.py
 ```
 
 This will open a web UI where you can view results from the experiments. Navigate to the experiment created from step 3
 and scroll to the bottom. Click on the "unpack video parquet" and view the video of your simulated rollout. 
 
+See [Logging](https://github.com/martin-sedlacek/REALM/wiki/Logging) for the report schema and
+dashboard options.
+
 # Full benchmark evaluation:
+
+See [Running evaluations](https://github.com/martin-sedlacek/REALM/wiki/Running-Evaluations) for
+all flags, rendering modes, model clients, and how to resume interrupted runs.
+
 ```bash
 # Example:
 examples/02_evaluate.py \
@@ -89,19 +103,10 @@ examples/02_evaluate.py \
     --experiment_name my_full_eval
 ```
 
-## Resume Functionality
-
-If a run is interrupted, resume from where it left off by providing the `--resume` flag and the `--run_id` of the previous run (the timestamp folder in your logs directory):
-
-```bash
-OMNIGIBSON_HEADLESS=1 python /app/examples/02_evaluate.py \
-    ... (same args as original) ... \
-    --run_id 20240101_120000 --resume
-```
-
-Completed repeats are skipped. Ensure all arguments match the original run.
-
 # Tasks and Perturbations
+
+See [Tasks and perturbations](https://github.com/martin-sedlacek/REALM/wiki/Tasks-and-Perturbations)
+for task progression, perturbation behavior, and compatibility details.
 
 | PERTURBATION_ID | Perturbation | Description                                                                                     | Category |
 |:----------------| :--- |:------------------------------------------------------------------------------------------------| :--- |
@@ -135,46 +140,15 @@ Completed repeats are skipped. Ensure all arguments match the original run.
 | 8       | open_drawer |
 | 9       | close_drawer |
 
-In our paper, we evaluated three models on each of the 10 tasks, under all 16 perturbation settings
-with a sample size of 25 rollouts at 800 time-steps. Each number in the table below is then obtained by 
-averaging the results over these 10 tasks per perturbation.
-
-Tabular results for the tested VLA models:
-
-| Perturbation |        **$\pi_0$**        |     **$\pi_0$-FAST**      |      **GR00T N1.5**       |
-| :--- |:-------------------------:|:-------------------------:|:-------------------------:|
-| **Default** |           0.44            |           0.61            |           0.19            |
-| **V-AUG** | 0.42 (-0.02 $\downarrow$) |  0.64 (+0.03 $\uparrow$)  |      0.19 (-0.00 -)       |
-| **V-VIEW** |  0.52 (+0.08 $\uparrow$)  |  0.70 (+0.09 $\uparrow$)  |      0.19 (-0.00 -)       |
-| **V-SC** | 0.43 (-0.01 $\downarrow$) | 0.60 (-0.02 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **V-LIGHT** | 0.37 (-0.07 $\downarrow$) | 0.54 (-0.07 $\downarrow$) | 0.16 (-0.03 $\downarrow$) |
-| **S-PROP** | 0.29 (-0.15 $\downarrow$) | 0.53 (-0.08 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **S-LANG** | 0.36 (-0.08 $\downarrow$) | 0.61 (-0.01 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **S-MO** | 0.35 (-0.09 $\downarrow$) | 0.55 (-0.06 $\downarrow$) |  0.20 (+0.01 $\uparrow$)  |
-| **S-AFF** | 0.30 (-0.14 $\downarrow$) | 0.55 (-0.06 $\downarrow$) |  0.21 (+0.01 $\uparrow$)  |
-| **S-INT** | 0.29 (-0.15 $\downarrow$) | 0.54 (-0.07 $\downarrow$) |  0.20 (+0.01 $\uparrow$)  |
-| **B-HOBJ** | 0.32 (-0.12 $\downarrow$) | 0.38 (-0.23 $\downarrow$) | 0.16 (-0.03 $\downarrow$) |
-| **SB-NOUN** | 0.28 (-0.16 $\downarrow$) | 0.39 (-0.22 $\downarrow$) | 0.17 (-0.02 $\downarrow$) |
-| **SB-VRB** | 0.36 (-0.08 $\downarrow$) | 0.57 (-0.04 $\downarrow$) |  0.21 (+0.02 $\uparrow$)  |
-| **VB-POSE** | 0.32 (-0.12 $\downarrow$) | 0.49 (-0.12 $\downarrow$) | 0.07 (-0.12 $\downarrow$) |
-| **VB-MOBJ** | 0.38 (-0.06 $\downarrow$) | 0.53 (-0.09 $\downarrow$) | 0.09 (-0.10 $\downarrow$) |
-| **VSB-NOBJ** | 0.16 (-0.28 $\downarrow$) | 0.26 (-0.35 $\downarrow$) | 0.09 (-0.10 $\downarrow$) |
-| **V-Avg.** | 0.37 (-0.07 $\downarrow$) | 0.54 (-0.08 $\downarrow$) | 0.14 (-0.05 $\downarrow$) |
-| **S-Avg.** | 0.30 (-0.14 $\downarrow$) | 0.50 (-0.11 $\downarrow$) |      0.19 (-0.00 -)       |
-| **B-Avg.** | 0.30 (-0.13 $\downarrow$) | 0.44 (-0.17 $\downarrow$) | 0.13 (-0.06 $\downarrow$) |
-
-# Roadmap 🚧
-- [x] Streamlined installation
-- [x] Example scripts for getting started
-- [ ] Improved benchmarking UX:
-  - [ ] End-to-end scripts for producing result plots and tables 
-- [ ] Extended documentation
-- [ ] Performance:
-  - [ ] Support vectorized environments
-  - [ ] Improve parallelism and overall execution speed
+The paper results and the exact evaluation conditions are documented on the
+[Reproducibility](https://github.com/martin-sedlacek/REALM/wiki/Reproducibility) page.
 
 
 # Acknowledgments and Licensing
+REALM's own source-code license has not yet been selected. Until a `LICENSE` file is added, no
+open-source license should be inferred from repository visibility. Third-party simulator, dataset,
+and asset terms apply independently.
+
 We build on top of essential simulation tooling and the dataset from BEHAVIOR-1K and adhere to their licensing and terms of usage. 
 For more information, please see https://behavior.stanford.edu/.
 

@@ -1,12 +1,18 @@
+
 from __future__ import annotations
 
 import numpy as np
 from typing import TYPE_CHECKING
 
-from realm.environments.perturbations._helpers import apply_cached_semantic_perturbations
-
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
+
+
+def apply_cached_semantic_perturbations(env: "RealmEnvironmentDynamic", perturbation: str) -> None:
+
+    tmp = env.cfg["cached_semantic_perturbations"][perturbation]
+    idx = np.random.randint(0, len(tmp))
+    env.instruction = tmp[idx]
 
 
 def s_prop(env: "RealmEnvironmentDynamic") -> None:
@@ -42,7 +48,6 @@ def s_lang(env: "RealmEnvironmentDynamic") -> None:
     instruction = orig_instruction.lower()
     instruction_words = instruction.split()
 
-    synonyms: dict[str, list[str]] = env.cfg["synonyms"]
     number_words_which_can_be_replaced = len(synonyms)
     # Picking with 50% which words to replace with synonyms
     word_idx_to_replace = np.random.randint(2, size=number_words_which_can_be_replaced)

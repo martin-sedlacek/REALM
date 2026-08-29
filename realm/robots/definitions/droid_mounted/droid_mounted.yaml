@@ -1,0 +1,74 @@
+# Mounted DROID with a compliant mimic-joint Robotiq gripper.
+
+raw_controller_order: ["arm_0", "gripper_0"]
+default_controllers:
+  arm_0: CustomJointController
+  gripper_0: CustomGripperController
+
+usd_path: "/app/realm/robots/panda_robotiq/droid_mounted.usd"
+
+# Internal gripper collisions destabilize the mimic linkage.
+self_collisions: true
+disabled_collision_pairs:
+  - ["left_outer_knuckle", "left_outer_finger"]
+  - ["left_outer_knuckle", "left_inner_finger"]
+  - ["left_outer_knuckle", "left_inner_knuckle"]
+  - ["left_outer_knuckle", "right_outer_knuckle"]
+  - ["left_outer_knuckle", "right_outer_finger"]
+  - ["left_outer_knuckle", "right_inner_finger"]
+  - ["left_outer_knuckle", "right_inner_knuckle"]
+  - ["left_outer_finger", "left_inner_finger"]
+  - ["left_outer_finger", "left_inner_knuckle"]
+  - ["left_outer_finger", "right_outer_knuckle"]
+  - ["left_outer_finger", "right_outer_finger"]
+  - ["left_outer_finger", "right_inner_finger"]
+  - ["left_outer_finger", "right_inner_knuckle"]
+  - ["left_inner_finger", "left_inner_knuckle"]
+  - ["left_inner_finger", "right_outer_knuckle"]
+  - ["left_inner_finger", "right_outer_finger"]
+  - ["left_inner_finger", "right_inner_finger"]
+  - ["left_inner_finger", "right_inner_knuckle"]
+  - ["left_inner_knuckle", "right_outer_knuckle"]
+  - ["left_inner_knuckle", "right_outer_finger"]
+  - ["left_inner_knuckle", "right_inner_finger"]
+  - ["left_inner_knuckle", "right_inner_knuckle"]
+  - ["right_outer_knuckle", "right_outer_finger"]
+  - ["right_outer_knuckle", "right_inner_finger"]
+  - ["right_outer_knuckle", "right_inner_knuckle"]
+  - ["right_outer_finger", "right_inner_finger"]
+  - ["right_outer_finger", "right_inner_knuckle"]
+  - ["right_inner_finger", "right_inner_knuckle"]
+  - ["base_link", "left_outer_knuckle"]
+  - ["base_link", "left_outer_finger"]
+  - ["base_link", "left_inner_finger"]
+  - ["base_link", "left_inner_knuckle"]
+  - ["base_link", "right_outer_knuckle"]
+  - ["base_link", "right_outer_finger"]
+  - ["base_link", "right_inner_finger"]
+  - ["base_link", "right_inner_knuckle"]
+
+default_joint_pos: [
+  0.143628523,
+  -0.597331285,
+  0.00201173499,
+  -2.38619041,
+  0.267941624,
+  1.97807848,
+  -0.0898026153,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+]
+
+manipulation:
+  arm_link_names:
+    "0": ["panda_link0", "panda_link1", "panda_link2", "panda_link3", "panda_link4", "panda_link5", "panda_link6", "panda_link7"]
+  arm_joint_names:
+    "0": ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+  eef_link_names:
+    "0": "panda_link8"
+  finger_link_names:
+    "0": ["left_inner_finger", "right_inner_finger"]
+  # Mimic constraints drive the follower joints.
+  finger_joint_names:
+    "0": ["finger_joint"]
+  teleop_rotation_offset:
+    "0": [-1, 0, 0, 0]

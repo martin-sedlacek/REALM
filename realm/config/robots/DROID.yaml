@@ -1,6 +1,9 @@
 robots:
   - name: "DROID"
-    type: "DROID"
+    model: "droid"
+    dof: 13
+    has_base_column: false
+    include_sensor_names: ["wrist_camera_flipped"]
     obs_modalities: ["rgb", "proprio"]
     proprio_obs: ["joint_qpos"]
     control_freq: 15
@@ -16,8 +19,9 @@ robots:
             control_freq: 15
             use_delta_commands: False
             use_impedances: True
-            use_gravity_compensation: False,
-            use_cc_compensation: False,
+            use_gravity_compensation: false
+            # Historical configs used a truthy "False," string; true preserves that behavior.
+            use_cc_compensation: true
             Kq: [ 40, 30, 50, 35, 35, 25, 10 ]
             Kqd: [ 4, 6, 5, 5, 3, 2, 1 ]
             Kx: [ 400, 400, 400, 15, 15, 15 ]
@@ -35,4 +39,5 @@ robots:
           image_height: 720
           image_width: 1280
           focal_length: 2.8
-
+          # Override OmniGibson's wider default aperture.
+          horizontal_aperture: 5.376

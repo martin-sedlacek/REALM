@@ -1,0 +1,33 @@
+# Pins that must not be disturbed by anything REALM installs on top of the
+# stanfordvl/behavior:3.9.1 base image (OmniGibson requires numpy<2.0.0,>=1.23.5,
+# and the isaacsim 5.1 wheels are built against this exact torch build).
+numpy==1.26.0
+torch==2.7.0+cu128
+pydantic==2.11.10
+pandas==2.3.3
+
+# TRANSITIVES THAT WERE FLOATING, pinned 2026-08-27 so two builds of the same recipe cannot
+# differ. They were unpinned, and an Apptainer build and a Docker build FORTY MINUTES APART
+# already diverged: websockets 16.1.1 vs 17.0.1. That one is not cosmetic -- it is the transport
+# for every policy call (realm/inference/client.py drives
+# openpi_client.websocket_client_policy.WebsocketClientPolicy, and openpi-client asks only for
+# >=11.0), so the two images could behave differently against the same policy server.
+#
+# The values are what the VERIFIED image contains -- realm.sif, built 2026-08-27, the one the GPU
+# suite ran against -- NOT what isaacsim-kernel 5.1.0.0 declares. isaacsim pins all six exactly
+# (websockets==12.0, click==8.1.7, idna==3.10, psutil==5.9.8, requests==2.32.3,
+# typing_extensions==4.12.2) and pip prints a resolver conflict for each. That conflict is
+# PRE-EXISTING -- it appears identically in every build of this recipe -- and Isaac demonstrably
+# runs with these versions. Downgrading to isaacsim's six would silence the warning at the cost
+# of shipping a runtime nothing has tested, which is the worse trade for a benchmark.
+#
+# CAVEAT, because it bounds what "verified" means here: every automated test drives
+# --model_type debug, which returns a canned action and never opens a socket. So the websockets
+# version is pinned for REPRODUCIBILITY, not because the websocket path itself was exercised. A
+# real policy run against a live openpi server is what would test it.
+websockets==16.1.1
+click==8.4.2
+idna==3.19
+psutil==7.2.2
+requests==2.34.2
+typing_extensions==4.16.0

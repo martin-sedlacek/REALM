@@ -1,80 +1,104 @@
+"""V-SC: re-place the movable objects and swap every distractor's model for a random one.
+
+What one call mutates on @env: ``cfg["objects"]`` (fresh positions; the list is rebuilt by the
+placement pass), ``distractors`` (re-bound to the live objects), and the scene itself (each
+distractor removed and re-added as a different model via replace_obj). Main and target objects
+keep their authored poses; only distractors move and change identity. Requires ``env.spawn_bbox``
+(a task with a spawn region).
+"""
 from __future__ import annotations
+from realm.config.shared import DISTRACTOR_MAX_DIM
 
 import copy
-import numpy as np
 from typing import TYPE_CHECKING
 
-import omnigibson as og
-from realm.helpers import (
-    get_non_colliding_positions_for_objects,
-    get_droid_categories_by_theme,
-    get_objects_by_names,
-    get_default_objects_cfg,
+from realm.categories import droid_categories_excluding_theme
+from realm.environments.perturbations._helpers import (
+    backfill_object_cfgs,
+    rebase_after_play,
+    set_scene_positions,
+    settle,
+    sim_play,
+    sim_stop,
 )
-from realm.environments.perturbations._helpers import replace_obj
+from realm.environments.perturbations.object_sampling import replace_obj
+from realm.placement import (
+    get_default_objects_cfg,
+    get_objects_by_names,
+    place_within,
+)
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
+#: Largest bbox dimension (metres) a distractor may have after the swap.
+
 
 def v_sc(env: "RealmEnvironmentDynamic") -> None:
-    # --------------- Translation ---------------
-    og.sim.stop()
+    # sim_stop/sim_play rather than og.sim.stop()/play(): those are global, so in a vector env
+    # RealmVectorEnvironment.reset() does ONE cycle for every member and these no-op. V-SC genuinely
+    # needs the stopped sim -- it calls replace_obj(), which removes and adds objects.
+    sim_stop(env)
 
+    # --------------- Translation ---------------
     obj_cfgs = copy.deepcopy(env.cfg["objects"])
     num_mo_to = len(env.target_objects + env.main_objects)
 
-    for scene_obj in env.target_objects + env.main_objects:
-        for cfg in obj_cfgs:
-            if cfg["name"] == scene_obj.name:
-                if "position" not in cfg:
-                    cfg["position"] = scene_obj.get_position_orientation()[0].tolist()
-                if "bounding_box" not in cfg:
-                    cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
+    backfill_object_cfgs(env.target_objects + env.main_objects, obj_cfgs)
 
-    env.cfg["objects"] = None
-    num_distractors = len(obj_cfgs) - num_mo_to
-
-    env.cfg["objects"] = get_non_colliding_positions_for_objects(
-        xmin=env.spawn_bbox[0],
-        xmax=env.spawn_bbox[1],
-        ymin=env.spawn_bbox[2],
-        ymax=env.spawn_bbox[3],
-        z=env.spawn_bbox[4],
-        obj_cfg=obj_cfgs[:num_mo_to + num_distractors],
+    env.cfg["objects"] = place_within(
+        env.spawn_bbox,
+        obj_cfgs,
         objects_to_skip=[obj.name for obj in env.target_objects + env.main_objects],
         main_object_names=[o["name"] for o in obj_cfgs[:num_mo_to]],
-        maximum_dim=0.12,
+        maximum_dim=DISTRACTOR_MAX_DIM,
     )
 
-    env.distractors = [env.omnigibson_env.scene.object_registry("name", dist["name"]) for dist in env.cfg["objects"][num_mo_to:]]
-
-    # TODO: check if this works properly in the edge cases where it should trigger
-    if num_distractors < len(env.distractors):
-        for dist_cfg in env.cfg["objects"][num_mo_to + num_distractors:]:
-            obj = env.omnigibson_env.scene.object_registry("name", dist_cfg["name"])
-            env.omnigibson_env.scene.remove_object(obj)
-        env.cfg["objects"] = env.cfg["objects"][:num_mo_to + num_distractors]
+    env.distractors = [env.omnigibson_env.scene.object_registry("name", dist["name"])
+                       for dist in env.cfg["objects"][num_mo_to:]]
 
     # --------------- Set Position ---------------
-    for obj in env.cfg["objects"]:
-        env.omnigibson_env.scene.object_registry("name", obj["name"]).set_position(obj["position"])
+    set_scene_positions(env, env.cfg["objects"])
 
-    # --------------- Replace the objects models ---------------
-    distractor_obj_cfgs = get_default_objects_cfg(env.omnigibson_env.scene, [obj.name for obj in env.distractors])
-    distractor_objs = get_objects_by_names(env.omnigibson_env.scene, list(distractor_obj_cfgs.keys()))
+    _swap_distractor_models(env)
+
+    sim_play(env)
+
+    # The rebase is REQUIRED, not an optimisation, for a perturbation that replaces objects -- see
+    # rebase_after_play for the vector-env failure mode it prevents (and vec_init_queue.py for the
+    # related init-queue fix).
+    #
+    # It runs in BOTH paths. It was vec-only on the grounds that single-env V-SC had never rebased
+    # and worked -- true only at repeats=1, the one shape that never resets a second time. At
+    # repeats>1 the single-env path restored a scene file describing the PRE-swap distractors onto
+    # the post-swap objects and died in scene.reset() with
+    #     KeyError: 'joint_pos'
+    # from entity_prim._load_state -- the saved state has no joints, the replacement is articulated
+    # -- followed by a segfault. Measured 2026-08-28 on task 0 with --repeats 3.
+    #
+    # This matches vb_mobj and vsb_nobj, the other two object-replacing perturbations, which have
+    # always passed False. sb_vrb.py replaces objects and still passes True, so it carries the same
+    # latent defect; not touched here because it is a separate perturbation and a separate call.
+    #
+    # KNOWN ISSUE -- MOVES NUMBERS, needs the VERSION gate: rebasing makes repeats 2..N start from
+    # the perturbed scene rather than the authored one, so single-env V-SC numbers recorded before
+    # this are not comparable. The vector path has always behaved this way.
+    rebase_after_play(env, vec_only_rebase=False)
+
+    # Let the re-placed objects come to rest. No-op in a vector env, where the shared settle runs
+    # once for all members instead of stepping the global sim 30 times per member.
+    settle(env)
+
+
+def _swap_distractor_models(env: "RealmEnvironmentDynamic") -> None:
+
+    distractor_obj_cfgs = get_default_objects_cfg(env.omnigibson_env.scene,
+                                                  [obj.name for obj in env.distractors])
+    distractor_objs = get_objects_by_names(env.omnigibson_env.scene,
+                                           list(distractor_obj_cfgs.keys()))
     excluded_categories = [obj.category for obj in env.main_objects + env.target_objects]
     for distractor in distractor_objs:
-        cat_dict = get_droid_categories_by_theme()
-        t = [k for k, v in cat_dict.items() if any(distractor.category in c for c in v.values())]
-        if t:
-            cat_dict.pop(t[0])
-        l = [o for v in cat_dict.values() for c in v.values() for o in c]
-        l = [c for c in l if c not in excluded_categories]
-        _, _ = replace_obj(env, distractor, included_categories=l, maximum_dim=0.12)
-
-    og.sim.play()
-    env.reset_joints()
-    # fake rest to get to original pose after stopping sim
-    for _ in range(30):
-        env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+        candidates = [c for c in droid_categories_excluding_theme(distractor.category)
+                      if c not in excluded_categories]
+        replace_obj(env, distractor, included_categories=candidates,
+                    maximum_dim=DISTRACTOR_MAX_DIM)

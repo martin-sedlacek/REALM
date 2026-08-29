@@ -2,122 +2,169 @@ from __future__ import annotations
 
 import copy
 import random
-import numpy as np
-import torch
 from typing import TYPE_CHECKING
+
+import torch
 
 import omnigibson as og
 from omnigibson.objects import DatasetObject
-from realm.helpers import get_non_colliding_positions_for_objects
+
+from realm.environments.perturbations._helpers import (
+    backfill_object_cfgs,
+    rebase_after_play,
+    set_scene_positions,
+    settle,
+    sim_play,
+    sim_step,
+    sim_stop,
+)
+from realm.environments.perturbations.object_sampling import (
+    replace_obj,
+    rescale_to_max_dim,
+    sample_objects,
+)
+from realm.config.shared import (
+    COMPATIBILITY_MATRIX,
+    RECEIVER_MAX_DIM,
+    UNSUPPORTED_BY_PERTURBATION,
+    VERB_PHRASE,
+)
 from realm.environments.utils import load_task_progressions
-TASK_PROGRESSIONS = load_task_progressions()
-from realm.environments.perturbations._helpers import replace_obj, sample_objects
+from realm.placement import place_within
 
 if TYPE_CHECKING:
     from realm.environments.env_dynamic import RealmEnvironmentDynamic
 
+TASK_PROGRESSIONS = load_task_progressions()
+
+
 
 def sb_vrb(env: "RealmEnvironmentDynamic") -> None:
-    compatibility_matrix = {
-        "put": ["pick", "rotate", "stack"],
-        "push": [], #["put", "pick", "rotate", "stack"],
-        "pick": ["put", "rotate", "stack"],
-        "rotate": ["put", "pick", "stack"],
-        "stack": ["put", "pick", "rotate"],
-        "open": ["close"],
-        "close": ["open"]
-    }
+    if env.task_type in UNSUPPORTED_BY_PERTURBATION["SB-VRB"]:
+        raise NotImplementedError(
+            f"SB-VRB does not support task_type {env.task_type!r}: the drawer configs declare "
+            f"target_objects: [], so the perturbation would inject a 'receiver' object that has no "
+            f"placeable position in these scenes and gets dropped from the air. Deliberate refusal, "
+            f"not an unimplemented branch -- do not 'fix' this by making it a no-op."
+        )
 
-    available_task_types = compatibility_matrix[env.task_type]
+    # Missing means a configuration bug; an empty list is an intentional no-op.
+    if env.task_type not in COMPATIBILITY_MATRIX:
+        raise KeyError(
+            f"SB-VRB: task_type {env.task_type!r} is not in COMPATIBILITY_MATRIX "
+            f"(known: {sorted(COMPATIBILITY_MATRIX)}). Add it -- with an empty list if the "
+            f"perturbation genuinely does not apply -- rather than leaving it absent."
+        )
+    available_task_types = COMPATIBILITY_MATRIX[env.task_type]
+    if not available_task_types:
+        og.log.info(
+            f"SB-VRB: no-op, task_type {env.task_type!r} is a deliberate opt-out (empty candidate list)"
+        )
+        return
 
-    new_verb_for_task = random.choice(available_task_types)
-    env.task_type = new_verb_for_task
-    env.task_progression = TASK_PROGRESSIONS[env.task_type]
+    new_task_type = _draw_new_task_type(env, available_task_types)
 
     included_categories = None
     if env.task_type == "put":
         included_categories = ["bowl", "wineglass"]
 
     if len(env.target_objects) == 0:
-        nobj_cfg = sample_objects(env, num_objects=1, included_categories=included_categories)[0]
-        env.cfg['instruction_target_to_replace'] = nobj_cfg["category"]
-        nobj_cfg["name"] = "receiver"
+        _spawn_receiver(env, included_categories)
 
-        new_obj = DatasetObject(
-            name="receiver",
-            relative_prim_path="/receiver",
-            category=nobj_cfg["category"],
-            model=nobj_cfg["model"],
-        )
-        env.omnigibson_env.scene.add_object(new_obj)
-        env.target_objects = [new_obj]
-
-        bbox_center, bbox_orn, bbox_extent, bbox_center_in_frame = new_obj.get_base_aligned_bbox()
-        nobj_cfg["bounding_box"] = bbox_center
-
-        max_dim = np.max(bbox_extent.numpy())
-        new_scale_factor = 0.185 / max_dim
-        if new_scale_factor < 1.0:
-            new_obj.scale = new_scale_factor
-            nobj_cfg["bounding_box"] = nobj_cfg["bounding_box"] * new_scale_factor
-
-        env.cfg["objects"].append(nobj_cfg)
-
-        # --------------- Translation ---------------
-        obj_cfgs = copy.deepcopy(env.cfg["objects"])
-        num_mo_to = len(obj_cfgs) - 1
-
-        for scene_obj in env.main_objects + env.distractors + env.target_objects:
-            for cfg in obj_cfgs:
-                if cfg["name"] == scene_obj.name:
-                    if "position" not in cfg:
-                        cfg["position"] = scene_obj.get_position_orientation()[0].tolist()
-                    if "bounding_box" not in cfg:
-                        cfg["bounding_box"] = scene_obj.aabb_extent.tolist()
-
-        env.cfg["objects"] = get_non_colliding_positions_for_objects(
-            xmin=env.spawn_bbox[0],
-            xmax=env.spawn_bbox[1],
-            ymin=env.spawn_bbox[2],
-            ymax=env.spawn_bbox[3],
-            z=env.spawn_bbox[4],
-            obj_cfg=obj_cfgs,
-            objects_to_skip=[obj.name for obj in env.main_objects + env.distractors],
-            main_object_names=[o["name"] for o in obj_cfgs[:num_mo_to]],
-        )
-
-        pos = torch.tensor(env.cfg["objects"][-1]["position"])
-        rot = torch.tensor(env.cfg["objects"][-1]["orientation"] if "orientation" in env.cfg["objects"][-1] else [0,0,0,1])
-        new_obj.set_bbox_center_position_orientation(pos, rot)
-
-        env.init_poses[new_obj._relative_prim_path] = {}
-        env.init_poses[new_obj._relative_prim_path]["pos"] = pos
-        env.init_poses[new_obj._relative_prim_path]["rot"] = rot
-
-        # --------------- Set Position ---------------
-        for obj in env.cfg["objects"]:
-            env.omnigibson_env.scene.object_registry("name", obj["name"]).set_position(obj["position"])
-
-    og.sim.step()
+    sim_step(env)
 
     if env.task_type in ["put", "stack"]:
-        og.sim.stop()
-        nobj, nobj_cfg = replace_obj(env, env.target_objects[0], included_categories=included_categories, maximum_dim=0.185)
-        env.target_objects = [nobj]
-        env.cfg['instruction_target_to_replace'] = nobj_cfg["category"]
-        og.sim.play()
-        # fake rest to get to original pose after stopping sim
-        for _ in range(30):
-            env.omnigibson_env.step(np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1])))))
+        _swap_target(env, included_categories)
 
-    if new_verb_for_task in ["rotate", "push", "pick", "open", "close"]:
-        tmp = "pick up" if new_verb_for_task == "pick" else new_verb_for_task
-        env.instruction = f"{tmp} the {env.cfg['instruction_obj_to_replace']}"
-    elif new_verb_for_task == "stack":
+    rebase_after_play(env, vec_only_rebase=True)
+
+    _rebuild_instruction(env, new_task_type)
+
+
+def _draw_new_task_type(env: "RealmEnvironmentDynamic", available_task_types) -> str:
+
+    new_task_type = random.choice(available_task_types)
+    env.task_type = new_task_type
+    # Progression dictionaries are mutated per environment.
+    env.task_progression = copy.deepcopy(TASK_PROGRESSIONS[env.task_type])
+    return new_task_type
+
+
+def _spawn_receiver(env: "RealmEnvironmentDynamic", included_categories) -> None:
+
+    sampled = sample_objects(num_objects=1, included_categories=included_categories)
+    if not sampled:
+        raise RuntimeError(
+            f"SB-VRB could not sample a receiver: no installed object model matches "
+            f"included_categories={included_categories}")
+    nobj_cfg = sampled[0]
+    env.cfg['instruction_target_to_replace'] = nobj_cfg["category"]
+    nobj_cfg["name"] = "receiver"
+
+    new_obj = DatasetObject(
+        name="receiver",
+        relative_prim_path="/receiver",
+        category=nobj_cfg["category"],
+        model=nobj_cfg["model"],
+    )
+    env.omnigibson_env.scene.add_object(new_obj)
+    env.target_objects = [new_obj]
+
+    rescale_to_max_dim(new_obj, nobj_cfg, RECEIVER_MAX_DIM)
+
+    env.cfg["objects"].append(nobj_cfg)
+
+    obj_cfgs = copy.deepcopy(env.cfg["objects"])
+    n_non_receiver = len(obj_cfgs) - 1
+
+    backfill_object_cfgs(env.main_objects + env.distractors + env.target_objects, obj_cfgs)
+
+    env.cfg["objects"] = place_within(
+        env.spawn_bbox,
+        obj_cfgs,
+        objects_to_skip=[obj.name for obj in env.main_objects + env.distractors],
+        main_object_names=[o["name"] for o in obj_cfgs[:n_non_receiver]],
+    )
+
+    _record_receiver_pose(env, new_obj)
+
+    set_scene_positions(env, env.cfg["objects"])
+
+
+def _record_receiver_pose(env: "RealmEnvironmentDynamic", new_obj) -> None:
+
+    receiver_cfg = env.cfg["objects"][-1]
+    pos = torch.tensor(receiver_cfg["position"])
+    rot = torch.tensor(receiver_cfg["orientation"] if "orientation" in receiver_cfg else [0, 0, 0, 1])
+    pos_world, rot_world = env.omnigibson_env.scene.convert_scene_relative_pose_to_world(pos, rot)
+    new_obj.set_bbox_center_position_orientation(pos_world, rot_world)
+    env.init_poses[new_obj._relative_prim_path] = {"pos": pos_world, "rot": rot_world}
+
+
+def _swap_target(env: "RealmEnvironmentDynamic", included_categories) -> None:
+
+    sim_stop(env)
+    nobj, nobj_cfg = replace_obj(env, env.target_objects[0],
+                                 included_categories=included_categories,
+                                 maximum_dim=RECEIVER_MAX_DIM)
+    env.target_objects = [nobj]
+    env.cfg['instruction_target_to_replace'] = nobj_cfg["category"]
+    sim_play(env)
+    settle(env)
+
+
+def _rebuild_instruction(env: "RealmEnvironmentDynamic", new_task_type: str) -> None:
+
+    if new_task_type in ("rotate", "push", "pick", "open_drawer", "close_drawer"):
+        env.instruction = f"{VERB_PHRASE[new_task_type]} the {env.cfg['instruction_obj_to_replace']}"
+    elif new_task_type == "stack":
         env.instruction = f"stack the {env.cfg['instruction_obj_to_replace']} on top of the {env.cfg['instruction_target_to_replace']}"
-    elif new_verb_for_task == "put":
+    elif new_task_type == "put":
         env.instruction = f"put the {env.cfg['instruction_obj_to_replace']} into the {env.cfg['instruction_target_to_replace']}"
     else:
-        raise NotImplementedError()
+        raise NotImplementedError(
+            f"SB-VRB: no instruction phrasing for task_type {new_task_type!r}. It is reachable "
+            f"from COMPATIBILITY_MATRIX, so add a branch here rather than widening the matrix alone."
+        )
     env.instruction = env.instruction.replace("_", " ")
     og.log.info(f"New instruction: {env.instruction}")

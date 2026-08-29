@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a benchmark, integration, or developer-experience improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What workflow or research need does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the desired behavior and likely affected components.
+    validations:
+      required: true
+  - type: dropdown
+    id: results
+    attributes:
+      label: Could this change benchmark results?
+      options:
+        - Unsure
+        - "No"
+        - "Yes"
+    validations:
+      required: true

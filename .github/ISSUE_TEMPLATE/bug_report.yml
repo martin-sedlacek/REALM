@@ -1,0 +1,38 @@
+name: Bug report
+description: Report incorrect behavior or a reproducibility problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the command, task, perturbation, model, and minimal steps.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Runtime environment
+      description: Docker image/tag or SIF path, REALM version/commit, GPU, and MODE.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or artifacts
+      description: Paste relevant excerpts or link reports, screenshots, or videos. Remove secrets.
+  - type: checkboxes
+    id: known
+    attributes:
+      label: Checks
+      options:
+        - label: I checked the wiki's Known Issues and Gotchas page.
+          required: true

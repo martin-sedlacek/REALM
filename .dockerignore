@@ -1,0 +1,18 @@
+# The build needs .docker/ (patch set + recipes) and the vendored openpi-client; everything below
+# is data or generated output that should not be sent as build context.
+data/
+datasets/
+logs/
+tmp/
+images/
+custom_assets/
+*.sif
+*.zip
+.git/
+.venv/
+.idea/
+.claude/
+**/__pycache__/
+**/.thumbs/
+*.npy
+slurm-*.out

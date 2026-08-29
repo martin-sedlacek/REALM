@@ -167,3 +167,32 @@ singularity/
 isaac-sim/
 .claude/
 realm-container.skill
+
+# Local visual-review utility for generated REALM_DROID100 renders; not part of the release.
+tooling/droid100_frame_browser/
+
+# Apptainer/Singularity images -- 9-13 GB each, built from .docker/*.def
+*.sif
+# Thumbnail caches written by USD tooling
+.thumbs/
+
+# Session scratch (logs, probe scripts, extracted frames)
+tmp/
+# run_suite.py's default --out lands in the cwd when invoked without make (make routes it to tmp/)
+suite_results.json
+
+# Personal runtime environments remain local. The committed pyproject.toml / uv.lock describe
+# host-only lint and static-test tools; REALM itself still runs from Docker / Apptainer via
+# PYTHONPATH and is not installed into that uv environment.
+environment.yml
+Makefile
+wiki/Known-Issues.md
+realm/config/tasks/REALM_DROID100/
+
+# Robot assets awaiting proper integration (owner decision 2026-08-18: keep local, do not commit).
+# r1lite has no config/definition yet; the live WidowX path uses OmniGibson's stock VX300S, not
+# these files. When one is wired up (definitions/ entry + config), remove its line here and add
+# the assets deliberately.
+realm/robots/r1lite/
+realm/robots/widowx/
+

@@ -5,7 +5,13 @@ task:
 
 task_type: "close_drawer"
 instruction: "close the top drawer"
-instruction_obj_to_replace: "close drawer"
+# Must be a SUBSTRING of `instruction` above: sb_noun.py:21 and vsb_nobj.py:36 both do
+# instruction.replace(this, <new object>), so a value that does not occur in the instruction
+# replaces nothing and the perturbation silently does not perturb -- while still reporting PASS,
+# because nothing crashes. This read "close drawer" (the verb, not the object), which made task 9 the
+# only one of the ten where the field was not a substring of its own instruction, and made
+# 9:SB-NOUN and 9:VSB-NOBJ no-ops. 9:VSB-NOBJ is a recorded matrix PASS on that basis.
+instruction_obj_to_replace: "top drawer"
 instruction_target_to_replace: ""
 instruction_verb_to_replace: "close"
 

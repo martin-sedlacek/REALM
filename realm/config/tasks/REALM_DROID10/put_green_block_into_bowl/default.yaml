@@ -41,7 +41,7 @@ distractors:
       name: "corkscrew"
       category: "corkscrew"
       model: "gqocna"
-      bounding_box: [ 0.02, 0.09, 0.11 ]
+      bounding_box: [ 0.11, 0.09, 0.02 ]
       relative_bbox_position: [0.325, 0.075, 0.03 ]
     - type: "DatasetObject"
       name: "table_knife"

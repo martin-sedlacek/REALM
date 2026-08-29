@@ -1,0 +1,45 @@
+# RobotDefinition for the UR5e + Robotiq 2F-85 platform. Ported from the pre-3.9.1
+# `realm/robots/ur.py`. Reachable because `<robot-assets>/models/ur` symlinks to this directory;
+# `realm/config/robots/UR5*.yaml` declare `type: "UR"`, which OmniGibson lowercases into `model: ur`.
+#
+# NOT EXERCISED by the og391 smoke test, which runs DROID. Treat as a best-effort port: the names
+# below are read off ur5e_robotiq.usd, but no rollout has been run against it on 3.9.1.
+#
+# One deliberate fix relative to ur.py: its `arm_link_names` list was missing a comma
+# ("wrist_2_link" "wrist_3_link"), so Python concatenated them into the single nonexistent link
+# "wrist_2_linkwrist_3_link" and the real wrist_3_link was never listed. Both are named properly here.
+
+raw_controller_order: ["arm_0", "gripper_0"]
+default_controllers:
+  arm_0: IndividualJointPDController
+  gripper_0: CustomGripperController
+
+usd_path: "/app/realm/robots/ur5/ur5e_robotiq.usd"
+self_collisions: true
+
+# 6 arm joints + the 4 gripper joints below, matching `dof: 10` in realm/config/robots/UR5.yaml.
+default_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+manipulation:
+  arm_link_names:
+    "0": ["base_link_inertia", "shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "wrist_2_link", "wrist_3_link"]
+  arm_joint_names:
+    "0": ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"]
+  eef_link_names:
+    "0": "wrist_3_link"
+  finger_link_names:
+    "0": ["gripper_link_left_inner_finger", "gripper_link_right_inner_finger"]
+  # Same ordering contract as the DROID definitions: droid_gripper_controller.compute_control drives
+  # dof_idx[2:] from the measured positions of dof_idx[:2].
+  finger_joint_names:
+    "0": [
+      "left_inner_finger_prismatic_joint",
+      "right_inner_finger_prismatic_joint",
+      "left_inner_finger_joint",
+      "right_inner_finger_joint",
+    ]
+  teleop_rotation_offset:
+    "0": [-1, 0, 0, 0]
+
+# Assisted-grasp points omitted for the same reason as the DROID definitions: REALM runs
+# grasping_mode "physical", and ur.py pointed them at Franka link names that do not exist here.

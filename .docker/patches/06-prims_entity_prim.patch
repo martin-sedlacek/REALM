@@ -1,0 +1,132 @@
+--- a/omnigibson/prims/entity_prim.py
++++ b/omnigibson/prims/entity_prim.py
+@@ -15,7 +15,12 @@
+ from omnigibson.prims.rigid_kinematic_prim import RigidKinematicPrim
+ from omnigibson.prims.xform_prim import XFormPrim
+ from omnigibson.utils.constants import JointAxis, JointType, PrimType
+-from omnigibson.utils.usd_utils import absolute_prim_path_to_scene_relative, count_joints, find_joint_prims
++from omnigibson.utils.usd_utils import (
++    absolute_prim_path_to_scene_relative,
++    count_joints,
++    find_joint_prims,
++    get_local_pose,
++)
+ 
+ # Create settings for this module
+ m = create_module_macros(module_path=__file__)
+@@ -227,10 +232,12 @@
+         # in the children joints
+         valid_root_links = list(set(links_to_create.keys()) - joint_children)
+ 
+-        assert len(valid_root_links) == 1, (
+-            f"Exactly one single root link should have been found for {self.name}, "
+-            f"but found none/multiple instead: {valid_root_links}"
+-        )
++        # REALM: relaxed -- our custom robot USDs may resolve to none/multiple root links, in which
++        # case we fall back to "base_link" below instead of hard-failing.
++        # assert len(valid_root_links) == 1, (
++        #     f"Exactly one single root link should have been found for {self.name}, "
++        #     f"but found none/multiple instead: {valid_root_links}"
++        # )
+         self._root_link_name = valid_root_links[0] if len(valid_root_links) == 1 else "base_link"
+ 
+         # Now actually create the links with appropriate classes
+@@ -300,10 +307,12 @@
+             # We assume this object contains a single rigid body
+             self._n_dof = 0
+ 
+-        assert self.n_joints == len(self._joints), (
+-            f"Number of joints inferred from prim tree ({self.n_joints}) does not match number of joints "
+-            f"found in the articulation view ({len(self._joints)})!"
+-        )
++        # REALM: relaxed -- our custom robot USDs may expose joints that are not part of the
++        # articulation view (e.g. extra fixed joints), which is fine for our use cases.
++        # assert self.n_joints == len(self._joints), (
++        #     f"Number of joints inferred from prim tree ({self.n_joints}) does not match number of joints "
++        #     f"found in the articulation view ({len(self._joints)})!"
++        # )
+ 
+         self._update_joint_limits()
+ 
+@@ -533,10 +542,11 @@
+ 
+         # Assert all nodes have in-degree of 1 except root
+         in_degrees = {node: G.in_degree(node) for node in G.nodes}
+-        assert in_degrees[self.root_link_name] == 0, "Root link should have in-degree of 0!"
+-        assert all(
+-            [in_degrees[node] == 1 for node in G.nodes if node != self.root_link_name]
+-        ), "All non-root links should have in-degree of 1!"
++        # REALM: relaxed -- our custom robot USDs are not guaranteed to form a strict kinematic tree.
++        # assert in_degrees[self.root_link_name] == 0, "Root link should have in-degree of 0!"
++        # assert all(
++        #     [in_degrees[node] == 1 for node in G.nodes if node != self.root_link_name]
++        # ), "All non-root links should have in-degree of 1!"
+ 
+         self._articulation_tree = G
+ 
+@@ -1012,16 +1022,33 @@
+         # If the simulation is stopped, we can just move the entity prim directly. This is appropriate because
+         # it's the only numerically stable way to move the root link and all of the child links together.
+         # It does create a dual path for places where the transform might end up being set, but is a necessary evil.
+-        # In this case, we also want to make sure that the root link does not have a relative pose to the entity prim.
+         if og.sim.is_stopped():
+-            this_position, this_orientation = XFormPrim.get_position_orientation(self, frame=frame)
+-            root_link_position, root_link_orientation = self.root_link.get_position_orientation(frame=frame)
+-            assert th.allclose(
+-                this_position, root_link_position, atol=1e-2
+-            ), "Position mismatch between entity prim and root link"
+-            assert th.allclose(
+-                this_orientation, root_link_orientation, atol=1e-2
+-            ), "Orientation mismatch between entity prim and root link"
++            # @position/@orientation name where the ROOT LINK is to end up: that is what
++            # get_position_orientation() reads back, and what the playing branch below writes via
++            # set_world_poses(). Moving the entity prim delivers that only when the root link sits
++            # at the entity prim's own origin. Every BEHAVIOR asset satisfies that, which is why
++            # this used to be a bare "root link does not have a relative pose to the entity prim"
++            # assert -- but it is an OmniGibson convention, not a property of USD, and a
++            # DCC-exported articulation need not honour it (REALM's impact_drawer cabinet.usd
++            # authors base_link at Ry(180) + 4 cm from the entity prim, so the assert made the asset
++            # unloadable). Compose the offset out instead: aim the entity prim at
++            # target * root_local^-1 so the root link lands exactly on @position/@orientation, which
++            # is what the playing branch would have done. root_local is a LOCAL transform, so this
++            # is frame-agnostic and works for "world" and "scene" alike. When the root link is at
++            # the origin the branch is skipped entirely and the write is unchanged.
++            root_local = T.pose2mat(get_local_pose(self.root_link.prim_path))
++            # th.eye(4) would land on the CPU while root_local follows og.sim.device, which raises
++            # "Expected all tensors to be on the same device" the moment GPU dynamics is enabled.
++            # A no-op when the device is already cpu.
++            if not th.allclose(root_local, th.eye(4, device=root_local.device), atol=1e-6):
++                if position is None or orientation is None:
++                    current_position, current_orientation = self.get_position_orientation(frame=frame)
++                    position = current_position if position is None else position
++                    orientation = current_orientation if orientation is None else orientation
++                target = T.pose2mat(
++                    (th.as_tensor(position, dtype=th.float32), th.as_tensor(orientation, dtype=th.float32))
++                )
++                position, orientation = T.mat2pose(target @ T.pose_inv(root_local))
+             XFormPrim.set_position_orientation(self, position=position, orientation=orientation, frame=frame)
+             if self.kinematic_only:
+                 for link in self._links.values():
+@@ -1571,11 +1598,19 @@
+     def serialize(self, state):
+         # We serialize by first flattening the root link state and then iterating over all joints and
+         # adding them to the a flattened array
+-        state_flat = [th.tensor([state["is_asleep"]], dtype=th.int), self.root_link.serialize(state=state["root_link"])]
++        #
++        # Every entry must sit on ONE device before th.cat. "is_asleep" is a Python bool, so a bare
++        # th.tensor() puts it on the CPU, while the physics-view reads are on og.sim.device -- so with
++        # GPU dynamics enabled this raises "Expected all tensors to be on the same device" out of
++        # serialize(), which og.sim.play() calls during load. Anchor on the root link's own
++        # serialization and coerce the rest to it; every .to() is a no-op when the devices already
++        # agree, so the CPU path is byte-identical to before.
++        root_flat = self.root_link.serialize(state=state["root_link"])
++        state_flat = [th.tensor([state["is_asleep"]], dtype=th.int, device=root_flat.device), root_flat]
+         if self.n_joints > 0:
+             state_flat += [
+-                state["joint_pos"],
+-                state["joint_vel"],
++                state["joint_pos"].to(root_flat.device),
++                state["joint_vel"].to(root_flat.device),
+             ]
+ 
+         return th.cat(state_flat)

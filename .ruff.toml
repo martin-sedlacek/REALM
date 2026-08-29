@@ -1,0 +1,26 @@
+# Ruff configuration.
+#
+# Carried over VERBATIM from the pre-port 1.1.1 checkout's pyproject.toml ([tool.ruff]), which is
+# where this project's lint settings have always lived. It is `.ruff.toml` here rather than
+# The rules stay here because the committed pyproject.toml describes only a virtual uv environment
+# for host tools. REALM is still not built or installed; Docker / Apptainer remains the runtime.
+#
+# The ruleset is DELIBERATELY NARROW -- two rules, both of which flag dead code rather than style:
+#
+#   F401  imported but unused
+#   F811  redefinition of an unused name
+#
+# Do not widen it casually. This is a research codebase with a large surface of
+# OmniGibson-interface methods whose parameters are required by the framework and unused by REALM;
+# a broad default ruleset produces hundreds of findings that are all noise, and the signal is lost.
+# The lint gate is only worth running while its output is short enough to read.
+#
+# CURRENT BASELINE, re-measured 2026-08-18 with ruff 0.16.3: 0 findings across
+# realm/ tests/ examples/ scripts/. Keep it at zero -- with only two dead-code rules active, any
+# finding is worth either fixing or explaining here. (packages/dm_robotics/ is vendored third-party
+# code and is not part of the lint scope; do not chase its findings.)
+#
+exclude = [".claude"]
+
+[lint]
+select = ["F401", "F811"]

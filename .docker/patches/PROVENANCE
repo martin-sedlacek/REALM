@@ -1,0 +1,54 @@
+The twelve patches in this directory are the image's COMPLETE delta from stock OmniGibson 3.9.1.
+Applying them all, in filename order, to the base image's /behavior-src/OmniGibson reproduces the
+runtime REALM is benchmarked on. Nothing else is needed -- no sibling checkout, no runtime bind.
+
+This replaces the vendored-fork recipe (a whole omnigibson package staged out of the OG-lite
+checkout by scripts/stage_oglite_for_build.sh). That recipe made every build depend on a second
+repository being present, on the right branch, and clean; the two halves of REALM_LIGHT_FIX had in
+fact never been committed to it, so the build it described could not succeed. The patches are
+vendored here instead, and MANIFEST.sha256 is the drift guard the old recipe lacked.
+
+DERIVATION (2026-08-27)
+  stock base   BEHAVIOR-1K 26f2c7ef7b9cf96bd0414f81e1e751e493762779, OmniGibson/omnigibson,
+               __version__ 3.9.1. Verified to be the SAME revision the base image installs:
+               extracting /behavior-src/OmniGibson/omnigibson out of realm_og391.sif and diffing
+               it against this tree yields differences in exactly the six files that image's
+               patches touch, and byte-identical content in the other 232.
+  fork         OG-lite 43c3c7da3b3837afa91926f6142876b84e47d35f (port-to-og391), clean.
+  light fix    realm/misc/light_normalize_macros_og391.patch (second hunk only -- the first adds
+               the perf macros, which the fork already carries) and
+               realm/misc/light_normalize_dataset_object_og391.patch, both recovered from REALM
+               history at 49907fc^. The fork carries neither.
+  patches      per-file `diff -u` from the stock base to (fork + light fix).
+
+VERIFIED
+  Applying all twelve to a fresh copy of the stock base reproduces (fork + light fix)
+  BYTE-FOR-BYTE, and the result satisfies MANIFEST.sha256 and all nine semantic grep guards.
+
+WHAT THEY CHANGE
+  01 envs/env_base.py            render-on-demand plumbing
+  02 envs/vec_env_base.py        render-on-demand plumbing, vector path
+  03 macros.py                   perf switches (ENABLE_VISUAL_UPDATES, OBJECT_STATE_UPDATE_WHITELIST,
+                                 CONTACT_REPORTING_PATTERNS, PROXIMITY_GATE_*, INCREMENTAL_CONTACT_CACHE,
+                                 RENDER_ON_STEP) + REALM_LIGHT_FIX, ON BY DEFAULT
+  04 objects/dataset_object.py   REALM_LIGHT_FIX half two: gate the inputs:normalize write
+  05 objects/usd_object.py       relaxed kinematic-tree assertions for REALM's custom robot USDs
+  06 prims/entity_prim.py        relaxed assertions + place an articulation by its ROOT LINK
+  07 prims/material_prim.py      OmniSurfaceMaterialPrim.preset_name default (drawer assets load)
+  08 prims/rigid_prim.py         incremental contact cache
+  09 prims/xform_prim.py         root-link-relative pose writes
+  10 scenes/scene_base.py        z-offset: scene-file objects loaded ~100 m high in scenes idx != 0
+  11 simulator.py                init-queue pruned by identity, not name; proximity gate
+  12 utils/usd_utils.py          descriptor-pool raise, contact/pose read paths
+
+  REALM_LIGHT_FIX is ON BY DEFAULT, so an image built from this recipe is 1.1.1-LIT unless a run
+  sets REALM_LIGHT_FIX=0. macros.py prints the resolved state at import.
+
+REGENERATING, if the fork moves or the base image is bumped
+  Rebuild the three trees (stock base, fork, fork+light-fix), re-run the per-file `diff -u`, and
+  refresh MANIFEST.sha256. The manifest is what makes drift a build failure rather than a silent
+  behaviour change, so it must be regenerated in the same pass as the patches, never by hand.
+
+  A future base image's upstream fixes to these twelve files will make the corresponding patch
+  FAIL TO APPLY. That is the intended outcome: the build stops instead of silently discarding an
+  upstream fix, which is what the wholesale-copy recipe did.

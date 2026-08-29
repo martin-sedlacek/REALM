@@ -1,0 +1,49 @@
+--- a/omnigibson/envs/vec_env_base.py
++++ b/omnigibson/envs/vec_env_base.py
+@@ -37,6 +37,46 @@
+             infos.append(info)
+         return observations, rewards, terminates, truncates, infos
+ 
++    def step_blind(self, actions):
++        """
++        Physics-only step for all environments: apply @actions and advance physics without rendering
++        or computing observations, rewards or termination conditions.
++
++        Note that og.sim.step() advances every scene at once, so calling Environment.step_blind() on
++        an individual member env would advance all of them while applying only that one's action --
++        the same hazard VectorEnvironment.step() exists to avoid. Use this instead.
++
++        Call render_obs() after the last blind step to get fresh observations.
++
++        Args:
++            actions (list): Per-environment actions, same format as step()
++        """
++        for i, action in enumerate(actions):
++            self.envs[i]._pre_step(action)
++        og.sim.step(blind=True)
++        for env in self.envs:
++            env._current_step += 1
++
++    def render_obs(self):
++        """
++        Render once and return fresh observations for every environment. Call after one or more
++        step_blind() calls.
++
++        Returns:
++            2-tuple:
++                - list of dict: per-environment observations
++                - list of dict: per-environment observation info
++        """
++        og.sim.render()
++        # A single non-physics step brings object states up to date for every scene at once.
++        og.sim._non_physics_step()
++        observations, infos = [], []
++        for env in self.envs:
++            obs, info = env.get_obs()
++            observations.append(obs)
++            infos.append(info)
++        return observations, infos
++
+     def reset(self, get_obs=True, **kwargs):
+         if get_obs:
+             observations, infos = [], []

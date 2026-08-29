@@ -9,6 +9,13 @@ if TYPE_CHECKING:
 
 
 def sb_noun(env: "RealmEnvironmentDynamic") -> None:
+    """Point the task at a different object that is already in the scene.
+
+    Drawer tasks re-target a different drawer of the same cabinet. Every other task promotes a
+    random distractor to main object -- the old main object becomes a distractor -- and swaps the
+    noun in the instruction. Precondition: at least one distractor (``env.distractors`` non-empty),
+    or the randint below raises; env_dynamic refuses the push+SB-NOUN combination up front.
+    """
     if env.task_type in ["open_drawer", "close_drawer"]:
         adjective = random.choice(["middle", "top"])
         env.instruction = env.cfg["instruction"].replace("top", adjective)
