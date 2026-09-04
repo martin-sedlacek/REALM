@@ -143,15 +143,55 @@ environment creation. Older documentation claiming it is on for some modes is wr
 `--no_render` disables rendering entirely and zeroes the camera observations. It cannot be combined
 with `--multi-view`; the environment asserts on it.
 
+## Robots
+
+`--robot` names a file in `realm/config/robots/` (without `.yaml`). The values with a RobotDefinition
+registered for OmniGibson 3.9.1 are:
+
+| `--robot` | Asset | Arm DOF | Controller | Notes |
+|---|---|---|---|---|
+| `DROID` | `droid.usd` (bare Franka + Robotiq) | 7 | `CustomJointController` | the paper's robot |
+| `DROID_mounted` | `droid_mounted.usd` (with base column) | 7 | `CustomJointController` | |
+| `DROID_ee_control`, `DROID_ee_delta_control`, `DROID_mounted_ee_control` | as above | 7 | `DroidEndEffectorController` | Cartesian actions |
+| `DROID_default_pd_control`, `DROID_polaris_control`, `DROID_no_wrist_cam` | `droid.usd` | 7 | joint PD variants | |
+| `YAM` | `yam.usd` (YAMLab arm, bare) | 6 | stock `JointController`, YAMLab `high_pd` gains | see below |
+| `YAM_base_pd_control` | `yam.usd` | 6 | stock `JointController`, YAMLab `base` gains | |
+
+`UR5*` and `WidowX` configs exist but have no registered definition on 3.9.1 and do not load.
+
+**YAM.** Ported from [YAMLab](https://github.com/ARISE-Initiative/yamlab): the spec is
+`realm/robots/yam.py`, the definition `realm/robots/definitions/yam/yam.yaml`, the asset
+`realm/robots/yam/yam.usd` (rebuilt from YAMLab's export by `scripts/build_yam_usd.py`; see
+`realm/robots/yam/PROVENANCE`). Actions are `[6 absolute joint targets, gripper]`, observations
+`proprio[:6]` + the `left_finger` position as the gripper state (`-0.0475` open, `0.0` closed), one
+wrist camera under `link_6`. The eef frame is a massless `eef_link` 14.3 cm out along the `link_6`
+flange axis (the midpoint of YAMLab's fingertip keypoints); `get_ee_pose` and the Cartesian metrics
+report that point. The arm base is spawned `mount_height` (0.863891 m, the DROID column
+height) above the scene's robot pose so the exterior cameras frame the workspace as for DROID; the
+value is a config key, not a measurement. Only the `debug` model type has been exercised with a
+6-DOF state: `openpi`/`dreamzero` policy servers must accept a 6-entry `observation/joint_position`.
+
+> **Verified so far (2026-09-04, RTX 5090, `debug` model, 90 steps, `--no-render_on_demand`; task 0
+> single-view and task 1 `--multi-view`):** the definition loads, `assert_proprio_layout` and
+> `assert_wrist_camera` pass (DOF order is joint1..6, left_finger, right_finger), all four artifacts
+> are written with 7-wide qpos/action rows, the wrist camera renders the tabletop the right way up, and
+> with task 1's camera placement the folded arm is visible at table height in the first exterior view.
+> **Not yet checked:** any motion -- the debug model holds the zero pose, so the arm never moved and
+> the gripper never closed; a real policy run is still owed. Task 0's exterior extrinsics
+> (`ep_001042_cam1`) leave the zero-pose arm ~10 deg outside the frustum, so only the camera mount
+> shows at the frame edge there; a raised `reset_joint_pos` is the knob if that matters.
+
 ## Frequencies
 
-The DROID control and rendering frequency is fixed:
+The control and rendering frequency is fixed per robot in `realm/sim_config.py`:
 
 | Robot | Sim step / rendering |
 |---|---|
 | `DROID*` | 15 Hz |
+| `YAM*` | 30 Hz (YAMLab: 120 Hz physics, decimation 4) |
 
-Physics always runs at **120 Hz**. At 15 Hz that is 8 physics substeps per environment step.
+Physics always runs at **120 Hz**. At 15 Hz that is 8 physics substeps per environment step; at
+30 Hz, 4.
 
 `ENABLE_TRANSITION_RULES` is off (it triggers an upstream state bug on collision) and
 `ENABLE_OBJECT_STATES` is on, because `push_switch` needs the toggle state.

@@ -84,17 +84,29 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
     env.robot_rot_rad = np.array(robot_rot, dtype=float)
 
     cfg_robot = yaml.load(open(f"{env.config_path}/robots/{env.robot_name}.yaml", "r"), Loader=yaml.FullLoader)
-    env.ee_control = cfg_robot["robots"][0].get("ee_control", False)
+    robot_entry = cfg_robot["robots"][0]
+    env.ee_control = robot_entry.get("ee_control", False)
     # Column-free assets have their origin at the arm base.
     spawn_pos = list(robot_pos)
-    if env.use_droid_with_base and not cfg_robot["robots"][0].pop("has_base_column", True):
+    has_base_column = robot_entry.pop("has_base_column", True)
+    if env.use_droid_with_base and not has_base_column:
         spawn_pos[2] += DROID_BASE_HEIGHT
-    cfg_robot["robots"][0]["position"] = spawn_pos
-    cfg_robot["robots"][0]["orientation"] = omnigibson_transform_utils.euler2quat(
+    # REALM-only key for non-DROID bare-arm assets (YAM): how high above the scene's spawn point the
+    # arm base sits. It doubles as the robot-frame z offset (env.base_height), which for DROID is
+    # the base column. Applied only when present so existing configs are untouched bit-for-bit.
+    mount_height = robot_entry.pop("mount_height", None)
+    if mount_height is not None:
+        spawn_pos[2] += float(mount_height)
+        env.base_height = float(mount_height)
+    robot_entry["position"] = spawn_pos
+    robot_entry["orientation"] = omnigibson_transform_utils.euler2quat(
         torch.tensor(robot_rot, dtype=torch.float32)).tolist()
-    cfg_robot["robots"][0]["fixed_base"] = True
+    robot_entry["fixed_base"] = True
 
-    reset_joint_pos = np.zeros(cfg_robot["robots"][0]["dof"] if "dof" in cfg_robot["robots"][0] else DROID_DEFAULT_DOF)
+    # A full-DOF reset pose in the robot YAML is honoured for robots without a per-scene table
+    # (the scene/task `reset_joint_pos` entries are 7-DOF Franka poses and DROID-only).
+    yaml_reset_joint_pos = robot_entry.get("reset_joint_pos")
+    reset_joint_pos = np.zeros(robot_entry["dof"] if "dof" in robot_entry else DROID_DEFAULT_DOF)
     if "DROID" in env.robot_name:
         if "reset_joint_pos" in task_cfg:
             reset_joint_pos[:7] = np.array(task_cfg['reset_joint_pos'])
@@ -104,7 +116,13 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
             reset_joint_pos[:7] = DEFAULT_RESET_JOINTPOS
     elif env.robot_name == "WidowX":
         reset_joint_pos[:6] = np.zeros(6)
-    cfg_robot["robots"][0]["reset_joint_pos"] = reset_joint_pos
+    elif yaml_reset_joint_pos is not None:
+        yaml_reset_joint_pos = np.array(yaml_reset_joint_pos, dtype=float)
+        assert yaml_reset_joint_pos.shape == reset_joint_pos.shape, (
+            f"{env.robot_name}.yaml reset_joint_pos has {yaml_reset_joint_pos.shape[0]} entries, dof is "
+            f"{reset_joint_pos.shape[0]}")
+        reset_joint_pos = yaml_reset_joint_pos
+    robot_entry["reset_joint_pos"] = reset_joint_pos
 
     if env.common_freq is not None:
         cfg_robot["robots"][0]["control_freq"] = env.common_freq

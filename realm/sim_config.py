@@ -16,6 +16,10 @@ def set_sim_config(robot="DROID"):
     elif "UR5" in robot:
         gm.DEFAULT_SIM_STEP_FREQ = 30
         gm.DEFAULT_RENDERING_FREQ = 30
+    elif robot.startswith("YAM"):
+        # YAMLab: 120 Hz physics, decimation 4 (realm/robots/yam.py::YamRobot.CONTROL_FREQ_HZ).
+        gm.DEFAULT_SIM_STEP_FREQ = 30
+        gm.DEFAULT_RENDERING_FREQ = 30
     else:
         gm.DEFAULT_SIM_STEP_FREQ = 15
         gm.DEFAULT_RENDERING_FREQ = 15

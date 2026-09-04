@@ -8,7 +8,7 @@ from realm.environments.contact_utils import get_impulse_contacts
 from realm.environments.joint_reset import JointResetMixin
 from realm.environments.task_progression import TaskProgressionMixin
 # Avoid importing inference transport dependencies through the package.
-from realm.inference.utils import get_robot_obs_profile
+from realm.inference.utils import arm_dof, get_robot_obs_profile
 from realm.robots.controller_registry import register_realm_controllers
 
 # Re-exported for tests/test_joint_reset_batching.py.
@@ -115,7 +115,9 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
 
     def is_grasping(self, obs, candidate_obj):
 
-        finger_joints = obs[self.robot.name]['proprio'][7:9].cpu().numpy()
+        # The two finger DOFs follow the arm joints in the proprio vector (7 for DROID, 6 for YAM).
+        n_arm = arm_dof(self.robot.name)
+        finger_joints = obs[self.robot.name]['proprio'][n_arm:n_arm + 2].cpu().numpy()
         thresh = self._finger_closure_threshold()
         is_either_finger_closing = (thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3)
         contact_pairs = RigidContactAPI.get_contact_pairs(

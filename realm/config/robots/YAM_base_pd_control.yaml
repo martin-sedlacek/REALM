@@ -1,0 +1,45 @@
+# YAM arm (YAMLab port) with YAMLab's softer `base` gain set (controller.base in YAMLab's yam.yaml).
+# Identical to YAM.yaml apart from isaac_kp / isaac_kd; tests/test_yam_robot.py pins both.
+robots:
+  - name: "YAM"
+    model: "yam"
+    dof: 8
+    has_base_column: false
+    mount_height: 0.863891
+    reset_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475]
+    include_sensor_names: ["wrist_camera"]
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    control_freq: 30
+    action_normalize: False
+    action_type: "continuous"
+    controller_name: "JointController"
+    controller_config:
+        arm_0:
+            name: "JointController"
+            motor_type: "position"
+            control_freq: 30
+            use_delta_commands: False
+            use_impedances: False
+            command_input_limits: null
+            command_output_limits: null
+            # base: shoulder joint1-3 = 40/2.5, elbow joint4 = 10/1, wrist joint5-6 = 10/1.
+            isaac_kp: [40.0, 40.0, 40.0, 10.0, 10.0, 10.0]
+            isaac_kd: [2.5, 2.5, 2.5, 1.0, 1.0, 1.0]
+        gripper_0:
+          name: "MultiFingerGripperController"
+          mode: "binary"
+          motor_type: "position"
+          # base yam_gripper.
+          isaac_kp: 100.0
+          isaac_kd: 10.0
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          focal_length: 12.7913
+          horizontal_aperture: 20.955
+          # Near plane 0.1 m as in IsaacLab: the camera origin is inside the D405 housing mesh and
+          # OmniGibson's default 1 mm near plane renders the housing walls (black image).
+          clipping_range: [0.1, 10000000.0]

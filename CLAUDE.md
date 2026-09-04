@@ -60,7 +60,13 @@ realm/
 │   ├── vec_init_queue.py      init-queue repair for object-replacing perturbations
 │   └── perturbations/         one module per perturbation + registry.py + _helpers.py
 ├── robots/
-│   ├── definitions/           DROID RobotDefinition YAMLs; OG 3.9.1 selects robots by `model`
+│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, ur, yam); OG 3.9.1
+│   │                          selects robots by `model`; linked into the dataset by
+│   │                          scripts/install_robot_definitions.py
+│   ├── yam.py                 YamRobot: host-importable spec of the YAMLab port (joint names, gains,
+│   │                          camera, DOF layout) that the yam YAMLs/USD are pinned against
+│   ├── yam/                   yam.usd (rebuilt from YAMLab by scripts/build_yam_usd.py) + PROVENANCE
+│   │                          + verbatim workstation USDs (unused)
 │   ├── controller_registry.py registers the four custom controllers + default configs
 │   ├── droid_joint_controller.py / individual_joint_pd_controller.py   joint PD (impedance / plain)
 │   ├── droid_ee_controller.py   cartesian EE control; SUPPORTED_MODES = absolute_pose,
@@ -138,15 +144,16 @@ uv run python tests/run_suite.py --only local --strict \
     --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
 uv run python -m pytest -q tests/test_perturbation_task_types.py \
     tests/test_cell_classification.py tests/test_robot_base_column.py \
-    tests/test_robot_definition_parity.py
+    tests/test_robot_definition_parity.py tests/test_yam_robot.py
 ```
 
 Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation:
 `python tests/run_suite.py --jobid <id> --mode stock --level smoke|suite --strict --out … --junit-xml …`.
 The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
-four real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
-`test_robot_base_column`, `test_robot_definition_parity` — all host-safe, ast/yaml based) are run
+five real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
+`test_robot_base_column`, `test_robot_definition_parity`, `test_yam_robot` — all host-safe,
+ast/yaml based; `test_yam_robot`'s USD check additionally needs `pxr` and skips without it) are run
 directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
@@ -167,9 +174,21 @@ adds/removes objects.
 **Add a model:** one adapter class in `realm/inference/client.py` + an `ADAPTERS` entry; add the
 model_type to the gripper-convention tables in `realm/rollout.py`.
 
-**Add a robot:** definition YAML under `realm/robots/definitions/`; config under
-`realm/config/robots/`; a `ROBOT_OBS_PROFILES` entry in `realm/inference/utils.py`; control
-frequency in `sim_config.set_sim_config`.
+**Add a robot:** definition YAML under `realm/robots/definitions/<model>/<model>.yaml` (stem must
+equal the directory; re-run `scripts/install_robot_definitions.py` in the container); config under
+`realm/config/robots/`; a `ROBOT_OBS_PROFILES` entry in `realm/inference/utils.py` (set `arm_dof`
+when the arm is not 7-DOF — `extract_from_obs`, `is_grasping` and `warmup_action` read it); control
+frequency in `sim_config.set_sim_config`. The USD must have its links as DIRECT children of the
+default prim, identity `xformOp:translate/orient/scale` on the root, and any camera as a direct
+child of a link (OmniGibson discovers nothing deeper). `eef_link_names` must point at a
+geometry-free frame, never at a real link: OmniGibson makes the eef link invisible at init, so
+naming the gripper housing there deletes it from every render (the YAM port hit exactly this and
+authors a massless `eef_link` at the fingertip midpoint instead). A bare arm sets the REALM-only
+config keys `has_base_column: false`, `mount_height` (spawn/base-frame
+z offset) and `reset_joint_pos` (full-DOF). The YAM port is the template: `realm/robots/yam.py` holds
+the numbers, `scripts/build_yam_usd.py` shows the USD surgery, `tests/test_yam_robot.py` pins the
+YAMLs to the spec. `assert_wrist_camera` and `assert_proprio_layout` fail at construction if the
+profile disagrees with what OmniGibson actually built.
 
 ## Conventions worth knowing before editing
 

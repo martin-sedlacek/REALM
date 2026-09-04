@@ -20,7 +20,8 @@ class _DebugAdapter:
               use_base_im_second=False, ee_control=False, cartesian_position=None):
         if ee_control:
             return np.array([0.41402626, -0.13211727, 0.57253086, -3.09742367, 0.2580259, -0.24700592, -1])
-        return np.atleast_1d(np.zeros(8))
+        # [arm joints, gripper]: 8 for the 7-DOF DROID, 7 for the 6-DOF YAM.
+        return np.atleast_1d(np.zeros(len(robot_state) + 1))
 
 
 class _OpenPIAdapter:

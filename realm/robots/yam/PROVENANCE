@@ -1,0 +1,21 @@
+realm/robots/yam/ -- YAM arm assets ported from YAMLab (https://github.com/ARISE-Initiative/yamlab)
+
+generated: 2026-09-04 by scripts/build_yam_usd.py
+yamlab commit: ec0455d2b4ce35f21fc126418ea5e74ac567133d
+
+yam.usd
+  source: /home/elmo/sedlam/yamlab/yamlab/robot/yam/arm/yam.usd
+  source sha256: 8b997d9c864a53a00abba54d2381d3aebf71853f7918450305afc11e73aeb499
+  output sha256: b98c24d85b1c16bf06eb595b7e8ce2427629492900e15ac03c7b41b40b3b6dd3
+  changes vs source: see the module docstring of scripts/build_yam_usd.py (links reparented under
+  /yam, base link renamed base_link, rootJoint_arm/physicsScene/Kit cameras removed, finger drive
+  maxForce authored, wrist camera authored under link_6, massless eef_link fixed to link_6 at the
+  fingertip midpoint, identity xform ops on the root -- all from YamRobot).
+
+workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
+  verbatim copies of yamlab/robot/yam/workstation/ (STL sources not copied). Reference only;
+  no REALM config loads them.
+  workstation/workstation.usd sha256: 530b848ff3258dadffacd9f6dbc63e51ec1deb3084b06fecca610e23b2477fd7
+  workstation/Props/instanceable_meshes.usd sha256: f5220364d65396d902dab12d1e358831241c63337503d19ba8e962443b8f3f5c
+  workstation/mesh/gate_horizontal_bar.usd sha256: b0ac6ceea1f88b017859e3a4981679edd1a89e16265d6e57d7e0540a2c9b6dd9
+  workstation/mesh/gate_vertical_bar.usd sha256: 3c47c63ebd8577a2df4156b0976708cc3c7ff62f4fd3b726ae8d3487336690d2

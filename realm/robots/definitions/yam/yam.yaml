@@ -1,0 +1,45 @@
+# RobotDefinition for the YAM arm (single arm + parallel-jaw gripper), ported from YAMLab
+# (https://github.com/ARISE-Initiative/yamlab). Every name and number below is pinned against
+# realm/robots/yam.py::YamRobot by tests/test_yam_robot.py -- change them there first.
+#
+# Discovered by OmniGibson 3.9.1 through scripts/install_robot_definitions.py (the file stem must
+# equal the directory name). The USD is REALM's restructured copy of YAMLab's arm export; see
+# scripts/build_yam_usd.py and realm/robots/yam/PROVENANCE for what changed and why.
+#
+# Loads and renders under OmniGibson 3.9.1 (task 0, debug model, 2026-09-04); no policy has driven
+# it yet. See wiki/Running-Evaluations.md (Robots) for what was and was not verified.
+
+raw_controller_order: ["arm_0", "gripper_0"]
+default_controllers:
+  arm_0: JointController
+  gripper_0: MultiFingerGripperController
+
+usd_path: "/app/realm/robots/yam/yam.usd"
+
+# YAMLab loads the articulation with enabled_self_collisions=False.
+self_collisions: false
+
+# 6 arm joints + 2 finger joints, in OmniGibson DOF order; fingers at -0.0475 m = fully open
+# (YAMLab's InitialStateCfg). Matches `dof: 8` in realm/config/robots/YAM*.yaml.
+default_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475]
+
+manipulation:
+  arm_link_names:
+    "0": ["base_link", "link_1", "link_2", "link_3", "link_4", "link_5", "link_6"]
+  arm_joint_names:
+    "0": ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
+  # Virtual tool-centre frame authored by scripts/build_yam_usd.py (massless, no meshes, fixed to the
+  # link_6 flange at the fingertip midpoint). NOT link_6: OmniGibson hides the eef link at init, and
+  # link_6 is the gripper housing -- pointing here made it disappear from every render.
+  eef_link_names:
+    "0": "eef_link"
+  finger_link_names:
+    "0": ["left_finger", "right_finger"]
+  # Both prismatic fingers are driven directly (no mimic joints): the binary gripper controller sends
+  # both to the same limit, which is what YAMLab's left_finger-drives / right_finger-mirrors does.
+  finger_joint_names:
+    "0": ["left_finger", "right_finger"]
+  teleop_rotation_offset:
+    "0": [-1, 0, 0, 0]
+
+# No assisted-grasp points: REALM runs grasping_mode "physical".

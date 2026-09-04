@@ -22,7 +22,7 @@ from realm.geometry import (
     robot_to_world,
     world_to_robot,
 )
-from realm.inference.utils import assert_wrist_camera
+from realm.inference.utils import assert_proprio_layout, assert_wrist_camera
 from realm.sim_config import set_rendering_mode
 
 
@@ -47,6 +47,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         self.task_cfg_path = "/".join(task_cfg_path.split("/")[-3:])
         self.use_droid_with_base = robot.startswith("DROID")
         self.robot_name = robot
+        # z offset between the scene's robot spawn point and the arm-base frame: the DROID base
+        # column, or a robot config's `mount_height` (env_config overrides it), else nothing.
+        self.base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0
         self.multi_view = multi_view
         self.no_rendering = no_rendering
         self.rendering_mode = rendering_mode
@@ -113,6 +116,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         self.robot = self.omnigibson_env.robots[0]
         self.robot_finger_links = {self.robot._links[link] for link in self.robot.finger_link_names[self.robot.default_arm]}
         self.wrist_camera_key = assert_wrist_camera(self.robot)
+        assert_proprio_layout(self.robot)
 
         self.main_objects = [self.omnigibson_env.scene.object_registry("name", mo["name"]) for mo in mo_cfgs]
         self.target_objects = [self.omnigibson_env.scene.object_registry("name", to["name"]) for to in to_cfgs]
@@ -161,7 +165,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
             base_cam_pos, base_cam_rot,
             robot_pos, robot_rot
         )
-        base_cam_pos[-1] += DROID_BASE_HEIGHT if self.use_droid_with_base else 0
+        base_cam_pos[-1] += self.base_height
         return base_cam_pos, base_cam_rot
 
     def reset(self):
@@ -254,13 +258,12 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
     def warmup_action(self, t, ee_cmd):
 
         gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
-        base = ee_cmd if self.ee_control else self.reset_qpos[:7]
+        n_arm = len(self.robot.arm_joint_names[self.robot.default_arm])
+        base = ee_cmd if self.ee_control else self.reset_qpos[:n_arm]
         return np.concatenate((base, gripper_val))
 
     def _robot2world(self, action):
-        base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0
-        return robot_to_world(action, self.robot_pos, self.robot_rot_rad[2], base_height)
+        return robot_to_world(action, self.robot_pos, self.robot_rot_rad[2], self.base_height)
 
     def _world2robot(self, action):
-        base_height = DROID_BASE_HEIGHT if self.use_droid_with_base else 0.0
-        return world_to_robot(action, self.robot_pos, self.robot_rot_rad[2], base_height)
+        return world_to_robot(action, self.robot_pos, self.robot_rot_rad[2], self.base_height)

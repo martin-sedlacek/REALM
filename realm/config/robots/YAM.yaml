@@ -1,0 +1,63 @@
+# YAM arm (YAMLab port) with YAMLab's default `high_pd` gain set.
+#
+# Actuation mirrors YAMLab's IsaacLab ImplicitActuatorCfg: a PhysX position drive per joint with
+# fixed stiffness/damping. In OmniGibson that is the stock JointController in position mode without
+# impedances, with the gains passed as per-DOF isaac_kp / isaac_kd (written onto the drives at
+# load). Effort limits come from the drive maxForce in the USD (28 / 10 N m arm, 100 N fingers).
+#
+# Numbers are pinned against realm/robots/yam.py::YamRobot by tests/test_yam_robot.py.
+robots:
+  - name: "YAM"
+    model: "yam"
+    dof: 8
+    # Bare arm: no column in the asset (test_robot_base_column pins this against the USD name).
+    has_base_column: false
+    # REALM-only: height of the arm base above the scene's robot spawn point. Same as the DROID
+    # base column so exterior-camera extrinsics and the workspace match the DROID setup; YAMLab's
+    # own 0.76 m mount would sit below REALM's 0.80-1.05 m tables. See YamRobot.MOUNT_HEIGHT.
+    mount_height: 0.863891
+    # Full-DOF reset pose (arm joints then fingers, fingers open). YAMLab's initial state; the
+    # DROID-specific per-scene reset_joint_pos entries do not apply to a 6-DOF arm.
+    reset_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475]
+    include_sensor_names: ["wrist_camera"]
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    # YAMLab: 120 Hz physics, decimation 4. sim_config.set_sim_config matches this for robots
+    # whose name starts with "YAM".
+    control_freq: 30
+    action_normalize: False
+    action_type: "continuous"
+    controller_name: "JointController"
+    controller_config:
+        arm_0:
+            name: "JointController"
+            motor_type: "position"
+            control_freq: 30
+            # Absolute joint targets straight through (OmniGibson's default is delta commands).
+            use_delta_commands: False
+            use_impedances: False
+            command_input_limits: null
+            command_output_limits: null
+            # high_pd: shoulder joint1-3 + elbow joint4 = 800/50, wrist joint5-6 = 30/5.
+            isaac_kp: [800.0, 800.0, 800.0, 800.0, 30.0, 30.0]
+            isaac_kd: [50.0, 50.0, 50.0, 50.0, 5.0, 5.0]
+        gripper_0:
+          name: "MultiFingerGripperController"
+          mode: "binary"
+          motor_type: "position"
+          # high_pd yam_gripper, both fingers.
+          isaac_kp: 2000.0
+          isaac_kd: 100.0
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          # Calibrated intrinsics: fx = 390.666 at 640 px wide -> 78.6 deg horizontal FOV. With
+          # OmniGibson's default aperture (20.955) that is a focal length of 20.955 * 390.666 / 640.
+          # Both must be set explicitly for OG >= 3.9.1 (VisionSensor rewrites them at init).
+          focal_length: 12.7913
+          horizontal_aperture: 20.955
+          # Near plane 0.1 m as in IsaacLab: the camera origin is inside the D405 housing mesh and
+          # OmniGibson's default 1 mm near plane renders the housing walls (black image).
+          clipping_range: [0.1, 10000000.0]

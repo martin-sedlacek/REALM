@@ -145,7 +145,7 @@ change. Verify with:
 python -c 'from omnigibson.robots import REGISTERED_ROBOTS; print(sorted(REGISTERED_ROBOTS))'
 ```
 
-`droid`, `droid_mounted` and `ur` must appear alongside the stock robots.
+`droid`, `droid_mounted`, `ur` and `yam` must appear alongside the stock robots.
 
 > The default installs **symlinks pointing at `/app/...`**, so they resolve only inside the
 > container and read as broken on the host. That is intended; use `--copy` if you need the dataset

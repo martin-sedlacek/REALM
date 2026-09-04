@@ -1,18 +1,60 @@
 import numpy as np
 
+from realm.robots.yam import YamRobot
+
 # Camera indices follow sensor creation order and must match each robot config's sensor filter.
+# `arm_dof` (default DEFAULT_ARM_DOF when absent) is how many leading proprio entries are arm joints:
+# the policy's joint state is proprio[:arm_dof] and REALM's finger predicates read
+# proprio[arm_dof:arm_dof + 2]. `gripper_proprio_idx` is the proxy joint for the gripper state.
+DEFAULT_ARM_DOF = 7
 ROBOT_OBS_PROFILES = {
     # Robotiq finger_joint: 0 rad is open; 0.7854 rad is closed.
     "DROID_mounted": dict(wrist_camera_link="base_link", wrist_camera_idx=0,
                              wrist_camera_prim="wrist_camera_flipped",
                              gripper_proprio_idx=7, gripper_open_qpos=0.0,
                              gripper_closed_qpos=0.7853982),
+    # YAM (YAMLab port): 6 arm joints, prismatic left_finger -0.0475 m open / 0.0 closed.
+    YamRobot.NAME: YamRobot.obs_profile(),
 }
 ROBOT_OBS_PROFILES["DROID"] = dict(ROBOT_OBS_PROFILES["DROID_mounted"])
 
 
 def get_robot_obs_profile(robot_name):
     return ROBOT_OBS_PROFILES.get(robot_name, ROBOT_OBS_PROFILES["DROID_mounted"])
+
+
+def arm_dof(robot_name):
+    """Number of arm joints at the front of the robot's proprio vector (7 for every DROID profile)."""
+    return get_robot_obs_profile(robot_name).get("arm_dof", DEFAULT_ARM_DOF)
+
+
+def assert_proprio_layout(robot):
+    """Fail loudly if the profile's proprio indices do not line up with the robot's DOF order.
+
+    `proprio_obs: ["joint_qpos"]` is OmniGibson's joint positions in articulation DOF order, and
+    the profile hard-codes where the arm ends and which entry is the gripper proxy. A wrong index
+    would hand the policy a finger position as an arm joint (or vice versa) without any error, so
+    this checks the two facts the indices rest on: the arm joints are the first `arm_dof` DOFs, and
+    the gripper proxy DOF is one of the definition's finger joints.
+    """
+    if robot.name not in ROBOT_OBS_PROFILES:
+        return
+    profile = get_robot_obs_profile(robot.name)
+    n_arm = profile.get("arm_dof", DEFAULT_ARM_DOF)
+    dof_names = list(robot.dof_names_ordered)
+    arm_joints = list(robot.arm_joint_names[robot.default_arm])
+    assert dof_names[:n_arm] == arm_joints, (
+        f"[proprio layout] {robot.name}: ROBOT_OBS_PROFILES says the first {n_arm} DOFs are the arm, "
+        f"but the DOF order is {dof_names} and the arm joints are {arm_joints}. extract_from_obs would "
+        f"feed the policy the wrong joints; fix arm_dof / the definition's arm_joint_names together."
+    )
+    g = profile["gripper_proprio_idx"]
+    finger_joints = set(robot.finger_joint_names[robot.default_arm])
+    assert g < len(dof_names) and dof_names[g] in finger_joints, (
+        f"[proprio layout] {robot.name}: gripper_proprio_idx={g} is DOF "
+        f"'{dof_names[g] if g < len(dof_names) else None}', not one of the finger joints {sorted(finger_joints)}. "
+        f"DOF order: {dof_names}."
+    )
 
 
 def wrist_camera_obs_key(robot_name):
@@ -87,7 +129,7 @@ def extract_from_obs(obs: dict, robot_name='DROID', enable_depth=False):
             wrist_im = np.zeros((128, 128, 3), dtype=np.uint8)
 
     proprio = obs[robot_name]['proprio'].cpu().numpy()
-    robot_state = proprio[:7]
+    robot_state = proprio[:profile.get("arm_dof", DEFAULT_ARM_DOF)]
     # Policies expect gripper state 0=open, 1=closed.
     _open, _closed = profile["gripper_open_qpos"], profile["gripper_closed_qpos"]
     gripper_state = float(np.clip((proprio[profile["gripper_proprio_idx"]] - _open) / (_closed - _open), 0.0, 1.0))
