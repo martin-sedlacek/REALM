@@ -387,12 +387,41 @@ def verify(output):
     return problems, summary
 
 
+def _split_provenance_section(text, header):
+    """Return (text without the section, section lines) for the block starting at the line `header`
+    and ending at the next blank line. PROVENANCE is a sequence of such blank-line separated blocks."""
+    lines = text.splitlines()
+    if header not in lines:
+        return text, None
+    start = lines.index(header)
+    end = start
+    while end < len(lines) and lines[end].strip():
+        end += 1
+    section = lines[start:end]
+    rest = lines[:start] + lines[end + 1:] if end < len(lines) else lines[:start]
+    while rest and not rest[-1].strip():
+        rest.pop()
+    return "\n".join(rest) + ("\n" if rest else ""), section
+
+
+def replace_provenance_section(path, header, lines):
+    """Rewrite the block headed `header` in PROVENANCE (appending it if absent), leaving the rest as is.
+    Both build scripts write the same file; this keeps each one's block independent of the other."""
+    text = open(path).read() if os.path.exists(path) else ""
+    rest, _ = _split_provenance_section(text, header)
+    with open(path, "w") as fh:
+        fh.write(rest.rstrip("\n") + "\n\n" + "\n".join(lines) + "\n")
+
+
 def write_provenance(source, output):
     try:
         commit = subprocess.check_output(["git", "-C", os.path.dirname(source), "rev-parse", "HEAD"],
                                          text=True, stderr=subprocess.DEVNULL).strip()
     except Exception:
         commit = "unknown"
+    # The bimanual build (scripts/build_yam_bimanual_usd.py) owns its own block; keep it.
+    _, bimanual = _split_provenance_section(open(OUT_PROVENANCE).read() if os.path.exists(OUT_PROVENANCE) else "",
+                                            "yam_bimanual.usd")
     lines = [
         "realm/robots/yam/ -- YAM arm assets ported from YAMLab (https://github.com/ARISE-Initiative/yamlab)",
         "",
@@ -417,6 +446,8 @@ def write_provenance(source, output):
         for f in sorted(files):
             p = os.path.join(dirpath, f)
             lines.append(f"  {os.path.relpath(p, OUT_DIR)} sha256: {sha256(p)}")
+    if bimanual:
+        lines += [""] + bimanual
     with open(OUT_PROVENANCE, "w") as fh:
         fh.write("\n".join(lines) + "\n")
 

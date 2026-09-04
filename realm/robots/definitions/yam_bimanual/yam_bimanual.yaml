@@ -1,0 +1,189 @@
+# RobotDefinition for the YAM bimanual workstation: two YAM arms on a shared mount, ported from
+# YAMLab (https://github.com/ARISE-Initiative/yamlab). Every name and number is pinned against
+# realm/robots/yam.py::YamBimanualRobot by tests/test_yam_robot.py -- change them there first.
+#
+# The USD is two copies of the single-arm asset composed by scripts/build_yam_bimanual_usd.py (links and
+# joints prefixed left_/right_, arms 0.61 m apart in y, geometry-free root base_link at the midpoint).
+# Controller order = YAMLab's 14-D action [left_arm(6), left_gripper(1), right_arm(6), right_gripper(1)].
+# The top camera is not on the robot: realm/config/robots/YAM_bimanual.yaml places external_sensor0.
+
+raw_controller_order: ["arm_left", "gripper_left", "arm_right", "gripper_right"]
+default_controllers:
+  arm_left: JointController
+  gripper_left: MultiFingerGripperController
+  arm_right: JointController
+  gripper_right: MultiFingerGripperController
+
+usd_path: "/app/realm/robots/yam/yam_bimanual.usd"
+
+# YAMLab loads each arm as its own articulation with enabled_self_collisions=False: an arm never collides
+# with itself, but the two arms DO collide with each other. Both arms are one articulation here, so self
+# collisions are ON and every within-arm pair is filtered (YamBimanualRobot.disabled_collision_pairs()).
+self_collisions: true
+disabled_collision_pairs:
+  - ["left_base_link", "left_link_1"]
+  - ["left_base_link", "left_link_2"]
+  - ["left_base_link", "left_link_3"]
+  - ["left_base_link", "left_link_4"]
+  - ["left_base_link", "left_link_5"]
+  - ["left_base_link", "left_link_6"]
+  - ["left_base_link", "left_left_finger"]
+  - ["left_base_link", "left_right_finger"]
+  - ["left_base_link", "left_camera_mount"]
+  - ["left_base_link", "left_camera_d405"]
+  - ["left_base_link", "left_camera_frame"]
+  - ["left_link_1", "left_link_2"]
+  - ["left_link_1", "left_link_3"]
+  - ["left_link_1", "left_link_4"]
+  - ["left_link_1", "left_link_5"]
+  - ["left_link_1", "left_link_6"]
+  - ["left_link_1", "left_left_finger"]
+  - ["left_link_1", "left_right_finger"]
+  - ["left_link_1", "left_camera_mount"]
+  - ["left_link_1", "left_camera_d405"]
+  - ["left_link_1", "left_camera_frame"]
+  - ["left_link_2", "left_link_3"]
+  - ["left_link_2", "left_link_4"]
+  - ["left_link_2", "left_link_5"]
+  - ["left_link_2", "left_link_6"]
+  - ["left_link_2", "left_left_finger"]
+  - ["left_link_2", "left_right_finger"]
+  - ["left_link_2", "left_camera_mount"]
+  - ["left_link_2", "left_camera_d405"]
+  - ["left_link_2", "left_camera_frame"]
+  - ["left_link_3", "left_link_4"]
+  - ["left_link_3", "left_link_5"]
+  - ["left_link_3", "left_link_6"]
+  - ["left_link_3", "left_left_finger"]
+  - ["left_link_3", "left_right_finger"]
+  - ["left_link_3", "left_camera_mount"]
+  - ["left_link_3", "left_camera_d405"]
+  - ["left_link_3", "left_camera_frame"]
+  - ["left_link_4", "left_link_5"]
+  - ["left_link_4", "left_link_6"]
+  - ["left_link_4", "left_left_finger"]
+  - ["left_link_4", "left_right_finger"]
+  - ["left_link_4", "left_camera_mount"]
+  - ["left_link_4", "left_camera_d405"]
+  - ["left_link_4", "left_camera_frame"]
+  - ["left_link_5", "left_link_6"]
+  - ["left_link_5", "left_left_finger"]
+  - ["left_link_5", "left_right_finger"]
+  - ["left_link_5", "left_camera_mount"]
+  - ["left_link_5", "left_camera_d405"]
+  - ["left_link_5", "left_camera_frame"]
+  - ["left_link_6", "left_left_finger"]
+  - ["left_link_6", "left_right_finger"]
+  - ["left_link_6", "left_camera_mount"]
+  - ["left_link_6", "left_camera_d405"]
+  - ["left_link_6", "left_camera_frame"]
+  - ["left_left_finger", "left_right_finger"]
+  - ["left_left_finger", "left_camera_mount"]
+  - ["left_left_finger", "left_camera_d405"]
+  - ["left_left_finger", "left_camera_frame"]
+  - ["left_right_finger", "left_camera_mount"]
+  - ["left_right_finger", "left_camera_d405"]
+  - ["left_right_finger", "left_camera_frame"]
+  - ["left_camera_mount", "left_camera_d405"]
+  - ["left_camera_mount", "left_camera_frame"]
+  - ["left_camera_d405", "left_camera_frame"]
+  - ["right_base_link", "right_link_1"]
+  - ["right_base_link", "right_link_2"]
+  - ["right_base_link", "right_link_3"]
+  - ["right_base_link", "right_link_4"]
+  - ["right_base_link", "right_link_5"]
+  - ["right_base_link", "right_link_6"]
+  - ["right_base_link", "right_left_finger"]
+  - ["right_base_link", "right_right_finger"]
+  - ["right_base_link", "right_camera_mount"]
+  - ["right_base_link", "right_camera_d405"]
+  - ["right_base_link", "right_camera_frame"]
+  - ["right_link_1", "right_link_2"]
+  - ["right_link_1", "right_link_3"]
+  - ["right_link_1", "right_link_4"]
+  - ["right_link_1", "right_link_5"]
+  - ["right_link_1", "right_link_6"]
+  - ["right_link_1", "right_left_finger"]
+  - ["right_link_1", "right_right_finger"]
+  - ["right_link_1", "right_camera_mount"]
+  - ["right_link_1", "right_camera_d405"]
+  - ["right_link_1", "right_camera_frame"]
+  - ["right_link_2", "right_link_3"]
+  - ["right_link_2", "right_link_4"]
+  - ["right_link_2", "right_link_5"]
+  - ["right_link_2", "right_link_6"]
+  - ["right_link_2", "right_left_finger"]
+  - ["right_link_2", "right_right_finger"]
+  - ["right_link_2", "right_camera_mount"]
+  - ["right_link_2", "right_camera_d405"]
+  - ["right_link_2", "right_camera_frame"]
+  - ["right_link_3", "right_link_4"]
+  - ["right_link_3", "right_link_5"]
+  - ["right_link_3", "right_link_6"]
+  - ["right_link_3", "right_left_finger"]
+  - ["right_link_3", "right_right_finger"]
+  - ["right_link_3", "right_camera_mount"]
+  - ["right_link_3", "right_camera_d405"]
+  - ["right_link_3", "right_camera_frame"]
+  - ["right_link_4", "right_link_5"]
+  - ["right_link_4", "right_link_6"]
+  - ["right_link_4", "right_left_finger"]
+  - ["right_link_4", "right_right_finger"]
+  - ["right_link_4", "right_camera_mount"]
+  - ["right_link_4", "right_camera_d405"]
+  - ["right_link_4", "right_camera_frame"]
+  - ["right_link_5", "right_link_6"]
+  - ["right_link_5", "right_left_finger"]
+  - ["right_link_5", "right_right_finger"]
+  - ["right_link_5", "right_camera_mount"]
+  - ["right_link_5", "right_camera_d405"]
+  - ["right_link_5", "right_camera_frame"]
+  - ["right_link_6", "right_left_finger"]
+  - ["right_link_6", "right_right_finger"]
+  - ["right_link_6", "right_camera_mount"]
+  - ["right_link_6", "right_camera_d405"]
+  - ["right_link_6", "right_camera_frame"]
+  - ["right_left_finger", "right_right_finger"]
+  - ["right_left_finger", "right_camera_mount"]
+  - ["right_left_finger", "right_camera_d405"]
+  - ["right_left_finger", "right_camera_frame"]
+  - ["right_right_finger", "right_camera_mount"]
+  - ["right_right_finger", "right_camera_d405"]
+  - ["right_right_finger", "right_camera_frame"]
+  - ["right_camera_mount", "right_camera_d405"]
+  - ["right_camera_mount", "right_camera_frame"]
+  - ["right_camera_d405", "right_camera_frame"]
+
+# In OmniGibson DOF order (YamBimanualRobot.dof_order(): left arm joints, left fingers, right arm joints,
+# right fingers -- PhysX numbers joints depth-first from the root, left arm authored first). Fingers at
+# -0.0475 m = fully open. assert_proprio_layout checks this order against the loaded robot.
+default_joint_pos: [
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475,
+]
+
+manipulation:
+  n_arms: 2
+  arm_names: ["left", "right"]
+  arm_link_names:
+    left: ["left_base_link", "left_link_1", "left_link_2", "left_link_3", "left_link_4", "left_link_5", "left_link_6"]
+    right: ["right_base_link", "right_link_1", "right_link_2", "right_link_3", "right_link_4", "right_link_5", "right_link_6"]
+  arm_joint_names:
+    left: ["left_joint1", "left_joint2", "left_joint3", "left_joint4", "left_joint5", "left_joint6"]
+    right: ["right_joint1", "right_joint2", "right_joint3", "right_joint4", "right_joint5", "right_joint6"]
+  # Massless tool-centre frames (see the single-arm definition): OmniGibson hides the eef links.
+  eef_link_names:
+    left: "left_eef_link"
+    right: "right_eef_link"
+  # <arm>_<single-arm finger name>: the gripper's own left/right finger, on the left/right arm.
+  finger_link_names:
+    left: ["left_left_finger", "left_right_finger"]
+    right: ["right_left_finger", "right_right_finger"]
+  finger_joint_names:
+    left: ["left_left_finger", "left_right_finger"]
+    right: ["right_left_finger", "right_right_finger"]
+  teleop_rotation_offset:
+    left: [-1, 0, 0, 0]
+    right: [-1, 0, 0, 0]
+
+# No assisted-grasp points: REALM runs grasping_mode "physical".

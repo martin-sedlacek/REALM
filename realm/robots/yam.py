@@ -36,9 +36,13 @@ What was ported, and how it maps onto OmniGibson:
   keeps the horizontal FOV.
 * **Gravity.** YAMLab loads the arm with ``disable_gravity=True``; OmniGibson disables gravity on
   every non-fixed robot link itself (``Robot.load``), so nothing is authored for it.
-* **Not ported.** The workstation table/gate, the top camera, the second arm, contact-sensor
-  grasp detection and MimicGen. The workstation USDs are copied verbatim under
-  ``realm/robots/yam/workstation/`` for reference but no REALM config loads them.
+* **Bimanual workstation.** :class:`YamBimanualRobot` composes two arms and YAMLab's fixed top
+  camera into the second robot ``yam_bimanual`` (asset built from the single-arm USD by
+  ``scripts/build_yam_bimanual_usd.py``); it reuses every number here and adds only YAMLab's arm
+  placement, the right-wrist camera offset and the top-camera calibration.
+* **Not ported.** The workstation table/gate, contact-sensor grasp detection and MimicGen. The
+  workstation USDs are copied verbatim under ``realm/robots/yam/workstation/`` for reference but no
+  REALM config loads them.
 """
 
 import math
@@ -216,6 +220,229 @@ class YamRobot:
             wrist_camera_prim=cls.WRIST_CAMERA_PRIM,
             arm_dof=cls.ARM_DOF,
             gripper_proprio_idx=cls.ARM_DOF,
+            gripper_open_qpos=cls.GRIPPER_OPEN_QPOS,
+            gripper_closed_qpos=cls.GRIPPER_CLOSED_QPOS,
+        )
+
+
+class YamBimanualRobot:
+    """YAMLab's bimanual workstation as one OmniGibson robot: two YAM arms on a shared mount plus the
+    fixed top camera. Every name is derived from :class:`YamRobot`; every number that is not a YAM arm
+    number is from YAMLab ``configs/robot/yam.yaml`` (``arms``, ``cameras.top``, ``cameras.right_wrist``).
+
+    Layout (YAMLab world frame, translated so the robot frame sits at the midpoint of the two arm
+    bases): the left arm at ``+0.305`` m in y, the right arm at ``-0.305`` m, both facing +x with
+    identity orientation; the top camera 0.166 m behind and 0.944 m above that midpoint, looking
+    forward and 60 degrees down. In REALM the midpoint is the robot spawn pose raised by
+    ``mount_height``, so the scenes' object placement (relative to the spawn) is centred between the
+    arms and the camera extrinsics stay expressed in the arm-base frame like every DROID entry.
+
+    OmniGibson vocabulary: ``arm_names = ["left", "right"]``; link and joint prims carry the arm as a
+    prefix (``left_link_6``, ``right_joint1``), so the single-arm finger names become e.g.
+    ``left_left_finger`` -- mechanical, but it keeps :meth:`link_name` a one-liner. Controllers are
+    ``arm_left, gripper_left, arm_right, gripper_right`` in that order, which makes OmniGibson's
+    action vector exactly YAMLab's 14-D ``[left_arm(6), left_gripper(1), right_arm(6),
+    right_gripper(1)]``.
+
+    The top camera is NOT authored into the USD: it is REALM's ``external_sensor0`` placed from
+    :attr:`EXTERIOR_CAMERA_POSITION` / :attr:`EXTERIOR_CAMERA_QUAT_XYZW` through the robot config's
+    ``exterior_camera`` key, so the V-VIEW perturbation and the video recorder treat it like every
+    other exterior view. Its extrinsics are fixed to the arms because the robot is fixed-base.
+    """
+
+    MODEL = "yam_bimanual"
+    NAME = "YAM_bimanual"
+    USD_PATH = "/app/realm/robots/yam/yam_bimanual.usd"
+
+    #: OmniGibson arm names, in action order (YAMLab: left arm first).
+    ARMS = ("left", "right")
+    #: Virtual mount frame, the articulation root (geometry-free; OmniGibson fixes it to the world).
+    BASE_LINK = "base_link"
+    #: Arm-base offsets from the mount frame, metres (YAMLab ``arms.<side>.position`` minus the
+    #: midpoint (0.2525, 0, 0.76)); both arms have identity orientation in YAMLab.
+    ARM_OFFSETS = {"left": (0.0, 0.305, 0.0), "right": (0.0, -0.305, 0.0)}
+    #: Per-arm wrist camera offset from ``<arm>_link_6`` (YAMLab ``cameras.left_wrist`` /
+    #: ``cameras.right_wrist``; the two calibrations differ by ~1 mm).
+    WRIST_CAMERA_POSITIONS = {
+        "left": YamRobot.WRIST_CAMERA_POSITION,
+        "right": (0.0, 0.069638, 0.072),
+    }
+
+    ARM_DOF = YamRobot.ARM_DOF
+    N_DOF = 2 * YamRobot.N_DOF
+    #: [left_arm(6), left_gripper(1), right_arm(6), right_gripper(1)] -- YAMLab's YamActionLayout.
+    ACTION_DIM = 2 * YamRobot.ACTION_DIM
+    #: Columns of the action vector that carry a gripper command (binarised by realm.rollout).
+    GRIPPER_ACTION_IDX = (YamRobot.ARM_DOF, 2 * YamRobot.ARM_DOF + 1)
+
+    GRIPPER_OPEN_QPOS = YamRobot.GRIPPER_OPEN_QPOS
+    GRIPPER_CLOSED_QPOS = YamRobot.GRIPPER_CLOSED_QPOS
+    CONTROL_FREQ_HZ = YamRobot.CONTROL_FREQ_HZ
+    PHYSICS_FREQ_HZ = YamRobot.PHYSICS_FREQ_HZ
+    MOUNT_HEIGHT = YamRobot.MOUNT_HEIGHT
+    RENDER_RESOLUTION = YamRobot.RENDER_RESOLUTION
+
+    # --- top camera (YAMLab configs/robot/yam.yaml: cameras.top) -------------------------------
+    #: Offset from the mount frame, metres: (0.0860, -0.0090, 1.7043) - (0.2525, 0, 0.76).
+    EXTERIOR_CAMERA_POSITION = (-0.1664949, -0.009, 0.9443205)
+    #: YAMLab ``quaternion_opengl`` (w, x, y, z) = (0.68301, 0.18301, -0.18301, -0.68301), reordered to
+    #: the (x, y, z, w) REALM's camera_extrinsics use. OpenGL/USD camera convention (looks down -Z):
+    #: view direction (0.5, 0, -0.866) in the mount frame -- forward and 60 degrees down.
+    EXTERIOR_CAMERA_QUAT_XYZW = (0.18301, -0.18301, -0.68301, 0.68301)
+    EXTERIOR_CAMERA_INTRINSICS = {"fx": 392.195617675781, "fy": 391.722351074219,
+                                  "cx": 318.389434814453, "cy": 237.876312255859}
+    EXTERIOR_CAMERA_CALIB_RESOLUTION = (640, 480)
+    #: OmniGibson VisionSensor default aperture (realm/config/env/external_sensors/camera_config.yaml
+    #: only sets focal_length).
+    EXTERIOR_CAMERA_HORIZONTAL_APERTURE = 20.955
+
+    # ------------------------------------------------------------------------------------------
+
+    @classmethod
+    def link_name(cls, arm, name):
+        """Prim name of single-arm link (or joint) `name` on `arm`."""
+        return f"{arm}_{name}"
+
+    joint_name = link_name
+
+    @classmethod
+    def arm_links(cls, arm):
+        return tuple(cls.link_name(arm, n) for n in YamRobot.ARM_LINKS)
+
+    @classmethod
+    def arm_joints(cls, arm):
+        return tuple(cls.joint_name(arm, n) for n in YamRobot.ARM_JOINTS)
+
+    @classmethod
+    def finger_links(cls, arm):
+        return tuple(cls.link_name(arm, n) for n in YamRobot.FINGER_LINKS)
+
+    @classmethod
+    def finger_joints(cls, arm):
+        return tuple(cls.joint_name(arm, n) for n in YamRobot.FINGER_JOINTS)
+
+    @classmethod
+    def eef_link(cls, arm):
+        return cls.link_name(arm, YamRobot.EEF_LINK)
+
+    @classmethod
+    def flange_link(cls, arm):
+        return cls.link_name(arm, YamRobot.FLANGE_LINK)
+
+    @classmethod
+    def mount_joint(cls, arm):
+        """Fixed joint base_link -> <arm>_base_link authored by scripts/build_yam_bimanual_usd.py."""
+        return f"{arm}_mount"
+
+    @classmethod
+    def gripper_proxy_joint(cls, arm):
+        """The finger joint read as the arm's gripper state (YAMLab reads the driven ``left_finger``)."""
+        return cls.joint_name(arm, YamRobot.FINGER_JOINTS[0])
+
+    @classmethod
+    def all_links(cls, arm):
+        """Every link prim of one arm, including the geometry-free frames."""
+        return tuple(cls.link_name(arm, n) for n in (*YamRobot.ARM_LINKS, *YamRobot.FINGER_LINKS,
+                                                    *YamRobot.FIXED_CAMERA_LINKS, *YamRobot.VIRTUAL_LINKS))
+
+    @classmethod
+    def collision_links(cls, arm):
+        """Links of one arm that carry collision geometry (everything but the virtual frames)."""
+        return tuple(cls.link_name(arm, n) for n in (*YamRobot.ARM_LINKS, *YamRobot.FINGER_LINKS,
+                                                    *YamRobot.FIXED_CAMERA_LINKS))
+
+    @classmethod
+    def dof_order(cls):
+        """Articulation DOF order OmniGibson reports (``dof_names_ordered``), the order of
+        ``default_joint_pos`` / ``reset_joint_pos`` / ``proprio``.
+
+        PhysX numbers an articulation's joints by a depth-first walk from the root link, so with the
+        left arm authored first the left chain (6 joints, then its 2 fingers) precedes the right one.
+        Pinned here and asserted against the built robot by ``assert_proprio_layout``; the arm and
+        gripper indices REALM uses are looked up in this list by name, never assumed contiguous.
+        """
+        order = []
+        for arm in cls.ARMS:
+            order.extend(cls.arm_joints(arm))
+            order.extend(cls.finger_joints(arm))
+        return tuple(order)
+
+    @classmethod
+    def default_joint_pos(cls):
+        """YAMLab's initial state for both arms, in :meth:`dof_order`."""
+        by_joint = {}
+        for arm in cls.ARMS:
+            for j in cls.arm_joints(arm):
+                by_joint[j] = 0.0
+            for j in cls.finger_joints(arm):
+                by_joint[j] = cls.GRIPPER_OPEN_QPOS
+        return tuple(by_joint[j] for j in cls.dof_order())
+
+    @classmethod
+    def raw_controller_order(cls):
+        return tuple(f"{kind}_{arm}" for arm in cls.ARMS for kind in ("arm", "gripper"))
+
+    @classmethod
+    def disabled_collision_pairs(cls):
+        """Every intra-arm pair of collision links, both arms.
+
+        YAMLab loads each arm as its own articulation with ``enabled_self_collisions=False`` -- so an
+        arm never collides with itself but the two arms DO collide with each other. In OmniGibson both
+        arms are one articulation, so the same behaviour is ``self_collisions: true`` plus every
+        within-arm pair filtered out. (PhysX already skips joint-adjacent pairs; listing them is
+        harmless and keeps the rule "all pairs of one arm" mechanical.)
+        """
+        pairs = []
+        for arm in cls.ARMS:
+            links = cls.collision_links(arm)
+            for i, a in enumerate(links):
+                for b in links[i + 1:]:
+                    pairs.append([a, b])
+        return pairs
+
+    @classmethod
+    def exterior_camera_focal_length(cls, horizontal_aperture=None):
+        """Focal length giving the top camera's calibrated horizontal FOV (78.4 deg); see
+        :meth:`YamRobot.wrist_camera_focal_length` for the formula."""
+        aperture = cls.EXTERIOR_CAMERA_HORIZONTAL_APERTURE if horizontal_aperture is None else horizontal_aperture
+        width = cls.EXTERIOR_CAMERA_CALIB_RESOLUTION[0]
+        return round(aperture * cls.EXTERIOR_CAMERA_INTRINSICS["fx"] / width, 4)
+
+    @classmethod
+    def exterior_camera(cls):
+        """The robot config's ``exterior_camera`` entry (REALM-only key, read by env_config)."""
+        return {
+            "cam1": {"pos": list(cls.EXTERIOR_CAMERA_POSITION), "rot": list(cls.EXTERIOR_CAMERA_QUAT_XYZW)},
+            "focal_length": cls.exterior_camera_focal_length(),
+        }
+
+    @classmethod
+    def obs_profile(cls):
+        """The multi-arm ROBOT_OBS_PROFILES entry (field contract in realm/inference/utils.py).
+
+        ``arms`` marks the profile as multi-arm. The policy's joint state is the concatenation of the
+        arms' joint positions in ``arms`` order (12), the gripper state one normalised value per arm
+        (2), both looked up in ``proprio`` by joint name through ``dof_order``. The legacy single-arm
+        keys (``wrist_camera_*``, ``gripper_proprio_idx``) describe the FIRST arm so every caller that
+        only knows one wrist camera / one gripper keeps working on the default arm.
+        """
+        order = cls.dof_order()
+        first = cls.ARMS[0]
+        return dict(
+            arms=cls.ARMS,
+            arm_dof=cls.ARM_DOF,
+            dof_order=order,
+            arm_joint_names={arm: cls.arm_joints(arm) for arm in cls.ARMS},
+            finger_joint_names={arm: cls.finger_joints(arm) for arm in cls.ARMS},
+            gripper_proxy_joints={arm: cls.gripper_proxy_joint(arm) for arm in cls.ARMS},
+            gripper_action_idx=cls.GRIPPER_ACTION_IDX,
+            wrist_cameras={arm: dict(link=cls.flange_link(arm), idx=0, prim=YamRobot.WRIST_CAMERA_PRIM)
+                           for arm in cls.ARMS},
+            # first-arm view for single-wrist / single-gripper callers
+            wrist_camera_link=cls.flange_link(first),
+            wrist_camera_idx=0,
+            wrist_camera_prim=YamRobot.WRIST_CAMERA_PRIM,
+            gripper_proprio_idx=order.index(cls.gripper_proxy_joint(first)),
             gripper_open_qpos=cls.GRIPPER_OPEN_QPOS,
             gripper_closed_qpos=cls.GRIPPER_CLOSED_QPOS,
         )
