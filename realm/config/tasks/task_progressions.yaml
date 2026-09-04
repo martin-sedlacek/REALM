@@ -40,6 +40,12 @@ pour:
   - LIFT_SLIGHT
   - MOVE_CLOSE
   - POUR
+pour_proxy:
+  - REACH
+  - GRASP
+  - LIFT_POUR
+  - MOVE_CLOSE_XY
+  - POURED_PROXY
 turn_faucet:
   - REACH
   - TOUCH_AND_MOVE_JOINT

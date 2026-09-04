@@ -1,0 +1,56 @@
+###########################################################################################################################################
+# !!! The structure of the file should be: 1st object: Main object for interaction, 2nd obj: target (if applicable), then distractors !!! #
+###########################################################################################################################################
+task:
+  type": "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "stack"
+bidirectional: true
+instruction: "stack the plates on top of each other"
+# Both fields must be substrings of `instruction` or SB-NOUN/VSB-NOBJ substitute nothing and
+# still report PASS -- see tests/test_perturbation_task_types.py. They arrived here copied from
+# stack_cubes, naming a green and a yellow block this task does not contain. The instruction stays
+# non-directional because the task is `bidirectional`: either plate on the other completes it.
+instruction_obj_to_replace: "plates"
+instruction_target_to_replace: ""
+instruction_verb_to_replace: "stack"
+
+supported_scenes:
+  IMPACT:
+    - "default"
+
+camera_extrinsics:
+  cam1: "default"
+
+main_objects:
+    - type: "DatasetObject"
+      name: "plate"
+      category: "plate"
+      model: "spppps"
+      rgba: [ 0.1953125, 0.65625, 0.3203125, 1.0 ]
+      bounding_box: [ 0.26, 0.26, 0.03 ]
+      position: [0.05, -0.2, 0.771 ]
+
+target_objects:
+    - type: "DatasetObject"
+      name: "plate2"
+      category: "plate"
+      model: "pkkgzc"
+      bounding_box: [ 0.26, 0.26, 0.03 ]
+      position: [0.05, 0.2, 0.771 ]
+
+distractors: []
+immutables: []
+cached_semantic_perturbations:
+  "S-LANG":
+    - ""
+  "S-AFF":
+    - ""
+  "S-INT":
+    - ""
+  "S-PROP":
+    - ""
+  "S-MO":
+    - ""

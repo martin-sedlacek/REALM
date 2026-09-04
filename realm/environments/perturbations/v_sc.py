@@ -3,7 +3,9 @@
 What one call mutates on @env: ``cfg["objects"]`` (fresh positions; the list is rebuilt by the
 placement pass), ``distractors`` (re-bound to the live objects), and the scene itself (each
 distractor removed and re-added as a different model via replace_obj). Main and target objects
-keep their authored poses; only distractors move and change identity. Requires ``env.spawn_bbox``
+keep their authored poses, and so do the task's ``immutables`` -- authored fixtures such as a
+support surface or a light, which ride in ``env.distractors`` but are neither re-placed nor
+re-modelled here. Only declared distractors move and change identity. Requires ``env.spawn_bbox``
 (a task with a spawn region).
 """
 from __future__ import annotations
@@ -21,6 +23,7 @@ from realm.environments.perturbations._helpers import (
     sim_play,
     sim_stop,
 )
+from realm.environments.foam_ball_reset import refresh_foam_ball_cfg_positions
 from realm.environments.perturbations.object_sampling import replace_obj
 from realm.placement import (
     get_default_objects_cfg,
@@ -46,11 +49,29 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
 
     backfill_object_cfgs(env.target_objects + env.main_objects, obj_cfgs)
 
+    # Immutables are pinned alongside main/target, exactly as the initial build pins them
+    # (env_config._apply_object_cfg passes EVERY authored object as main_object_names). The slice
+    # below covers main+target only, so without the immutable names a task's authored fixtures fall
+    # through to placement's random-placement bucket: open_drawer's breakfast_table_support is a
+    # 1.0x1.0 m footprint that cannot fit the 0.70x0.80 m Drawers_Near_Table spawn region at all,
+    # so every attempt collided and it was dropped from DROP_HEIGHT, while light_over_table -- small
+    # enough to fit -- was silently relocated from 1.5 m above the table down to tabletop z.
+    #
+    # Pinning, not skipping: objects_to_skip RESCALES cfg["bounding_box"] to maximum_dim, and that
+    # key is what DatasetObject scales the asset by, so skipping would shrink the real fixture on
+    # the next build. main_object_names only reads position and bounding_box.
+    pinned_names = ([o["name"] for o in obj_cfgs[:num_mo_to]]
+                    + list(env.immutable_names) + list(env.foam_ball_names))
+
+    # pour_proxy's foam balls sit INSIDE the source bottle, and pinning alone would still let
+    # set_scene_positions below write their provisional spawn column back over that.
+    refresh_foam_ball_cfg_positions(env, obj_cfgs)
+
     env.cfg["objects"] = place_within(
         env.spawn_bbox,
         obj_cfgs,
         objects_to_skip=[obj.name for obj in env.target_objects + env.main_objects],
-        main_object_names=[o["name"] for o in obj_cfgs[:num_mo_to]],
+        main_object_names=pinned_names,
         maximum_dim=DISTRACTOR_MAX_DIM,
     )
 
@@ -92,8 +113,14 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
 
 def _swap_distractor_models(env: "RealmEnvironmentDynamic") -> None:
 
+    # env.distractors carries the task's immutables (env_config._apply_object_cfg folds them in)
+    # and pour_proxy's foam balls (RealmEnvironmentDynamic injects them there for scene handles),
+    # and replace_obj would swap a support surface, a light or a ball being poured for a random
+    # <=DISTRACTOR_MAX_DIM object. Swap only what the task actually declared as clutter.
+    protected = set(env.immutable_names) | set(env.foam_ball_names)
+    swappable = [obj for obj in env.distractors if obj.name not in protected]
     distractor_obj_cfgs = get_default_objects_cfg(env.omnigibson_env.scene,
-                                                  [obj.name for obj in env.distractors])
+                                                  [obj.name for obj in swappable])
     distractor_objs = get_objects_by_names(env.omnigibson_env.scene,
                                            list(distractor_obj_cfgs.keys()))
     excluded_categories = [obj.category for obj in env.main_objects + env.target_objects]
