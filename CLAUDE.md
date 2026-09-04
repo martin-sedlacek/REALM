@@ -41,6 +41,8 @@ realm/
 ├── vector_eval.py     N rollouts stepped together in one simulator, waves of num_envs
 ├── rollout.py         everything the two paths must agree on: metrics, RenderSchedule,
 │                      Rollout, gripper conventions, result rows, artifact writing
+├── progress_scorer.py what task_progression IS: RubricScorer (default passthrough) or
+│                      RobometerScorer (--robometer, learned estimate from a separate server)
 ├── sim_config.py      OmniGibson macros + seeding (before env build) and carb render modes
 ├── paths.py           run_log_dir(): the <root>/<experiment>/<model>[/<run_id>] convention
 ├── realm_logging.py   CSV reports, consolidated parquets, VideoRecorder
@@ -72,6 +74,9 @@ realm/
 
 examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
             04_vector_evaluate.py (vectorized CLI)
+packages/   openpi-client and robometer-client: vendored thin clients, pip-installed into the image;
+            robometer: git SUBMODULE of the Robometer server, pinned, runs in its own env (never in
+            the image -- .dockerignore excludes it)
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    portable container launchers and evaluation utilities
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
@@ -108,6 +113,23 @@ Observations are keyed by `robot.name` (NOT always `"DROID"`), and the wrist-cam
 resolved per robot through `ROBOT_OBS_PROFILES` in `realm/inference/utils.py` — update that table
 when adding a robot asset. Actions are **absolute joint positions** (7) + gripper; models emit
 gripper in (0,1), the environment expects (1,-1) with the 0.5 threshold.
+
+## Robometer (optional scorer, `--robometer`)
+
+Robometer (learned progress/success reward model) runs server-side like openpi: `packages/robometer`
+is the pinned upstream submodule, `scripts/run_robometer_server.sh` starts it in its own uv env
+(Python 3.10, torch 2.8 -- irreconcilable with the container's pins), and
+`packages/robometer-client` (`robometer_client.RobometerClient`, numpy+requests only) is what the
+image gets. `realm/progress_scorer.py` is the seam: both evaluators call `scorer.score()` where the
+rubric value used to go straight into `Rollout.record_progression`. `RubricScorer` (default) passes
+it through and appends no columns; `RobometerScorer` queries once per action chunk on the exterior
+frame the policy sees, records the running max, and counts success at
+`RolloutMetrics.success_threshold` (rubric: 1.0, which equals the old `== 1.0`; Robometer: 0.9
+default). Rubric and Robometer rows are not comparable -- the report gets a `scorer` column and
+`--resume` refuses to mix them. Tests: `tests/test_robometer_client.py` (tier 1, wire format),
+`tests/test_progress_scorer.py` (container, no GPU, cadence/threshold/columns),
+`tests/test_evaluation_cli.py` (flags). Operator pages: `wiki/Robometer.md`,
+`wiki/Running-Evaluations.md`.
 
 ## Perturbations
 

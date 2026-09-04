@@ -133,14 +133,35 @@ class RenderSchedule:
 
 
 class RolloutMetrics:
+    """Per-rollout accumulators.
 
+    `success_threshold` is the task_progression at or above which the rollout counts as a success
+    and the TERMINAL_STEPS countdown starts. It is 1.0 for the rubric scorer, where progression is a
+    fraction of completed stages and success means every stage -- `>= 1.0` there is exactly the old
+    `== 1.0`, since the rubric never exceeds 1.0. A learned scorer (realm/progress_scorer.py) emits a
+    continuous estimate that rarely reaches 1.0 exactly, so it sets its own threshold.
 
-    def __init__(self):
+    The `rubric_*` / `scorer_*` fields are only written by a non-rubric scorer; they carry the
+    rubric's value alongside for comparison and the scorer's own auxiliary outputs. Under the
+    default scorer they stay at their initial values and reach no artifact.
+    """
+
+    def __init__(self, success_threshold=1.0):
         self.qpos = []
         self.actions = []
         self.ee_positions = []
         self.task_progression = 0.0
         self.progression_timestamps = []
+        self.success_threshold = float(success_threshold)
+        self.rubric_task_progression = 0.0
+        self.scorer_progress = 0.0
+        self.scorer_success_prob = None
+        self.scorer_queries = 0
+        # One entry per query: the control step it was made at and the raw (not running-max)
+        # progress / success outputs, so a scorer's trajectory can be inspected after the fact.
+        self.scorer_query_steps = []
+        self.scorer_progress_trace = []
+        self.scorer_success_trace = []
         self.terminal_steps = TERMINAL_STEPS
         self.collisions_self = 0
         self.collisions_env = 0
@@ -177,9 +198,13 @@ class RolloutMetrics:
         if task_progression > self.task_progression:
             self.task_progression = task_progression
             self.progression_timestamps.append(step)
-        if self.task_progression >= 1.0:
+        if self.is_success:
             self.terminal_steps -= 1
         self.steps += 1
+
+    @property
+    def is_success(self):
+        return self.task_progression >= self.success_threshold
 
     @property
     def is_finished(self):
@@ -199,15 +224,18 @@ class PolicyObservation(NamedTuple):
 class Rollout:
 
 
-    def __init__(self, env, run_id, recorder=None, gripper_inverted=False):
+    def __init__(self, env, run_id, recorder=None, gripper_inverted=False, success_threshold=1.0):
         self.env = env
         self.run_id = run_id
         self.recorder = recorder
         self.gripper_inverted = gripper_inverted
-        self.metrics = RolloutMetrics()
+        self.metrics = RolloutMetrics(success_threshold)
         self.action_buffer = Queue()
         self.last_command = None
         self.active = True
+        #: Exterior frames handed to a video-based progress scorer, in step order. Empty under the
+        #: rubric scorer; realm/progress_scorer.py's RobometerScorer appends to it.
+        self.clip = []
 
     def observe(self, obs, obs_is_fresh):
 
@@ -293,19 +321,21 @@ def first_incomplete_stage(env):
 
 
 def corrected_drops(metrics, env):
-    if metrics.task_progression == 1.0 and getattr(env, "task_type", None) in PLACEMENT_TASK_TYPES:
+    if metrics.is_success and getattr(env, "task_type", None) in PLACEMENT_TASK_TYPES:
         return max(0, metrics.drops - 1)
     return metrics.drops
 
 
-def build_result_entry(rollout, task, perturbation, model_type):
+def build_result_entry(rollout, task, perturbation, model_type, scorer=None):
+    """One result row. `scorer` (realm/progress_scorer.py) may append its own columns; the rubric
+    scorer appends none, so a default run's report has exactly the columns it always had."""
 
     env, metrics = rollout.env, rollout.metrics
     qpos = np.stack(metrics.qpos)
     joint = joint_space_metrics(qpos)
     cartesian = cartesian_metrics(metrics.ee_positions)
 
-    return {
+    entry = {
         "run_id": rollout.run_id,
         "task": task,
         "perturbation": perturbation,
@@ -316,7 +346,7 @@ def build_result_entry(rollout, task, perturbation, model_type):
         "task_progression": metrics.task_progression,
         "task_progression_timestamps": metrics.progression_timestamps,
         "stage": first_incomplete_stage(env),
-        "binary_SR": 1.0 if metrics.task_progression == 1.0 else 0.0,
+        "binary_SR": 1.0 if metrics.is_success else 0.0,
         "joint_vel_var": joint["joint_vel_var"],
         "joint_acc_var": joint["joint_acc_var"],
         "joint_jerk": joint["joint_jerk"],
@@ -329,6 +359,9 @@ def build_result_entry(rollout, task, perturbation, model_type):
         "qpos": qpos.tolist(),
         "actions": np.stack(metrics.actions).tolist(),
     }
+    if scorer is not None:
+        entry.update(scorer.result_columns(rollout))
+    return entry
 
 
 def write_rollout_artifacts(rollout, entry, log_dir, task, perturbation):

@@ -29,12 +29,28 @@ SUITE = {
         cells=r"^\[\d\] .*",
         note="task_type literals in realm/ vs what the task configs declare; static, no container.",
     ),
+    "test_robometer_client": dict(
+        argv=["tests/test_robometer_client.py"],
+        local=True,
+        needs_gpu=False, needs_server=False, timeout=120, tier="local",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d\] .*",
+        note="vendored robometer-client vs the eval-server wire format, fake transport; static, no container.",
+    ),
     "test_rollout_camera_selection": dict(
         argv=["tests/test_rollout_camera_selection.py"],
         needs_gpu=False, needs_server=False, timeout=900, tier="fast",
         verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
         cells=r"^(?:\[\d\] .*|    task_type=.*)$",
         note="which exterior camera the drawer tasks send the policy, and the None guard.",
+    ),
+    "test_progress_scorer": dict(
+        argv=["tests/test_progress_scorer.py"],
+        needs_gpu=False, needs_server=False, timeout=900, tier="fast",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d\] .*",
+        note="rubric passthrough + success_threshold defaults vs --robometer cadence/recording; "
+             "fake client, no server, no GPU.",
     ),
     "test_scene_object_placement": dict(
         argv=["tests/test_scene_object_placement.py", "--num_envs", "2"],

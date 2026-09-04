@@ -64,6 +64,11 @@ Relevant optional environment variables are:
 | `--no_record` | flag | off |
 | `--no_render` | flag | off |
 | `--render_on_demand` / `--no-render_on_demand` | flag | **on** |
+| `--robometer` | flag | off — score `task_progression` with a [Robometer](Robometer) server instead of the rubric |
+| `--robometer_host` | str | `127.0.0.1` |
+| `--robometer_port` | int | `8010` — keep it distinct from `--port` |
+| `--robometer_success_threshold` | float | `0.9` — Robometer progress at or above which a rollout is a success |
+| `--robometer_frame_size` | int | `256` — longest side of the frames sent to the server |
 
 Note the inconsistent separators: `--multi-view` has a dash, `--no_record` and `--no_render` have
 underscores, and the negation of `--render_on_demand` is spelled `--no-render_on_demand`. These are
@@ -73,9 +78,40 @@ as-is in the source.
 
 Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`2`) and
 `--max_render_interval` (`8`). Its `--repeats` defaults to `25` rather than `5`, and its `--log_dir`
-defaults to `/logs` rather than `/app/logs`.
+defaults to `/logs` rather than `/app/logs`. The `--robometer*` flags are identical on both.
 
 **It has no `--resume` and no `--no_render`.** Do not copy a single-env command line onto it.
+
+## Scoring with Robometer (`--robometer`)
+
+By default `task_progression` is the rubric: the fraction of a task's stages whose predicates hold,
+computed from privileged simulator state (`realm/environments/task_progression.py`). `--robometer`
+swaps that for a learned estimate from a [Robometer](Robometer) reward model watching the same
+exterior camera the policy sees. The rubric is still computed, and kept in a side column.
+
+What changes, concretely:
+
+- **Cadence.** Once per action chunk: at every step whose observation is a fresh frame *and* whose
+  action buffer has just run dry, the frames seen so far (downscaled to `--robometer_frame_size`)
+  plus the current instruction go to the server in one request. Between queries the last estimate
+  stands. The recorded value is the running maximum, as it is for the rubric.
+- **Success.** `binary_SR`, the 15-step terminal countdown and the placement drop correction all
+  trigger at `task_progression >= --robometer_success_threshold` (default `0.9`), not at exactly
+  `1.0`.
+- **Report columns.** `scorer`, `success_threshold`, `rubric_task_progression`,
+  `robometer_success_prob`, `robometer_queries` and the per-query traces
+  (`robometer_query_steps`, `robometer_progress_trace`, `robometer_success_trace`) are appended;
+  see [Logging](Logging). `stage` is still the rubric's first incomplete stage.
+- **Failure mode.** The scorer is built before Isaac boots and waits for the server's `/health`, so
+  a dead server fails the run in seconds. A server that dies mid-run raises on the next query.
+
+The server is a separate process on its own GPU: `./scripts/run_robometer_server.sh`, then point
+`--robometer_host` / `--robometer_port` at it. **Robometer-scored and rubric-scored rows are not
+comparable.** Give a Robometer run its own `--experiment_name`; `--resume` refuses to append rows
+scored one way to a report scored the other.
+
+In the vectorized path the whole wave is scored in one request per step, so cost grows with steps,
+not with `num_envs`.
 
 ## `--render_on_demand` is on by default, and it costs you video
 

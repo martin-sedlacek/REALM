@@ -49,7 +49,45 @@ def build_evaluation_parser(*, vectorized=False):
         parser.add_argument("--no_render", action="store_true",
                             help="Disable rendering completely")
 
+    # Task-progression scorer. Defaults are literals (not imports from realm.progress_scorer) so
+    # --help stays free of the simulator imports that module pulls in.
+    scoring = parser.add_argument_group(
+        "scoring",
+        "By default task_progression is the rubric's fraction of completed stages. --robometer "
+        "replaces it with a Robometer reward model's progress estimate from a separate server "
+        "(scripts/run_robometer_server.sh); see wiki/Robometer.md. Not comparable with rubric "
+        "numbers -- use a distinct --experiment_name.")
+    scoring.add_argument("--robometer", action="store_true",
+                         help="Score task progression with a Robometer server instead of the rubric")
+    scoring.add_argument("--robometer_host", type=str, default="127.0.0.1",
+                         help="Robometer server host")
+    scoring.add_argument("--robometer_port", type=int, default=8010,
+                         help="Robometer server port (keep it distinct from --port)")
+    scoring.add_argument("--robometer_success_threshold", type=float, default=0.9,
+                         help="Robometer progress at or above which a rollout counts as a success "
+                              "(binary_SR, and the terminal countdown)")
+    scoring.add_argument("--robometer_frame_size", type=int, default=256,
+                         help="Longest side, in pixels, of the frames sent to the server")
+
     return parser
+
+
+def build_scorer(args):
+    """The progress scorer the parsed flags ask for; None means the rubric (the default).
+
+    Imports realm.progress_scorer lazily -- it pulls in omnigibson through realm.rollout -- and
+    constructs the Robometer scorer BEFORE the simulator boots, so a server that is not up fails
+    the run in seconds rather than after an Isaac start.
+    """
+    if not getattr(args, "robometer", False):
+        return None
+    from realm.progress_scorer import RobometerScorer
+    return RobometerScorer(
+        host=args.robometer_host,
+        port=args.robometer_port,
+        success_threshold=args.robometer_success_threshold,
+        frame_size=args.robometer_frame_size,
+    )
 
 
 def run_evaluation_cli(*, vectorized=False):
@@ -60,6 +98,8 @@ def run_evaluation_cli(*, vectorized=False):
     import omnigibson as og
 
     from realm.paths import run_log_dir
+
+    scorer = build_scorer(args)
 
     if vectorized:
         from realm.vector_eval import evaluate_vectorized
@@ -86,6 +126,7 @@ def run_evaluation_cli(*, vectorized=False):
             render_on_demand=args.render_on_demand,
             n_pre_obs_renders=args.n_pre_obs_renders,
             max_render_interval=args.max_render_interval,
+            scorer=scorer,
         )
     else:
         from realm.eval import evaluate
@@ -110,6 +151,7 @@ def run_evaluation_cli(*, vectorized=False):
             task_cfg_path=args.task_cfg_path,
             robot=args.robot,
             render_on_demand=args.render_on_demand,
+            scorer=scorer,
         )
 
     og.shutdown()

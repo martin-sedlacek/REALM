@@ -1,5 +1,10 @@
-# The build needs .docker/ (patch set + recipes) and the vendored openpi-client; everything below
-# is data or generated output that should not be sent as build context.
+# The build needs .docker/ (patch set + recipes) and the vendored openpi-client and robometer-client;
+# everything below is data or generated output that should not be sent as build context.
+#
+# packages/robometer is the Robometer SERVER checkout (a submodule). It runs in its own environment,
+# never inside this image -- its torch/transformers pins cannot coexist with OmniGibson's -- so it is
+# excluded here; only the thin packages/robometer-client goes in.
+packages/robometer/
 data/
 datasets/
 logs/

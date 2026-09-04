@@ -20,6 +20,7 @@ From: stanfordvl/behavior:3.9.1
     .docker/patches /opt/realm-patches
     .docker/constraints.txt /opt/realm-constraints.txt
     packages/openpi-client /opt/openpi-client
+    packages/robometer-client /opt/robometer-client
 
 %post
     set -e
@@ -89,6 +90,11 @@ From: stanfordvl/behavior:3.9.1
 
     $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/openpi-client
 
+    # Robometer reward-model CLIENT only (numpy + requests, both already pinned). The model server is
+    # packages/robometer, run in its own env via scripts/run_robometer_server.sh -- its torch 2.8 /
+    # transformers 4.57 / python==3.10 requirements cannot be installed here. Same arrangement as openpi.
+    $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/robometer-client
+
 %environment
     # The base image's OMNIGIBSON_DATA_PATH=/data and OMNIGIBSON_APPDATA_PATH=/cache/appdata come
     # through from the Docker layer; only our own source tree has to be added.
@@ -127,11 +133,12 @@ From: stanfordvl/behavior:3.9.1
     #     apptainer test --bind <datasets>:/data realm.sif
     python - <<'PY'
 from importlib.metadata import version
-import dm_control, dm_robotics.moma, openpi_client, wandb, moviepy, fastparquet, numpy, torch
+import dm_control, dm_robotics.moma, openpi_client, robometer_client, wandb, moviepy, fastparquet, numpy, torch
 assert version("omnigibson") == "3.9.1", version("omnigibson")
 assert numpy.__version__.startswith("1.26"), numpy.__version__
 print("omnigibson", version("omnigibson"), "| numpy", numpy.__version__, "| torch", torch.__version__)
 print("dm_control", version("dm-control"), "| dm-robotics-moma", version("dm-robotics-moma"))
+print("openpi-client", version("openpi-client"), "| robometer-client", version("robometer-client"))
 PY
     # The patched tree still hashes to what the patch set was generated from.
     ( cd /behavior-src/OmniGibson && sha256sum -c /opt/realm-patches/MANIFEST.sha256 )

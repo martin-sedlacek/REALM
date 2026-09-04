@@ -33,3 +33,4 @@ performance.
 | [Reproducibility](Reproducibility) | reproduce the paper results with the original release |
 | [Logging and results dashboard](Logging) | inspect logs, compare runs, watch videos, and export reports |
 | [Cluster and parallel runs](Cluster-and-Parallel-Runs) | scheduler-neutral sweeps and vectorized evaluation |
+| [Robometer](Robometer) | the optional learned reward model behind `--robometer`: a separate server plus a thin client |

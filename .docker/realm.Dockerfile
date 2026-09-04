@@ -17,6 +17,7 @@ ENV CONDA_PIP="/opt/conda/envs/behavior/bin/pip"
 
 COPY .docker/patches /opt/realm-patches
 COPY packages/openpi-client /opt/openpi-client
+COPY packages/robometer-client /opt/robometer-client
 
 # APPLY REALM'S DELTA FROM STOCK OMNIGIBSON 3.9.1.
 #
@@ -88,6 +89,11 @@ RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
     wandb moviepy openai fastparquet
 
 RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/openpi-client
+
+# Robometer reward-model CLIENT only (numpy + requests, both already pinned above). The model server
+# is packages/robometer, run in its own env via scripts/run_robometer_server.sh -- its torch 2.8 /
+# transformers 4.57 / python==3.10 requirements cannot be installed here. Same arrangement as openpi.
+RUN $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/robometer-client
 
 WORKDIR /app
 

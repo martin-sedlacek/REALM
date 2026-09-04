@@ -38,6 +38,20 @@ These are plain CSV files with the structure of one row per rollout and the foll
 | `collisions_env` | # of collisions with the environment                                                                              |
 | `object_drops` | # of time objects got dropped                                                                                     |
 
+A run with `--robometer` (see [Running evaluations](Running-Evaluations)) appends five columns:
+
+| Column | Meaning |
+|---|---|
+| `scorer` | `robometer` — absent (i.e. rubric) in every other report |
+| `success_threshold` | the `--robometer_success_threshold` that defined `binary_SR` for this row |
+| `rubric_task_progression` | what the rubric would have recorded for the same rollout, for comparison |
+| `robometer_success_prob` | the model's success-head probability at the last query; empty if the checkpoint has none |
+| `robometer_queries` | how many times the server was asked during the rollout |
+| `robometer_query_steps`, `robometer_progress_trace`, `robometer_success_trace` | per-query lists: the control step of each query and the raw progress / success outputs at it (not the running max) — plot these against the video to judge the estimate |
+
+In such a run `task_progression` is Robometer's running-max progress estimate and `binary_SR` is
+`task_progression >= success_threshold`. Do not average these rows with rubric rows.
+
 `object_drops` has one adjustment worth knowing: a successful `put` or `stack` necessarily involves
 releasing the object, so one drop is subtracted when the task succeeded.
 

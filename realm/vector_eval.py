@@ -24,6 +24,7 @@ import omnigibson as og
 from realm.environments.env_vector import RealmVectorEnvironment
 from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.inference import InferenceClient
+from realm.progress_scorer import RubricScorer
 from realm.realm_logging import VideoRecorder, save_results
 from realm.rollout import (
     RenderSchedule,
@@ -41,6 +42,7 @@ def evaluate_vectorized(
         log_dir="/logs", rendering_mode="rt", robot="DROID", multi_view=False,
         no_record=False, task_cfg_path=None,
         render_on_demand=True, n_pre_obs_renders=2, max_render_interval=8,
+        scorer=None,
 ):
     """Run `repeats` rollouts of one (task, perturbation) in waves of `num_envs` concurrent members.
 
@@ -48,6 +50,7 @@ def evaluate_vectorized(
     is rewritten after every wave, so a run that dies part way still leaves a readable prefix.
 
     `model_name` is part of the CLI surface (it names the log directory) and is not used here.
+    `scorer` is what `task_progression` means -- None is the rubric (realm/progress_scorer.py).
 
     Two things this path does differently from `realm.eval.evaluate`, both preserved deliberately
     because changing either would change results or artifact names:
@@ -59,6 +62,8 @@ def evaluate_vectorized(
       dreamzero, and all three are (1, 0) on the single-env path too.
     """
     start = time.perf_counter()
+    if scorer is None:
+        scorer = RubricScorer()
     set_sim_config(robot=robot)
 
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
@@ -86,9 +91,9 @@ def evaluate_vectorized(
               f"({n_record} of {num_envs} members recorded)", flush=True)
 
         members, step_results = _start_wave(vec_env, clients, run_id, n_record, log_dir, task,
-                                            perturbation, no_record)
+                                            perturbation, no_record, scorer.success_threshold)
         wave_start = time.perf_counter()
-        steps = _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
+        steps = _step_wave(vec_env, clients, scorer, members, step_results, max_steps, horizon,
                            render_on_demand, n_pre_obs_renders, max_render_interval)
         print(f"[vec_eval] wave {wave} stepped {steps} times in "
               f"{time.perf_counter() - wave_start:.1f}s", flush=True)
@@ -96,7 +101,7 @@ def evaluate_vectorized(
         for member in members:
             if member is None:
                 continue
-            entry = build_result_entry(member, task, perturbation, model_type)
+            entry = build_result_entry(member, task, perturbation, model_type, scorer=scorer)
             write_rollout_artifacts(member, entry, log_dir, task, perturbation)
             results.append(entry)
             print(f"[vec_eval]   run {member.run_id}: SR={entry['binary_SR']} "
@@ -115,7 +120,8 @@ def evaluate_vectorized(
     return results
 
 
-def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturbation, no_record):
+def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturbation, no_record,
+                success_threshold=1.0):
     """Settle the whole batch and open one `Rollout` per recorded member.
 
     Returns (members, the warmup's per-member step results). A wave shorter than `num_envs` -- the
@@ -136,18 +142,19 @@ def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturb
         # gripper_inverted=False for every model_type, which is what this path has always
         # done -- see evaluate_vectorized's docstring.
         members.append(Rollout(vec_env.envs[i], first_run_id + i, recorder=recorder,
-                               gripper_inverted=False))
+                               gripper_inverted=False, success_threshold=success_threshold))
 
     for client in clients:
         client.reset()
     return members, step_results
 
 
-def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
+def _step_wave(vec_env, clients, scorer, members, step_results, max_steps, horizon,
                render_on_demand, n_pre_obs_renders, max_render_interval):
     """Step every member of one wave until all have finished or `max_steps` is reached.
 
-    Returns how many steps the wave took.
+    Returns how many steps the wave took. The scorer sees all active members at once, so a
+    server-backed scorer makes one request per step for the whole wave.
     """
     renders = RenderSchedule(max_render_interval, n_pre_obs_renders)
 
@@ -175,10 +182,11 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
         else:
             step_results = vec_env.step(commands)
 
-        for i, member in enumerate(members):
-            if member is None or not member.active:
-                continue
-            if not member.record_progression(step_results[i][1], step):
+        active = [(i, m) for i, m in enumerate(members) if m is not None and m.active]
+        scores = scorer.score([(m, step_results[i][1], step_results[i][0], renders.obs_is_fresh)
+                               for i, m in active])
+        for (i, member), task_progression in zip(active, scores):
+            if not member.record_progression(task_progression, step):
                 print(f"[vec_eval]   member {i} (run {member.run_id}) finished at step {step}, "
                       f"TP={member.metrics.task_progression}", flush=True)
         step += 1

@@ -172,6 +172,18 @@ export REALM_DATA_PATH=/path/to/realm/data
 cache directories. The launcher binds `REALM_DATA_PATH/datasets` to `/data`. `setup.sh --apptainer`
 sets the same variables when it installs an image.
 
+## (Optional) Robometer reward model
+
+[Robometer](Robometer) is an optional add-on and is **not** part of the image: its torch and
+Python pins cannot coexist with OmniGibson's, so it runs as a separate server in its own `uv`
+environment, and only a thin `numpy`+`requests` client (`packages/robometer-client`) is installed
+into the container. It is used only when an evaluation is run with `--robometer`. If you want it:
+
+```sh
+git submodule update --init packages/robometer
+./scripts/run_robometer_server.sh          # on a GPU node; see the Robometer page for flags
+```
+
 ## (Optional) Verifying the installation
 
 If you suspect there is something wrong with your installation, we recommend running the test suite to verify integrity.
