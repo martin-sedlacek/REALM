@@ -75,4 +75,4 @@ robots:
           horizontal_aperture: 20.955
           # Near plane 0.1 m as in IsaacLab: the camera origin is inside the D405 housing mesh and
           # OmniGibson's default 1 mm near plane renders the housing walls (black image).
-          clipping_range: [0.1, 10000000.0]
+          clipping_range: [0.04, 10000000.0]

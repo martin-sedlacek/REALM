@@ -171,7 +171,10 @@ in [YAM port status](YAM-Port-Status).
 `realm/robots/yam/PROVENANCE`). Actions are `[6 absolute joint targets, gripper]`, observations
 `proprio[:6]` + the `left_finger` position as the gripper state (`-0.0475` open, `0.0` closed), one
 wrist camera under `link_6` rendered at 960x720: 4:3 like the D405 calibration and YAMLab's own 640x480
-frames, so both FOVs (78.6 x 63.1 deg) match; the recorder letterboxes it next to the 16:9 exterior views. The eef frame is a massless `eef_link` 14.3 cm out along the `link_6`
+frames, so both FOVs (78.6 x 63.1 deg) match. **The camera pose is ABC's bracket** (`YamRobot.WRIST_CAMERA_POSITION`,
+50 deg below the flange axis, the same extrinsics as the crank arm; Martin 2026-09-05, so the fingertips are in
+view) rather than YAMLab's calibrated ~25 deg (kept as `YAMLAB_WRIST_CAMERA_*`); the near plane is 0.04 m, which clips
+the YAMLab housing mesh that now sits in the view cone and keeps every finger point (measured in the USD); the recorder letterboxes it next to the 16:9 exterior views. The eef frame is a massless `eef_link` 14.3 cm out along the `link_6`
 flange axis (the midpoint of YAMLab's fingertip keypoints); `get_ee_pose` and the Cartesian metrics
 report that point. The arm base is spawned `mount_height` (0.863891 m, the DROID column
 height) above the scene's robot pose so the exterior cameras frame the workspace as for DROID; the
@@ -223,8 +226,13 @@ self-collisions off).
   `[left, right]` in (0 open, 1 closed), both looked up by joint name in the articulation DOF order
   (`ROBOT_OBS_PROFILES["YAM_bimanual"].dof_order`, asserted against the loaded robot at construction).
   The qpos parquet rows are therefore 14 wide: `[12 joints, 2 grippers]`.
-* **Cameras**: both wrist cameras (`<arm>_link_6/wrist_camera`, the right one at YAMLab's separately
-  calibrated offset) come through as `PolicyObservation.wrist_im` (left) and `.wrist_im_second` (right);
+* **Start state**: the arms start at the MolmoAct2-BimanualYAM episode start pose (median first frame over 66
+  episodes: near-upright, joint 3 ~0.17 rad forward, joint 4 pitching the wrist down 0.53 / 0.79 rad, so the wrist
+  cameras look at the workspace; `YamBimanualRobot.DEFAULT_ARM_JOINT_POS`, YAMLab itself starts at all zeros) and
+  the **warm-up ends with the grippers OPEN** (`warmup_gripper_closed: False` in the YAM obs profiles; every YAM
+  dataset starts open). DROID's warm-up still ends closed. `YAM_crank_bimanual` keeps ABC's `home` pose.
+* **Cameras**: both wrist cameras (`<arm>_link_6/wrist_camera`, both at ABC's bracket pose -- see the single
+  arm above) come through as `PolicyObservation.wrist_im` (left) and `.wrist_im_second` (right);
   the recorder tiles them as a 2x2 grid `top | second exterior (or black) / left wrist | right wrist`.
   The fixed **top camera** is NOT in the USD: the robot config's REALM-only `exterior_camera` key places
   `external_sensor0` at YAMLab's `cameras.top` pose relative to the mount frame (0.17 m behind, 0.94 m

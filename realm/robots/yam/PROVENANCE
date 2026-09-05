@@ -4,15 +4,18 @@ generated: 2026-09-05 by scripts/build_yam_usd.py
 yamlab commit: ec0455d2b4ce35f21fc126418ea5e74ac567133d
 
 yam.usd
-  source: /home/elmo/sedlam/yamlab/yamlab/robot/yam/arm/yam.usd
+  source: /yamlab/yamlab/robot/yam/arm/yam.usd
   source sha256: 8b997d9c864a53a00abba54d2381d3aebf71853f7918450305afc11e73aeb499
-  output sha256: e0f20d6406b28570c9c2176831e7e4f816228e4d5d20b5f952f8dd8c2b18e396
+  output sha256: 10dbe64b3b045fcda2262536feef36ddf79d5cf56c89bf1ac26337049e18e653
   changes vs source: see the module docstring of scripts/build_yam_usd.py (links reparented under
   /yam, base link renamed base_link, rootJoint_arm/physicsScene/Kit cameras removed, finger drive
   maxForce authored, wrist camera authored under link_6, massless eef_link fixed to link_6 at the
   every collision Mesh moved up under its link with its parent Xform's translate/orient/scale (OmniGibson
   composes the link CoM only one level up -- nested Xforms put it metres off, Slurm 204612),
   fingertip midpoint, identity xform ops on the root -- all from YamRobot).
+  wrist camera: authored at YamRobot.WRIST_CAMERA_POSITION / _QUAT_WXYZ = ABC's bracket pose (2026-09-05, Martin:
+  so the fingertips are in view); YAMLab's calibrated pose is kept as YAMLAB_WRIST_CAMERA_*. Rebuilt on Clara
+  from ~/projects/yamlab (same commit, same source sha256).
 
 workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
   verbatim copies of yamlab/robot/yam/workstation/ (STL sources not copied). Reference only;
@@ -24,8 +27,8 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
 
 yam_bimanual.usd
   source: realm/robots/yam/yam.usd (the built single-arm file above)
-  source sha256: e0f20d6406b28570c9c2176831e7e4f816228e4d5d20b5f952f8dd8c2b18e396
-  output sha256: 3b8697fbba6560bc1c01f201a0c974d9102c665f96381461a9f1299c60b45b22
+  source sha256: 10dbe64b3b045fcda2262536feef36ddf79d5cf56c89bf1ac26337049e18e653
+  output sha256: 5d1aa9244b0a17bd16bfd791de77fcf3635213dcbac20f6684e5a19d2d8f6a3e
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
   prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
@@ -36,8 +39,11 @@ yam_bimanual.usd
   for a UsdPreviewSurface with the same aluminium constants.
 
 yam_crank.usd
-  source: realm/robots/yam/yam.usd (the built YAMLab arm above) + ABC's MJCF
+  source: realm/robots/yam/yam.usd (the built YAMLab arm, as of 2026-09-05 morning) + ABC's MJCF
   source sha256: e0f20d6406b28570c9c2176831e7e4f816228e4d5d20b5f952f8dd8c2b18e396
+  NOTE: yam.usd was rebuilt later on 2026-09-05 (wrist camera moved to ABC's bracket pose, sha above changed);
+  the crank files were NOT rebuilt -- they re-author link_6, the fingers and the camera from the MJCF anyway,
+  so the six arm links they share with yam.usd are unchanged.
   mjcf: /home/elmo/sedlam/abc/assets/put_bottles/assets/i2rt_yam/yam.xml
   mjcf sha256: a797c4c27d1c074eb24b04d9cf13cef9a66589f135ebf35bb22f2be3b86f7d28
   abc commit: 6bc6586721cf0c409ccee80f675a28de9b9b2f5e

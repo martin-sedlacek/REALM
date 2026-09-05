@@ -132,7 +132,7 @@ def test_robot_config_matches_spec(gain_set, path):
     assert cam["horizontal_aperture"] == Y.WRIST_CAMERA_HORIZONTAL_APERTURE
     assert cam["focal_length"] == Y.wrist_camera_focal_length(cam["horizontal_aperture"])
     assert tuple(cam["clipping_range"]) == Y.WRIST_CAMERA_CLIPPING_RANGE
-    assert cam["clipping_range"][0] >= 0.05, "the camera origin is inside the D405 housing mesh; a near plane below ~5 cm renders it"
+    assert 0.037 < cam["clipping_range"][0] < 0.047, "near plane must clip the whole housing (<= 0.0367 m deep) yet keep every finger point (>= 0.0472 m)"
 
 
 def test_configs_differ_only_in_gains():
@@ -264,8 +264,9 @@ def test_bimanual_spec_is_internally_consistent():
     assert B.ARM_OFFSETS["left"][1] == -B.ARM_OFFSETS["right"][1] == 0.305
     assert B.ARM_OFFSETS["left"][0] == B.ARM_OFFSETS["left"][2] == 0.0
     # right wrist camera has its own calibration, ~1 mm off the left one
-    assert B.WRIST_CAMERA_POSITIONS["left"] == Y.WRIST_CAMERA_POSITION
-    assert B.WRIST_CAMERA_POSITIONS["right"] == (0.0, 0.069638, 0.072)
+    assert B.WRIST_CAMERA_POSITIONS == {"left": Y.WRIST_CAMERA_POSITION, "right": Y.WRIST_CAMERA_POSITION}, \
+        "both YAMLab wrists carry ABC's bracket pose (Martin, 2026-09-05)"
+    assert Y.YAMLAB_WRIST_CAMERA_POSITION == (-0.0004, 0.069638, 0.073063), "YAMLab's calibration kept for provenance"
     # every within-arm pair is filtered, and NO cross-arm pair (the arms must collide with each other)
     pairs = B.disabled_collision_pairs()
     assert all(a.split("_", 1)[0] == b.split("_", 1)[0] for a, b in pairs)
@@ -480,6 +481,27 @@ def test_yamlab_contract_round_trip():
     assert '"yamlab": _YamLabAdapter' in client
 
 
+def test_bimanual_start_pose_and_open_warmup():
+    """YAM_bimanual starts where the MolmoAct2 episodes start (per-arm DEFAULT_ARM_JOINT_POS, fingers open)
+    and its warm-up ends with the grippers OPEN; the crank robot keeps ABC's home pose; DROID's warm-up
+    (no flag) still ends closed."""
+    pose = B.default_joint_pos()
+    order = B.dof_order()
+    for arm in B.ARMS:
+        got = tuple(pose[order.index(j)] for j in B.arm_joints(arm))
+        assert got == B.DEFAULT_ARM_JOINT_POS[arm], arm
+        assert all(pose[order.index(j)] == Y.GRIPPER_OPEN_QPOS for j in B.finger_joints(arm)), "fingers open"
+    assert abs(B.DEFAULT_ARM_JOINT_POS["left"][3] + 0.53) < 1e-9 and abs(B.DEFAULT_ARM_JOINT_POS["right"][3] + 0.79) < 1e-9, \
+        "joint 4 pitched down: the MolmoAct2 median start (66 episodes)"
+    assert CB.DEFAULT_ARM_JOINT_POS is None and CB.default_joint_pos()[:12].count(1.047) == 4, "crank: ABC home (60 deg on j2, j3)"
+    for spec in (Y, B, CB):
+        assert spec.obs_profile()["warmup_gripper_closed"] is False
+    utils = _inference_utils()
+    assert "warmup_gripper_closed" not in utils.ROBOT_OBS_PROFILES["DROID"]
+    env_dyn = (PROJECT_ROOT / "realm" / "environments" / "env_dynamic.py").read_text()
+    assert 'get("warmup_gripper_closed", True)' in env_dyn, "DROID (no key) must keep closing the gripper"
+
+
 def test_openpi_yam_contract_round_trip():
     """realm/inference/openpi_yam.py: the yam_pi05 policy's state/images/actions contract (gripper 1 = open)."""
     path = PROJECT_ROOT / "realm" / "inference" / "openpi_yam.py"
@@ -561,7 +583,7 @@ def test_crank_spec_differs_from_yamlab_only_where_the_hardware_does():
     assert CR.GAIN_SETS is Y.GAIN_SETS and CR.EFFORT_LIMITS is Y.EFFORT_LIMITS
     # near plane: the crank finger bases sit 3.1 cm from the lens (housing behind it), YAMLab's camera is
     # inside its housing -- 0.02 m renders every finger point, 0.1 m clipped 70% of them
-    assert CR.WRIST_CAMERA_CLIPPING_RANGE[0] == 0.02 < 0.031 and Y.WRIST_CAMERA_CLIPPING_RANGE[0] == 0.1
+    assert CR.WRIST_CAMERA_CLIPPING_RANGE[0] == 0.02 < 0.031 and Y.WRIST_CAMERA_CLIPPING_RANGE[0] == 0.04
     assert CR.WRIST_CAMERA_CLIPPING_RANGE[1] == Y.WRIST_CAMERA_CLIPPING_RANGE[1]
     # same D405, same measured calibration (78.6 x 63.1 deg), both rendered 4:3; ABC's sim nominal fovy 58 is
     # kept only as a reference number
@@ -583,7 +605,9 @@ def test_crank_spec_differs_from_yamlab_only_where_the_hardware_does():
     assert CR.DEFAULT_JOINT_POS[1] == CR.DEFAULT_JOINT_POS[2] == 1.047, "ABC home: joints 2 and 3 at 60 deg"
     assert CR.TCP_IN_FLANGE == (0.0, 0.0, 0.1347) and CR.FINGERTIP_KEYPOINTS is None
     assert "camera_mount" not in CR.FIXED_CAMERA_LINKS and CR.WRIST_CAMERA_LINK == Y.WRIST_CAMERA_LINK
-    assert CR.WRIST_CAMERA_POSITION != Y.WRIST_CAMERA_POSITION
+    # the YAMLab arm now carries ABC's bracket pose too (so the fingertips are in view); YAMLab's own is kept
+    assert CR.WRIST_CAMERA_POSITION == Y.WRIST_CAMERA_POSITION != Y.YAMLAB_WRIST_CAMERA_POSITION
+    assert CR.WRIST_CAMERA_QUAT_WXYZ == Y.WRIST_CAMERA_QUAT_WXYZ != Y.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
     # the composed MuJoCo camera looks 50 deg below the flange axis (yamlab: 25 deg) -- unit quaternion, view dir
     w, x, y, z = CR.WRIST_CAMERA_QUAT_WXYZ
     assert abs(w * w + x * x + y * y + z * z - 1.0) < 1e-4

@@ -116,6 +116,18 @@ directly (Martin, 2026-09-05: the non-crank bimanual robot should use the same k
 `YAM_crank_bimanual.yaml` keep `high_pd`, with the aligned set as `YAM_crank_bimanual_aligned_pd_control`.
 `GAIN_SETS` default is unchanged; DROID untouched.
 
+## Start state, grippers and wrist cameras (2026-09-05 evening, Martin)
+
+First closed-loop smokes with `openpi_yam` (jobs 204743/204745) showed three sim-side mismatches with the training
+data, all fixed in one commit: (1) REALM's warm-up closed the grippers before the policy took over (DROID's start
+state) while every MolmoAct2 episode starts open -> YAM profiles set `warmup_gripper_closed: False`; (2) the arms
+started at YAMLab's all-zero pose (pointing up, wrist cameras on the ceiling) -> `YAM_bimanual` now starts at the
+MolmoAct2 median start pose (`DEFAULT_ARM_JOINT_POS`); (3) YAMLab's wrist camera looks only ~25 deg down, so the
+fingertips are barely in frame -> the YAMLab arm's `wrist_camera` is authored at ABC's bracket pose (same as the
+crank arm), near plane 0.04 m; `yam.usd` / `yam_bimanual.usd` rebuilt on Clara from `~/projects/yamlab`
+(PROVENANCE updated; crank USDs untouched). Not an inverted gripper: the polarity was verified in-container and
+the recorded qpos went closed -> open exactly when the policy commanded open.
+
 ## Data
 
 - `logs/abc_preview/` on the laptop (also rsynced to Clara, see the handoff message): the public preview tar

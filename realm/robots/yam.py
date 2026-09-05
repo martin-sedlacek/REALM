@@ -161,11 +161,18 @@ class YamRobot:
     # --- wrist camera (YAMLab configs/robot/yam.yaml: cameras.left_wrist) ---------------------
     WRIST_CAMERA_PRIM = "wrist_camera"
     WRIST_CAMERA_LINK = "link_6"
-    #: Offset from link_6, metres.
-    WRIST_CAMERA_POSITION = (-0.0004, 0.069638, 0.073063)
-    #: (w, x, y, z), OpenGL camera convention (looks down -Z, +Y up) -- which is also the USD
-    #: Camera prim convention, so it is authored as xformOp:orient verbatim.
-    WRIST_CAMERA_QUAT_WXYZ = (-0.003227, 0.002817, 0.975619, 0.219430)
+    #: YAMLab's calibrated D405 pose in link_6 (cameras.left_wrist): metres, and (w, x, y, z) in the
+    #: OpenGL/USD camera convention (looks down -Z, +Y up). ~25 degrees below the flange axis; the
+    #: fingertips sit at the very bottom of that frame.
+    YAMLAB_WRIST_CAMERA_POSITION = (-0.0004, 0.069638, 0.073063)
+    YAMLAB_WRIST_CAMERA_QUAT_WXYZ = (-0.003227, 0.002817, 0.975619, 0.219430)
+    #: The pose REALM authors (Martin, 2026-09-05): ABC's steeper bracket (YamCrankRobot, composed from
+    #: their MJCF), 50 degrees below the flange axis, so the fingertips are in view on the YAMLab gripper
+    #: too. Authored as xformOp:translate / xformOp:orient verbatim by scripts/build_yam_usd.py. The
+    #: YAMLab housing mesh stays where YAMLab mounts it, so this camera origin sits at the housing's
+    #: front-bottom edge with 3.7 cm of housing inside its view cone -- see WRIST_CAMERA_CLIPPING_RANGE.
+    WRIST_CAMERA_POSITION = (-0.0017, 0.095, 0.062)
+    WRIST_CAMERA_QUAT_WXYZ = (0.0, 0.0, 0.906106, 0.42305)
     WRIST_CAMERA_INTRINSICS = {"fx": 390.666, "fy": 390.162, "cx": 317.526, "cy": 236.146}
     WRIST_CAMERA_CALIB_RESOLUTION = (640, 480)
     #: REALM renders the wrist cameras at this resolution (realm/config/robots/YAM*.yaml). 4:3, the aspect
@@ -177,11 +184,11 @@ class YamRobot:
     #: OmniGibson's VisionSensor default horizontal aperture; kept, and the focal length is derived
     #: so that the horizontal FOV equals the calibrated one.
     WRIST_CAMERA_HORIZONTAL_APERTURE = 20.955
-    #: (near, far) in metres. The camera origin lies ~1.5 cm INSIDE the D405 housing's visual mesh
-    #: (camera_d405 link), so with OmniGibson's default 1 mm near plane the housing walls fill the
-    #: frame and the wrist image is black -- observed on the first container run, 2026-09-04.
-    #: IsaacLab's PinholeCameraCfg default near plane is 0.1 m, which is what YAMLab rendered with.
-    WRIST_CAMERA_CLIPPING_RANGE = (0.1, 10000000.0)
+    #: (near, far) in metres. Measured in the built USD (2026-09-05, pxr): from WRIST_CAMERA_POSITION every
+    #: point of the D405 housing mesh inside the 78.6 deg view cone lies 0.0215-0.0367 m deep, the nearest
+    #: finger point 0.0472 m. A 0.04 m near plane clips the housing completely and renders every finger
+    #: point (YAMLab's own pose needed 0.1: its origin is INSIDE the housing; ABC's crank arm uses 0.02).
+    WRIST_CAMERA_CLIPPING_RANGE = (0.04, 10000000.0)
 
     # --- placement in REALM scenes ----------------------------------------------------------
     #: Height of the arm base above the scene's robot spawn point. REALM's scene spawn poses put the
@@ -308,6 +315,9 @@ class YamRobot:
             gripper_proprio_idx=cls.ARM_DOF,
             gripper_open_qpos=cls.GRIPPER_OPEN_QPOS,
             gripper_closed_qpos=cls.GRIPPER_CLOSED_QPOS,
+            # REALM's warm-up (env_dynamic.warmup_action) opens then closes the gripper for DROID; every
+            # YAM dataset (YAMLab, ABC, MolmoAct2) starts with the grippers OPEN, so the YAM warm-up ends open.
+            warmup_gripper_closed=False,
         )
 
 
@@ -453,9 +463,11 @@ class YamBimanualRobot:
     frame_z_in_mount = YamRobot.frame_z_in_mount
     #: Per-arm wrist camera offset from ``<arm>_link_6`` (YAMLab ``cameras.left_wrist`` /
     #: ``cameras.right_wrist``; the two calibrations differ by ~1 mm).
+    #: REALM authors ABC's bracket pose on both wrists (YamRobot.WRIST_CAMERA_POSITION). YAMLab's two
+    #: calibrations differed by ~1 mm: left YAMLAB_WRIST_CAMERA_POSITION, right (0.0, 0.069638, 0.072).
     WRIST_CAMERA_POSITIONS = {
         "left": YamRobot.WRIST_CAMERA_POSITION,
-        "right": (0.0, 0.069638, 0.072),
+        "right": YamRobot.WRIST_CAMERA_POSITION,
     }
 
     ARM_DOF = YamRobot.ARM_DOF
@@ -566,13 +578,27 @@ class YamBimanualRobot:
             order.extend(cls.finger_joints(arm))
         return tuple(order)
 
+    #: Per-arm start pose of the arm joints (radians), or None for the single-arm spec's DEFAULT_JOINT_POS
+    #: (YAMLab: all zeros, arm pointing straight up). REALM starts the YAMLab workstation where the
+    #: MolmoAct2-BimanualYAM episodes start (median first frame over 66 episodes of
+    #: allenai/MolmoAct2-BimanualYAM-Dataset, 2026-09-05): near-upright with joint 3 slightly forward and
+    #: joint 4 pitching the wrist down, so the wrist cameras look at the workspace rather than the
+    #: ceiling, and so a policy trained on that data sees its own start state. Left j1 0.01 -> 0.
+    DEFAULT_ARM_JOINT_POS = {
+        "left": (0.0, 0.0, 0.16, -0.53, 0.0, -0.05),
+        "right": (0.10, 0.0, 0.18, -0.79, 0.0, 0.03),
+    }
+
     @classmethod
     def default_joint_pos(cls):
-        """YAMLab's initial state for both arms, in :meth:`dof_order`."""
+        """Initial state for both arms in :meth:`dof_order`: DEFAULT_ARM_JOINT_POS per arm when set, else
+        the single-arm spec's arm pose; fingers always from the single-arm spec (open)."""
         single = cls.ARM.DEFAULT_JOINT_POS
         by_joint = {}
         for arm in cls.ARMS:
-            for j, value in zip((*cls.arm_joints(arm), *cls.finger_joints(arm)), single):
+            arm_pose = single[:cls.ARM_DOF] if cls.DEFAULT_ARM_JOINT_POS is None else cls.DEFAULT_ARM_JOINT_POS[arm]
+            assert len(arm_pose) == cls.ARM_DOF
+            for j, value in zip((*cls.arm_joints(arm), *cls.finger_joints(arm)), (*arm_pose, *single[cls.ARM_DOF:])):
                 by_joint[j] = value
         return tuple(by_joint[j] for j in cls.dof_order())
 
@@ -643,6 +669,8 @@ class YamBimanualRobot:
             gripper_proprio_idx=order.index(cls.gripper_proxy_joint(first)),
             gripper_open_qpos=cls.GRIPPER_OPEN_QPOS,
             gripper_closed_qpos=cls.GRIPPER_CLOSED_QPOS,
+            # see YamRobot.obs_profile: the YAM warm-up ends with the grippers open
+            warmup_gripper_closed=False,
         )
 
 
@@ -656,6 +684,8 @@ class YamCrankBimanualRobot(YamBimanualRobot):
     """
 
     ARM = YamCrankRobot
+    #: ABC's ``home`` keyframe on both arms (YamCrankRobot.DEFAULT_JOINT_POS), not the MolmoAct2 start.
+    DEFAULT_ARM_JOINT_POS = None
     MODEL = "yam_crank_bimanual"
     NAME = "YAM_crank_bimanual"
     USD_PATH = "/app/realm/robots/yam/yam_crank_bimanual.usd"

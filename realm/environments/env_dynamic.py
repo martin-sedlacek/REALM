@@ -22,7 +22,7 @@ from realm.geometry import (
     robot_to_world,
     world_to_robot,
 )
-from realm.inference.utils import assert_proprio_layout, assert_wrist_camera, is_multi_arm
+from realm.inference.utils import assert_proprio_layout, assert_wrist_camera, get_robot_obs_profile, is_multi_arm
 from realm.sim_config import set_rendering_mode
 
 
@@ -264,8 +264,13 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         Single-arm: [reset arm joints (or the EE command), gripper]. Multi-arm: per arm in controller
         order, [that arm's reset joints looked up by name in the DOF order, gripper] -- the bimanual
         YAM's 14-D [left_arm, left_gripper, right_arm, right_gripper].
+
+        The second half closes the gripper unless the robot's obs profile says
+        ``warmup_gripper_closed: False`` (the YAM robots: their datasets start with the grippers open).
+        DROID's profiles carry no such key, so its rollouts still start closed.
         """
-        gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
+        closed_at_end = get_robot_obs_profile(self.robot.name).get("warmup_gripper_closed", True)
+        gripper_val = np.atleast_1d(1.0 if (t < WARMUP_STEPS // 2 or not closed_at_end) else -1.0)
         if is_multi_arm(self.robot.name):
             dof_names = list(self.robot.dof_names_ordered)
             parts = []

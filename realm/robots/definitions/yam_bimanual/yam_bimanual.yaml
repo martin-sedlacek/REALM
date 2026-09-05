@@ -159,9 +159,10 @@ disabled_collision_pairs:
 # In OmniGibson DOF order (YamBimanualRobot.dof_order(): PhysX numbers joints BREADTH-first from the root,
 # left arm first at each level -- left_joint1, right_joint1, left_joint2, ..., right_joint6, then the left
 # fingers, then the right fingers; measured in-container 2026-09-05). Fingers at -0.0475 m = fully open.
+# Arm values: YamBimanualRobot.DEFAULT_ARM_JOINT_POS (MolmoAct2 episode start pose), interleaved left/right.
 # assert_proprio_layout checks this order against the loaded robot.
 default_joint_pos: [
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.1, 0.0, 0.0, 0.16, 0.18, -0.53, -0.79, 0.0, 0.0, -0.05, 0.03,
   -0.0475, -0.0475, -0.0475, -0.0475,
 ]
 
