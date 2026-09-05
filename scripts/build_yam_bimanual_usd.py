@@ -52,14 +52,18 @@ from realm.robots.yam import YamBimanualRobot, YamCrankBimanualRobot  # noqa: E4
 from build_yam_usd import (  # noqa: E402
     OUT_DIR,
     OUT_PROVENANCE,
+    _identity_ops,
+    author_frame_link,
+    load_frame_mesh,
     remap_dependents,
     replace_provenance_section,
     sha256,
     stale_paths,
+    verify_frame,
 )
 
 try:
-    from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, Vt  # noqa: E402
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics  # noqa: E402
 except ImportError as exc:  # pragma: no cover - host tooling
     sys.exit(f"pxr is required (pip install usd-core): {exc}")
 
@@ -73,7 +77,7 @@ def _roots(spec):
 
 def _single_links(spec):
     arm = spec.ARM
-    return (*arm.ARM_LINKS, *arm.FINGER_LINKS, *arm.FIXED_CAMERA_LINKS, *arm.VIRTUAL_LINKS)
+    return (*arm.ARM_LINKS, *arm.FINGER_LINKS, *arm.FIXED_CAMERA_LINKS, *arm.VIRTUAL_LINKS, arm.FRAME_LINK)
 
 
 def source_usd(spec):
@@ -92,92 +96,6 @@ def _shift_translate(prim, offset):
     attr.Set(type(value)(value[0] + offset[0], value[1] + offset[1], value[2] + offset[2]))
 
 
-def _identity_ops(prim):
-    xf = UsdGeom.Xformable(prim)
-    xf.ClearXformOpOrder()
-    xf.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.0))
-    xf.AddOrientOp(UsdGeom.XformOp.PrecisionFloat).Set(Gf.Quatf(1.0, Gf.Vec3f(0.0, 0.0, 0.0)))
-    xf.AddScaleOp().Set(Gf.Vec3f(1.0, 1.0, 1.0))
-
-
-def load_frame_mesh(B, workstation_usd=None):
-    """Read YAMLab's gate mesh (triangle soup, one vertex per corner) off the composed workstation stage.
-
-    Returns (points (N, 3) float32 in YAMLab's world frame, faceVertexCounts, faceVertexIndices). The
-    mesh lives in Props/instanceable_meshes.usd behind an instanceable reference, so it is read through
-    the composed stage rather than the layer.
-    """
-    import numpy as np
-
-    path = os.path.join(REPO_ROOT, B.FRAME_SOURCE_USD) if workstation_usd is None else workstation_usd
-    stage = Usd.Stage.Open(path)
-    assert stage, f"cannot open {path}"
-    prim = stage.GetPrimAtPath(B.FRAME_SOURCE_PRIM)
-    assert prim and prim.GetTypeName() == "Mesh", f"{B.FRAME_SOURCE_PRIM} is not a Mesh in {path}"
-    mesh = UsdGeom.Mesh(prim)
-    xf = UsdGeom.XformCache().GetLocalToWorldTransform(prim)
-    pts = np.array([xf.Transform(Gf.Vec3d(p)) for p in mesh.GetPointsAttr().Get()], dtype=np.float64)
-    counts = list(mesh.GetFaceVertexCountsAttr().Get())
-    indices = list(mesh.GetFaceVertexIndicesAttr().Get())
-    assert set(counts) == {3}, "expected a triangle mesh"
-    lo, hi = pts.min(axis=0), pts.max(axis=0)
-    # YAMLab's frame: x +-0.30, y +-0.65, z 0..1.68 with the arm plates at 0.76 (arms.<side>.position).
-    assert abs(lo[2]) < 0.01 and 1.6 < hi[2] < 1.8 and 0.55 < hi[1] < 0.75, f"unexpected gate extent {lo} .. {hi}"
-    return pts, counts, indices
-
-
-def author_frame_link(stage, base_prim, frame_source, B):
-    """Author the visual-only workstation frame as a link fixed to base_link.
-
-    The mesh is copied (not referenced) so the asset stays a single file; its points are moved into the
-    mount frame with the part below the arm plates stretched by B.FRAME_STRETCH_BELOW_MOUNT so the
-    frame's feet reach the floor at REALM's mount_height (B.frame_z_in_mount). Authored normals are
-    dropped: the soup has its own vertices per face, so flat shading falls out for free and the file
-    stays ~9 MB smaller. No CollisionAPI anywhere under the link.
-    """
-    import numpy as np
-
-    _, DST_ROOT = _roots(B)
-    pts, counts, indices = frame_source
-    origin = np.array(B.frame_origin_in_mount(), dtype=np.float64)
-    z = np.array([B.frame_z_in_mount(v) for v in pts[:, 2]], dtype=np.float64)
-    local = np.column_stack([pts[:, 0] + origin[0], pts[:, 1] + origin[1], z])
-
-    link = UsdGeom.Xform.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}")
-    UsdPhysics.RigidBodyAPI.Apply(link.GetPrim())
-    UsdPhysics.MassAPI.Apply(link.GetPrim()).GetMassAttr().Set(1.0)
-    _identity_ops(link.GetPrim())
-    visuals = UsdGeom.Xform.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals")
-    _identity_ops(visuals.GetPrim())
-    mesh = UsdGeom.Mesh.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals/gate")
-    _identity_ops(mesh.GetPrim())
-    mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(local.astype(np.float32)))
-    mesh.GetFaceVertexCountsAttr().Set(Vt.IntArray(counts))
-    mesh.GetFaceVertexIndicesAttr().Set(Vt.IntArray(indices))
-    mesh.GetSubdivisionSchemeAttr().Set(UsdGeom.Tokens.none)
-    mesh.GetDoubleSidedAttr().Set(True)
-    lo, hi = local.min(axis=0), local.max(axis=0)
-    mesh.GetExtentAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*[float(v) for v in lo]), Gf.Vec3f(*[float(v) for v in hi])]))
-
-    material = UsdShade.Material.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals/aluminium")
-    shader = UsdShade.Shader.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals/aluminium/shader")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*B.FRAME_MATERIAL["diffuse"]))
-    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(B.FRAME_MATERIAL["metallic"])
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(B.FRAME_MATERIAL["roughness"])
-    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
-    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
-
-    joint = UsdPhysics.FixedJoint.Define(stage, f"{DST_ROOT}/joints/{B.FRAME_LINK}")
-    joint.CreateBody0Rel().SetTargets([base_prim.GetPath()])
-    joint.CreateBody1Rel().SetTargets([link.GetPrim().GetPath()])
-    for attr, value in (("LocalPos0", Gf.Vec3f(0, 0, 0)), ("LocalPos1", Gf.Vec3f(0, 0, 0))):
-        getattr(joint, f"Create{attr}Attr")().Set(value)
-    for attr in ("LocalRot0", "LocalRot1"):
-        getattr(joint, f"Create{attr}Attr")().Set(Gf.Quatf(1.0, Gf.Vec3f(0.0, 0.0, 0.0)))
-    return lo, hi
-
-
 def build(source, output, B=YamBimanualRobot, workstation_usd=None):
     YamRobot = B.ARM
     SRC_ROOT, DST_ROOT = _roots(B)
@@ -191,7 +109,11 @@ def build(source, output, B=YamBimanualRobot, workstation_usd=None):
 
     link_names = [c.GetName() for c in src_root.GetChildren() if c.GetTypeName() == "Xform"]
     assert set(link_names) == set(_single_links(B)), f"unexpected link set in {source}: {sorted(link_names)}"
-    joint_names = [c.GetName() for c in src_stage.GetPrimAtPath(f"{SRC_ROOT}/joints").GetChildren()]
+    # The single-arm file carries the gate frame centred under its one arm; the pair gets ONE frame, authored
+    # below at the mount frame, so the per-arm copies skip it (and its fixed joint).
+    link_names = [n for n in link_names if n != YamRobot.FRAME_LINK]
+    joint_names = [c.GetName() for c in src_stage.GetPrimAtPath(f"{SRC_ROOT}/joints").GetChildren()
+                   if c.GetName() != YamRobot.FRAME_LINK]
     assert set(joint_names) >= {*YamRobot.ARM_JOINTS, *YamRobot.FINGER_JOINTS, YamRobot.EEF_LINK}, joint_names
     assert src_stage.GetPrimAtPath(f"{SRC_ROOT}/PhysicsMaterial"), "single-arm file has no PhysicsMaterial"
     # Root children that are neither links nor the joints scope (PhysicsMaterial, a Looks scope) are shared
@@ -253,7 +175,7 @@ def build(source, output, B=YamBimanualRobot, workstation_usd=None):
         assert cam and cam.GetTypeName() == "Camera", f"{arm}: wrist camera missing after copy"
         cam.GetAttribute("xformOp:translate").Set(Gf.Vec3d(*B.WRIST_CAMERA_POSITIONS[arm]))
 
-    author_frame_link(stage, base.GetPrim(), frame_source, B)
+    author_frame_link(stage, base.GetPrim(), frame_source, B, DST_ROOT)
 
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -377,38 +299,7 @@ def verify(output, B=YamBimanualRobot):
     if set(driven) != set(B.dof_order()):
         problems.append(f"driven joints {sorted(driven)} != YamBimanualRobot.dof_order() {sorted(B.dof_order())}")
 
-    # The workstation frame: a visual-only link (no CollisionAPI anywhere -- check_collisions would count a
-    # colliding frame as an environment collision every step) fixed to base_link, standing on the floor
-    # (lowest point at -MOUNT_HEIGHT) with YAMLab's arm plates at the mount plane (z ~ 0).
-    frame_bbox = None
-    frame = root.GetChild(B.FRAME_LINK)
-    if not frame or not frame.HasAPI(UsdPhysics.RigidBodyAPI):
-        problems.append(f"{B.FRAME_LINK} missing or not a rigid body")
-    else:
-        meshes = [p for p in Usd.PrimRange(frame) if p.GetTypeName() == "Mesh"]
-        if not meshes:
-            problems.append(f"{B.FRAME_LINK} has no visual mesh")
-        if any(p.HasAPI(UsdPhysics.CollisionAPI) for p in Usd.PrimRange(frame)):
-            problems.append(f"{B.FRAME_LINK} carries collision geometry; it must be visual-only")
-        fj = joints.get(B.FRAME_LINK)
-        if fj is None or fj.GetTypeName() != "PhysicsFixedJoint" or \
-                [t.name for t in fj.GetRelationship("physics:body0").GetTargets()] != [B.BASE_LINK]:
-            problems.append(f"{B.FRAME_LINK} is not fixed to {B.BASE_LINK}")
-        if meshes:
-            ext = UsdGeom.Mesh(meshes[0]).GetExtentAttr().Get()
-            if ext is None:
-                problems.append(f"{B.FRAME_LINK} mesh has no extent")
-            else:
-                lo, hi = ext
-                frame_bbox = (tuple(round(float(v), 3) for v in lo), tuple(round(float(v), 3) for v in hi))
-                if abs(lo[2] + B.MOUNT_HEIGHT) > 0.005:
-                    problems.append(f"{B.FRAME_LINK} foot at z={lo[2]:.3f}, expected -MOUNT_HEIGHT={-B.MOUNT_HEIGHT:.3f} (the floor)")
-                if not (0.8 < hi[2] < 1.0):
-                    problems.append(f"{B.FRAME_LINK} top at z={hi[2]:.3f}; YAMLab's top bar is ~0.92 above the plates")
-                if not (abs(abs(lo[1]) - abs(hi[1])) < 0.01 and 0.6 < hi[1] < 0.7):
-                    problems.append(f"{B.FRAME_LINK} is not centred on the mount frame in y: {lo[1]:.3f} .. {hi[1]:.3f}")
-                if not any(p.GetTypeName() == "Material" for p in Usd.PrimRange(frame)):
-                    problems.append(f"{B.FRAME_LINK} has no material")
+    frame_bbox = verify_frame(root, joints, B, problems)
 
     stale = stale_paths(stage.GetRootLayer(), SRC_ROOT + "/")
     if stale:

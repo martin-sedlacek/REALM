@@ -69,7 +69,7 @@ realm/
 │   ├── yam/                   yam.usd + yam_bimanual.usd (from YAMLab) and yam_crank*.usd (gripper from ABC's MJCF),
 │   │                          all rebuilt by scripts/build_yam*_usd.py
 │   │                          + PROVENANCE
-│   │                          + verbatim workstation USDs (source of yam_bimanual's visual-only frame link)
+│   │                          + verbatim workstation USDs (source of every YAM asset's visual-only frame link)
 │   ├── controller_registry.py registers the four custom controllers + default configs
 │   ├── droid_joint_controller.py / individual_joint_pd_controller.py   joint PD (impedance / plain)
 │   ├── droid_ee_controller.py   cartesian EE control; SUPPORTED_MODES = absolute_pose,
@@ -193,7 +193,9 @@ default prim, identity `xformOp:translate/orient/scale` on the root, and any cam
 child of a link (OmniGibson discovers nothing deeper). `eef_link_names` must point at a
 geometry-free frame, never at a real link: OmniGibson makes the eef link invisible at init, so
 naming the gripper housing there deletes it from every render (the YAM port hit exactly this and
-authors a massless `eef_link` at the fingertip midpoint instead). **Collision meshes must be DIRECT
+authors a massless `eef_link` at the fingertip midpoint instead). Primitive collision shapes (Capsule) must
+author `purpose = guide` themselves: OmniGibson hides only the gprim types it classifies, and an unclassified
+collision prim renders. **Collision meshes must be DIRECT
 children of their link**: OmniGibson's `RigidPrim.update_meshes()` composes each link's centre of mass
 from its collision meshes one level up only and overwrites the authored CoM, so a mesh nested under an
 Xform lands the CoM wherever that Xform's transform is ignored (the YAM export put every link's CoM

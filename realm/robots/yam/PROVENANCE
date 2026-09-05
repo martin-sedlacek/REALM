@@ -4,9 +4,9 @@ generated: 2026-09-05 by scripts/build_yam_usd.py
 yamlab commit: ec0455d2b4ce35f21fc126418ea5e74ac567133d
 
 yam.usd
-  source: /mnt/home_lustre/sedlam56/projects/yamlab/yamlab/robot/yam/arm/yam.usd
+  source: /home/elmo/sedlam/yamlab/yamlab/robot/yam/arm/yam.usd
   source sha256: 8b997d9c864a53a00abba54d2381d3aebf71853f7918450305afc11e73aeb499
-  output sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
+  output sha256: 672ec06b3cf70aa0cfd2f6ba48f45eb1f3e6098fa2ceb1046d7b2470b33ff5a6
   changes vs source: see the module docstring of scripts/build_yam_usd.py (links reparented under
   /yam, base link renamed base_link, rootJoint_arm/physicsScene/Kit cameras removed, finger drive
   maxForce authored, wrist camera authored under link_6, massless eef_link fixed to link_6 at the
@@ -22,26 +22,13 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
   workstation/mesh/gate_horizontal_bar.usd sha256: b0ac6ceea1f88b017859e3a4981679edd1a89e16265d6e57d7e0540a2c9b6dd9
   workstation/mesh/gate_vertical_bar.usd sha256: 3c47c63ebd8577a2df4156b0976708cc3c7ff62f4fd3b726ae8d3487336690d2
 
-yam_bimanual.usd
-  source: realm/robots/yam/yam.usd (the built single-arm file above)
-  source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
-  output sha256: 6773b67678fd0d37f0092f287352a3f8e1a91bbbdb464c727b742d803a05fdba
-  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
-  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
-  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
-  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
-  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
-  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
-  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
-  for a UsdPreviewSurface with the same aluminium constants.
-
 yam_crank.usd
   source: realm/robots/yam/yam.usd (the built YAMLab arm above) + ABC's MJCF
-  source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
+  source sha256: 672ec06b3cf70aa0cfd2f6ba48f45eb1f3e6098fa2ceb1046d7b2470b33ff5a6
   mjcf: /home/elmo/sedlam/abc/assets/put_bottles/assets/i2rt_yam/yam.xml
   mjcf sha256: a797c4c27d1c074eb24b04d9cf13cef9a66589f135ebf35bb22f2be3b86f7d28
   abc commit: 6bc6586721cf0c409ccee80f675a28de9b9b2f5e
-  output sha256: f9b7ea5a48e3f18b69d256190679e75449dc504a58cfcca5bfeaf557029f9e8c
+  output sha256: 546575fcd93b606b0c40b3330a1ae9cc9242ae829a460b1dda7ac9f9be6d13b5
   built by scripts/build_yam_crank_usd.py: link_6 housing, both fingers (visuals, capsule/box collision
   pads, inertials, prismatic joints), the wrist D405 links and camera, and the eef frame re-authored from
   the MJCF; the six arm links are YAMLab's. Numbers from realm/robots/yam.py::YamCrankRobot.
@@ -64,10 +51,23 @@ yam_crank.usd
   model2__9.stl sha256: 74969d09b8b7f75cc984c5c7e5526d2941c6724f48b3efa1fa8730cc7820f4f5
   d405.stl sha256: 8a9a84dd9c9a67687e5ad0b37a7ed334dbfea6b0f995fef28524cc8da5f21ed2
 
+yam_bimanual.usd
+  source: realm/robots/yam/yam.usd (the built single-arm file above)
+  source sha256: 672ec06b3cf70aa0cfd2f6ba48f45eb1f3e6098fa2ceb1046d7b2470b33ff5a6
+  output sha256: 6773b67678fd0d37f0092f287352a3f8e1a91bbbdb464c727b742d803a05fdba
+  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
+  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
+  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
+  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
+  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
+  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
+  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
+  for a UsdPreviewSurface with the same aluminium constants.
+
 yam_crank_bimanual.usd
   source: realm/robots/yam/yam_crank.usd (the built single-arm file above)
-  source sha256: f9b7ea5a48e3f18b69d256190679e75449dc504a58cfcca5bfeaf557029f9e8c
-  output sha256: 65ee2f9a3b668c235ec646746e68b68caa25a74c25ccf7da674f3c7418c6c59c
+  source sha256: 546575fcd93b606b0c40b3330a1ae9cc9242ae829a460b1dda7ac9f9be6d13b5
+  output sha256: 97dc141df4e20b7be49fb3d548708f15a940b5c1c0a6e72d15d19de2d0675b04
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam_crank.usd copied twice with left_/right_
   prefixes, links translated by the arm offsets (+-0.31 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's

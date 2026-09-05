@@ -61,6 +61,9 @@ def test_spec_is_internally_consistent():
     assert all(q == Y.GRIPPER_OPEN_QPOS for q in Y.DEFAULT_JOINT_POS[Y.ARM_DOF:])
     assert Y.CONTROL_FREQ_HZ * 4 == Y.PHYSICS_FREQ_HZ
     assert 70.0 < Y.wrist_camera_hfov_deg() < 90.0
+    # the gate frame is a visual-only link on every asset: never an arm/finger/camera link, plates at z=0
+    assert Y.FRAME_LINK not in (*Y.ARM_LINKS, *Y.FINGER_LINKS, *Y.FIXED_CAMERA_LINKS, *Y.VIRTUAL_LINKS)
+    assert Y.frame_z_in_mount(Y.YAMLAB_MOUNT_IN_WORLD[2]) == 0.0 and Y.frame_z_in_mount(0.0) == pytest.approx(-Y.MOUNT_HEIGHT)
 
 
 # --- RobotDefinition ----------------------------------------------------------------------------
@@ -223,6 +226,9 @@ def test_usd_has_the_structure_omnigibson_needs():
     assert set(summary["joints"]) >= set(Y.ARM_JOINTS) | set(Y.FINGER_JOINTS)
     assert summary["wrist_camera"] == f"/{Y.MODEL}/{Y.WRIST_CAMERA_LINK}/{Y.WRIST_CAMERA_PRIM}"
     assert summary["eef_link"] == Y.EEF_LINK and summary["tcp_in_flange_frame_m"] is not None
+    # the single arm stands on the gate frame too (centred: its base sits on the front cross bar)
+    lo, hi = summary["frame_bbox_in_mount_m"]
+    assert lo[2] == pytest.approx(-Y.MOUNT_HEIGHT, abs=0.005) and lo[1] == pytest.approx(-hi[1], abs=0.01)
 
 
 def test_provenance_records_the_source():
@@ -637,6 +643,7 @@ def test_crank_usds_have_the_structure_omnigibson_needs():
     problems, summary = build_yam_crank_usd.verify(str(CR_USD))
     assert not problems, "\n".join(problems)
     assert summary["tcp_in_flange_frame_m"] == CR.TCP_IN_FLANGE
+    assert summary["frame_bbox_in_mount_m"][0][2] == pytest.approx(-CR.MOUNT_HEIGHT, abs=0.005)
     assert summary["finger_open_qpos"] == CR.finger_open_qpos()
     problems, summary = build_yam_bimanual_usd.verify(str(CB_USD), CB)
     assert not problems, "\n".join(problems)

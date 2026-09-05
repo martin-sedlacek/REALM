@@ -54,6 +54,7 @@ from build_yam_usd import (  # noqa: E402
     replace_provenance_section,
     sha256,
     stale_paths,
+    verify_frame,
 )
 
 try:
@@ -278,6 +279,10 @@ def author_collision(stage, link_path, name, attrs, pose):
     else:
         raise ValueError(f"unsupported collision geom type {kind}")
     UsdPhysics.CollisionAPI.Apply(prim.GetPrim())
+    # OmniGibson hides collision geometry by setting purpose "guide" at load, but only on the gprim types it
+    # classifies ({Sphere, Cube, Cone, Cylinder, Mesh}); a Capsule slips through and renders as a grey blob
+    # over the finger meshes (seen in the GUI, 2026-09-05). Author the purpose here for every shape.
+    UsdGeom.Imageable(prim.GetPrim()).CreatePurposeAttr().Set(UsdGeom.Tokens.guide)
     return prim
 
 
@@ -497,7 +502,7 @@ def verify(output):
         if root.GetAttribute(op).Get() is None:
             problems.append(f"root has no {op}")
 
-    expected_links = {*C.ARM_LINKS, *C.FINGER_LINKS, *C.FIXED_CAMERA_LINKS, *C.VIRTUAL_LINKS}
+    expected_links = {*C.ARM_LINKS, *C.FINGER_LINKS, *C.FIXED_CAMERA_LINKS, *C.VIRTUAL_LINKS, C.FRAME_LINK}
     xform_children = {c.GetName() for c in root.GetChildren() if c.GetTypeName() == "Xform"}
     if xform_children != expected_links:
         problems.append(f"root Xform children: missing {sorted(expected_links - xform_children)}, "
@@ -509,10 +514,14 @@ def verify(output):
             continue
         if prim.GetAttribute("xformOp:scale").Get() is None:
             problems.append(f"{name} has no xformOp:scale")
-        # collision prims must be DIRECT children of their link (OmniGibson's CoM composition rule)
+        # collision prims must be DIRECT children of their link (OmniGibson's CoM composition rule), and the
+        # authored primitive shapes must carry purpose=guide (OmniGibson only hides the types it classifies)
         for p in Usd.PrimRange(prim):
             if p.HasAPI(UsdPhysics.CollisionAPI) and p.GetParent() != prim:
                 problems.append(f"{p.GetPath()} is a nested collision prim")
+            if p.HasAPI(UsdPhysics.CollisionAPI) and p.GetTypeName() in ("Capsule", "Cube", "Sphere") \
+                    and UsdGeom.Imageable(p).GetPurposeAttr().Get() != UsdGeom.Tokens.guide:
+                problems.append(f"{p.GetPath()} ({p.GetTypeName()}) would render: purpose is not guide")
 
     joints = {p.GetName(): p for p in Usd.PrimRange(root) if "Joint" in p.GetTypeName()}
     child_links = set()
@@ -591,8 +600,10 @@ def verify(output):
     stale = stale_paths(stage.GetRootLayer(), SRC_ROOT + "/")
     if stale:
         problems.append(f"stale YAMLab paths: {stale[:5]}")
+    frame_bbox = verify_frame(root, joints, C, problems)
 
     summary = {
+        "frame_bbox_in_mount_m": frame_bbox,
         "links": sorted(xform_children),
         "joints": sorted(joints),
         "finger_limits": finger_limits,

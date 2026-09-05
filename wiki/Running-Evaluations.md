@@ -176,7 +176,9 @@ frame, 0.30 m straight toward the workspace, because the YAM's reach is well sho
 the Franka's. Objects stay where the scene places them; the robot-frame cameras (the YAM_bimanual top
 camera, the task extrinsics) and the EE-control transforms move with the robot. The value was chosen by
 eye in the GUI on 2026-09-05; `scripts/yam_placement_gui.py` nudges the robot with the keyboard and prints
-the block to paste if it needs retuning. Only the `debug` model type has been exercised with a
+the block to paste if it needs retuning. Every YAM asset also carries YAMLab's aluminium gate as the
+visual-only link `frame` (see YAM_bimanual below); the single arm stands centred on its front cross bar.
+Only the `debug` model type has been exercised with a
 6-DOF state: `openpi`/`dreamzero` policy servers must accept a 6-entry `observation/joint_position`.
 
 > **Verified so far (2026-09-04, RTX 5090, `debug` model, 90 steps, `--no-render_on_demand`; task 0
@@ -203,7 +205,9 @@ scene's robot pose and shifted by the same `spawn_offset` as the single arm (0.3
 stand on YAMLab's aluminium-extrusion frame, carried as the visual-only link `frame` (no collision, so it
 never counts as an environment collision): the mesh is YAMLab's `gate_visual`, with the part below the
 arm plates stretched in z so the feet reach the floor at `mount_height` while the posts and top bar above
-the plates keep their real dimensions. Links and joints carry the arm as a prefix (`left_link_6`,
+the plates keep their real dimensions. The crank variant's finger collision shapes are primitive capsules
+and boxes with `purpose = guide` authored in the USD: OmniGibson only hides collision geometry of the gprim
+types it classifies, and a `Capsule` is not one of them. Links and joints carry the arm as a prefix (`left_link_6`,
 `right_joint1`, `left_left_finger`), and the arms collide with each other but not with themselves
 (`self_collisions: true` + every within-arm pair filtered, matching YAMLab's per-arm articulations with
 self-collisions off).

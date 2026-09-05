@@ -184,6 +184,32 @@ class YamRobot:
     SPAWN_OFFSET_POS = (0.30, 0.0, 0.0)
     SPAWN_OFFSET_YAW_DEG = 0.0
 
+    #: YAMLab world position of the bimanual mount frame (midpoint of ``arms.left/right.position``), also
+    #: the point of the gate frame the assets are centred on.
+    YAMLAB_MOUNT_IN_WORLD = (0.2525, 0.0, 0.76)
+
+    # --- workstation frame (YAMLab robot/yam/workstation/workstation.usd: visuals/gate_visual) -------
+    #: Visual-only link carrying YAMLab's aluminium-extrusion "gate": the frame the two arms bolt onto,
+    #: on every YAM asset (the single arm stands centred on its front cross bar, the bimanual pair on its
+    #: two mount plates)
+    #: (0.6 m deep, 1.3 m wide, 1.68 m tall in YAMLab's world; arm mount plates at z = 0.76, two posts
+    #: and a top bar behind the arms where the top camera sits). Without it the arms float in mid-air at
+    #: ``mount_height``. No collision geometry: REALM's scenes bring their own table, and a colliding
+    #: frame link would be counted as an environment collision on every step by ``check_collisions``.
+    FRAME_LINK = "frame"
+    FRAME_SOURCE_USD = "realm/robots/yam/workstation/workstation.usd"
+    FRAME_SOURCE_PRIM = "/workstation_only/workstation/visuals/gate_visual"
+    #: YAMLab's arm mount plates sit 0.76 m up the frame, but REALM mounts the arms ``MOUNT_HEIGHT``
+    #: (0.864 m) above the floor. The part of the frame BELOW the mount plane is stretched in z by this
+    #: factor so the frame stands on the floor with its plates under the arms; the extrusion cross
+    #: sections are unchanged and the posts/top bar above the plates keep YAMLab's dimensions (so the
+    #: top camera still sits just above the top bar). Set to 1.0 for the verbatim mesh (floats 10 cm).
+    FRAME_STRETCH_BELOW_MOUNT = MOUNT_HEIGHT / YAMLAB_MOUNT_IN_WORLD[2]
+    #: YAMLab binds OmniPBR "Aluminum_Scratched_Light_Bumpy" with these constants (plus an emissive
+    #: term tuned for their dim dome light, dropped here); authored as a UsdPreviewSurface.
+    FRAME_MATERIAL = {"diffuse": (0.92, 0.92, 0.94), "metallic": 1.0, "roughness": 0.22}
+
+
     # ------------------------------------------------------------------------------------------
 
     @classmethod
@@ -209,6 +235,20 @@ class YamRobot:
     def spawn_offset(cls):
         """The robot config's `spawn_offset` entry (REALM-only key, read by env_config)."""
         return {"pos": list(cls.SPAWN_OFFSET_POS), "yaw_deg": cls.SPAWN_OFFSET_YAW_DEG}
+
+    @classmethod
+    def frame_origin_in_mount(cls):
+        """Where YAMLab's world origin (the frame mesh's frame) sits in the mount frame, metres."""
+        return tuple(-v for v in cls.YAMLAB_MOUNT_IN_WORLD)
+
+    @classmethod
+    def frame_z_in_mount(cls, z_yamlab):
+        """Height of a frame-mesh point in the mount frame after the below-plate stretch: the mount
+        plane (YAMLab z = 0.76) maps to 0, the frame's foot (z = 0) to -MOUNT_HEIGHT, i.e. the floor."""
+        plate = cls.YAMLAB_MOUNT_IN_WORLD[2]
+        if z_yamlab < plate:
+            return -(plate - z_yamlab) * cls.FRAME_STRETCH_BELOW_MOUNT
+        return z_yamlab - plate
 
     @classmethod
     def finger_open_qpos(cls):
@@ -369,27 +409,17 @@ class YamBimanualRobot:
     #: Arm-base offsets from the mount frame, metres (YAMLab ``arms.<side>.position`` minus the
     #: midpoint (0.2525, 0, 0.76)); both arms have identity orientation in YAMLab.
     ARM_OFFSETS = {"left": (0.0, 0.305, 0.0), "right": (0.0, -0.305, 0.0)}
-    #: The mount frame's position in YAMLab's world (midpoint of ``arms.left/right.position``).
-    YAMLAB_MOUNT_IN_WORLD = (0.2525, 0.0, 0.76)
+    YAMLAB_MOUNT_IN_WORLD = YamRobot.YAMLAB_MOUNT_IN_WORLD
 
-    # --- workstation frame (YAMLab robot/yam/workstation/workstation.usd: visuals/gate_visual) -------
-    #: Visual-only link carrying YAMLab's aluminium-extrusion "gate": the frame the two arms bolt onto
-    #: (0.6 m deep, 1.3 m wide, 1.68 m tall in YAMLab's world; arm mount plates at z = 0.76, two posts
-    #: and a top bar behind the arms where the top camera sits). Without it the arms float in mid-air at
-    #: ``mount_height``. No collision geometry: REALM's scenes bring their own table, and a colliding
-    #: frame link would be counted as an environment collision on every step by ``check_collisions``.
-    FRAME_LINK = "frame"
-    FRAME_SOURCE_USD = "realm/robots/yam/workstation/workstation.usd"
-    FRAME_SOURCE_PRIM = "/workstation_only/workstation/visuals/gate_visual"
-    #: YAMLab's arm mount plates sit 0.76 m up the frame, but REALM mounts the arms ``MOUNT_HEIGHT``
-    #: (0.864 m) above the floor. The part of the frame BELOW the mount plane is stretched in z by this
-    #: factor so the frame stands on the floor with its plates under the arms; the extrusion cross
-    #: sections are unchanged and the posts/top bar above the plates keep YAMLab's dimensions (so the
-    #: top camera still sits just above the top bar). Set to 1.0 for the verbatim mesh (floats 10 cm).
-    FRAME_STRETCH_BELOW_MOUNT = YamRobot.MOUNT_HEIGHT / YAMLAB_MOUNT_IN_WORLD[2]
-    #: YAMLab binds OmniPBR "Aluminum_Scratched_Light_Bumpy" with these constants (plus an emissive
-    #: term tuned for their dim dome light, dropped here); authored as a UsdPreviewSurface.
-    FRAME_MATERIAL = {"diffuse": (0.92, 0.92, 0.94), "metallic": 1.0, "roughness": 0.22}
+    #: The gate frame (see YamRobot.FRAME_*): the bimanual builder authors it centred on the mount frame,
+    #: which is where YAMLab's arm plates are.
+    FRAME_LINK = YamRobot.FRAME_LINK
+    FRAME_SOURCE_USD = YamRobot.FRAME_SOURCE_USD
+    FRAME_SOURCE_PRIM = YamRobot.FRAME_SOURCE_PRIM
+    FRAME_STRETCH_BELOW_MOUNT = YamRobot.FRAME_STRETCH_BELOW_MOUNT
+    FRAME_MATERIAL = YamRobot.FRAME_MATERIAL
+    frame_origin_in_mount = YamRobot.frame_origin_in_mount
+    frame_z_in_mount = YamRobot.frame_z_in_mount
     #: Per-arm wrist camera offset from ``<arm>_link_6`` (YAMLab ``cameras.left_wrist`` /
     #: ``cameras.right_wrist``; the two calibrations differ by ~1 mm).
     WRIST_CAMERA_POSITIONS = {
@@ -482,20 +512,6 @@ class YamBimanualRobot:
         """Links of one arm that carry collision geometry (everything but the virtual frames)."""
         return tuple(cls.link_name(arm, n) for n in (*cls.ARM.ARM_LINKS, *cls.ARM.FINGER_LINKS,
                                                     *cls.ARM.FIXED_CAMERA_LINKS))
-
-    @classmethod
-    def frame_origin_in_mount(cls):
-        """Where YAMLab's world origin (the frame mesh's frame) sits in the mount frame, metres."""
-        return tuple(-v for v in cls.YAMLAB_MOUNT_IN_WORLD)
-
-    @classmethod
-    def frame_z_in_mount(cls, z_yamlab):
-        """Height of a frame-mesh point in the mount frame after the below-plate stretch: the mount
-        plane (YAMLab z = 0.76) maps to 0, the frame's foot (z = 0) to -MOUNT_HEIGHT, i.e. the floor."""
-        plate = cls.YAMLAB_MOUNT_IN_WORLD[2]
-        if z_yamlab < plate:
-            return -(plate - z_yamlab) * cls.FRAME_STRETCH_BELOW_MOUNT
-        return z_yamlab - plate
 
     @classmethod
     def dof_order(cls):
