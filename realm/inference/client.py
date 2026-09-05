@@ -6,6 +6,7 @@ from openpi_client import websocket_client_policy, image_tools
 
 from realm.geometry import axisangle_to_rpy
 from realm.inference.dreamzero import DreamZeroClient
+from realm.inference.openpi_yam import policy_actions_to_realm, policy_observation
 from realm.inference.yamlab import yamlab_actions_to_realm, yamlab_observation
 
 
@@ -120,6 +121,30 @@ class _YamLabAdapter:
         return yamlab_actions_to_realm(pred["actions"])
 
 
+class _OpenPIYamAdapter:
+    """openpi's `yam_pi05` config (robocurve/pi05-yam-molmoact2, a pi0.5 fine-tune on MolmoAct2 bimanual YAM
+    data) served by `scripts/serve_policy.py policy:checkpoint --policy.config=yam_pi05`.
+
+    Sends `{"images": {"top", "left", "right"}, "state" (14,), "prompt"}` built by realm.inference.openpi_yam
+    (grippers 1 = open, images cropped to 16:9 and letterboxed to 224x224 client-side) and expects
+    `{"actions": (16, 14)}` absolute joint targets. Requires a multi-arm robot (`--robot YAM_bimanual`).
+    """
+
+    def __init__(self, host, port):
+        og.log.info("Connecting to openpi yam_pi05 server...")
+        self.client = websocket_client_policy.WebsocketClientPolicy(host=host, port=port)
+
+    def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
+        assert wrist_im_second is not None, (
+            "model_type 'openpi_yam' needs the second wrist camera: run it with --robot YAM_bimanual")
+        obs_dict = policy_observation(instruction, base_im, wrist_im, wrist_im_second, robot_state,
+                                      gripper_state, resize=image_tools.resize_with_pad)
+        pred = self.client.infer(obs_dict)
+        return policy_actions_to_realm(pred["actions"])
+
+
 class _GR00TAdapter:
 
 
@@ -213,6 +238,7 @@ ADAPTERS = {
     "openpi": _OpenPIAdapter,
     "dreamzero": _DreamZeroAdapter,
     "yamlab": _YamLabAdapter,
+    "openpi_yam": _OpenPIYamAdapter,
     # "GR00T": _GR00TAdapter,          # disabled -- see the block comment above
     # "GR00T_N16": _GR00TN16Adapter,   # disabled
     # "molmoact": _MolmoActAdapter,    # disabled

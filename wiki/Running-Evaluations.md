@@ -156,8 +156,8 @@ registered for OmniGibson 3.9.1 are:
 | `DROID_default_pd_control`, `DROID_polaris_control`, `DROID_no_wrist_cam` | `droid.usd` | 7 | joint PD variants | |
 | `YAM` | `yam.usd` (YAMLab arm, bare) | 6 | stock `JointController`, YAMLab `high_pd` gains | see below |
 | `YAM_base_pd_control` | `yam.usd` | 6 | stock `JointController`, YAMLab `base` gains | |
-| `YAM_bimanual` | `yam_bimanual.usd` (two YAM arms on a shared mount) | 2 x 6 | stock `JointController` x2 + `MultiFingerGripperController` x2, `high_pd` gains | 14-D action, two wrist cameras, YAMLab top camera as the exterior view; see below |
-| `YAM_crank_bimanual` | `yam_crank_bimanual.usd` (the same workstation with I2RT's crank gripper) | 2 x 6 | as `YAM_bimanual` | ABC-project gripper: inverted finger sign, steeper wrist camera, ABC home pose; see below |
+| `YAM_bimanual` | `yam_bimanual.usd` (two YAM arms on a shared mount) | 2 x 6 | stock `JointController` x2 + `MultiFingerGripperController` x2, `abc_aligned` arm gains (kp 160 / kd 20, fitted on ABC's real episodes 2026-09-05), `high_pd` gripper gains | 14-D action, two wrist cameras, YAMLab top camera as the exterior view; see below |
+| `YAM_crank_bimanual` | `yam_crank_bimanual.usd` (the same workstation with I2RT's crank gripper) | 2 x 6 | as `YAM_bimanual` but YAMLab's `high_pd` arm gains (the aligned set is the row below) | ABC-project gripper: inverted finger sign, steeper wrist camera, ABC home pose; see below |
 | `YAM_crank_bimanual_aligned_pd_control` | `yam_crank_bimanual.usd` | 2 x 6 | stock `JointController`, `abc_aligned` gains (kp 160 / kd 20 on every arm joint) | Fitted by replaying ABC's real put-bottles episodes (`scripts/yam_pd_search.py`): a uniform ~93 ms lag, RMSE 0.024 rad vs 0.028 for `high_pd`; see [YAM-Port-Status](YAM-Port-Status) |
 
 `UR5*` and `WidowX` configs exist but have no registered definition on 3.9.1 and do not load.
@@ -240,4 +240,10 @@ self-collisions off).
   it expects `{"actions": (n, 14)}` absolute targets in the same layout and converts the finger targets to
   REALM's open-fraction gripper value (`realm/inference/yamlab.py`). `tests/yamlab_sweep_server.py` is a
   reference server that validates the contract and answers with a joint sweep; start your own policy
-  server with the same protocol and point `--port/--host` at it. `debug` also works (holds the reset pose with the grippers open). The single-arm adapters (`openpi`, `dreamzero`) send a 12-entry joint state and ignore the
+  server with the same protocol and point `--port/--host` at it. `--model_type openpi_yam` is the
+  contract of openpi's `yam_pi05` config (robocurve/pi05-yam-molmoact2, a pi0.5 fine-tune on MolmoAct2 bimanual
+  YAM data; openpi branch `yam-pi05`, `openpi/policies/yam_policy.py`): `state` (14, same layout, grippers in
+  [0, 1] with 1 = open), `images` `{top, left, right}` cropped to 16:9 and letterboxed to 224x224 client-side,
+  `prompt`; it expects `{"actions": (16, 14)}` absolute targets whose gripper columns are already open fractions
+  (`realm/inference/openpi_yam.py`). Serve it with
+  `scripts/serve_policy.py --port <p> policy:checkpoint --policy.config=yam_pi05 --policy.dir=<ckpt>` from openpi. `debug` also works (holds the reset pose with the grippers open). The single-arm adapters (`openpi`, `dreamzero`) send a 12-entry joint state and ignore the

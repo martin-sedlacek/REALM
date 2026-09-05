@@ -1,9 +1,11 @@
-# YAM bimanual workstation (YAMLab port): two YAM arms on a shared mount, YAMLab's default `high_pd`
-# gains, both wrist cameras, and YAMLab's fixed top camera as the exterior view.
+# YAM bimanual workstation (YAMLab port): two YAM arms on a shared mount, REALM's `abc_aligned` arm gains
+# (kp 160 / kd 20 on every arm joint, fitted 2026-09-05 on ABC's real episodes -- see GAIN_SETS in
+# realm/robots/yam.py), YAMLab's `high_pd` gripper gains, both wrist cameras, and YAMLab's fixed top camera
+# as the exterior view.
 #
 # One OmniGibson robot (model yam_bimanual, realm/robots/definitions/yam_bimanual/) whose controllers
 # run in YAMLab's action order: [left_arm(6), left_gripper(1), right_arm(6), right_gripper(1)].
-# Each arm is the single-arm YAM config (YAM.yaml) verbatim -- same drives, gains and camera.
+# Each arm is the single-arm YAM config (YAM.yaml) with the arm gains swapped for `abc_aligned`.
 #
 # Numbers are pinned against realm/robots/yam.py::YamBimanualRobot by tests/test_yam_robot.py.
 robots:
@@ -45,8 +47,8 @@ robots:
             command_input_limits: null
             command_output_limits: null
             # high_pd: shoulder joint1-3 + elbow joint4 = 800/50, wrist joint5-6 = 30/5.
-            isaac_kp: [800.0, 800.0, 800.0, 800.0, 30.0, 30.0]
-            isaac_kd: [50.0, 50.0, 50.0, 50.0, 5.0, 5.0]
+            isaac_kp: [160.0, 160.0, 160.0, 160.0, 160.0, 160.0]
+            isaac_kd: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
         gripper_left:
           name: "MultiFingerGripperController"
           mode: "binary"
@@ -67,8 +69,8 @@ robots:
             use_impedances: False
             command_input_limits: null
             command_output_limits: null
-            isaac_kp: [800.0, 800.0, 800.0, 800.0, 30.0, 30.0]
-            isaac_kd: [50.0, 50.0, 50.0, 50.0, 5.0, 5.0]
+            isaac_kp: [160.0, 160.0, 160.0, 160.0, 160.0, 160.0]
+            isaac_kd: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
         gripper_right:
           name: "MultiFingerGripperController"
           mode: "binary"

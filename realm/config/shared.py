@@ -87,5 +87,5 @@ CONTROL_DT = 1.0 / CONTROL_HZ
 TERMINAL_STEPS = 15
 SHORT_TRAJECTORY_SAMPLES = 4
 PLACEMENT_TASK_TYPES = ("put", "stack")
-GRIPPER_OPEN_ABOVE_HALF = ("debug", "openpi", "GR00T", "GR00T_N16", "dreamzero", "yamlab")
+GRIPPER_OPEN_ABOVE_HALF = ("debug", "openpi", "GR00T", "GR00T_N16", "dreamzero", "yamlab", "openpi_yam")
 GRIPPER_OPEN_BELOW_HALF = ("molmoact",)

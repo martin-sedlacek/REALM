@@ -48,9 +48,13 @@ grippers open); on DROID it is the historical zero action.
 - `YAM_crank_bimanual` has **not run on a GPU** since it was created. First check:
   `tests/test_yam_bimanual_motion.py --robot YAM_crank_bimanual` (each action column moves exactly its joint;
   gripper phases reach normalised 0 open / 1 closed — note the inverted finger sign).
-- No trained policy has driven any YAM robot. `--model_type yamlab` speaks YAMLab's LeRobot contract
-  (fingers in metres, `-0.0475` open); an ABC-trained policy (state = `q / 0.0475`, 1 open; DiT, 224x168
-  4:3 images resized-with-pad to 224x224) needs its own adapter.
+- Trained policy: `--model_type openpi_yam` wires robocurve/pi05-yam-molmoact2 (openpi `yam_pi05`, branch
+  `yam-pi05` of `~/projects/openpi`, checkpoint at `~/ckpt/pi05_yam_molmoact2`) to `YAM_bimanual` -- state
+  grippers in [0, 1] with 1 = open, images cropped to 16:9 + letterboxed to 224x224, actions (16, 14) absolute
+  (`realm/inference/openpi_yam.py`). First closed-loop smoke on `put_banana_into_box`: runbook stream
+  `yam_bimanual_port` (job `yam_pi05_banana.sbatch`). `--model_type yamlab` remains the LeRobot-contract
+  reference (fingers in metres); an ABC-trained policy (state = `q / 0.0475`, 1 open; DiT, 224x168 4:3 images)
+  still needs its own adapter.
 - The exterior cameras are REALM's 1280x720 at the task extrinsics (the bimanual top camera is at YAMLab's
   pose but REALM's resolution); ABC's top camera is also 58 deg vertical at 4:3.
 
@@ -107,7 +111,10 @@ sets the score (93 ms best; 125 ms +0.003, 220 ms +0.023); kp 15-20 / kd 2 gives
 A shared gain cannot reproduce the real wrists being 2x slower than the shoulders, so the fit matches the
 mean; the floor (~0.023 rad = 1.3 deg) is set by segments where the real arm sits 0.2-0.3 rad off its own
 command (contact), which no gain changes. 160/20 was chosen over 40/5 (same lag, within cell-to-cell noise)
-for stiffness under load. The default gain set is unchanged; DROID untouched.
+for stiffness under load. `YAM_bimanual.yaml` (the YAMLab-gripper workstation) now carries these arm gains
+directly (Martin, 2026-09-05: the non-crank bimanual robot should use the same kp/kd); `YAM.yaml` and
+`YAM_crank_bimanual.yaml` keep `high_pd`, with the aligned set as `YAM_crank_bimanual_aligned_pd_control`.
+`GAIN_SETS` default is unchanged; DROID untouched.
 
 ## Data
 

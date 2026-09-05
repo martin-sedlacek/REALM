@@ -20,6 +20,7 @@ import re
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
 
@@ -330,10 +331,16 @@ def test_bimanual_config_matches_spec():
     assert r["proprio_obs"] == ["joint_qpos"]
     # controller order is the definition's, and each arm is the single-arm YAM.yaml controller verbatim
     assert list(r["controller_config"]) == list(B.raw_controller_order())
+    # ... except the arm gains, which are REALM's fitted abc_aligned set (one shared kp/kd on every joint)
     single = _load(CONFIGS["high_pd"])["robots"][0]["controller_config"]
     for arm in B.ARMS:
-        assert r["controller_config"][f"arm_{arm}"] == single["arm_0"], f"arm_{arm} differs from YAM.yaml arm_0"
+        arm_cfg = dict(r["controller_config"][f"arm_{arm}"])
+        assert (arm_cfg.pop("isaac_kp"), arm_cfg.pop("isaac_kd")) == tuple(Y.arm_gains("abc_aligned")), \
+            f"arm_{arm}: gains are not GAIN_SETS['abc_aligned']"
+        ref = dict(single["arm_0"]); ref.pop("isaac_kp"); ref.pop("isaac_kd")
+        assert arm_cfg == ref, f"arm_{arm} differs from YAM.yaml arm_0 beyond the gains"
         assert r["controller_config"][f"gripper_{arm}"] == single["gripper_0"], f"gripper_{arm} differs from YAM.yaml gripper_0"
+        assert (single["gripper_0"]["isaac_kp"], single["gripper_0"]["isaac_kd"]) == Y.gripper_gains("abc_aligned")
     assert r["sensor_config"] == _load(CONFIGS["high_pd"])["robots"][0]["sensor_config"]
     assert r["exterior_camera"] == B.exterior_camera()
 
@@ -471,6 +478,38 @@ def test_yamlab_contract_round_trip():
     assert '"yamlab"' in shared.split("GRIPPER_OPEN_ABOVE_HALF")[1].split("\n")[0]
     client = (PROJECT_ROOT / "realm" / "inference" / "client.py").read_text()
     assert '"yamlab": _YamLabAdapter' in client
+
+
+def test_openpi_yam_contract_round_trip():
+    """realm/inference/openpi_yam.py: the yam_pi05 policy's state/images/actions contract (gripper 1 = open)."""
+    path = PROJECT_ROOT / "realm" / "inference" / "openpi_yam.py"
+    spec = importlib.util.spec_from_file_location("_realm_inference_openpi_yam_hostside", path)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert m.STATE_DIM == B.ACTION_DIM == 14 and m.GRIPPER_IDX == B.GRIPPER_ACTION_IDX == (6, 13)
+    joints = np.arange(12, dtype=np.float64) / 10
+    st = m.policy_state(joints, [0.0, 1.0])          # left open, right closed in REALM's convention
+    assert st.dtype == np.float32 and st.shape == (14,)
+    assert np.allclose(st[[0, 1, 2, 3, 4, 5]], joints[:6]) and np.allclose(st[[7, 8, 9, 10, 11, 12]], joints[6:])
+    assert st[6] == 1.0 and st[13] == 0.0, "policy gripper is an open fraction: 1 open, 0 closed"
+    # actions pass through: joints untouched, gripper columns are already open fractions, clipped to [0, 1]
+    a = np.zeros((2, 14)); a[:, 6] = [1.2, 0.3]; a[:, 13] = [-0.1, 0.9]; a[:, 1] = 2.5
+    out = m.policy_actions_to_realm(a)
+    assert out.shape == (2, 14) and np.allclose(out[:, 1], 2.5)
+    assert np.allclose(out[:, 6], [1.0, 0.3]) and np.allclose(out[:, 13], [0.0, 0.9])
+    assert m.policy_actions_to_realm(a[0]).shape == (1, 14)
+    # images: 4:3 wrist renders are centre-cropped to 16:9, the 16:9 top view is untouched, then resized
+    wrist = np.zeros((720, 960, 3), np.uint8); top = np.zeros((720, 1280, 3), np.uint8)
+    assert m.crop_to_aspect(wrist).shape == (540, 960, 3) and m.crop_to_aspect(top).shape == (720, 1280, 3)
+    calls = []
+    def fake_resize(im, h, w):
+        calls.append(im.shape); return np.zeros((h, w, 3), np.uint8)
+    obs = m.policy_observation("put the banana in the box", top, wrist, wrist, joints, [0.0, 0.0], resize=fake_resize)
+    assert set(obs) == {"prompt", "state", "images"} and set(obs["images"]) == {"top", "left", "right"}
+    assert calls == [(720, 1280, 3), (540, 960, 3), (540, 960, 3)]
+    assert all(im.shape == (224, 224, 3) and im.dtype == np.uint8 for im in obs["images"].values())
+    from realm.config.shared import GRIPPER_OPEN_ABOVE_HALF
+    assert "openpi_yam" in GRIPPER_OPEN_ABOVE_HALF, "rollout must read the policy's gripper as 'open above 0.5'"
 
 
 def test_link_com_guard_runs_after_rebase_and_usd_build_flattens_collisions():
