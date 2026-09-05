@@ -27,10 +27,17 @@ PROTOCOL (robometer/evals/eval_server.py at the pinned submodule revision)
 WHAT THE TRACE LENGTH MEANS -- read before wiring this into per-step scoring
 --------------------------------------------------------------------------
     use_frame_steps=False   ONE forward pass over the whole clip. The server linspace-subsamples
-                            the frames to its training `max_frames` (16 for Robometer-4B) and pads
-                            shorter clips by repeating the last frame, so the trace has max_frames
-                            entries, NOT T. The LAST entry is the model's progress estimate for the
-                            clip's final frame; ProgressResult.reward is that value, clamped.
+                            the frames to its training `max_frames` (16 for Robometer-4B) for the
+                            forward pass, but the trace it returns has **T** entries, one per input
+                            frame -- measured 2026-09-05 against the pinned revision at
+                            T = 1/4/8/16/17/24/40, all returning len(progress) == T, including past
+                            max_frames. This docstring previously said max_frames and NOT T; that
+                            was wrong, and it mattered because it pointed at use_frame_steps=True
+                            (T passes) to get a per-frame trace that one pass already provides.
+                            parse_progress_response passes progress_pred through unchanged, so the
+                            re-alignment is the server's. The LAST entry is the model's progress
+                            estimate for the clip's final frame; ProgressResult.reward is that
+                            value, clamped.
     use_frame_steps=True    T forward passes, each over frames[0:t] subsampled to 4 frames, so the
                             trace has exactly T entries aligned to the input frames. Slower by a
                             factor of T; better aligned with how the model was trained.

@@ -52,7 +52,23 @@ git submodule update --init packages/robometer     # once per checkout
 ```
 
 The first start downloads the checkpoint from Hugging Face (several GB; the host needs outbound
-HTTPS to huggingface.co and, for gated models, `hf auth login`). Model load then takes minutes.
+HTTPS to huggingface.co and, for gated models, `hf auth login`).
+
+> **Two repositories are needed, not one.** The `robometer/Robometer-4B` snapshot is **weights
+> only** -- no `tokenizer.json`, no `preprocessor_config.json`, no chat template. The loader takes
+> those from the base model named inside the checkpoint's own `config.yaml`
+> (`base_model_id: Qwen/Qwen3-VL-4B-Instruct`). On a cluster node without outbound HTTPS, pre-fetch
+> **both** on a host that has it and run the node with `HF_HUB_OFFLINE=1`:
+>
+> ```sh
+> python -c "from huggingface_hub import snapshot_download as d; d('robometer/Robometer-4B'); d('Qwen/Qwen3-VL-4B-Instruct')"
+> ```
+>
+> Pre-fetching only the Robometer repo gets you through tag resolution and then dies ~90 s into
+> model load with `OSError: We couldn't connect to 'https://huggingface.co' ... and couldn't find
+> them in the cached files`. Unrelated and harmless in the same log: `find_best_model_tag` calls the
+> HF **API** and logs `Error finding best tag ... offline mode is enabled`; resolution falls through
+> to the local snapshot root, which is where the shards are. Model load then takes minutes.
 `ROBOMETER_MODEL`, `ROBOMETER_HOST`, `ROBOMETER_PORT` and `ROBOMETER_NUM_GPUS` override the
 defaults; anything else on the command line is passed through to the server's hydra config. The
 default port is `8010`, matching the evaluators' `--robometer_port`, so it does not collide with a
@@ -91,8 +107,23 @@ scored as garbage.
 
 | `use_frame_steps` | Server does | Trace length | Cost |
 |---|---|---|---|
-| `False` (default) | one forward pass; frames linspace-subsampled to the training `max_frames` (16), short clips padded by repeating the last frame | `max_frames`, **not** `T` | 1 pass |
+| `False` (default) | one forward pass; frames linspace-subsampled to the training `max_frames` (16), short clips padded by repeating the last frame | **`T`** -- see the note below | 1 pass |
 | `True` | one pass per prefix `frames[0:t]`, each subsampled to 4 frames; results re-aligned to the input | exactly `T` | `T` passes |
+
+> **Measured 2026-09-05 against the pinned revision (`352d160`), and it contradicts what this table
+> used to say.** One query per clip length, `use_frame_steps=False`, live server:
+>
+> | frames sent `T` | 1 | 4 | 8 | 16 | 17 | 24 | 40 |
+> |---|---|---|---|---|---|---|---|
+> | `len(result.progress)` | 1 | 4 | 8 | 16 | 17 | 24 | 40 |
+>
+> `len(result.progress) == T` at every length, including past `max_frames`. The client is not doing
+> it -- `parse_progress_response` passes `outputs_progress.progress_pred` through with a bare
+> `np.asarray(...).reshape(-1)` -- so the server re-aligns to the input. This row previously claimed
+> `max_frames`, **not** `T`, which would send you to `use_frame_steps=True` (T forward passes) to
+> obtain a per-frame trace you already get in one. Nothing in REALM's scores moves: the scorer reads
+> `result.reward`, the last entry, which is the final-frame estimate under either rule. But
+> `robometer_progress_trace` in the reports is as long as the clip sent, not a fixed 16.
 
 Either way the **last** entry is the model's estimate for the clip's final frame, which is what
 `result.reward` returns. This is Robometer's own reward convention, and it is what `--robometer`
