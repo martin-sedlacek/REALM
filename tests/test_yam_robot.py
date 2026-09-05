@@ -676,3 +676,28 @@ def test_crank_provenance_records_the_mjcf():
     for header in ("yam_crank.usd", "yam_crank_bimanual.usd"):
         assert f"\n{header}\n" in prov, header
     assert "mjcf sha256" in prov and "abc commit" in prov and "d405.stl sha256" in prov
+
+
+def test_debug_adapter_is_a_noop_with_open_grippers_for_yam_and_unchanged_for_droid():
+    """client.py imports omnigibson, so exercise _DebugAdapter.infer by extracting the class source."""
+    import ast
+    import numpy as np
+
+    src = (PROJECT_ROOT / "realm" / "inference" / "client.py").read_text()
+    tree = ast.parse(src)
+    cls = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "_DebugAdapter"][0]
+    ns = {"np": np}
+    exec(compile(ast.Module([cls], type_ignores=[]), "client", "exec"), ns)
+    infer = ns["_DebugAdapter"](None, None).infer
+    # DROID: historical zeros(8)
+    droid = infer("", None, None, None, np.arange(7, dtype=float), 0.3)
+    assert droid.shape == (8,) and not droid.any()
+    # single-arm YAM: hold the joints, gripper open (1.0 > 0.5 for the debug convention)
+    q = np.array([0.1, 1.047, 1.047, -0.2, 0.3, 0.0])
+    single = infer("", None, None, None, q, 0.0)
+    assert single.shape == (7,) and np.allclose(single[:6], q) and single[6] == 1.0
+    # bimanual: [left(6), open, right(6), open]
+    q2 = np.concatenate([q, -q])
+    both = infer("", None, None, None, q2, np.array([0.0, 1.0]))
+    assert both.shape == (14,) and np.allclose(both[:6], q) and both[6] == 1.0 and np.allclose(both[7:13], -q) and both[13] == 1.0
+    assert list(CB.GRIPPER_ACTION_IDX) == [6, 13]

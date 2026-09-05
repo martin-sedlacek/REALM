@@ -97,7 +97,7 @@ It also means results are not step-for-step comparable against baselines recorde
 |---|---|
 | `openpi` | websocket client to an openpi policy server |
 | `dreamzero` | the DreamZero client |
-| `debug` | returns a constant action; **no server needed** |
+| `debug` | **no server needed.** DROID: the historical constant all-zero action (Franka zero pose, gripper closed). YAM robots: a true no-op -- holds the current joints, gripper open |
 
 Anything else raises `NotImplementedError` at construction. You may see `GR00T`, `GR00T_N16` and
 `molmoact` branches further down the inference path — those objects can never be constructed on this
@@ -236,111 +236,4 @@ self-collisions off).
   it expects `{"actions": (n, 14)}` absolute targets in the same layout and converts the finger targets to
   REALM's open-fraction gripper value (`realm/inference/yamlab.py`). `tests/yamlab_sweep_server.py` is a
   reference server that validates the contract and answers with a joint sweep; start your own policy
-  server with the same protocol and point `--port/--host` at it. `debug` also works (zero action, holds the
-  reset pose). The single-arm adapters (`openpi`, `dreamzero`) send a 12-entry joint state and ignore the
-  second wrist, so they are not usable with this robot.
-
-> **Verified 2026-09-05 (Clara L40S, `realm_og391_v3.sif`, `debug` model, 90 steps,
-> `--no-render_on_demand`; Slurm jobs 204581/204583/204585):** the definition registers and loads,
-> `assert_proprio_layout` passes against the built articulation, `assert_wrist_camera` resolves both
-> `<arm>_link_6/wrist_camera` prims, task 0 Default and task 1 V-AUG `--multi-view` write all four
-> artifacts with 14-wide qpos/action rows, the recorder's 2x2 grid shows the top camera framing both arms
-> and the table with each wrist view below, and a close command drives both grippers to the closed limit
-> (normalised gripper 1.0). A DROID_mounted rollout from this branch is **bit-for-bit identical** (qpos,
-> actions, report row) to one from `main` at v1.0.0. Two facts came out of that run and are now encoded:
-> PhysX numbers the joints **breadth-first** (`left_joint1, right_joint1, ..., right_joint6`, then the
-> left fingers, then the right), so an arm's joints are NOT contiguous in `proprio`; and the stock binary
-> gripper controller maps open/close to the UPPER/LOWER joint limits, which on the YAM fingers is
-> inverted -- every YAM gripper block names `open_qpos`/`closed_qpos` explicitly (see the single-arm note
-> above).
->
-> **Motion verified (2026-09-05, jobs 204609/204615/204616):** `tests/test_yam_bimanual_motion.py` drives
-> each of the 14 action columns alone: every joint reaches its +-0.3 rad target to 0.000 rad with every other
-> joint at 0.000 and both grippers open/close independently, matching a standalone IsaacLab run of YAMLab's
-> own arm and actuator config (0.300 rad in 12 control steps, nothing else moving). `--model_type yamlab`
-> against the reference sweep server moves both arms mirrored and both grippers through both states.
->
-> **What had to be fixed first.** OmniGibson's `RigidPrim.update_meshes()` recomputes every link's centre
-> of mass from its collision meshes composed only ONE level up and overwrites the authored value. The YAMLab
-> export nests each collision piece as `<link>/collisions/<piece>/<mesh>` (the piece Xform carries the
-> pose and a small scale), so every YAM link's CoM landed metres away (link_1 at (1.56, -0.11, 6.45) m),
-> ~100x the joint inertia: a 0.3 rad step took 0.8 s at the 28 N m clamp and dragged the wrist 0.5 rad.
-> Two defences: `scripts/build_yam_usd.py::flatten_collision_xforms` puts every collision Mesh directly
-> under its link (verify() rejects nesting; the loader's centroid then lands within 0-3 cm of the authored
-> CoM), and `SceneSetupMixin.restore_authored_link_coms` (run in `finalize_setup`, after
-> `rebase_initial_file`, which re-applies the override) pushes the authored CoMs back exactly and logs what
-> it changed. DROID links author no CoM and are untouched (bit-for-bit re-checked, job 204614).
-
-**YAM_crank_bimanual.** The same workstation with I2RT's earlier "crankshaft" gripper, taken from the
-[ABC project](https://abc.bot)'s MuJoCo model (`assets/put_bottles/assets/i2rt_yam/yam.xml`). The six
-arm links are YAMLab's; `scripts/build_yam_crank_usd.py` reads the MJCF and replaces everything downstream
-of the wrist motor -- the gripper housing, the two angled fingers with their capsule/box collision pads and
-inertials, the wrist D405 on ABC's steeper bracket (looking 50 degrees below the flange axis instead of
-25; the camera itself keeps the measured D405 calibration, 78.6 x 63.1 degrees at 4:3 -- ABC's sim renders
-the nominal fovy 58, about 6 degrees narrower, and their real 4:3 put-bottles recordings come from the same
-D405; its near plane is 0.02 m rather than YAMLab's 0.1 m, because on this bracket the housing is behind
-the lens and the finger bases are 3 cm away -- at 0.1 m the view saw through the fingers), and the TCP (ABC's `grasp_site`, 13.47 cm along the flange) -- into `yam_crank.usd`, which
-`scripts/build_yam_bimanual_usd.py --variant crank` then composes exactly like the YAMLab pair (arms 0.62 m
-apart as in ABC, same gate frame, same top camera, same `spawn_offset`). Spec: `YamCrankRobot` /
-`YamCrankBimanualRobot` in `realm/robots/yam.py`. Two things a policy or a reader must know:
-
-* **Finger sign.** Both grippers are closed at 0, but ABC's fingers open AWAY from 0: the left finger is
-  fully open at `+0.0475` (right at `-0.0475`), the reverse of YAMLab's `-0.0475`. The configs name
-  `open_qpos: [0.0475, -0.0475]` per finger, the observation profile normalises the left finger with
-  `open = +0.0475`, and `is_grasping`'s closure test has a mirrored branch for grippers whose closed
-  position is below the open one (the original expression is kept verbatim for DROID and YAMLab). ABC's
-  own policies see the gripper as `q / 0.0475` (1 open); `--model_type yamlab` still speaks YAMLab's
-  convention, so an ABC-trained policy needs its own adapter.
-* **Reset pose.** ABC's `home` keyframe: joints 2 and 3 at 60 degrees, fingers open -- not YAMLab's
-  all-zeros.
-
-> **Not yet run on a GPU (2026-09-05).** The asset passes the same structural verifier as the YAMLab pair
-> (link set, joint bodies, collision prims as direct children, TCP, camera pose, frame on the floor), and the
-> host pins are green. First container check: `tests/test_yam_bimanual_motion.py --robot YAM_crank_bimanual`
-> (each of the 14 action columns must move exactly its joint; the gripper phases must reach open 0 / closed 1).
-
-## Frequencies
-
-The control and rendering frequency is fixed per robot in `realm/sim_config.py`:
-
-| Robot | Sim step / rendering |
-|---|---|
-| `DROID*` | 15 Hz |
-| `YAM*` | 30 Hz (YAMLab: 120 Hz physics, decimation 4) |
-
-Physics always runs at **120 Hz**. At 15 Hz that is 8 physics substeps per environment step; at
-30 Hz, 4.
-
-`ENABLE_TRANSITION_RULES` is off (it triggers an upstream state bug on collision) and
-`ENABLE_OBJECT_STATES` is on, because `push_switch` needs the toggle state.
-
-## What counts as success
-
-Rollouts are scored on a progression ladder, not pass/fail — see
-[Tasks and perturbations](Tasks-and-Perturbations). `binary_SR` is 1.0 only when progression reaches
-1.0.
-
-Once a rollout reaches full progression, **15 further "settling" steps run regardless**, so the
-recorded trajectory extends past the success moment.
-
-## Resume
-
-If a single-environment run is interrupted, pass `--resume` with its existing `--run_id`. The run ID
-is the timestamp folder inside the experiment's log directory.
-
-```sh
-OMNIGIBSON_HEADLESS=1 python /app/examples/02_evaluate.py \
-    ...same arguments as the original run... \
-    --run_id 20240101_120000 \
-    --resume
-```
-
-Keep every other argument identical to the original run. Completed repeats are skipped. The
-vectorized entry point does not support `--resume`.
-
-## See also
-
-- [Tasks and perturbations](Tasks-and-Perturbations)
-- [Reproducibility](Reproducibility)
-- [Logs, outputs and the viewer](Logging)
-- [Cluster and parallel runs](Cluster-and-Parallel-Runs)
+  server with the same protocol and point `--port/--host` at it. `debug` also works (holds the reset pose with the grippers open). The single-arm adapters (`openpi`, `dreamzero`) send a 12-entry joint state and ignore the

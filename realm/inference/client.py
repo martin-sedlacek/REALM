@@ -22,9 +22,22 @@ class _DebugAdapter:
               wrist_im_second=None):
         if ee_control:
             return np.array([0.41402626, -0.13211727, 0.57253086, -3.09742367, 0.2580259, -0.24700592, -1])
-        # [arm joints, gripper(s)]: 8 for the 7-DOF DROID, 7 for the 6-DOF YAM, 14 for the bimanual
-        # YAM (12 joints + one gripper per arm). Zeros are the same in every action layout.
-        return np.atleast_1d(np.zeros(len(robot_state) + np.size(gripper_state)))
+        robot_state = np.asarray(robot_state, dtype=float)
+        if len(robot_state) == 7:
+            # DROID: the historical constant action, all zeros (the Franka zero pose, gripper "close" since
+            # 0 < 0.5). Kept verbatim so debug rollouts stay bit-for-bit comparable with main.
+            return np.atleast_1d(np.zeros(len(robot_state) + np.size(gripper_state)))
+        # Every other robot (the YAMs): a true no-op -- hold the joints where they are and keep the gripper
+        # OPEN (1.0 is "open" for the debug convention in GRIPPER_OPEN_ABOVE_HALF). Zeros would drive the
+        # crank variant's 60-degree home pose to the straight-up zero pose and close both grippers, which is
+        # not what a smoke run should look like. Layout [arm(dof), gripper] per arm, in arm order.
+        n_grippers = int(np.size(gripper_state))
+        dof = len(robot_state) // n_grippers
+        parts = []
+        for arm in range(n_grippers):
+            parts.append(robot_state[arm * dof:(arm + 1) * dof])
+            parts.append([1.0])
+        return np.concatenate(parts)
 
 
 class _OpenPIAdapter:
