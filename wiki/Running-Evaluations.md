@@ -166,7 +166,8 @@ registered for OmniGibson 3.9.1 are:
 `realm/robots/yam/yam.usd` (rebuilt from YAMLab's export by `scripts/build_yam_usd.py`; see
 `realm/robots/yam/PROVENANCE`). Actions are `[6 absolute joint targets, gripper]`, observations
 `proprio[:6]` + the `left_finger` position as the gripper state (`-0.0475` open, `0.0` closed), one
-wrist camera under `link_6`. The eef frame is a massless `eef_link` 14.3 cm out along the `link_6`
+wrist camera under `link_6` rendered at 960x720: 4:3 like the D405 calibration and YAMLab's own 640x480
+frames, so both FOVs (78.6 x 63.1 deg) match; the recorder letterboxes it next to the 16:9 exterior views. The eef frame is a massless `eef_link` 14.3 cm out along the `link_6`
 flange axis (the midpoint of YAMLab's fingertip keypoints); `get_ee_pose` and the Cartesian metrics
 report that point. The arm base is spawned `mount_height` (0.863891 m, the DROID column
 height) above the scene's robot pose so the exterior cameras frame the workspace as for DROID; the
@@ -275,7 +276,8 @@ self-collisions off).
 arm links are YAMLab's; `scripts/build_yam_crank_usd.py` reads the MJCF and replaces everything downstream
 of the wrist motor -- the gripper housing, the two angled fingers with their capsule/box collision pads and
 inertials, the wrist D405 on ABC's steeper bracket (looking 50 degrees below the flange axis instead of
-25), and the TCP (ABC's `grasp_site`, 13.47 cm along the flange) -- into `yam_crank.usd`, which
+25, with ABC's MuJoCo intrinsics: 58 degrees vertical at 4:3, 72.9 horizontal, instead of the D405
+calibration's 78.6), and the TCP (ABC's `grasp_site`, 13.47 cm along the flange) -- into `yam_crank.usd`, which
 `scripts/build_yam_bimanual_usd.py --variant crank` then composes exactly like the YAMLab pair (arms 0.62 m
 apart as in ABC, same gate frame, same top camera, same `spawn_offset`). Spec: `YamCrankRobot` /
 `YamCrankBimanualRobot` in `realm/robots/yam.py`. Two things a policy or a reader must know:

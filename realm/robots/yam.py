@@ -35,8 +35,8 @@ What was ported, and how it maps onto OmniGibson:
 * **Wrist camera.** YAMLab spawns its wrist cameras at runtime under ``<arm>/link_6/wrist_camera``
   from ``yam.yaml``; the USD has none. ``scripts/build_yam_usd.py`` authors the LEFT arm's camera
   into the REALM copy of the asset at the same offset (OmniGibson only discovers Camera prims that
-  are direct children of a link). Intrinsics were calibrated at 640x480; REALM renders 1280x720 and
-  keeps the horizontal FOV.
+  are direct children of a link). Intrinsics were calibrated at 640x480; REALM renders 960x720, the same
+  4:3 aspect, so both FOVs match the calibration.
 * **Gravity.** YAMLab loads the arm with ``disable_gravity=True``; OmniGibson disables gravity on
   every non-fixed robot link itself (``Robot.load``), so nothing is authored for it.
 * **Bimanual workstation.** :class:`YamBimanualRobot` composes two arms and YAMLab's fixed top
@@ -155,8 +155,12 @@ class YamRobot:
     WRIST_CAMERA_QUAT_WXYZ = (-0.003227, 0.002817, 0.975619, 0.219430)
     WRIST_CAMERA_INTRINSICS = {"fx": 390.666, "fy": 390.162, "cx": 317.526, "cy": 236.146}
     WRIST_CAMERA_CALIB_RESOLUTION = (640, 480)
-    #: REALM renders every robot camera at this resolution (realm/config/robots/*.yaml).
-    RENDER_RESOLUTION = (1280, 720)
+    #: REALM renders the wrist cameras at this resolution (realm/config/robots/YAM*.yaml). 4:3, the aspect
+    #: the D405 intrinsics were calibrated at and the aspect YAMLab (640x480) and ABC (224x168) render, so
+    #: the vertical FOV is the calibrated one too. Rendering 16:9 kept the horizontal FOV but cut the
+    #: vertical one to 49 deg, and a 16:9 frame letterboxed into a policy's square input comes out ~25%
+    #: smaller than the 4:3 training frames -- the "zoomed out" wrist view seen next to ABC's renders.
+    RENDER_RESOLUTION = (960, 720)
     #: OmniGibson's VisionSensor default horizontal aperture; kept, and the focal length is derived
     #: so that the horizontal FOV equals the calibrated one.
     WRIST_CAMERA_HORIZONTAL_APERTURE = 20.955
@@ -353,6 +357,12 @@ class YamCrankRobot(YamRobot):
     #: it lands here); USD/OpenGL convention, looks 50 degrees below the flange axis.
     WRIST_CAMERA_POSITION = (-0.0017, 0.095, 0.062)
     WRIST_CAMERA_QUAT_WXYZ = (0.0, 0.0, 0.906106, 0.42305)
+    #: ABC's MuJoCo camera: ``fovy="58"`` rendered at 224x168 (abc_minimal/config.py camera_width/height),
+    #: i.e. 72.9 deg horizontal. Expressed as the equivalent pinhole intrinsics at that resolution so the
+    #: base class's focal-length formula applies unchanged: fx = (H/2) / tan(fovy/2).
+    WRIST_CAMERA_FOVY_DEG = 58.0
+    WRIST_CAMERA_CALIB_RESOLUTION = (224, 168)
+    WRIST_CAMERA_INTRINSICS = {"fx": 151.54, "fy": 151.54, "cx": 112.0, "cy": 84.0}
     #: MJCF bodies whose contents become REALM links (link_6's children in yam.xml).
     MJCF_FINGER_BODIES = {"left_finger": "link_left_finger", "right_finger": "link_right_finger"}
     MJCF_FLANGE_BODY = "link_6"

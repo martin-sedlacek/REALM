@@ -98,6 +98,24 @@ def append_video(log_dir, task, perturbation, repeat, video_bytes):
     )
 
 
+def _fit_tile(img, target_size):
+    """Bring a camera image to the base tile's (width, height). Same aspect: the plain resize the recorder
+    always did (DROID's wrist and exterior images are both 16:9). Different aspect (the YAM wrist cameras
+    render 4:3 next to 16:9 exterior views): scale to fit and letterbox with black instead of stretching, so
+    the video shows the frame the policy actually receives."""
+    w, h = target_size
+    src_h, src_w = img.shape[:2]
+    if src_w * h == src_h * w:
+        return np.array(Image.fromarray(img).resize(target_size))
+    scale = min(w / src_w, h / src_h)
+    new_w, new_h = max(1, int(round(src_w * scale))), max(1, int(round(src_h * scale)))
+    resized = np.array(Image.fromarray(img).resize((new_w, new_h)))
+    canvas = np.zeros((h, w) + img.shape[2:], dtype=img.dtype)
+    x0, y0 = (w - new_w) // 2, (h - new_h) // 2
+    canvas[y0:y0 + new_h, x0:x0 + new_w] = resized
+    return canvas
+
+
 def _to_uint8(img):
 
     if img.dtype.kind == 'f':
@@ -145,13 +163,13 @@ class VideoRecorder:
         target_size = (base_im.shape[1], base_im.shape[0])  # (width, height)
 
         if wrist_im.shape[:2] != base_im.shape[:2]:
-            wrist_im = np.array(Image.fromarray(wrist_im).resize(target_size))
+            wrist_im = _fit_tile(wrist_im, target_size)
 
         if base_im_second is not None and base_im_second.shape[:2] != base_im.shape[:2]:
             base_im_second = np.array(Image.fromarray(base_im_second).resize(target_size))
 
         if wrist_im_second is not None and wrist_im_second.shape[:2] != base_im.shape[:2]:
-            wrist_im_second = np.array(Image.fromarray(wrist_im_second).resize(target_size))
+            wrist_im_second = _fit_tile(wrist_im_second, target_size)
 
         if base_im_second is not None or wrist_im_second is not None:
             padding = np.zeros_like(base_im)

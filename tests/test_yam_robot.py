@@ -520,7 +520,13 @@ def test_crank_spec_differs_from_yamlab_only_where_the_hardware_does():
     0 in the positive direction on the left finger."""
     assert CR.ARM_LINKS == Y.ARM_LINKS and CR.ARM_JOINTS == Y.ARM_JOINTS and CR.FINGER_JOINTS == Y.FINGER_JOINTS
     assert CR.GAIN_SETS is Y.GAIN_SETS and CR.EFFORT_LIMITS is Y.EFFORT_LIMITS
-    assert CR.WRIST_CAMERA_INTRINSICS is Y.WRIST_CAMERA_INTRINSICS and CR.WRIST_CAMERA_CLIPPING_RANGE == Y.WRIST_CAMERA_CLIPPING_RANGE
+    assert CR.WRIST_CAMERA_CLIPPING_RANGE == Y.WRIST_CAMERA_CLIPPING_RANGE
+    # ABC's camera: fovy 58 deg at 4:3 -> 72.9 deg hfov (YAMLab's calibration: 78.6); both render 4:3
+    import math
+    assert CR.WRIST_CAMERA_CALIB_RESOLUTION == (224, 168) and Y.RENDER_RESOLUTION == CR.RENDER_RESOLUTION == (960, 720)
+    assert Y.RENDER_RESOLUTION[0] * 3 == Y.RENDER_RESOLUTION[1] * 4, "wrist renders are 4:3 like the calibrations"
+    assert CR.WRIST_CAMERA_INTRINSICS["fx"] == pytest.approx(84.0 / math.tan(math.radians(CR.WRIST_CAMERA_FOVY_DEG / 2)), abs=0.01)
+    assert CR.wrist_camera_hfov_deg() == pytest.approx(72.9, abs=0.1) and Y.wrist_camera_hfov_deg() == pytest.approx(78.6, abs=0.1)
     assert CR.GRIPPER_CLOSED_QPOS == Y.GRIPPER_CLOSED_QPOS == 0.0
     assert CR.GRIPPER_OPEN_QPOS > 0 > Y.GRIPPER_OPEN_QPOS and abs(CR.GRIPPER_OPEN_QPOS) == abs(Y.GRIPPER_OPEN_QPOS)
     assert CR.finger_open_qpos() == (0.0475, -0.0475) and CR.finger_closed_qpos() == (0.0, 0.0)
@@ -584,7 +590,12 @@ def test_crank_bimanual_definition_and_config_match_spec():
         arm_cfg = r["controller_config"][f"arm_{arm}"]
         assert (arm_cfg["isaac_kp"], arm_cfg["isaac_kd"]) == tuple(CR.arm_gains())
     yam = _load(B_CONFIG)["robots"][0]
-    assert r["sensor_config"] == yam["sensor_config"], "same D405"
+    cam = r["sensor_config"]["VisionSensor"]["sensor_kwargs"]
+    assert (cam["image_width"], cam["image_height"]) == CR.RENDER_RESOLUTION
+    assert cam["horizontal_aperture"] == CR.WRIST_CAMERA_HORIZONTAL_APERTURE
+    assert cam["focal_length"] == CR.wrist_camera_focal_length(cam["horizontal_aperture"]), "ABC's fovy 58 at 4:3"
+    assert cam["focal_length"] != yam["sensor_config"]["VisionSensor"]["sensor_kwargs"]["focal_length"]
+    assert tuple(cam["clipping_range"]) == CR.WRIST_CAMERA_CLIPPING_RANGE
     assert r["control_freq"] == yam["control_freq"] and r["include_sensor_names"] == yam["include_sensor_names"]
 
 

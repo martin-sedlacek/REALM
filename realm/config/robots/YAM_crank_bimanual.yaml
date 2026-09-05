@@ -82,10 +82,13 @@ robots:
     sensor_config:
       VisionSensor:
         sensor_kwargs:
+          # 4:3 like the D405 calibration and YAMLab's/ABC's own renders (a 16:9 frame letterboxed into a
+          # square policy input comes out ~25% smaller than the training frames).
           image_height: 720
-          image_width: 1280
-          # Same D405 as YAMLab (fx = 390.666 at 640 px -> 78.6 deg hfov), on ABC's steeper wrist bracket.
-          focal_length: 12.7913
+          image_width: 960
+          # ABC's MuJoCo camera: fovy 58 deg at 224x168 -> 72.9 deg hfov; focal = 20.955 * 151.54 / 224. Same
+          # D405 as YAMLab but ABC's calibration, on ABC's steeper wrist bracket.
+          focal_length: 14.1764
           horizontal_aperture: 20.955
           clipping_range: [0.1, 10000000.0]
     # REALM-only: YAMLab's fixed top camera (configs/robot/yam.yaml cameras.top), expressed in the mount
