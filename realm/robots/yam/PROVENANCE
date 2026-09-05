@@ -22,14 +22,56 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
   workstation/mesh/gate_horizontal_bar.usd sha256: b0ac6ceea1f88b017859e3a4981679edd1a89e16265d6e57d7e0540a2c9b6dd9
   workstation/mesh/gate_vertical_bar.usd sha256: 3c47c63ebd8577a2df4156b0976708cc3c7ff62f4fd3b726ae8d3487336690d2
 
+yam_crank.usd
+  source: realm/robots/yam/yam.usd (the built YAMLab arm above) + ABC's MJCF
+  source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
+  mjcf: /home/elmo/sedlam/abc/assets/put_bottles/assets/i2rt_yam/yam.xml
+  mjcf sha256: a797c4c27d1c074eb24b04d9cf13cef9a66589f135ebf35bb22f2be3b86f7d28
+  abc commit: 6bc6586721cf0c409ccee80f675a28de9b9b2f5e
+  output sha256: 44ae4ee45453f4589a294685e36793a1f939446daaf9b7e05d62fd93c50ba0a1
+  built by scripts/build_yam_crank_usd.py: link_6 housing, both fingers (visuals, capsule/box collision
+  pads, inertials, prismatic joints), the wrist D405 links and camera, and the eef frame re-authored from
+  the MJCF; the six arm links are YAMLab's. Numbers from realm/robots/yam.py::YamCrankRobot.
+  model2.stl sha256: 5ac61c0313ed00c38655e41681af1b8b307cf8d5ef57209a75f215cea02df754
+  model2__10.stl sha256: b879cc07f547b7a2ac52e428dd206e80a0d4b0e805cb56b9a8230df04a690923
+  model2__11.stl sha256: af220d2a51e8444392aef36e2fe4a6f69aed22bc292a7f38e54da3b4f5253434
+  model2__12.stl sha256: e79614869bd2283f70fafa150ce748d5b6c03377a651448c6fe9893a22f6d1de
+  model2__13.stl sha256: 32b62f14f00ea82bfc79b935f7dac32c7cb276a3abc0aae8362cbba3fb1326de
+  model2__14.stl sha256: 72d2178789dd5e0358c2caf9dad90b8881e505f4c52a8d6d18c71b5e93e8c84b
+  model2__15.stl sha256: ca8788184d54f30c18482cb9b48dffb010a93dbc029054b6cc515083a740d324
+  model2__16.stl sha256: 18bb99691eed524393e8f3a0ff29e79d97ab75689bc92144bbdfafa2cc79d37b
+  model2__17.stl sha256: 6513dbd192d2bf3a4f7016231f1ba5eca93916c9ebfdc334e9b435ca1d302ff6
+  model2__2.stl sha256: 30dab41f14bae95d737abca3c934eb5d570ab107dff0b40952fbdfb9d07eab79
+  model2__3.stl sha256: 9fd96f5ad387fe7dd96eaa65e386637800e2f5637b6167fbad4ecb37d8598f47
+  model2__4.stl sha256: 33c0e7ef538e2c4473efa9c4ef2a8441b6094b65090b4dec71abe82001d974df
+  model2__5.stl sha256: 09f08e7dead2d6363618471adadb1b94af39e8056676670f3fd21ec06c197b20
+  model2__6.stl sha256: 888b5919d10dbfb59b964c3cafc2ddbdac3b5426e20dd13bcaf4baedd5ee15c9
+  model2__7.stl sha256: 2d64b18f1e70b0460eb53335d340b7c879976a3093ec67b07bcb7245e371a91d
+  model2__8.stl sha256: db3708da6b14daf3fc9a1909a8325b68f65ff69146cdd20b69a9ddc4ce51f50d
+  model2__9.stl sha256: 74969d09b8b7f75cc984c5c7e5526d2941c6724f48b3efa1fa8730cc7820f4f5
+  d405.stl sha256: 8a9a84dd9c9a67687e5ad0b37a7ed334dbfea6b0f995fef28524cc8da5f21ed2
+
+yam_crank_bimanual.usd
+  source: realm/robots/yam/yam_crank.usd (the built single-arm file above)
+  source sha256: 44ae4ee45453f4589a294685e36793a1f939446daaf9b7e05d62fd93c50ba0a1
+  output sha256: 3e914c660f0b5332f88c637344d78ca0dc639171bb80fc597b19d0de1990ec4d
+  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam_crank.usd copied twice with left_/right_
+  prefixes, links translated by the arm offsets (+-0.31 m in y), geometry-free root base_link at
+  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
+  wrist-camera offset. Numbers from realm/robots/yam.py::YamCrankBimanualRobot.
+  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
+  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
+  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
+  for a UsdPreviewSurface with the same aluminium constants.
+
 yam_bimanual.usd
   source: realm/robots/yam/yam.usd (the built single-arm file above)
   source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
   output sha256: 6773b67678fd0d37f0092f287352a3f8e1a91bbbdb464c727b742d803a05fdba
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
-  prefixes, links translated by YAMLab's arm offsets (+-0.305 m in y), geometry-free root base_link at
+  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
-  right_wrist offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
+  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
   frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
   moved into the mount frame, the part below the arm plates stretched x1.1367 in z
   so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped

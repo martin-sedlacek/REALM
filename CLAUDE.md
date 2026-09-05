@@ -60,12 +60,14 @@ realm/
 │   ├── vec_init_queue.py      init-queue repair for object-replacing perturbations
 │   └── perturbations/         one module per perturbation + registry.py + _helpers.py
 ├── robots/
-│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, ur, yam, yam_bimanual); OG 3.9.1
+│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, ur, yam, yam_bimanual,
+│   │                          yam_crank_bimanual); OG 3.9.1
 │   │                          selects robots by `model`; linked into the dataset by
 │   │                          scripts/install_robot_definitions.py
-│   ├── yam.py                 YamRobot / YamBimanualRobot: host-importable specs of the YAMLab port
-│   │                          (joint names, gains, cameras, DOF/action layout) the YAMLs/USDs are pinned to
-│   ├── yam/                   yam.usd + yam_bimanual.usd (rebuilt from YAMLab by scripts/build_yam*_usd.py)
+│   ├── yam.py                 YamRobot / YamBimanualRobot (+ YamCrank* for ABC's crank gripper): host-importable
+│   │                          specs (joint names, gains, cameras, DOF/action layout) the YAMLs/USDs are pinned to
+│   ├── yam/                   yam.usd + yam_bimanual.usd (from YAMLab) and yam_crank*.usd (gripper from ABC's MJCF),
+│   │                          all rebuilt by scripts/build_yam*_usd.py
 │   │                          + PROVENANCE
 │   │                          + verbatim workstation USDs (source of yam_bimanual's visual-only frame link)
 │   ├── controller_registry.py registers the four custom controllers + default configs

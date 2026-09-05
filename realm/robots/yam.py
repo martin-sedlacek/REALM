@@ -86,6 +86,9 @@ class YamRobot:
         "left_finger": (-0.088, 0.025, -0.045),
         "right_finger": (-0.025, -0.088, -0.045),
     }
+    #: Tool-centre point in the flange (link_6) frame, metres. None = derive it from
+    #: FINGERTIP_KEYPOINTS (the build script does); a variant with a known TCP sets it directly.
+    TCP_IN_FLANGE = None
     #: Non-actuated bodies fixed to link_6 (camera mount + Intel D405 housing + optical frame).
     FIXED_CAMERA_LINKS = ("camera_mount", "camera_d405", "camera_frame")
     #: Every geometry-free link fixed to the flange (the eef frame plus the D405 optical frame).
@@ -208,6 +211,16 @@ class YamRobot:
         return {"pos": list(cls.SPAWN_OFFSET_POS), "yaw_deg": cls.SPAWN_OFFSET_YAW_DEG}
 
     @classmethod
+    def finger_open_qpos(cls):
+        """Per-finger joint position at fully open, in FINGER_JOINTS order (the binary gripper
+        controller's `open_qpos`). Both YAMLab fingers share the sign; the crank gripper does not."""
+        return tuple(cls.GRIPPER_OPEN_QPOS for _ in cls.FINGER_JOINTS)
+
+    @classmethod
+    def finger_closed_qpos(cls):
+        return tuple(cls.GRIPPER_CLOSED_QPOS for _ in cls.FINGER_JOINTS)
+
+    @classmethod
     def wrist_camera_focal_length(cls, horizontal_aperture=None):
         """Focal length giving the calibrated horizontal FOV at `horizontal_aperture`.
 
@@ -241,6 +254,79 @@ class YamRobot:
         )
 
 
+class YamCrankRobot(YamRobot):
+    """The YAM arm with I2RT's earlier "crankshaft" gripper, from the ABC project's MuJoCo model
+    (https://abc.bot, ``assets/put_bottles/assets/i2rt_yam/yam.xml``, model ``yam_v0``).
+
+    The six arm links are the same parts as YAMLab's (identical ``model2*`` meshes and joint frames),
+    so the asset is the built ``yam.usd`` with everything downstream of the ``link_6`` wrist motor
+    replaced from the MJCF by ``scripts/build_yam_crank_usd.py``: the gripper housing (``link_6``
+    visuals, capsule collisions, inertia), the two fingers (angled crank fingers with their MJCF
+    capsule/box collision pads), the wrist D405 on ABC's steeper bracket, and the TCP.
+
+    What differs from :class:`YamRobot` at runtime:
+
+    * **Finger sign.** Both models put 0 at CLOSED, but ABC's fingers slide the other way: the left
+      finger is fully open at ``+0.0475`` (right at ``-0.0475``), YAMLab's at ``-0.0475``. The binary
+      gripper controller therefore gets per-finger ``open_qpos`` (:meth:`finger_open_qpos`), and the
+      gripper proxy (left finger) normalises with ``GRIPPER_OPEN_QPOS = +0.0475``. ABC's own policies
+      see the gripper as ``q / 0.0475`` (1 open, 0 closed).
+    * **Wrist camera.** ABC mounts the D405 at ``(-0.0107, 0.095, 0.062)`` on ``link_6`` tilted 50
+      degrees down (YAMLab: 25 degrees, 7 cm out); the composed camera pose is below. Same D405, so
+      the intrinsics and the 0.1 m near plane are inherited.
+    * **TCP.** ABC's ``grasp_site``: 13.47 cm along the flange axis (YAMLab's fingertip midpoint gave
+      14.26 cm).
+    * **Reset pose.** ABC's ``home`` keyframe, joints 2 and 3 at 60 degrees, fingers open.
+    * **No camera mount link.** ABC hangs the camera body directly off ``link_6``.
+    """
+
+    MODEL = "yam_crank"
+    NAME = "YAM_crank"
+    USD_PATH = "/app/realm/robots/yam/yam_crank.usd"
+    #: ABC MJCF: link_6 -> body camera_d405 (the housing mesh) -> body camera_frame (+9 mm) -> camera.
+    FIXED_CAMERA_LINKS = ("camera_d405", "camera_frame")
+    VIRTUAL_LINKS = ("eef_link", "camera_frame")
+    #: ABC ``grasp_site`` on link_6.
+    TCP_IN_FLANGE = (0.0, 0.0, 0.1347)
+    FINGERTIP_KEYPOINTS = None
+
+    #: Left finger: closed at 0, open at +0.0475 (right finger mirrored by the MJCF equality).
+    GRIPPER_OPEN_QPOS = 0.0475
+    GRIPPER_CLOSED_QPOS = 0.0
+    #: (lower, upper) per finger joint, from the MJCF ranges.
+    FINGER_LIMITS = {"left_finger": (-0.00205, 0.0475), "right_finger": (-0.0475, 0.00205)}
+    #: ABC ``home`` keyframe arm pose (0, 60 deg, 60 deg, 0, 0, 0) with the fingers open.
+    DEFAULT_JOINT_POS = (0.0, 1.047, 1.047, 0.0, 0.0, 0.0, 0.0475, -0.0475)
+
+    #: ABC put_bottle.xml: body ``<arm>_camera_d405`` under link_6 (the D405 housing mesh ``d405.stl``
+    #: plus a 2 cm collision sphere), then body ``<arm>_camera_frame`` and the MuJoCo camera.
+    #: MuJoCo quaternions are (w, x, y, z), unnormalised as written.
+    D405_BODY_POSITION = (-0.0107, 0.095, 0.062)
+    D405_BODY_QUAT_WXYZ = (0.906, 0.423, 0.0, 0.0)
+    D405_MESH = "d405.stl"
+    D405_RGBA = (0.22, 0.22, 0.24, 1.0)
+    D405_COLLISION_RADIUS = 0.02
+    CAMERA_FRAME_POSITION = (0.009, 0.0, 0.0)
+    CAMERA_FRAME_QUAT_WXYZ = (0.0, 0.0, 0.0, 1.0)
+    MUJOCO_CAMERA_QUAT_WXYZ = (0.0, 1.0, 0.0, 0.0)
+    #: Camera pose in link_6, composed from that chain by scripts/build_yam_crank_usd.py (which asserts
+    #: it lands here); USD/OpenGL convention, looks 50 degrees below the flange axis.
+    WRIST_CAMERA_POSITION = (-0.0017, 0.095, 0.062)
+    WRIST_CAMERA_QUAT_WXYZ = (0.0, 0.0, 0.906106, 0.42305)
+    #: MJCF bodies whose contents become REALM links (link_6's children in yam.xml).
+    MJCF_FINGER_BODIES = {"left_finger": "link_left_finger", "right_finger": "link_right_finger"}
+    MJCF_FLANGE_BODY = "link_6"
+
+    @classmethod
+    def finger_open_qpos(cls):
+        return tuple(cls.FINGER_LIMITS[j][1] if j == "left_finger" else cls.FINGER_LIMITS[j][0]
+                     for j in cls.FINGER_JOINTS)
+
+    @classmethod
+    def finger_closed_qpos(cls):
+        return tuple(0.0 for _ in cls.FINGER_JOINTS)
+
+
 class YamBimanualRobot:
     """YAMLab's bimanual workstation as one OmniGibson robot: two YAM arms on a shared mount plus the
     fixed top camera. Every name is derived from :class:`YamRobot`; every number that is not a YAM arm
@@ -268,6 +354,9 @@ class YamBimanualRobot:
     The workstation's aluminium frame IS in the USD, as the visual-only link :attr:`FRAME_LINK` fixed
     to ``base_link`` (see the FRAME_* constants): it is what the arms visibly stand on.
     """
+
+    #: The single-arm spec both arms are built from; a variant subclass swaps it.
+    ARM = YamRobot
 
     MODEL = "yam_bimanual"
     NAME = "YAM_bimanual"
@@ -350,27 +439,27 @@ class YamBimanualRobot:
 
     @classmethod
     def arm_links(cls, arm):
-        return tuple(cls.link_name(arm, n) for n in YamRobot.ARM_LINKS)
+        return tuple(cls.link_name(arm, n) for n in cls.ARM.ARM_LINKS)
 
     @classmethod
     def arm_joints(cls, arm):
-        return tuple(cls.joint_name(arm, n) for n in YamRobot.ARM_JOINTS)
+        return tuple(cls.joint_name(arm, n) for n in cls.ARM.ARM_JOINTS)
 
     @classmethod
     def finger_links(cls, arm):
-        return tuple(cls.link_name(arm, n) for n in YamRobot.FINGER_LINKS)
+        return tuple(cls.link_name(arm, n) for n in cls.ARM.FINGER_LINKS)
 
     @classmethod
     def finger_joints(cls, arm):
-        return tuple(cls.joint_name(arm, n) for n in YamRobot.FINGER_JOINTS)
+        return tuple(cls.joint_name(arm, n) for n in cls.ARM.FINGER_JOINTS)
 
     @classmethod
     def eef_link(cls, arm):
-        return cls.link_name(arm, YamRobot.EEF_LINK)
+        return cls.link_name(arm, cls.ARM.EEF_LINK)
 
     @classmethod
     def flange_link(cls, arm):
-        return cls.link_name(arm, YamRobot.FLANGE_LINK)
+        return cls.link_name(arm, cls.ARM.FLANGE_LINK)
 
     @classmethod
     def mount_joint(cls, arm):
@@ -380,19 +469,19 @@ class YamBimanualRobot:
     @classmethod
     def gripper_proxy_joint(cls, arm):
         """The finger joint read as the arm's gripper state (YAMLab reads the driven ``left_finger``)."""
-        return cls.joint_name(arm, YamRobot.FINGER_JOINTS[0])
+        return cls.joint_name(arm, cls.ARM.FINGER_JOINTS[0])
 
     @classmethod
     def all_links(cls, arm):
         """Every link prim of one arm, including the geometry-free frames."""
-        return tuple(cls.link_name(arm, n) for n in (*YamRobot.ARM_LINKS, *YamRobot.FINGER_LINKS,
-                                                    *YamRobot.FIXED_CAMERA_LINKS, *YamRobot.VIRTUAL_LINKS))
+        return tuple(cls.link_name(arm, n) for n in (*cls.ARM.ARM_LINKS, *cls.ARM.FINGER_LINKS,
+                                                    *cls.ARM.FIXED_CAMERA_LINKS, *cls.ARM.VIRTUAL_LINKS))
 
     @classmethod
     def collision_links(cls, arm):
         """Links of one arm that carry collision geometry (everything but the virtual frames)."""
-        return tuple(cls.link_name(arm, n) for n in (*YamRobot.ARM_LINKS, *YamRobot.FINGER_LINKS,
-                                                    *YamRobot.FIXED_CAMERA_LINKS))
+        return tuple(cls.link_name(arm, n) for n in (*cls.ARM.ARM_LINKS, *cls.ARM.FINGER_LINKS,
+                                                    *cls.ARM.FIXED_CAMERA_LINKS))
 
     @classmethod
     def frame_origin_in_mount(cls):
@@ -423,7 +512,7 @@ class YamBimanualRobot:
         assumed contiguous -- an arm's joints are NOT contiguous here.
         """
         order = []
-        for joint in YamRobot.ARM_JOINTS:
+        for joint in cls.ARM.ARM_JOINTS:
             for arm in cls.ARMS:
                 order.append(cls.joint_name(arm, joint))
         for arm in cls.ARMS:
@@ -433,12 +522,11 @@ class YamBimanualRobot:
     @classmethod
     def default_joint_pos(cls):
         """YAMLab's initial state for both arms, in :meth:`dof_order`."""
+        single = cls.ARM.DEFAULT_JOINT_POS
         by_joint = {}
         for arm in cls.ARMS:
-            for j in cls.arm_joints(arm):
-                by_joint[j] = 0.0
-            for j in cls.finger_joints(arm):
-                by_joint[j] = cls.GRIPPER_OPEN_QPOS
+            for j, value in zip((*cls.arm_joints(arm), *cls.finger_joints(arm)), single):
+                by_joint[j] = value
         return tuple(by_joint[j] for j in cls.dof_order())
 
     @classmethod
@@ -499,13 +587,33 @@ class YamBimanualRobot:
             finger_joint_names={arm: cls.finger_joints(arm) for arm in cls.ARMS},
             gripper_proxy_joints={arm: cls.gripper_proxy_joint(arm) for arm in cls.ARMS},
             gripper_action_idx=cls.GRIPPER_ACTION_IDX,
-            wrist_cameras={arm: dict(link=cls.flange_link(arm), idx=0, prim=YamRobot.WRIST_CAMERA_PRIM)
+            wrist_cameras={arm: dict(link=cls.flange_link(arm), idx=0, prim=cls.ARM.WRIST_CAMERA_PRIM)
                            for arm in cls.ARMS},
             # first-arm view for single-wrist / single-gripper callers
             wrist_camera_link=cls.flange_link(first),
             wrist_camera_idx=0,
-            wrist_camera_prim=YamRobot.WRIST_CAMERA_PRIM,
+            wrist_camera_prim=cls.ARM.WRIST_CAMERA_PRIM,
             gripper_proprio_idx=order.index(cls.gripper_proxy_joint(first)),
             gripper_open_qpos=cls.GRIPPER_OPEN_QPOS,
             gripper_closed_qpos=cls.GRIPPER_CLOSED_QPOS,
         )
+
+
+class YamCrankBimanualRobot(YamBimanualRobot):
+    """ABC's bimanual workstation: two :class:`YamCrankRobot` arms on the same gate frame.
+
+    ABC's ``put_bottle.xml`` places the arms at ``(0.2525, +-0.31, 0.76)`` (YAMLab: +-0.305), mounts
+    the top D405 at exactly YAMLab's ``cameras.top`` pose on the gate's top bar, and uses the same
+    ``base_visual_gate`` mesh as YAMLab's ``gate_visual``, so everything but the arm spec, the arm
+    spacing and the wrist-camera offsets is inherited. Both wrist cameras share ABC's single offset.
+    """
+
+    ARM = YamCrankRobot
+    MODEL = "yam_crank_bimanual"
+    NAME = "YAM_crank_bimanual"
+    USD_PATH = "/app/realm/robots/yam/yam_crank_bimanual.usd"
+    ARM_OFFSETS = {"left": (0.0, 0.31, 0.0), "right": (0.0, -0.31, 0.0)}
+    WRIST_CAMERA_POSITIONS = {"left": YamCrankRobot.WRIST_CAMERA_POSITION,
+                              "right": YamCrankRobot.WRIST_CAMERA_POSITION}
+    GRIPPER_OPEN_QPOS = YamCrankRobot.GRIPPER_OPEN_QPOS
+    GRIPPER_CLOSED_QPOS = YamCrankRobot.GRIPPER_CLOSED_QPOS

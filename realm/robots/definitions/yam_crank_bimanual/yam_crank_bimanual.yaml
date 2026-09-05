@@ -1,0 +1,164 @@
+# RobotDefinition for the YAM bimanual workstation with I2RT's "crankshaft" gripper, from the ABC project's
+# MuJoCo model (https://abc.bot, assets/put_bottles/assets/i2rt_yam/yam.xml). Every name and number is
+# pinned against realm/robots/yam.py::YamCrankBimanualRobot by tests/test_yam_robot.py -- change them there.
+#
+# Same layout as yam_bimanual (two arms 0.62 m apart on a geometry-free root base_link at their midpoint,
+# YAMLab's gate as the visual-only `frame` link, top camera as REALM's external_sensor0) over the single-arm
+# yam_crank.usd: YAMLab's six arm links with ABC's gripper housing, crank fingers, wrist D405 bracket and TCP
+# (scripts/build_yam_crank_usd.py). No camera_mount link: ABC hangs the D405 body straight off link_6.
+# Finger sign is INVERTED relative to yam_bimanual: 0 = closed, +0.0475 (left) / -0.0475 (right) = open.
+
+raw_controller_order: ["arm_left", "gripper_left", "arm_right", "gripper_right"]
+default_controllers:
+  arm_left: JointController
+  gripper_left: MultiFingerGripperController
+  arm_right: JointController
+  gripper_right: MultiFingerGripperController
+
+usd_path: "/app/realm/robots/yam/yam_crank_bimanual.usd"
+
+# Arms collide with each other, never with themselves (every within-arm pair filtered; see yam_bimanual).
+self_collisions: true
+disabled_collision_pairs:
+  - ["left_base_link", "left_link_1"]
+  - ["left_base_link", "left_link_2"]
+  - ["left_base_link", "left_link_3"]
+  - ["left_base_link", "left_link_4"]
+  - ["left_base_link", "left_link_5"]
+  - ["left_base_link", "left_link_6"]
+  - ["left_base_link", "left_left_finger"]
+  - ["left_base_link", "left_right_finger"]
+  - ["left_base_link", "left_camera_d405"]
+  - ["left_base_link", "left_camera_frame"]
+  - ["left_link_1", "left_link_2"]
+  - ["left_link_1", "left_link_3"]
+  - ["left_link_1", "left_link_4"]
+  - ["left_link_1", "left_link_5"]
+  - ["left_link_1", "left_link_6"]
+  - ["left_link_1", "left_left_finger"]
+  - ["left_link_1", "left_right_finger"]
+  - ["left_link_1", "left_camera_d405"]
+  - ["left_link_1", "left_camera_frame"]
+  - ["left_link_2", "left_link_3"]
+  - ["left_link_2", "left_link_4"]
+  - ["left_link_2", "left_link_5"]
+  - ["left_link_2", "left_link_6"]
+  - ["left_link_2", "left_left_finger"]
+  - ["left_link_2", "left_right_finger"]
+  - ["left_link_2", "left_camera_d405"]
+  - ["left_link_2", "left_camera_frame"]
+  - ["left_link_3", "left_link_4"]
+  - ["left_link_3", "left_link_5"]
+  - ["left_link_3", "left_link_6"]
+  - ["left_link_3", "left_left_finger"]
+  - ["left_link_3", "left_right_finger"]
+  - ["left_link_3", "left_camera_d405"]
+  - ["left_link_3", "left_camera_frame"]
+  - ["left_link_4", "left_link_5"]
+  - ["left_link_4", "left_link_6"]
+  - ["left_link_4", "left_left_finger"]
+  - ["left_link_4", "left_right_finger"]
+  - ["left_link_4", "left_camera_d405"]
+  - ["left_link_4", "left_camera_frame"]
+  - ["left_link_5", "left_link_6"]
+  - ["left_link_5", "left_left_finger"]
+  - ["left_link_5", "left_right_finger"]
+  - ["left_link_5", "left_camera_d405"]
+  - ["left_link_5", "left_camera_frame"]
+  - ["left_link_6", "left_left_finger"]
+  - ["left_link_6", "left_right_finger"]
+  - ["left_link_6", "left_camera_d405"]
+  - ["left_link_6", "left_camera_frame"]
+  - ["left_left_finger", "left_right_finger"]
+  - ["left_left_finger", "left_camera_d405"]
+  - ["left_left_finger", "left_camera_frame"]
+  - ["left_right_finger", "left_camera_d405"]
+  - ["left_right_finger", "left_camera_frame"]
+  - ["left_camera_d405", "left_camera_frame"]
+  - ["right_base_link", "right_link_1"]
+  - ["right_base_link", "right_link_2"]
+  - ["right_base_link", "right_link_3"]
+  - ["right_base_link", "right_link_4"]
+  - ["right_base_link", "right_link_5"]
+  - ["right_base_link", "right_link_6"]
+  - ["right_base_link", "right_left_finger"]
+  - ["right_base_link", "right_right_finger"]
+  - ["right_base_link", "right_camera_d405"]
+  - ["right_base_link", "right_camera_frame"]
+  - ["right_link_1", "right_link_2"]
+  - ["right_link_1", "right_link_3"]
+  - ["right_link_1", "right_link_4"]
+  - ["right_link_1", "right_link_5"]
+  - ["right_link_1", "right_link_6"]
+  - ["right_link_1", "right_left_finger"]
+  - ["right_link_1", "right_right_finger"]
+  - ["right_link_1", "right_camera_d405"]
+  - ["right_link_1", "right_camera_frame"]
+  - ["right_link_2", "right_link_3"]
+  - ["right_link_2", "right_link_4"]
+  - ["right_link_2", "right_link_5"]
+  - ["right_link_2", "right_link_6"]
+  - ["right_link_2", "right_left_finger"]
+  - ["right_link_2", "right_right_finger"]
+  - ["right_link_2", "right_camera_d405"]
+  - ["right_link_2", "right_camera_frame"]
+  - ["right_link_3", "right_link_4"]
+  - ["right_link_3", "right_link_5"]
+  - ["right_link_3", "right_link_6"]
+  - ["right_link_3", "right_left_finger"]
+  - ["right_link_3", "right_right_finger"]
+  - ["right_link_3", "right_camera_d405"]
+  - ["right_link_3", "right_camera_frame"]
+  - ["right_link_4", "right_link_5"]
+  - ["right_link_4", "right_link_6"]
+  - ["right_link_4", "right_left_finger"]
+  - ["right_link_4", "right_right_finger"]
+  - ["right_link_4", "right_camera_d405"]
+  - ["right_link_4", "right_camera_frame"]
+  - ["right_link_5", "right_link_6"]
+  - ["right_link_5", "right_left_finger"]
+  - ["right_link_5", "right_right_finger"]
+  - ["right_link_5", "right_camera_d405"]
+  - ["right_link_5", "right_camera_frame"]
+  - ["right_link_6", "right_left_finger"]
+  - ["right_link_6", "right_right_finger"]
+  - ["right_link_6", "right_camera_d405"]
+  - ["right_link_6", "right_camera_frame"]
+  - ["right_left_finger", "right_right_finger"]
+  - ["right_left_finger", "right_camera_d405"]
+  - ["right_left_finger", "right_camera_frame"]
+  - ["right_right_finger", "right_camera_d405"]
+  - ["right_right_finger", "right_camera_frame"]
+  - ["right_camera_d405", "right_camera_frame"]
+
+# OmniGibson DOF order (PhysX breadth-first: left_joint1, right_joint1, ..., right_joint6, then the left fingers,
+# then the right fingers). ABC's `home` keyframe: joints 2 and 3 at 1.047 rad, fingers OPEN (+0.0475 / -0.0475).
+default_joint_pos: [
+  0.0, 0.0, 1.047, 1.047, 1.047, 1.047, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0475, -0.0475, 0.0475, -0.0475,
+]
+
+manipulation:
+  n_arms: 2
+  arm_names: ["left", "right"]
+  arm_link_names:
+    left: ["left_base_link", "left_link_1", "left_link_2", "left_link_3", "left_link_4", "left_link_5", "left_link_6"]
+    right: ["right_base_link", "right_link_1", "right_link_2", "right_link_3", "right_link_4", "right_link_5", "right_link_6"]
+  arm_joint_names:
+    left: ["left_joint1", "left_joint2", "left_joint3", "left_joint4", "left_joint5", "left_joint6"]
+    right: ["right_joint1", "right_joint2", "right_joint3", "right_joint4", "right_joint5", "right_joint6"]
+  # Massless tool-centre frames at ABC's grasp_site (13.47 cm along the flange); OmniGibson hides eef links.
+  eef_link_names:
+    left: "left_eef_link"
+    right: "right_eef_link"
+  finger_link_names:
+    left: ["left_left_finger", "left_right_finger"]
+    right: ["right_left_finger", "right_right_finger"]
+  finger_joint_names:
+    left: ["left_left_finger", "left_right_finger"]
+    right: ["right_left_finger", "right_right_finger"]
+  teleop_rotation_offset:
+    left: [-1, 0, 0, 0]
+    right: [-1, 0, 0, 0]
+
+# No assisted-grasp points: REALM runs grasping_mode "physical".

@@ -1,0 +1,100 @@
+# YAM bimanual workstation with I2RT's "crankshaft" gripper (ABC project MuJoCo model): YAM_bimanual.yaml
+# over the yam_crank_bimanual asset. Same arms, gains, cameras and action order [left_arm(6), left_gripper(1),
+# right_arm(6), right_gripper(1)]; what differs is the gripper: ABC's fingers close TOWARD 0 and open to
+# +0.0475 (left) / -0.0475 (right), the inverse sign of YAMLab's, so the gripper blocks below name those
+# limits per finger, and the reset pose is ABC's `home` keyframe (joints 2 and 3 at 60 deg).
+#
+# Numbers are pinned against realm/robots/yam.py::YamCrankBimanualRobot by tests/test_yam_robot.py.
+robots:
+  - name: "YAM_crank_bimanual"
+    model: "yam_crank_bimanual"
+    dof: 16
+    # Bare arms on a geometry-free mount frame: no column in the asset.
+    has_base_column: false
+    # REALM-only: height of the mount frame (the arm-base midpoint) above the scene's robot spawn point.
+    # Same as the single arm, so the exterior-camera extrinsics and workspace match the DROID setup.
+    mount_height: 0.863891
+    # REALM-only: rigid offset from the DROID spawn pose in the robot's own frame (forward, left, up in
+    # metres; yaw about the robot's z). The YAM reaches ~0.6 m, far less than the Franka, so it sits
+    # 0.30 m closer to the workspace (chosen in the GUI, 2026-09-05). Cameras and
+    # EE transforms expressed in the robot frame move with it; the objects do not. See YamRobot.SPAWN_OFFSET_POS.
+    spawn_offset:
+      pos: [0.30, 0.0, 0.0]
+      yaw_deg: 0.0
+    # Full-DOF reset pose in OmniGibson DOF order (breadth-first: left_joint1, right_joint1, ..., right_joint6,
+    # then left fingers, then right fingers). ABC's `home` keyframe with the fingers OPEN (+0.0475 left finger,
+    # -0.0475 right finger, on both arms).
+    reset_joint_pos: [0.0, 0.0, 1.047, 1.047, 1.047, 1.047, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                      0.0475, -0.0475, 0.0475, -0.0475]
+    # Substring filter: matches left_link_6/wrist_camera AND right_link_6/wrist_camera.
+    include_sensor_names: ["wrist_camera"]
+    obs_modalities: ["rgb", "proprio"]
+    proprio_obs: ["joint_qpos"]
+    # YAMLab: 120 Hz physics, decimation 4 (sim_config.set_sim_config, robots named "YAM*").
+    control_freq: 30
+    action_normalize: False
+    action_type: "continuous"
+    controller_name: "JointController"
+    controller_config:
+        arm_left:
+            name: "JointController"
+            motor_type: "position"
+            control_freq: 30
+            use_delta_commands: False
+            use_impedances: False
+            command_input_limits: null
+            command_output_limits: null
+            # high_pd: shoulder joint1-3 + elbow joint4 = 800/50, wrist joint5-6 = 30/5.
+            isaac_kp: [800.0, 800.0, 800.0, 800.0, 30.0, 30.0]
+            isaac_kd: [50.0, 50.0, 50.0, 50.0, 5.0, 5.0]
+        gripper_left:
+          name: "MultiFingerGripperController"
+          mode: "binary"
+          motor_type: "position"
+          # ABC's crank fingers: closed at 0, open at the far limit, which is +0.0475 for the left finger and
+          # -0.0475 for the right (the MJCF equality mirrors them). Named per finger so the stock binary
+          # controller's open/close map onto the right ends of each joint. Order: [left_finger, right_finger].
+          open_qpos: [0.0475, -0.0475]
+          closed_qpos: [0.0, 0.0]
+          isaac_kp: 2000.0
+          isaac_kd: 100.0
+        arm_right:
+            name: "JointController"
+            motor_type: "position"
+            control_freq: 30
+            use_delta_commands: False
+            use_impedances: False
+            command_input_limits: null
+            command_output_limits: null
+            isaac_kp: [800.0, 800.0, 800.0, 800.0, 30.0, 30.0]
+            isaac_kd: [50.0, 50.0, 50.0, 50.0, 5.0, 5.0]
+        gripper_right:
+          name: "MultiFingerGripperController"
+          mode: "binary"
+          motor_type: "position"
+          # ABC's crank fingers: closed at 0, open at the far limit, which is +0.0475 for the left finger and
+          # -0.0475 for the right (the MJCF equality mirrors them). Named per finger so the stock binary
+          # controller's open/close map onto the right ends of each joint. Order: [left_finger, right_finger].
+          open_qpos: [0.0475, -0.0475]
+          closed_qpos: [0.0, 0.0]
+          isaac_kp: 2000.0
+          isaac_kd: 100.0
+    sensor_config:
+      VisionSensor:
+        sensor_kwargs:
+          image_height: 720
+          image_width: 1280
+          # Same D405 as YAMLab (fx = 390.666 at 640 px -> 78.6 deg hfov), on ABC's steeper wrist bracket.
+          focal_length: 12.7913
+          horizontal_aperture: 20.955
+          clipping_range: [0.1, 10000000.0]
+    # REALM-only: YAMLab's fixed top camera (configs/robot/yam.yaml cameras.top), expressed in the mount
+    # frame like every camera_extrinsics entry (xyz + xyzw quaternion, USD camera looks down -Z).
+    # env_config places external_sensor0 here instead of the task's cam1 extrinsics, and sets its focal
+    # length to the calibrated 78.4 deg horizontal FOV (fx = 392.196 at 640 px). The second exterior view
+    # (--multi-view) keeps the task/default logic. See YamBimanualRobot.exterior_camera().
+    exterior_camera:
+      cam1:
+        pos: [-0.1664949, -0.009, 0.9443205]
+        rot: [0.18301, -0.18301, -0.68301, 0.68301]
+      focal_length: 12.8413

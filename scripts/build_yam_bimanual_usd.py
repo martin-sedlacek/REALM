@@ -31,8 +31,13 @@ what OmniGibson's loader is known to handle. Every number comes from ``realm.rob
 
 Host-side; needs ``pxr`` (``pip install usd-core``). The output is committed.
 
-    python scripts/build_yam_bimanual_usd.py            # reads realm/robots/yam/yam.usd
+    python scripts/build_yam_bimanual_usd.py                  # yam.usd -> yam_bimanual.usd
+    python scripts/build_yam_bimanual_usd.py --variant crank  # yam_crank.usd -> yam_crank_bimanual.usd
     python scripts/build_yam_bimanual_usd.py --verify-only
+
+``--variant`` picks the spec (``YamBimanualRobot`` or ``YamCrankBimanualRobot``); every path, name and
+number below comes from it, so the ABC crank-gripper workstation is the same script over a different
+single-arm file.
 """
 
 import argparse
@@ -43,11 +48,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from realm.robots.yam import YamBimanualRobot as B, YamRobot  # noqa: E402
+from realm.robots.yam import YamBimanualRobot, YamCrankBimanualRobot  # noqa: E402
 from build_yam_usd import (  # noqa: E402
     OUT_DIR,
     OUT_PROVENANCE,
-    OUT_USD as SINGLE_USD,
     remap_dependents,
     replace_provenance_section,
     sha256,
@@ -59,11 +63,25 @@ try:
 except ImportError as exc:  # pragma: no cover - host tooling
     sys.exit(f"pxr is required (pip install usd-core): {exc}")
 
-SRC_ROOT = f"/{YamRobot.MODEL}"
-DST_ROOT = f"/{B.MODEL}"
-OUT_USD = os.path.join(OUT_DIR, "yam_bimanual.usd")
+#: --variant -> the bimanual spec it builds; the single-arm source and the output follow the spec.
+VARIANTS = {"yamlab": YamBimanualRobot, "crank": YamCrankBimanualRobot}
 
-SINGLE_LINKS = (*YamRobot.ARM_LINKS, *YamRobot.FINGER_LINKS, *YamRobot.FIXED_CAMERA_LINKS, *YamRobot.VIRTUAL_LINKS)
+
+def _roots(spec):
+    return f"/{spec.ARM.MODEL}", f"/{spec.MODEL}"
+
+
+def _single_links(spec):
+    arm = spec.ARM
+    return (*arm.ARM_LINKS, *arm.FINGER_LINKS, *arm.FIXED_CAMERA_LINKS, *arm.VIRTUAL_LINKS)
+
+
+def source_usd(spec):
+    return os.path.join(OUT_DIR, f"{spec.ARM.MODEL}.usd")
+
+
+def output_usd(spec):
+    return os.path.join(OUT_DIR, f"{spec.MODEL}.usd")
 
 
 def _shift_translate(prim, offset):
@@ -82,7 +100,7 @@ def _identity_ops(prim):
     xf.AddScaleOp().Set(Gf.Vec3f(1.0, 1.0, 1.0))
 
 
-def load_frame_mesh(workstation_usd=None):
+def load_frame_mesh(B, workstation_usd=None):
     """Read YAMLab's gate mesh (triangle soup, one vertex per corner) off the composed workstation stage.
 
     Returns (points (N, 3) float32 in YAMLab's world frame, faceVertexCounts, faceVertexIndices). The
@@ -108,7 +126,7 @@ def load_frame_mesh(workstation_usd=None):
     return pts, counts, indices
 
 
-def author_frame_link(stage, base_prim, frame_source):
+def author_frame_link(stage, base_prim, frame_source, B):
     """Author the visual-only workstation frame as a link fixed to base_link.
 
     The mesh is copied (not referenced) so the asset stays a single file; its points are moved into the
@@ -119,6 +137,7 @@ def author_frame_link(stage, base_prim, frame_source):
     """
     import numpy as np
 
+    _, DST_ROOT = _roots(B)
     pts, counts, indices = frame_source
     origin = np.array(B.frame_origin_in_mount(), dtype=np.float64)
     z = np.array([B.frame_z_in_mount(v) for v in pts[:, 2]], dtype=np.float64)
@@ -159,8 +178,10 @@ def author_frame_link(stage, base_prim, frame_source):
     return lo, hi
 
 
-def build(source, output, workstation_usd=None):
-    frame_source = load_frame_mesh(workstation_usd)
+def build(source, output, B=YamBimanualRobot, workstation_usd=None):
+    YamRobot = B.ARM
+    SRC_ROOT, DST_ROOT = _roots(B)
+    frame_source = load_frame_mesh(B, workstation_usd)
     src_stage = Usd.Stage.Open(source)
     assert src_stage, f"cannot open {source}"
     src_root = src_stage.GetDefaultPrim()
@@ -169,10 +190,13 @@ def build(source, output, workstation_usd=None):
     src_layer = src_stage.GetRootLayer()
 
     link_names = [c.GetName() for c in src_root.GetChildren() if c.GetTypeName() == "Xform"]
-    assert set(link_names) == set(SINGLE_LINKS), f"unexpected link set in {source}: {sorted(link_names)}"
+    assert set(link_names) == set(_single_links(B)), f"unexpected link set in {source}: {sorted(link_names)}"
     joint_names = [c.GetName() for c in src_stage.GetPrimAtPath(f"{SRC_ROOT}/joints").GetChildren()]
     assert set(joint_names) >= {*YamRobot.ARM_JOINTS, *YamRobot.FINGER_JOINTS, YamRobot.EEF_LINK}, joint_names
     assert src_stage.GetPrimAtPath(f"{SRC_ROOT}/PhysicsMaterial"), "single-arm file has no PhysicsMaterial"
+    # Root children that are neither links nor the joints scope (PhysicsMaterial, a Looks scope) are shared
+    # by both arms: copied once, and every binding into them redirected.
+    shared = [c.GetName() for c in src_root.GetChildren() if c.GetTypeName() != "Xform" and c.GetName() != "joints"]
 
     layer = Sdf.Layer.CreateAnonymous("yam-bimanual.usd")
     root_spec = Sdf.CreatePrimInLayer(layer, DST_ROOT)
@@ -181,13 +205,14 @@ def build(source, output, workstation_usd=None):
     joints_spec = Sdf.CreatePrimInLayer(layer, f"{DST_ROOT}/joints")
     joints_spec.typeName = "Scope"
     joints_spec.specifier = Sdf.SpecifierDef
-    assert Sdf.CopySpec(src_layer, Sdf.Path(f"{SRC_ROOT}/PhysicsMaterial"), layer, Sdf.Path(f"{DST_ROOT}/PhysicsMaterial"))
+    for name in shared:
+        assert Sdf.CopySpec(src_layer, Sdf.Path(f"{SRC_ROOT}/{name}"), layer, Sdf.Path(f"{DST_ROOT}/{name}"))
 
     # Copy the arm twice. After each copy, every relationship target / connection that still names a
     # single-arm path (joint bodies, material bindings) is redirected to this arm's prims; the previous
     # arm's paths no longer match the /yam/ prefixes, so the sweep is idempotent per arm.
     for arm in B.ARMS:
-        mapping = {f"{SRC_ROOT}/PhysicsMaterial": f"{DST_ROOT}/PhysicsMaterial"}
+        mapping = {f"{SRC_ROOT}/{name}": f"{DST_ROOT}/{name}" for name in shared}
         for name in link_names:
             assert Sdf.CopySpec(src_layer, Sdf.Path(f"{SRC_ROOT}/{name}"), layer, Sdf.Path(f"{DST_ROOT}/{B.link_name(arm, name)}"))
             mapping[f"{SRC_ROOT}/{name}"] = f"{DST_ROOT}/{B.link_name(arm, name)}"
@@ -228,20 +253,22 @@ def build(source, output, workstation_usd=None):
         assert cam and cam.GetTypeName() == "Camera", f"{arm}: wrist camera missing after copy"
         cam.GetAttribute("xformOp:translate").Set(Gf.Vec3d(*B.WRIST_CAMERA_POSITIONS[arm]))
 
-    author_frame_link(stage, base.GetPrim(), frame_source)
+    author_frame_link(stage, base.GetPrim(), frame_source, B)
 
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     stage.SetDefaultPrim(root)
-    layer.comment = ("Two copies of realm/robots/yam/yam.usd on a shared mount (YAMLab bimanual workstation), "
+    layer.comment = (f"Two copies of realm/robots/yam/{YamRobot.MODEL}.usd on a shared mount (YAMLab bimanual workstation), "
                      "built by scripts/build_yam_bimanual_usd.py -- see realm/robots/yam/PROVENANCE")
     os.makedirs(os.path.dirname(output), exist_ok=True)
     assert layer.Export(output), f"failed to write {output}"
     return output
 
 
-def verify(output):
+def verify(output, B=YamBimanualRobot):
     """Re-open the written file and check what OmniGibson's loader relies on. Returns (problems, summary)."""
+    YamRobot = B.ARM
+    SRC_ROOT, DST_ROOT = _roots(B)
     stage = Usd.Stage.Open(output)
     root = stage.GetDefaultPrim()
     problems = []
@@ -399,35 +426,41 @@ def verify(output):
     return problems, summary
 
 
-def write_provenance(source, output):
+def write_provenance(source, output, B=YamBimanualRobot):
     lines = [
-        "yam_bimanual.usd",
+        f"{B.MODEL}.usd",
         f"  source: {os.path.relpath(source, REPO_ROOT)} (the built single-arm file above)",
         f"  source sha256: {sha256(source)}",
         f"  output sha256: {sha256(output)}",
-        "  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_",
-        "  prefixes, links translated by YAMLab's arm offsets (+-0.305 m in y), geometry-free root base_link at",
+        f"  built by scripts/build_yam_bimanual_usd.py: every link/joint of {B.ARM.MODEL}.usd copied twice with left_/right_",
+        f"  prefixes, links translated by the arm offsets (+-{abs(B.ARM_OFFSETS['left'][1])} m in y), geometry-free root base_link at",
         "  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's",
-        "  right_wrist offset. Numbers from realm/robots/yam.py::YamBimanualRobot.",
+        f"  wrist-camera offset. Numbers from realm/robots/yam.py::{B.__name__}.",
         f"  frame link: visual-only copy of {B.FRAME_SOURCE_PRIM} from workstation/workstation.usd (sha256 above),",
         f"  moved into the mount frame, the part below the arm plates stretched x{B.FRAME_STRETCH_BELOW_MOUNT:.4f} in z",
         "  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped",
         "  for a UsdPreviewSurface with the same aluminium constants.",
     ]
-    replace_provenance_section(OUT_PROVENANCE, "yam_bimanual.usd", lines)
+    replace_provenance_section(OUT_PROVENANCE, f"{B.MODEL}.usd", lines)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--source", default=SINGLE_USD, help="the built single-arm yam.usd")
-    parser.add_argument("--output", default=OUT_USD)
+    parser.add_argument("--variant", default="yamlab", choices=sorted(VARIANTS),
+                        help="yamlab: YAMLab gripper (yam.usd -> yam_bimanual.usd); crank: ABC crank gripper "
+                             "(yam_crank.usd -> yam_crank_bimanual.usd)")
+    parser.add_argument("--source", default=None, help="the built single-arm file (default: the variant's)")
+    parser.add_argument("--output", default=None)
     parser.add_argument("--verify-only", action="store_true", help="only re-check an existing output")
     args = parser.parse_args()
+    B = VARIANTS[args.variant]
+    source = args.source or source_usd(B)
+    output = args.output or output_usd(B)
 
     if not args.verify_only:
-        build(args.source, args.output)
-        write_provenance(args.source, args.output)
-    problems, summary = verify(args.output)
+        build(source, output, B)
+        write_provenance(source, output, B)
+    problems, summary = verify(output, B)
     for k, v in summary.items():
         print(f"{k}: {v}")
     if problems:
@@ -435,7 +468,7 @@ def main():
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    print(f"OK: {args.output}")
+    print(f"OK: {output}")
 
 
 if __name__ == "__main__":

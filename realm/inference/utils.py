@@ -1,6 +1,6 @@
 import numpy as np
 
-from realm.robots.yam import YamBimanualRobot, YamRobot
+from realm.robots.yam import YamBimanualRobot, YamCrankBimanualRobot, YamRobot
 
 # Camera indices follow sensor creation order and must match each robot config's sensor filter.
 # `arm_dof` (default DEFAULT_ARM_DOF when absent) is how many leading proprio entries are arm joints:
@@ -24,6 +24,8 @@ ROBOT_OBS_PROFILES = {
     YamRobot.NAME: YamRobot.obs_profile(),
     # YAM bimanual workstation: two of the above as one articulation, YAMLab's 14-D action layout.
     YamBimanualRobot.NAME: YamBimanualRobot.obs_profile(),
+    # The same workstation with ABC's crank gripper: fingers open AWAY from 0 (+0.0475 left finger).
+    YamCrankBimanualRobot.NAME: YamCrankBimanualRobot.obs_profile(),
 }
 ROBOT_OBS_PROFILES["DROID"] = dict(ROBOT_OBS_PROFILES["DROID_mounted"])
 

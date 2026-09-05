@@ -157,6 +157,7 @@ registered for OmniGibson 3.9.1 are:
 | `YAM` | `yam.usd` (YAMLab arm, bare) | 6 | stock `JointController`, YAMLab `high_pd` gains | see below |
 | `YAM_base_pd_control` | `yam.usd` | 6 | stock `JointController`, YAMLab `base` gains | |
 | `YAM_bimanual` | `yam_bimanual.usd` (two YAM arms on a shared mount) | 2 x 6 | stock `JointController` x2 + `MultiFingerGripperController` x2, `high_pd` gains | 14-D action, two wrist cameras, YAMLab top camera as the exterior view; see below |
+| `YAM_crank_bimanual` | `yam_crank_bimanual.usd` (the same workstation with I2RT's crank gripper) | 2 x 6 | as `YAM_bimanual` | ABC-project gripper: inverted finger sign, steeper wrist camera, ABC home pose; see below |
 
 `UR5*` and `WidowX` configs exist but have no registered definition on 3.9.1 and do not load.
 
@@ -264,6 +265,31 @@ self-collisions off).
 > CoM), and `SceneSetupMixin.restore_authored_link_coms` (run in `finalize_setup`, after
 > `rebase_initial_file`, which re-applies the override) pushes the authored CoMs back exactly and logs what
 > it changed. DROID links author no CoM and are untouched (bit-for-bit re-checked, job 204614).
+
+**YAM_crank_bimanual.** The same workstation with I2RT's earlier "crankshaft" gripper, taken from the
+[ABC project](https://abc.bot)'s MuJoCo model (`assets/put_bottles/assets/i2rt_yam/yam.xml`). The six
+arm links are YAMLab's; `scripts/build_yam_crank_usd.py` reads the MJCF and replaces everything downstream
+of the wrist motor -- the gripper housing, the two angled fingers with their capsule/box collision pads and
+inertials, the wrist D405 on ABC's steeper bracket (looking 50 degrees below the flange axis instead of
+25), and the TCP (ABC's `grasp_site`, 13.47 cm along the flange) -- into `yam_crank.usd`, which
+`scripts/build_yam_bimanual_usd.py --variant crank` then composes exactly like the YAMLab pair (arms 0.62 m
+apart as in ABC, same gate frame, same top camera, same `spawn_offset`). Spec: `YamCrankRobot` /
+`YamCrankBimanualRobot` in `realm/robots/yam.py`. Two things a policy or a reader must know:
+
+* **Finger sign.** Both grippers are closed at 0, but ABC's fingers open AWAY from 0: the left finger is
+  fully open at `+0.0475` (right at `-0.0475`), the reverse of YAMLab's `-0.0475`. The configs name
+  `open_qpos: [0.0475, -0.0475]` per finger, the observation profile normalises the left finger with
+  `open = +0.0475`, and `is_grasping`'s closure test has a mirrored branch for grippers whose closed
+  position is below the open one (the original expression is kept verbatim for DROID and YAMLab). ABC's
+  own policies see the gripper as `q / 0.0475` (1 open); `--model_type yamlab` still speaks YAMLab's
+  convention, so an ABC-trained policy needs its own adapter.
+* **Reset pose.** ABC's `home` keyframe: joints 2 and 3 at 60 degrees, fingers open -- not YAMLab's
+  all-zeros.
+
+> **Not yet run on a GPU (2026-09-05).** The asset passes the same structural verifier as the YAMLab pair
+> (link set, joint bodies, collision prims as direct children, TCP, camera pose, frame on the floor), and the
+> host pins are green. First container check: `tests/test_yam_bimanual_motion.py --robot YAM_crank_bimanual`
+> (each of the 14 action columns must move exactly its joint; the gripper phases must reach open 0 / closed 1).
 
 ## Frequencies
 

@@ -496,3 +496,157 @@ def test_yam_mount_height_is_the_bare_droid_offset():
     assert Y.MOUNT_HEIGHT == B.MOUNT_HEIGHT == shared.DROID_BASE_HEIGHT
     for path in (*CONFIGS.values(), B_CONFIG):
         assert _load(path)["robots"][0]["mount_height"] == shared.DROID_BASE_HEIGHT, path
+
+
+# --- the crank-gripper variant (ABC's MJCF) -------------------------------------------------------
+
+from realm.robots.yam import YamCrankBimanualRobot as CB, YamCrankRobot as CR  # noqa: E402
+
+CR_USD = PROJECT_ROOT / "realm" / "robots" / "yam" / f"{CR.MODEL}.usd"
+CB_USD = PROJECT_ROOT / "realm" / "robots" / "yam" / f"{CB.MODEL}.usd"
+CB_DEFINITION = PROJECT_ROOT / "realm" / "robots" / "definitions" / CB.MODEL / f"{CB.MODEL}.yaml"
+CB_CONFIG = PROJECT_ROOT / "realm" / "config" / "robots" / f"{CB.NAME}.yaml"
+
+
+def test_crank_spec_differs_from_yamlab_only_where_the_hardware_does():
+    """Same arm (links, joints, gains, effort limits, camera intrinsics); different gripper, camera mount,
+    TCP and home pose. The finger SIGN is the trap: both grippers are closed at 0, but ABC's open away from
+    0 in the positive direction on the left finger."""
+    assert CR.ARM_LINKS == Y.ARM_LINKS and CR.ARM_JOINTS == Y.ARM_JOINTS and CR.FINGER_JOINTS == Y.FINGER_JOINTS
+    assert CR.GAIN_SETS is Y.GAIN_SETS and CR.EFFORT_LIMITS is Y.EFFORT_LIMITS
+    assert CR.WRIST_CAMERA_INTRINSICS is Y.WRIST_CAMERA_INTRINSICS and CR.WRIST_CAMERA_CLIPPING_RANGE == Y.WRIST_CAMERA_CLIPPING_RANGE
+    assert CR.GRIPPER_CLOSED_QPOS == Y.GRIPPER_CLOSED_QPOS == 0.0
+    assert CR.GRIPPER_OPEN_QPOS > 0 > Y.GRIPPER_OPEN_QPOS and abs(CR.GRIPPER_OPEN_QPOS) == abs(Y.GRIPPER_OPEN_QPOS)
+    assert CR.finger_open_qpos() == (0.0475, -0.0475) and CR.finger_closed_qpos() == (0.0, 0.0)
+    assert Y.finger_open_qpos() == (-0.0475, -0.0475), "YAMLab's fingers share the sign"
+    for q_open, q_closed, joint in zip(CR.finger_open_qpos(), CR.finger_closed_qpos(), CR.FINGER_JOINTS):
+        lo, hi = CR.FINGER_LIMITS[joint]
+        assert lo <= q_open <= hi and lo <= q_closed <= hi
+    assert CR.DEFAULT_JOINT_POS[CR.ARM_DOF:] == CR.finger_open_qpos(), "reset with the fingers open"
+    assert CR.DEFAULT_JOINT_POS[1] == CR.DEFAULT_JOINT_POS[2] == 1.047, "ABC home: joints 2 and 3 at 60 deg"
+    assert CR.TCP_IN_FLANGE == (0.0, 0.0, 0.1347) and CR.FINGERTIP_KEYPOINTS is None
+    assert "camera_mount" not in CR.FIXED_CAMERA_LINKS and CR.WRIST_CAMERA_LINK == Y.WRIST_CAMERA_LINK
+    assert CR.WRIST_CAMERA_POSITION != Y.WRIST_CAMERA_POSITION
+    # the composed MuJoCo camera looks 50 deg below the flange axis (yamlab: 25 deg) -- unit quaternion, view dir
+    w, x, y, z = CR.WRIST_CAMERA_QUAT_WXYZ
+    assert abs(w * w + x * x + y * y + z * z - 1.0) < 1e-4
+    view_z = -(1.0 - 2.0 * (x * x + y * y))  # z component of R(quat) applied to the camera's -Z view axis
+    assert 0.6 < view_z < 0.7
+
+
+def test_crank_bimanual_spec_is_the_yamlab_one_over_the_crank_arm():
+    assert CB.ARM is CR and B.ARM is Y
+    assert CB.dof_order() == tuple(n.replace("yam", "yam") for n in B.dof_order()), "same names, same PhysX order"
+    assert CB.raw_controller_order() == B.raw_controller_order()
+    assert CB.default_joint_pos()[12:] == (0.0475, -0.0475, 0.0475, -0.0475)
+    assert CB.default_joint_pos()[2:6] == (1.047,) * 4, "joint2/joint3 of both arms (breadth-first order)"
+    assert CB.ARM_OFFSETS["left"][1] == -CB.ARM_OFFSETS["right"][1] == 0.31, "ABC spaces the arms 0.62 m"
+    assert CB.WRIST_CAMERA_POSITIONS == {"left": CR.WRIST_CAMERA_POSITION, "right": CR.WRIST_CAMERA_POSITION}
+    assert CB.exterior_camera() == B.exterior_camera() and CB.spawn_offset() == B.spawn_offset()
+    assert CB.MOUNT_HEIGHT == B.MOUNT_HEIGHT and CB.FRAME_LINK == B.FRAME_LINK
+    links = CB.all_links("left")
+    assert "left_camera_mount" not in links and "left_camera_d405" in links
+    assert CB.obs_profile()["gripper_open_qpos"] == CR.GRIPPER_OPEN_QPOS
+
+
+def test_crank_bimanual_definition_and_config_match_spec():
+    d = _load(CB_DEFINITION)
+    assert d["usd_path"] == CB.USD_PATH and Path(d["usd_path"]).name == CB_USD.name and CB_USD.is_file()
+    assert d["raw_controller_order"] == list(CB.raw_controller_order())
+    assert d["self_collisions"] is True
+    assert sorted(map(tuple, d["disabled_collision_pairs"])) == sorted(map(tuple, CB.disabled_collision_pairs()))
+    assert d["default_joint_pos"] == list(CB.default_joint_pos())
+    m = d["manipulation"]
+    assert m["arm_names"] == list(CB.ARMS)
+    for arm in CB.ARMS:
+        assert m["arm_link_names"][arm] == list(CB.arm_links(arm))
+        assert m["arm_joint_names"][arm] == list(CB.arm_joints(arm))
+        assert m["eef_link_names"][arm] == CB.eef_link(arm)
+        assert m["finger_joint_names"][arm] == list(CB.finger_joints(arm))
+
+    r = _load(CB_CONFIG)["robots"][0]
+    assert r["name"] == CB.NAME and r["model"] == CB.MODEL and r["dof"] == CB.N_DOF
+    assert r["has_base_column"] is False and r["mount_height"] == CB.MOUNT_HEIGHT
+    assert r["spawn_offset"] == CB.spawn_offset() and r["exterior_camera"] == CB.exterior_camera()
+    assert r["reset_joint_pos"] == list(CB.default_joint_pos())
+    assert list(r["controller_config"]) == list(CB.raw_controller_order())
+    for arm in CB.ARMS:
+        grip = r["controller_config"][f"gripper_{arm}"]
+        assert grip["open_qpos"] == list(CR.finger_open_qpos()), f"{arm}: per-finger open positions"
+        assert grip["closed_qpos"] == list(CR.finger_closed_qpos())
+        assert (grip["isaac_kp"], grip["isaac_kd"]) == CR.gripper_gains()
+        arm_cfg = r["controller_config"][f"arm_{arm}"]
+        assert (arm_cfg["isaac_kp"], arm_cfg["isaac_kd"]) == tuple(CR.arm_gains())
+    yam = _load(B_CONFIG)["robots"][0]
+    assert r["sensor_config"] == yam["sensor_config"], "same D405"
+    assert r["control_freq"] == yam["control_freq"] and r["include_sensor_names"] == yam["include_sensor_names"]
+
+
+def test_crank_bimanual_obs_profile_and_gripper_normalisation():
+    utils = _inference_utils()
+    profile = utils.ROBOT_OBS_PROFILES[CB.NAME]
+    assert profile == CB.obs_profile() and utils.is_multi_arm(CB.NAME) and utils.n_arm_joints(CB.NAME) == 12
+    assert utils.gripper_action_idx(CB.NAME) == (6, 13)
+    order = list(profile["dof_order"])
+    # open fingers normalise to 0 (open) and closed ones to 1, despite the inverted sign
+    import numpy as np
+
+    class _T:
+        def __init__(self, a):
+            self.a = np.asarray(a, dtype=np.float32)
+
+        def cpu(self):
+            return self
+
+        def numpy(self):
+            return self.a
+
+    proprio = np.zeros(16)
+    proprio[order.index("left_left_finger")] = CR.GRIPPER_OPEN_QPOS       # left arm open
+    proprio[order.index("right_left_finger")] = CR.GRIPPER_CLOSED_QPOS    # right arm closed
+    obs = {CB.NAME: {"proprio": _T(proprio)}}
+    *_, robot_state, gripper_state = utils.extract_from_obs(obs, robot_name=CB.NAME)
+    assert robot_state.shape == (12,) and list(gripper_state) == [0.0, 1.0]
+    # YAMLab's gripper: the same physical states, opposite joint sign, same normalised output
+    yam_order = list(utils.ROBOT_OBS_PROFILES[B.NAME]["dof_order"])
+    proprio = np.zeros(16)
+    proprio[yam_order.index("left_left_finger")] = Y.GRIPPER_OPEN_QPOS
+    *_, _, g = utils.extract_from_obs({B.NAME: {"proprio": _T(proprio)}}, robot_name=B.NAME)
+    assert list(g) == [0.0, 1.0]
+
+
+def test_finger_closure_test_is_polarity_aware():
+    """env_base imports omnigibson, so read the source: the DROID/YAMLab expression must survive verbatim in
+    the closed-above-open branch, and the crank gripper (closed below open) must get the mirror image."""
+    src = (PROJECT_ROOT / "realm" / "environments" / "env_base.py").read_text()
+    assert 'if profile["gripper_closed_qpos"] > profile["gripper_open_qpos"]:' in src
+    assert "return thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3" in src
+    assert "return finger_joints[0] - thresh > 1e-3 or finger_joints[1] - thresh > 1e-3" in src
+    # the threshold formula: for the crank gripper it lies far BELOW the range, so the original test would
+    # never fire; mirrored, a finger anywhere in its range counts (as it does for DROID and YAMLab)
+    thresh = CR.GRIPPER_OPEN_QPOS + 9.0 * (CR.GRIPPER_CLOSED_QPOS - CR.GRIPPER_OPEN_QPOS)
+    lo = min(v for lim in CR.FINGER_LIMITS.values() for v in lim)
+    assert thresh < lo, "the unmirrored expression would reject every crank finger position"
+
+
+@pytest.mark.skipif(not pxr_available, reason="pxr (usd-core) not installed on this host")
+def test_crank_usds_have_the_structure_omnigibson_needs():
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    import build_yam_bimanual_usd
+    import build_yam_crank_usd
+    problems, summary = build_yam_crank_usd.verify(str(CR_USD))
+    assert not problems, "\n".join(problems)
+    assert summary["tcp_in_flange_frame_m"] == CR.TCP_IN_FLANGE
+    assert summary["finger_open_qpos"] == CR.finger_open_qpos()
+    problems, summary = build_yam_bimanual_usd.verify(str(CB_USD), CB)
+    assert not problems, "\n".join(problems)
+    lo, hi = summary["frame_bbox_in_mount_m"]
+    assert lo[2] == pytest.approx(-CB.MOUNT_HEIGHT, abs=0.005)
+    assert summary["mount_offsets_m"] == {"left": (0.0, 0.31, 0.0), "right": (0.0, -0.31, 0.0)}
+
+
+def test_crank_provenance_records_the_mjcf():
+    prov = (CR_USD.parent / "PROVENANCE").read_text()
+    for header in ("yam_crank.usd", "yam_crank_bimanual.usd"):
+        assert f"\n{header}\n" in prov, header
+    assert "mjcf sha256" in prov and "abc commit" in prov and "d405.stl sha256" in prov

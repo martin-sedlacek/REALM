@@ -121,6 +121,18 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         open_q, closed_q = profile["gripper_open_qpos"], profile["gripper_closed_qpos"]
         return open_q + 9.0 * (closed_q - open_q)
 
+    def _is_either_finger_closing(self, finger_joints):
+        """The closure test, written for grippers whose closed position is ABOVE the open one (DROID's
+        Robotiq 0 -> 0.785, YAMLab's fingers -0.0475 -> 0): a finger counts as closing while it is below
+        the threshold. The expression is kept verbatim for those robots. A gripper that closes TOWARD the
+        lower end (ABC's crank fingers, open at +0.0475, closed at 0) gets the mirror image; without it the
+        threshold sits far below the joint range and no grasp could ever be detected."""
+        profile = get_robot_obs_profile(self.robot.name)
+        thresh = self._finger_closure_threshold()
+        if profile["gripper_closed_qpos"] > profile["gripper_open_qpos"]:
+            return thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3
+        return finger_joints[0] - thresh > 1e-3 or finger_joints[1] - thresh > 1e-3
+
     def is_grasping(self, obs, candidate_obj):
         """True when SOME arm holds `candidate_obj`: both of that arm's fingers touch it, the robot's
         Touching state agrees, and at least one finger is past the closure threshold. Single-arm robots
@@ -131,8 +143,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
             # multi-arm profiles look them up by name.
             idx = finger_proprio_indices(self.robot.name, arm)
             finger_joints = obs[self.robot.name]['proprio'][idx].cpu().numpy()
-            thresh = self._finger_closure_threshold()
-            is_either_finger_closing = (thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3)
+            is_either_finger_closing = self._is_either_finger_closing(finger_joints)
             finger_links = (self.robot_finger_links if arm is None
                             else robot_finger_link_prims(self.robot, arm))
             contact_pairs = RigidContactAPI.get_contact_pairs(
