@@ -103,6 +103,18 @@ examples/02_evaluate.py \
     --experiment_name my_full_eval
 ```
 
+## Optional: scoring with a learned reward model (Robometer)
+
+By default `task_progression` comes from REALM's rubric: privileged simulator state checked against
+each task's stage ladder. Adding `--robometer` to either evaluator scores the rollout instead with
+[Robometer](https://github.com/robometer/robometer), a video+language reward model, watching the
+same exterior camera as the policy plus the wrist camera. The model runs as a separate server
+(`./scripts/run_robometer_server.sh`, its own environment and GPU); the raw score is calibrated per
+task through `realm/config/robometer_calibration.yaml`; and the report marks the rows with a
+`scorer` column, because Robometer and rubric numbers are not comparable. Setup, calibration,
+camera choice and the replay tool that draws the score over a recorded video are in
+[Robometer](https://github.com/martin-sedlacek/REALM/wiki/Robometer).
+
 # Tasks and Perturbations
 
 See [Tasks and perturbations](https://github.com/martin-sedlacek/REALM/wiki/Tasks-and-Perturbations)

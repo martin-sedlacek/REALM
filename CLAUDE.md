@@ -43,6 +43,8 @@ realm/
 │                      Rollout, gripper conventions, result rows, artifact writing
 ├── progress_scorer.py what task_progression IS: RubricScorer (default passthrough) or
 │                      RobometerScorer (--robometer, learned estimate from a separate server)
+├── robometer_calibration.py  per-task raw->0-1 mapping for that scorer (host-importable);
+│                      the table is config/robometer_calibration.yaml
 ├── sim_config.py      OmniGibson macros + seeding (before env build) and carb render modes
 ├── paths.py           run_log_dir(): the <root>/<experiment>/<model>[/<run_id>] convention
 ├── realm_logging.py   CSV reports, consolidated parquets, VideoRecorder
@@ -114,22 +116,53 @@ resolved per robot through `ROBOT_OBS_PROFILES` in `realm/inference/utils.py` �
 when adding a robot asset. Actions are **absolute joint positions** (7) + gripper; models emit
 gripper in (0,1), the environment expects (1,-1) with the 0.5 threshold.
 
-## Robometer (optional scorer, `--robometer`)
+## Robometer (optional learned scorer, `--robometer`)
 
-Robometer (learned progress/success reward model) runs server-side like openpi: `packages/robometer`
-is the pinned upstream submodule, `scripts/run_robometer_server.sh` starts it in its own uv env
-(Python 3.10, torch 2.8 -- irreconcilable with the container's pins), and
-`packages/robometer-client` (`robometer_client.RobometerClient`, numpy+requests only) is what the
-image gets. `realm/progress_scorer.py` is the seam: both evaluators call `scorer.score()` where the
-rubric value used to go straight into `Rollout.record_progression`. `RubricScorer` (default) passes
-it through and appends no columns; `RobometerScorer` queries once per action chunk on the exterior
-frame the policy sees, records the running max, and counts success at
-`RolloutMetrics.success_threshold` (rubric: 1.0, which equals the old `== 1.0`; Robometer: 0.9
-default). Rubric and Robometer rows are not comparable -- the report gets a `scorer` column and
-`--resume` refuses to mix them. Tests: `tests/test_robometer_client.py` (tier 1, wire format),
-`tests/test_progress_scorer.py` (container, no GPU, cadence/threshold/columns),
-`tests/test_evaluation_cli.py` (flags). Operator pages: `wiki/Robometer.md`,
-`wiki/Running-Evaluations.md`.
+Robometer is a video+language reward model (progress in [0, 1]). `--robometer` on either evaluator
+replaces the rubric's `task_progression` with it; without the flag nothing changes. Operator pages:
+`wiki/Robometer.md` (server, calibration, cameras), `wiki/Running-Evaluations.md` (flags),
+`wiki/Logging.md` (columns).
+
+**Where things live.**
+- `packages/robometer` -- pinned upstream submodule, the SERVER. Runs in its own uv env (Python
+  3.10, torch 2.8: irreconcilable with the container), started by `scripts/run_robometer_server.sh`
+  through `scripts/robometer_server.py`, a shim that loads the checkpoint without unsloth (current
+  unsloth leaves fp32 LayerNorms that crash the stock server's first request) and pins `torchao<0.14`.
+- `packages/robometer-client` -- vendored client (numpy+requests), installed into the image. Owns
+  `subsample_frames`: the server does NOT subsample, it runs every frame sent through the vision
+  tower, so clips are cut to 16 frames (the training length, first+current kept) client-side. Raw
+  400-frame clips OOM'd a shared 32 GB card.
+- `realm/progress_scorer.py` -- the seam. Both evaluators call `scorer.configure(task)` once and
+  `scorer.score(items)` where the rubric value used to go straight into
+  `Rollout.record_progression`. `RubricScorer` (default) passes it through and appends no columns.
+- `realm/robometer_calibration.py` + `realm/config/robometer_calibration.yaml` -- per-task raw
+  -> 0-1 mapping, host-importable.
+- `scripts/robometer_replay_video.py` -- re-scores a recorded rollout causally (no simulator) and
+  renders the per-camera and fused traces above the video. Used when policy server + Isaac +
+  Robometer do not fit on one GPU: record with the rubric, replay.
+
+**What `RobometerScorer` does per query** (once per action chunk, on a fresh frame): scores the
+exterior view the policy sees AND the wrist camera, two clips in one request, raw scores fused by
+`max` (`--robometer_cameras`, `--robometer_fusion`); maps the fused raw through the task's
+floor/ceiling (`clip((raw - floor) / (ceiling - floor), 0, 1)`); records the running max of that.
+Success is calibrated `>= success_threshold` (default 1.0 = raw reached the ceiling).
+`RolloutMetrics.success_threshold` defaults to 1.0 for the rubric, which equals the old `== 1.0`.
+
+**Invariants.**
+- Raw plateaus are task-dependent (~0.78-0.83 fused for a finished task, never 1.0) and depend on
+  the camera/fusion setting; the calibration table must be re-fitted when cameras, fusion,
+  subsampling or checkpoint change. A task without an entry passes raw through and cannot succeed
+  (the scorer warns). The shipped entries are n=1 seeds.
+- The wrist camera is the optimistic view; `max` inherits that (a failed spoon grasp read 0.81
+  against a 0.82 ceiling). Per-camera raw traces are kept in the report for re-fitting.
+- Rubric and Robometer rows are never comparable: the report carries a `scorer` column, `--resume`
+  refuses to mix them, and Robometer runs get their own `--experiment_name`.
+
+**Tests.** Tier 1: `tests/test_robometer_client.py` (wire format, subsampling),
+`tests/test_robometer_calibration.py` (YAML vs task configs, arithmetic), `tests/test_evaluation_cli.py`
+(flags). Container, no GPU: `tests/test_progress_scorer.py` (cadence, cameras/fusion, threshold,
+calibration, columns) -- run it with `APPTAINERENV_PYTHONPATH=/app:/app/packages/robometer-client/src`
+against an image built before the client was added.
 
 ## Perturbations
 

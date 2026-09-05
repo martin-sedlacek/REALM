@@ -4,6 +4,8 @@
 
 `realm/` contains evaluation entry points, rollout logic, environments, inference adapters, robot definitions, and layered YAML configuration. Put usage examples in `examples/`, tests in `tests/`, cluster and debugging utilities in `scripts/`, and operator documentation in `wiki/`. Longer investigations belong in `docs/`. Simulation assets live under `realm/robots/`, `custom_assets/`, and `images/`; avoid committing generated output from `logs/` or `tmp/`.
 
+`packages/` holds what the simulation container cannot get from PyPI: vendored thin clients that are pip-installed into the image (`openpi-client`, `robometer-client`) and `robometer`, a pinned git submodule of the Robometer reward-model server that runs in its own environment and is excluded from the image build. Do not add the server's dependencies to the container; see `wiki/Robometer.md`.
+
 REALM is a reproducibility-sensitive benchmark. Preserve behavior and RNG draw order during refactors. Changes that intentionally alter benchmark numbers require explicit review and a `VERSION` bump.
 
 ## Build, Test, and Development Commands
@@ -32,10 +34,15 @@ Keep source comments brief and human-facing. Explain only non-obvious constraint
 - Wrist-camera indices follow sensor creation order and must match each robot config's sensor filter.
 - Task-progression dictionaries are mutable and must not be shared between environments.
 - Preserve historical controller booleans and RNG draw order unless the change is explicitly reviewed as benchmark-semantic.
+- `task_progression` has exactly one producer per run, the scorer in `realm/progress_scorer.py`. The default `RubricScorer` is a passthrough and must stay one; anything `--robometer` needs goes into `RobometerScorer`, not into the evaluators. Robometer rows (the report's `scorer` column) are never averaged with rubric rows.
+- Robometer's raw score is calibrated per task through `realm/config/robometer_calibration.yaml`; the ceilings depend on the cameras, the fusion and the frame subsampling, so a change to any of those means re-fitting the table, and the report keeps the raw per-camera traces for exactly that purpose.
+- The Robometer server does not subsample frames; clips sent to it are cut to 16 frames client-side (`robometer_client.subsample_frames`). Do not send whole rollouts.
 
 ## Testing Guidelines
 
-Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run the tier-1 commands above, or invoke only the four host-safe pytest modules by name (`test_perturbation_task_types`, `test_cell_classification`, `test_robot_base_column`, `test_robot_definition_parity`). Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.
+Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run the tier-1 commands above, or invoke only the host-safe pytest modules by name (`test_perturbation_task_types`, `test_cell_classification`, `test_robot_base_column`, `test_robot_definition_parity`, `test_evaluation_cli`). Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.
+
+Robometer has three tiers of its own: `test_robometer_client` and `test_robometer_calibration` are tier 1 (fake transport, no server); `test_progress_scorer` needs the container but no GPU (fake client); a live check is one `curl /health` plus one `client.progress()` call against a running server, and it is the only thing that verifies the pinned server revision still speaks the client's format.
 
 ## Commit & Pull Request Guidelines
 
