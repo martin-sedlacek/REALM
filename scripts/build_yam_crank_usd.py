@@ -23,7 +23,8 @@ script starts from the BUILT ``realm/robots/yam/yam.usd`` and replaces everythin
 The MJCF is read with ElementTree and its ``<default>`` classes resolved, so nothing about the gripper is
 transcribed by hand; the spec (``realm.robots.yam.YamCrankRobot``) carries only what REALM needs at
 runtime and the build asserts the MJCF agrees with it. STL meshes are read directly (binary STL) and
-authored as flat-shaded triangle soups, each placed by the MJCF geom pose.
+authored as flat-shaded triangle soups, each placed by the MJCF geom pose, and bound to copies of the
+OmniPBR materials the YAMLab export uses on the arm so the gripper renders like the rest of the robot.
 
 Host-side; needs ``pxr`` (``pip install usd-core``) and numpy. The output is committed.
 
@@ -68,7 +69,15 @@ OUT_USD = os.path.join(OUT_DIR, "yam_crank.usd")
 REPLACED_LINKS = (*YamRobot.FINGER_LINKS, *YamRobot.FIXED_CAMERA_LINKS, *YamRobot.VIRTUAL_LINKS)
 #: MuJoCo contact-point spheres (class sphere_collision) are not collision geometry worth a PhysX shape.
 MIN_COLLISION_RADIUS = 0.002
-MJCF_MATERIALS = {"black": (0.25, 0.25, 0.25), "white": (0.9, 0.9, 0.9)}
+#: MJCF material name -> the OmniPBR material the YAMLab export binds to the SAME part family, copied out
+#: of yam.usd so the crank parts render exactly like the arm (MJCF "black" 0.25 is the export's (0, 0, 0),
+#: MJCF "white" 0.9 its 0.5 grey, the D405 housing its 0.2). A UsdPreviewSurface stand-in rendered visibly
+#: lighter/flatter than the arm next to it.
+MJCF_MATERIALS = {
+    "black": f"{SRC_ROOT}/base_link/visuals/model2/DefaultMaterial",
+    "white": f"{SRC_ROOT}/link_2/visuals/model2__5/DefaultMaterial",
+    "camera_housing": f"{SRC_ROOT}/camera_d405/visuals/camera_d405/DefaultMaterial_0",
+}
 
 
 # --- MJCF -----------------------------------------------------------------------------------------
@@ -215,17 +224,19 @@ def _link_world(stage, path):
     return m
 
 
-def _material(stage, scope_path, name, rgb):
-    path = f"{scope_path}/{name}"
-    if stage.GetPrimAtPath(path):
-        return UsdShade.Material(stage.GetPrimAtPath(path))
-    material = UsdShade.Material.Define(stage, path)
-    shader = UsdShade.Shader.Define(stage, f"{path}/shader")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*rgb))
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.6)
-    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
-    return material
+def copy_materials(src_layer, layer, looks_path):
+    """Copy the YAMLab export's OmniPBR materials (MJCF_MATERIALS) into `looks_path` and redirect the
+    shader connections that the copies still aim at their old location. Returns {mjcf name: Sdf.Path}."""
+    out = {}
+    mapping = {}
+    for name, src_path in MJCF_MATERIALS.items():
+        assert src_layer.GetPrimAtPath(src_path), f"{src_path} not in the YAMLab file; the export changed"
+        dst = f"{looks_path}/{name}"
+        assert Sdf.CopySpec(src_layer, Sdf.Path(src_path), layer, Sdf.Path(dst))
+        mapping[src_path] = dst
+        out[name] = Sdf.Path(dst)
+    remap_dependents(layer, mapping)
+    return out
 
 
 def author_visual_mesh(stage, link_path, name, stl_path, pose, material):
@@ -332,13 +343,16 @@ def build(source, mjcf_path, output):
     drop_dangling_targets(layer)
     assert not stale_paths(layer, SRC_ROOT + "/"), "paths still pointing into the YAMLab root"
     layer.defaultPrim = C.MODEL
+    looks = f"{DST_ROOT}/Looks"
+    looks_spec = Sdf.CreatePrimInLayer(layer, looks)
+    looks_spec.typeName = "Scope"
+    looks_spec.specifier = Sdf.SpecifierDef
+    materials = copy_materials(src_stage.GetRootLayer(), layer, looks)
 
     stage = Usd.Stage.Open(layer)
     flange_path = f"{DST_ROOT}/{YamRobot.FLANGE_LINK}"
     flange = stage.GetPrimAtPath(flange_path)
     flange_world = _link_world(stage, flange_path)
-    looks = f"{DST_ROOT}/Looks"
-    UsdGeom.Scope.Define(stage, looks)
 
     def place_visuals(link_path, body, childclass, pose_prefix=None):
         for i, a in enumerate(mj.geoms(body, childclass, "visual")):
@@ -346,9 +360,8 @@ def build(source, mjcf_path, output):
             pose = _pose(a.get("pos"), a.get("quat"))
             if pose_prefix is not None:
                 pose = _compose(pose, pose_prefix)
-            rgb = MJCF_MATERIALS[a.get("material", "black")]
             author_visual_mesh(stage, link_path, a["mesh"], mj.mesh_files[a["mesh"]], pose,
-                               _material(stage, looks, a.get("material", "black"), rgb))
+                               UsdShade.Material(stage.GetPrimAtPath(materials[a.get("material", "black")])))
 
     def place_collisions(link_path, body, childclass):
         n = 0
@@ -416,7 +429,7 @@ def build(source, mjcf_path, output):
     d405_world = _compose(d405_local, flange_world)
     _set_ops(d405, matrix=d405_world)
     author_visual_mesh(stage, d405_path, "d405", os.path.join(mj.meshdir, C.D405_MESH), Gf.Matrix4d(1.0),
-                       _material(stage, looks, "camera_housing", C.D405_RGBA[:3]))
+                       UsdShade.Material(stage.GetPrimAtPath(materials["camera_housing"])))
     author_collision(stage, d405_path, "camera_d405_col_0", {"type": "sphere", "size": str(C.D405_COLLISION_RADIUS)}, Gf.Matrix4d(1.0))
     author_fixed_joint(stage, "camera_d405", flange_path, d405_path, d405_local)
 

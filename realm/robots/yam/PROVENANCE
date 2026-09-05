@@ -22,13 +22,26 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
   workstation/mesh/gate_horizontal_bar.usd sha256: b0ac6ceea1f88b017859e3a4981679edd1a89e16265d6e57d7e0540a2c9b6dd9
   workstation/mesh/gate_vertical_bar.usd sha256: 3c47c63ebd8577a2df4156b0976708cc3c7ff62f4fd3b726ae8d3487336690d2
 
+yam_bimanual.usd
+  source: realm/robots/yam/yam.usd (the built single-arm file above)
+  source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
+  output sha256: 6773b67678fd0d37f0092f287352a3f8e1a91bbbdb464c727b742d803a05fdba
+  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
+  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
+  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
+  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
+  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
+  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
+  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
+  for a UsdPreviewSurface with the same aluminium constants.
+
 yam_crank.usd
   source: realm/robots/yam/yam.usd (the built YAMLab arm above) + ABC's MJCF
   source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
   mjcf: /home/elmo/sedlam/abc/assets/put_bottles/assets/i2rt_yam/yam.xml
   mjcf sha256: a797c4c27d1c074eb24b04d9cf13cef9a66589f135ebf35bb22f2be3b86f7d28
   abc commit: 6bc6586721cf0c409ccee80f675a28de9b9b2f5e
-  output sha256: 44ae4ee45453f4589a294685e36793a1f939446daaf9b7e05d62fd93c50ba0a1
+  output sha256: f9b7ea5a48e3f18b69d256190679e75449dc504a58cfcca5bfeaf557029f9e8c
   built by scripts/build_yam_crank_usd.py: link_6 housing, both fingers (visuals, capsule/box collision
   pads, inertials, prismatic joints), the wrist D405 links and camera, and the eef frame re-authored from
   the MJCF; the six arm links are YAMLab's. Numbers from realm/robots/yam.py::YamCrankRobot.
@@ -53,25 +66,12 @@ yam_crank.usd
 
 yam_crank_bimanual.usd
   source: realm/robots/yam/yam_crank.usd (the built single-arm file above)
-  source sha256: 44ae4ee45453f4589a294685e36793a1f939446daaf9b7e05d62fd93c50ba0a1
-  output sha256: 3e914c660f0b5332f88c637344d78ca0dc639171bb80fc597b19d0de1990ec4d
+  source sha256: f9b7ea5a48e3f18b69d256190679e75449dc504a58cfcca5bfeaf557029f9e8c
+  output sha256: 65ee2f9a3b668c235ec646746e68b68caa25a74c25ccf7da674f3c7418c6c59c
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam_crank.usd copied twice with left_/right_
   prefixes, links translated by the arm offsets (+-0.31 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
   wrist-camera offset. Numbers from realm/robots/yam.py::YamCrankBimanualRobot.
-  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
-  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
-  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
-  for a UsdPreviewSurface with the same aluminium constants.
-
-yam_bimanual.usd
-  source: realm/robots/yam/yam.usd (the built single-arm file above)
-  source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
-  output sha256: 6773b67678fd0d37f0092f287352a3f8e1a91bbbdb464c727b742d803a05fdba
-  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
-  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
-  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
-  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
   frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
   moved into the mount frame, the part below the arm plates stretched x1.1367 in z
   so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
