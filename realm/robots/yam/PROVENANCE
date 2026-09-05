@@ -41,7 +41,7 @@ yam_crank.usd
   mjcf: /home/elmo/sedlam/abc/assets/put_bottles/assets/i2rt_yam/yam.xml
   mjcf sha256: a797c4c27d1c074eb24b04d9cf13cef9a66589f135ebf35bb22f2be3b86f7d28
   abc commit: 6bc6586721cf0c409ccee80f675a28de9b9b2f5e
-  output sha256: c9494618f7810d8b6bfbb290e6b1b96e3e5d9cc3a4e6b41e3ae305920f790fa5
+  output sha256: 4602c32a35049c843b11c31aa59f25a851551fdfd8092433b781200d89991e71
   built by scripts/build_yam_crank_usd.py: link_6 housing, both fingers (visuals, capsule/box collision
   pads, inertials, prismatic joints), the wrist D405 links and camera, and the eef frame re-authored from
   the MJCF; the six arm links are YAMLab's. Numbers from realm/robots/yam.py::YamCrankRobot.
@@ -66,8 +66,8 @@ yam_crank.usd
 
 yam_crank_bimanual.usd
   source: realm/robots/yam/yam_crank.usd (the built single-arm file above)
-  source sha256: c9494618f7810d8b6bfbb290e6b1b96e3e5d9cc3a4e6b41e3ae305920f790fa5
-  output sha256: cf88fa6845eaf04dc741bcc15abba252d57e695d826f03f2cf67568799c42b7e
+  source sha256: 4602c32a35049c843b11c31aa59f25a851551fdfd8092433b781200d89991e71
+  output sha256: 063e09ee5cc4c152190e578c1dd28ec4a0417dc1c69dbdc7f44eedfd89334033
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam_crank.usd copied twice with left_/right_
   prefixes, links translated by the arm offsets (+-0.31 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's

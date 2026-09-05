@@ -90,7 +90,9 @@ robots:
           # steeper wrist bracket. ABC's own sim renders the nominal fovy 58 (72.9 deg hfov), ~6 deg narrower.
           focal_length: 12.7913
           horizontal_aperture: 20.955
-          clipping_range: [0.1, 10000000.0]
+          # 0.02 m, not YAMLab's 0.1: on ABC's bracket the housing is behind the lens and the finger bases are
+          # 3-4 cm away -- a 0.1 m near plane clipped 70% of the finger geometry (see-through fingers).
+          clipping_range: [0.02, 10000000.0]
     # REALM-only: YAMLab's fixed top camera (configs/robot/yam.yaml cameras.top), expressed in the mount
     # frame like every camera_extrinsics entry (xyz + xyzw quaternion, USD camera looks down -Z).
     # env_config places external_sensor0 here instead of the task's cam1 extrinsics, and sets its focal

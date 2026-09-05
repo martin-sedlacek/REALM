@@ -278,7 +278,8 @@ of the wrist motor -- the gripper housing, the two angled fingers with their cap
 inertials, the wrist D405 on ABC's steeper bracket (looking 50 degrees below the flange axis instead of
 25; the camera itself keeps the measured D405 calibration, 78.6 x 63.1 degrees at 4:3 -- ABC's sim renders
 the nominal fovy 58, about 6 degrees narrower, and their real 4:3 put-bottles recordings come from the same
-D405), and the TCP (ABC's `grasp_site`, 13.47 cm along the flange) -- into `yam_crank.usd`, which
+D405; its near plane is 0.02 m rather than YAMLab's 0.1 m, because on this bracket the housing is behind
+the lens and the finger bases are 3 cm away -- at 0.1 m the view saw through the fingers), and the TCP (ABC's `grasp_site`, 13.47 cm along the flange) -- into `yam_crank.usd`, which
 `scripts/build_yam_bimanual_usd.py --variant crank` then composes exactly like the YAMLab pair (arms 0.62 m
 apart as in ABC, same gate frame, same top camera, same `spawn_offset`). Spec: `YamCrankRobot` /
 `YamCrankBimanualRobot` in `realm/robots/yam.py`. Two things a policy or a reader must know:

@@ -364,6 +364,13 @@ class YamCrankRobot(YamRobot):
     #: (2026-09-05). ABC_SIM_FOVY_DEG is kept for reference / an exact match to their renderer.
     ABC_SIM_FOVY_DEG = 58.0
     ABC_SIM_RESOLUTION = (224, 168)
+    #: Near plane. YAMLab's asset needs 0.1 m because its camera origin sits inside the housing mesh; here
+    #: the housing is BEHIND the lens (ABC's camera frame is on the D405's front face) and the finger bases
+    #: are only 3.1-4.0 cm away, so a 0.1 m plane cut through them and the view "saw through" the fingers
+    #: (30% of the finger geometry survived; measured 2026-09-05). At 0.02 m every finger point renders and
+    #: the only geometry closer -- the housing's front face at depth 0 and a sliver of link_6 at 6 mm, 79
+    #: degrees off-axis -- is outside the frame regardless.
+    WRIST_CAMERA_CLIPPING_RANGE = (0.02, 10000000.0)
     #: MJCF bodies whose contents become REALM links (link_6's children in yam.xml).
     MJCF_FINGER_BODIES = {"left_finger": "link_left_finger", "right_finger": "link_right_finger"}
     MJCF_FLANGE_BODY = "link_6"

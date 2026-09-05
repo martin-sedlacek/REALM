@@ -520,7 +520,10 @@ def test_crank_spec_differs_from_yamlab_only_where_the_hardware_does():
     0 in the positive direction on the left finger."""
     assert CR.ARM_LINKS == Y.ARM_LINKS and CR.ARM_JOINTS == Y.ARM_JOINTS and CR.FINGER_JOINTS == Y.FINGER_JOINTS
     assert CR.GAIN_SETS is Y.GAIN_SETS and CR.EFFORT_LIMITS is Y.EFFORT_LIMITS
-    assert CR.WRIST_CAMERA_CLIPPING_RANGE == Y.WRIST_CAMERA_CLIPPING_RANGE
+    # near plane: the crank finger bases sit 3.1 cm from the lens (housing behind it), YAMLab's camera is
+    # inside its housing -- 0.02 m renders every finger point, 0.1 m clipped 70% of them
+    assert CR.WRIST_CAMERA_CLIPPING_RANGE[0] == 0.02 < 0.031 and Y.WRIST_CAMERA_CLIPPING_RANGE[0] == 0.1
+    assert CR.WRIST_CAMERA_CLIPPING_RANGE[1] == Y.WRIST_CAMERA_CLIPPING_RANGE[1]
     # same D405, same measured calibration (78.6 x 63.1 deg), both rendered 4:3; ABC's sim nominal fovy 58 is
     # kept only as a reference number
     import math
@@ -597,7 +600,9 @@ def test_crank_bimanual_definition_and_config_match_spec():
     assert (cam["image_width"], cam["image_height"]) == CR.RENDER_RESOLUTION
     assert cam["horizontal_aperture"] == CR.WRIST_CAMERA_HORIZONTAL_APERTURE
     assert cam["focal_length"] == CR.wrist_camera_focal_length(cam["horizontal_aperture"])
-    assert r["sensor_config"] == yam["sensor_config"], "same D405 calibration and 4:3 render as the YAMLab pair"
+    yam_cam = dict(yam["sensor_config"]["VisionSensor"]["sensor_kwargs"])
+    assert {k: v for k, v in cam.items() if k != "clipping_range"} == {k: v for k, v in yam_cam.items() if k != "clipping_range"}, \
+        "same D405 calibration and 4:3 render as the YAMLab pair; only the near plane differs"
     assert tuple(cam["clipping_range"]) == CR.WRIST_CAMERA_CLIPPING_RANGE
     assert r["control_freq"] == yam["control_freq"] and r["include_sensor_names"] == yam["include_sensor_names"]
 
