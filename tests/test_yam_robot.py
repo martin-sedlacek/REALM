@@ -607,6 +607,24 @@ def test_crank_bimanual_definition_and_config_match_spec():
     assert r["control_freq"] == yam["control_freq"] and r["include_sensor_names"] == yam["include_sensor_names"]
 
 
+def test_crank_bimanual_aligned_config_differs_only_in_gains():
+    """YAM_crank_bimanual_aligned_pd_control.yaml is the crank robot with GAIN_SETS["abc_aligned"] on the arms."""
+    aligned_path = PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_crank_bimanual_aligned_pd_control.yaml"
+    default, aligned = _load(CB_CONFIG)["robots"][0], _load(aligned_path)["robots"][0]
+    for arm in CB.ARMS:
+        arm_cfg = aligned["controller_config"][f"arm_{arm}"]
+        assert (arm_cfg["isaac_kp"], arm_cfg["isaac_kd"]) == tuple(CR.arm_gains("abc_aligned"))
+        grip = aligned["controller_config"][f"gripper_{arm}"]
+        assert (grip["isaac_kp"], grip["isaac_kd"]) == CR.gripper_gains("abc_aligned")
+    kp, kd = CR.arm_gains("abc_aligned")
+    assert len(set(kp)) == len(set(kd)) == 1, "abc_aligned is one shared (kp, kd) for every arm joint"
+    for r in (default, aligned):
+        for group in r["controller_config"]:
+            r["controller_config"][group].pop("isaac_kp")
+            r["controller_config"][group].pop("isaac_kd")
+    assert default == aligned
+
+
 def test_crank_bimanual_obs_profile_and_gripper_normalisation():
     utils = _inference_utils()
     profile = utils.ROBOT_OBS_PROFILES[CB.NAME]

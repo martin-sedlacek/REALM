@@ -158,6 +158,7 @@ registered for OmniGibson 3.9.1 are:
 | `YAM_base_pd_control` | `yam.usd` | 6 | stock `JointController`, YAMLab `base` gains | |
 | `YAM_bimanual` | `yam_bimanual.usd` (two YAM arms on a shared mount) | 2 x 6 | stock `JointController` x2 + `MultiFingerGripperController` x2, `high_pd` gains | 14-D action, two wrist cameras, YAMLab top camera as the exterior view; see below |
 | `YAM_crank_bimanual` | `yam_crank_bimanual.usd` (the same workstation with I2RT's crank gripper) | 2 x 6 | as `YAM_bimanual` | ABC-project gripper: inverted finger sign, steeper wrist camera, ABC home pose; see below |
+| `YAM_crank_bimanual_aligned_pd_control` | `yam_crank_bimanual.usd` | 2 x 6 | stock `JointController`, `abc_aligned` gains (kp 160 / kd 20 on every arm joint) | Fitted by replaying ABC's real put-bottles episodes (`scripts/yam_pd_search.py`): a uniform ~93 ms lag, RMSE 0.024 rad vs 0.028 for `high_pd`; see [YAM-Port-Status](YAM-Port-Status) |
 
 `UR5*` and `WidowX` configs exist but have no registered definition on 3.9.1 and do not load.
 

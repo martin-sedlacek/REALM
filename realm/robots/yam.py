@@ -129,6 +129,19 @@ class YamRobot:
             "yam_wrist": (30.0, 5.0),
             "yam_gripper": (2000.0, 100.0),
         },
+        # REALM: one (kp, kd) for every arm joint, fitted 2026-09-05 by open-loop replay of the six real
+        # put-bottles episodes of the ABC preview set (states_actions.bin, 5240 steps at 30 Hz, both arms)
+        # on YAM_crank_bimanual: RMSE 0.0239 rad vs 0.0277 for high_pd and base. kd/kp ~ 0.125 makes the
+        # PhysX drive a uniform ~93 ms first-order lag on every joint (real robot: 100-143 ms shoulder,
+        # 194-218 ms wrist -- a shared gain cannot reproduce the wrists' extra lag). Chosen over the
+        # marginally better 40/5 (0.0231, same lag) for stiffness under load. Gripper gains as high_pd.
+        # Fit: scripts/yam_pd_search.py; report: scripts/yam_pd_search_report.py.
+        "abc_aligned": {
+            "yam_shoulder": (160.0, 20.0),
+            "yam_elbow": (160.0, 20.0),
+            "yam_wrist": (160.0, 20.0),
+            "yam_gripper": (2000.0, 100.0),
+        },
     }
     #: YAMLab `controller.default`.
     DEFAULT_GAIN_SET = "high_pd"

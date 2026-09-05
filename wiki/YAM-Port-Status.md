@@ -85,6 +85,30 @@ cannot reproduce the lag without adding steady-state error, add a command delay 
 DROID controller has no such mechanism today); (3) replay a real episode's actions in the sim and compare the
 resulting joint trajectory with the recorded states as the acceptance test. Keep DROID bit-identical throughout.
 
+## Control alignment result (2026-09-05, Clara)
+
+Step (3) of the plan above was run first and directly: `scripts/yam_pd_search.py` replays the 6 real
+put-bottles episodes (5240 steps, both arms) open-loop on `YAM_crank_bimanual` at 30 Hz / 120 Hz physics,
+sets one shared (kp, kd) on all 12 arm joints per cell, and scores RMSE against the recorded states.
+Host report: `scripts/yam_pd_search_report.py`. Data on Clara: `~/abc_preview`. Details and the full
+grid: runbook stream `yam_bimanual_port`.
+
+| cell (kp / kd, every arm joint) | RMSE (rad) | sim tau j1..j6 (ms) |
+|---|---|---|
+| **160 / 20 -> `GAIN_SETS["abc_aligned"]`, `--robot YAM_crank_bimanual_aligned_pd_control`** | **0.0239** | 93 93 93 95 95 95 |
+| 40 / 5 | 0.0231 | 93 103 93 94 95 95 |
+| 20 / 2 | 0.0269 | 78 126 81 69 70 70 |
+| `high_pd` (default, per group) | 0.0277 | 29 29 29 31 140 137 |
+| `base` (per group) | 0.0277 | 35 64 38 76 74 70 |
+| real robot (same fit) | -- | 100 143 112 218 199 194 |
+
+The surface has two ridges: kd/kp ~ 0.125 at kp >= 40 gives a uniform first-order lag whose tau alone
+sets the score (93 ms best; 125 ms +0.003, 220 ms +0.023); kp 15-20 / kd 2 gives inertia-dependent lag.
+A shared gain cannot reproduce the real wrists being 2x slower than the shoulders, so the fit matches the
+mean; the floor (~0.023 rad = 1.3 deg) is set by segments where the real arm sits 0.2-0.3 rad off its own
+command (contact), which no gain changes. 160/20 was chosen over 40/5 (same lag, within cell-to-cell noise)
+for stiffness under load. The default gain set is unchanged; DROID untouched.
+
 ## Data
 
 - `logs/abc_preview/` on the laptop (also rsynced to Clara, see the handoff message): the public preview tar
