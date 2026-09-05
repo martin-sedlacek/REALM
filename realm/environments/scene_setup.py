@@ -1,5 +1,6 @@
 
 import numpy as np
+import torch as th
 import yaml
 
 import omnigibson as og
@@ -23,6 +24,51 @@ class SceneSetupMixin:
         with og.sim.editing_usd():
             self._author_arm_joint_physics(joint_names, friction, armature)
             self._convexify_dynamic_collision_meshes()
+
+    def restore_authored_link_coms(self):
+        """Put back the centre of mass the asset authors on every robot link.
+
+        OmniGibson's ``RigidPrim.update_meshes()`` replaces each link's CoM with the volume-weighted
+        centroid of its collision meshes composed only ONE level up (``frame="parent"``), which is wrong
+        whenever a collision mesh sits under an intermediate Xform, and it writes that value over the
+        authored one, so the live stage no longer knows what the asset said. On the YAM links the meshes
+        sit under scaled Xforms and the loaded CoMs land metres away (link_1 at (1.56, -0.11, 6.45) m,
+        Slurm 204612), inflating every joint's inertia ~100x: a 0.3 rad step took 0.8 s at the effort
+        clamp with the wrist dragged 0.5 rad, where IsaacLab on the same asset settles in 0.4 s with
+        nothing else moving (Slurm 204609). Authored values are read from the robot's source USD by link
+        name and pushed to the physics view; links that author no ``physics:centerOfMass`` -- every DROID
+        link -- are left exactly as OmniGibson made them, so DROID is untouched bit-for-bit.
+
+        The primary fix is in the asset: scripts/build_yam_usd.py puts every collision Mesh directly under
+        its link (``flatten_collision_xforms``), which makes the loader's composition exact, so on a
+        current yam*.usd this finds nothing to restore and guards the next asset. It must run AFTER
+        rebase_initial_file(), which re-initialises the prims and re-applies the override (Slurm 204613:
+        a restore in bind_scene_handles had no effect; 204615: the live write is honoured and gives
+        IsaacLab's step response).
+        """
+        stage = lazy.pxr.Usd.Stage.Open(self.robot.usd_path)
+        root = stage.GetDefaultPrim().GetPath()
+        restored, authored_n = [], 0
+        for name, link in self.robot.links.items():
+            prim = stage.GetPrimAtPath(f"{root}/{name}")
+            attr = prim.GetAttribute("physics:centerOfMass") if prim else None
+            if not attr or not attr.HasAuthoredValue():
+                continue
+            authored_n += 1
+            authored = th.tensor(list(attr.Get()), dtype=th.float32)
+            loaded = link.center_of_mass.to(th.float32)
+            if th.allclose(loaded, authored, atol=1e-6):
+                continue
+            link.center_of_mass = authored
+            after = link.center_of_mass.to(th.float32)
+            restored.append(f"{name}: |loaded-authored| {float(th.linalg.norm(loaded - authored)):.3f} m, "
+                            f"readback err {float(th.linalg.norm(after - authored)):.4f} m")
+        # og.log.info is not emitted in REALM's logs; this is a physics correction, so say it loudly.
+        self.link_com_restore_report = restored
+        if authored_n:
+            og.log.warning(f"[link CoM] {self.robot.name}: {authored_n} link(s) author physics:centerOfMass in "
+                           f"{self.robot.usd_path}; restored {len(restored)} that OmniGibson's loader had "
+                           f"displaced: {'; '.join(restored) if restored else 'none needed'}")
 
     def _author_arm_joint_physics(self, joint_names, friction, armature):
         for idx in range(7):

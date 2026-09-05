@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import torch
 
-from realm.inference.utils import wrist_camera_obs_key
+from realm.inference.utils import wrist_camera_obs_keys
 
 
 
@@ -34,22 +34,23 @@ def apply_blur_and_contrast(obs, sigma=None, alpha=None, robot_name='DROID'):
             )
         ).to(base_im.device)
 
-    wrist_key = wrist_camera_obs_key(robot_name)
+    # Every wrist camera the profile names (one per arm; the bimanual YAM has two).
     robot_obs = obs.get(robot_name, {})
-    if wrist_key not in robot_obs:
-        cam_keys = [k for k in robot_obs if ":Camera:" in k]
-        if not cam_keys:
-            print(f"[V-AUG] WARNING: no camera on '{robot_name}' in obs; augmenting the external "
-                  f"views only.")
-            return obs
-        print(f"[V-AUG] WARNING: no '{wrist_key}' in obs; augmenting '{cam_keys[0]}' instead. "
-              f"Update ROBOT_OBS_PROFILES for '{robot_name}'.")
-        wrist_key = cam_keys[0]
+    for wrist_key in wrist_camera_obs_keys(robot_name):
+        if wrist_key not in robot_obs:
+            cam_keys = [k for k in robot_obs if ":Camera:" in k]
+            if not cam_keys:
+                print(f"[V-AUG] WARNING: no camera on '{robot_name}' in obs; augmenting the external "
+                      f"views only.")
+                return obs
+            print(f"[V-AUG] WARNING: no '{wrist_key}' in obs; augmenting '{cam_keys[0]}' instead. "
+                  f"Update ROBOT_OBS_PROFILES for '{robot_name}'.")
+            wrist_key = cam_keys[0]
 
-    wrist_im = robot_obs[wrist_key]['rgb']
-    robot_obs[wrist_key]['rgb'][..., :3] = torch.tensor(
-        apply_random_image_augmentations(
-            wrist_im.cpu().numpy()[..., :3].astype(np.float32)
-        )
-    ).to(wrist_im.device)
+        wrist_im = robot_obs[wrist_key]['rgb']
+        robot_obs[wrist_key]['rgb'][..., :3] = torch.tensor(
+            apply_random_image_augmentations(
+                wrist_im.cpu().numpy()[..., :3].astype(np.float32)
+            )
+        ).to(wrist_im.device)
     return obs

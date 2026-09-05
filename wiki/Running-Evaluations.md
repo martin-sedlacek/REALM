@@ -156,6 +156,7 @@ registered for OmniGibson 3.9.1 are:
 | `DROID_default_pd_control`, `DROID_polaris_control`, `DROID_no_wrist_cam` | `droid.usd` | 7 | joint PD variants | |
 | `YAM` | `yam.usd` (YAMLab arm, bare) | 6 | stock `JointController`, YAMLab `high_pd` gains | see below |
 | `YAM_base_pd_control` | `yam.usd` | 6 | stock `JointController`, YAMLab `base` gains | |
+| `YAM_bimanual` | `yam_bimanual.usd` (two YAM arms on a shared mount) | 2 x 6 | stock `JointController` x2 + `MultiFingerGripperController` x2, `high_pd` gains | 14-D action, two wrist cameras, YAMLab top camera as the exterior view; see below |
 
 `UR5*` and `WidowX` configs exist but have no registered definition on 3.9.1 and do not load.
 
@@ -176,10 +177,83 @@ value is a config key, not a measurement. Only the `debug` model type has been e
 > `assert_wrist_camera` pass (DOF order is joint1..6, left_finger, right_finger), all four artifacts
 > are written with 7-wide qpos/action rows, the wrist camera renders the tabletop the right way up, and
 > with task 1's camera placement the folded arm is visible at table height in the first exterior view.
-> **Not yet checked:** any motion -- the debug model holds the zero pose, so the arm never moved and
-> the gripper never closed; a real policy run is still owed. Task 0's exterior extrinsics
+> **Motion:** verified 2026-09-05 through the bimanual asset, which shares the arm (see YAM_bimanual below).
+> **Corrected 2026-09-05:** "the gripper never closed" in that run was a bug, not the debug model.
+> OmniGibson's stock binary `MultiFingerGripperController` sends open to the joints' UPPER limit and
+> close to the LOWER one, and on the YAM fingers the upper limit (0.0) is closed and the lower (-0.0475)
+> open, so every gripper command was inverted. Both single-arm configs now set
+> `open_qpos: [-0.0475, -0.0475]` / `closed_qpos: [0.0, 0.0]` (verified on the bimanual asset, which
+> shares the gripper block: a close command now reaches the closed limit). Task 0's exterior extrinsics
 > (`ep_001042_cam1`) leave the zero-pose arm ~10 deg outside the frustum, so only the camera mount
 > shows at the frame edge there; a raised `reset_joint_pos` is the knob if that matters.
+
+**YAM_bimanual.** YAMLab's bimanual workstation as ONE OmniGibson robot (spec
+`realm/robots/yam.py::YamBimanualRobot`, definition `realm/robots/definitions/yam_bimanual/`, asset
+`realm/robots/yam/yam_bimanual.usd` composed from the single-arm file by
+`scripts/build_yam_bimanual_usd.py`). The two arms sit 0.61 m apart in y on a geometry-free
+`base_link` at their midpoint, which is the robot frame; the midpoint is spawned `mount_height` above the
+scene's robot pose like the single arm. Links and joints carry the arm as a prefix (`left_link_6`,
+`right_joint1`, `left_left_finger`), and the arms collide with each other but not with themselves
+(`self_collisions: true` + every within-arm pair filtered, matching YAMLab's per-arm articulations with
+self-collisions off).
+
+* **Action** (14-D, YAMLab's `YamActionLayout`): `[left_arm(6), left_gripper, right_arm(6),
+  right_gripper]` -- absolute joint targets, gripper columns 6 and 13 binarised by `realm.rollout`.
+* **State**: `robot_state` is `[left joints(6), right joints(6)]` and `gripper_state` a 2-vector
+  `[left, right]` in (0 open, 1 closed), both looked up by joint name in the articulation DOF order
+  (`ROBOT_OBS_PROFILES["YAM_bimanual"].dof_order`, asserted against the loaded robot at construction).
+  The qpos parquet rows are therefore 14 wide: `[12 joints, 2 grippers]`.
+* **Cameras**: both wrist cameras (`<arm>_link_6/wrist_camera`, the right one at YAMLab's separately
+  calibrated offset) come through as `PolicyObservation.wrist_im` (left) and `.wrist_im_second` (right);
+  the recorder tiles them as a 2x2 grid `top | second exterior (or black) / left wrist | right wrist`.
+  The fixed **top camera** is NOT in the USD: the robot config's REALM-only `exterior_camera` key places
+  `external_sensor0` at YAMLab's `cameras.top` pose relative to the mount frame (0.17 m behind, 0.94 m
+  above the arm bases, looking forward and 60 degrees down, 78.4 degrees horizontal FOV) in place of the
+  task's `cam1` extrinsics, so V-VIEW and the recorder treat it like any exterior view. `--multi-view`
+  adds the task's second exterior camera as usual.
+* **Scoring**: grasp detection checks each arm's finger pair separately and reports a grasp when
+  either arm holds the object; `get_ee_pose` and the Cartesian metrics report the LEFT (default) arm's
+  eef frame. The ten REALM tasks are single-arm tasks -- a bimanual task set is not part of this port.
+* **Inference**: `--model_type yamlab` speaks YAMLab's LeRobot contract over openpi's websocket
+  protocol: `observation.state` (14: `left_joint1..6, left_finger, right_joint1..6, right_finger`, fingers
+  in metres), `observation.images.top_rgb` / `left_rgb` / `right_rgb` at REALM's native 1280x720, `prompt`;
+  it expects `{"actions": (n, 14)}` absolute targets in the same layout and converts the finger targets to
+  REALM's open-fraction gripper value (`realm/inference/yamlab.py`). `tests/yamlab_sweep_server.py` is a
+  reference server that validates the contract and answers with a joint sweep; start your own policy
+  server with the same protocol and point `--port/--host` at it. `debug` also works (zero action, holds the
+  reset pose). The single-arm adapters (`openpi`, `dreamzero`) send a 12-entry joint state and ignore the
+  second wrist, so they are not usable with this robot.
+
+> **Verified 2026-09-05 (Clara L40S, `realm_og391_v3.sif`, `debug` model, 90 steps,
+> `--no-render_on_demand`; Slurm jobs 204581/204583/204585):** the definition registers and loads,
+> `assert_proprio_layout` passes against the built articulation, `assert_wrist_camera` resolves both
+> `<arm>_link_6/wrist_camera` prims, task 0 Default and task 1 V-AUG `--multi-view` write all four
+> artifacts with 14-wide qpos/action rows, the recorder's 2x2 grid shows the top camera framing both arms
+> and the table with each wrist view below, and a close command drives both grippers to the closed limit
+> (normalised gripper 1.0). A DROID_mounted rollout from this branch is **bit-for-bit identical** (qpos,
+> actions, report row) to one from `main` at v1.0.0. Two facts came out of that run and are now encoded:
+> PhysX numbers the joints **breadth-first** (`left_joint1, right_joint1, ..., right_joint6`, then the
+> left fingers, then the right), so an arm's joints are NOT contiguous in `proprio`; and the stock binary
+> gripper controller maps open/close to the UPPER/LOWER joint limits, which on the YAM fingers is
+> inverted -- every YAM gripper block names `open_qpos`/`closed_qpos` explicitly (see the single-arm note
+> above).
+>
+> **Motion verified (2026-09-05, jobs 204609/204615/204616):** `tests/test_yam_bimanual_motion.py` drives
+> each of the 14 action columns alone: every joint reaches its +-0.3 rad target to 0.000 rad with every other
+> joint at 0.000 and both grippers open/close independently, matching a standalone IsaacLab run of YAMLab's
+> own arm and actuator config (0.300 rad in 12 control steps, nothing else moving). `--model_type yamlab`
+> against the reference sweep server moves both arms mirrored and both grippers through both states.
+>
+> **What had to be fixed first.** OmniGibson's `RigidPrim.update_meshes()` recomputes every link's centre
+> of mass from its collision meshes composed only ONE level up and overwrites the authored value. The YAMLab
+> export nests each collision piece as `<link>/collisions/<piece>/<mesh>` (the piece Xform carries the
+> pose and a small scale), so every YAM link's CoM landed metres away (link_1 at (1.56, -0.11, 6.45) m),
+> ~100x the joint inertia: a 0.3 rad step took 0.8 s at the 28 N m clamp and dragged the wrist 0.5 rad.
+> Two defences: `scripts/build_yam_usd.py::flatten_collision_xforms` puts every collision Mesh directly
+> under its link (verify() rejects nesting; the loader's centroid then lands within 0-3 cm of the authored
+> CoM), and `SceneSetupMixin.restore_authored_link_coms` (run in `finalize_setup`, after
+> `rebase_initial_file`, which re-applies the override) pushes the authored CoMs back exactly and logs what
+> it changed. DROID links author no CoM and are untouched (bit-for-bit re-checked, job 204614).
 
 ## Frequencies
 

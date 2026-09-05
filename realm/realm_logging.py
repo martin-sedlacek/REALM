@@ -111,8 +111,9 @@ class VideoRecorder:
     """Accumulates one rollout's camera frames and encodes them to H.264 on demand.
 
     Frames are tiled per step: base | wrist side by side, or a 2x2 grid (base | second exterior /
-    wrist | black) when a second exterior view is recorded. `disk_mode` spools frames to PNGs under
-    @log_dir instead of holding them in memory -- call cleanup() afterwards to remove them.
+    wrist | second wrist) when a second exterior view and/or a second wrist camera (bimanual robot) is
+    recorded; a missing tile is black. `disk_mode` spools frames to PNGs under @log_dir instead of
+    holding them in memory -- call cleanup() afterwards to remove them.
     """
 
     def __init__(self, log_dir, timestamp, run_id, task=None, perturbation=None, disk_mode=False):
@@ -131,12 +132,14 @@ class VideoRecorder:
         else:
             self.frames = []
 
-    def _build_frame(self, base_im, wrist_im, base_im_second=None):
+    def _build_frame(self, base_im, wrist_im, base_im_second=None, wrist_im_second=None):
 
         base_im = _to_uint8(base_im)
         wrist_im = _to_uint8(wrist_im)
         if base_im_second is not None:
             base_im_second = _to_uint8(base_im_second)
+        if wrist_im_second is not None:
+            wrist_im_second = _to_uint8(wrist_im_second)
 
         # All tiles are brought to the base image's size before concatenation.
         target_size = (base_im.shape[1], base_im.shape[0])  # (width, height)
@@ -147,10 +150,13 @@ class VideoRecorder:
         if base_im_second is not None and base_im_second.shape[:2] != base_im.shape[:2]:
             base_im_second = np.array(Image.fromarray(base_im_second).resize(target_size))
 
-        if base_im_second is not None:
+        if wrist_im_second is not None and wrist_im_second.shape[:2] != base_im.shape[:2]:
+            wrist_im_second = np.array(Image.fromarray(wrist_im_second).resize(target_size))
+
+        if base_im_second is not None or wrist_im_second is not None:
             padding = np.zeros_like(base_im)
-            top_row = np.concatenate((base_im, base_im_second), axis=1)
-            bottom_row = np.concatenate((wrist_im, padding), axis=1)
+            top_row = np.concatenate((base_im, padding if base_im_second is None else base_im_second), axis=1)
+            bottom_row = np.concatenate((wrist_im, padding if wrist_im_second is None else wrist_im_second), axis=1)
             frame_img = np.concatenate((top_row, bottom_row), axis=0)
         else:
             frame_img = np.concatenate((base_im, wrist_im), axis=1)
@@ -169,8 +175,8 @@ class VideoRecorder:
 
         return frame_img
 
-    def add_frame(self, base_im, wrist_im, base_im_second=None):
-        frame_img = self._build_frame(base_im, wrist_im, base_im_second)
+    def add_frame(self, base_im, wrist_im, base_im_second=None, wrist_im_second=None):
+        frame_img = self._build_frame(base_im, wrist_im, base_im_second, wrist_im_second)
 
         if self.disk_mode:
             frame_path = os.path.join(self.temp_frame_dir, f"frame_{self.count:05d}.png")

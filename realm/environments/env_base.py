@@ -8,7 +8,7 @@ from realm.environments.contact_utils import get_impulse_contacts
 from realm.environments.joint_reset import JointResetMixin
 from realm.environments.task_progression import TaskProgressionMixin
 # Avoid importing inference transport dependencies through the package.
-from realm.inference.utils import arm_dof, get_robot_obs_profile
+from realm.inference.utils import arm_names, finger_proprio_indices, get_robot_obs_profile
 from realm.robots.controller_registry import register_realm_controllers
 
 # Re-exported for tests/test_joint_reset_batching.py.
@@ -21,6 +21,14 @@ from realm.environments.joint_reset import (  # noqa: F401
 from realm.environments.task_progression import TASK_PROGRESS_RUBRICS  # noqa: F401
 
 register_realm_controllers()
+
+
+
+def robot_finger_link_prims(robot, arm=None):
+    """Finger link prims of `arm`, or of EVERY arm when None. Single-arm robots: the default arm's two
+    fingers, exactly as before; the bimanual YAM: all four."""
+    arms = list(robot.arm_names) if arm is None else [arm]
+    return {robot._links[link] for a in arms for link in robot.finger_link_names[a]}
 
 
 class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
@@ -45,7 +53,7 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
 
         self.task_type = task_type
         self.robot = robot
-        self.robot_finger_links = {self.robot._links[link] for link in self.robot.finger_link_names[self.robot.default_arm]}
+        self.robot_finger_links = robot_finger_link_prims(self.robot)
 
         self._init_task_progression(task_type)
         self.reset_joints()
@@ -114,23 +122,29 @@ class RealmEnvironmentBase(JointResetMixin, TaskProgressionMixin):
         return open_q + 9.0 * (closed_q - open_q)
 
     def is_grasping(self, obs, candidate_obj):
-
-        # The two finger DOFs follow the arm joints in the proprio vector (7 for DROID, 6 for YAM).
-        n_arm = arm_dof(self.robot.name)
-        finger_joints = obs[self.robot.name]['proprio'][n_arm:n_arm + 2].cpu().numpy()
-        thresh = self._finger_closure_threshold()
-        is_either_finger_closing = (thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3)
-        contact_pairs = RigidContactAPI.get_contact_pairs(
-            scene_idx=candidate_obj.scene.idx,
-            query_set={candidate_obj},
-            with_set=self.robot_finger_links,
-            current_only=True,
-        )
-        is_both_fingers_touching_obj = len({finger_path for _, finger_path in contact_pairs}) == 2
+        """True when SOME arm holds `candidate_obj`: both of that arm's fingers touch it, the robot's
+        Touching state agrees, and at least one finger is past the closure threshold. Single-arm robots
+        evaluate exactly the one arm they have."""
         is_robot_touching_obj = self.is_touching(obs, candidate_obj)
+        for arm in arm_names(self.robot.name):
+            # The two finger DOFs follow the arm joints in the proprio vector (7 for DROID, 6 for YAM);
+            # multi-arm profiles look them up by name.
+            idx = finger_proprio_indices(self.robot.name, arm)
+            finger_joints = obs[self.robot.name]['proprio'][idx].cpu().numpy()
+            thresh = self._finger_closure_threshold()
+            is_either_finger_closing = (thresh - finger_joints[0] > 1e-3 or thresh - finger_joints[1] > 1e-3)
+            finger_links = (self.robot_finger_links if arm is None
+                            else robot_finger_link_prims(self.robot, arm))
+            contact_pairs = RigidContactAPI.get_contact_pairs(
+                scene_idx=candidate_obj.scene.idx,
+                query_set={candidate_obj},
+                with_set=finger_links,
+                current_only=True,
+            )
+            is_both_fingers_touching_obj = len({finger_path for _, finger_path in contact_pairs}) == 2
 
-        if is_both_fingers_touching_obj and is_robot_touching_obj and is_either_finger_closing:
-            return True
+            if is_both_fingers_touching_obj and is_robot_touching_obj and is_either_finger_closing:
+                return True
         return False
 
     def is_touching(self, obs, candidate_obj):

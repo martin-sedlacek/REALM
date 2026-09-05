@@ -1,6 +1,6 @@
 
 from __future__ import annotations
-from realm.config.shared import SETTLE_STEPS
+from realm.config.shared import WARMUP_STEPS, SETTLE_STEPS
 
 from typing import TYPE_CHECKING
 
@@ -41,7 +41,16 @@ def after_play(env: "RealmEnvironmentDynamic", fn) -> None:
 
 
 def settle_action(env: "RealmEnvironmentDynamic"):
-    return np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1]))))
+    """Hold the reset pose with the gripper closed while a perturbation's objects settle.
+
+    DROID keeps the historical vector verbatim (7 reset joints + a closed gripper). Every other robot
+    gets `env.warmup_action` at its closed-gripper phase, which knows the robot's action layout -- the
+    hardcoded `[:7] + 1` was 8 wide for the 7-DOF YAM action and for the 14-DOF bimanual one, so
+    VB-POSE (and anything else that settles) crashed in `robot.apply_action` for both (job 204600).
+    """
+    if env.use_droid_with_base:
+        return np.concatenate((env.reset_qpos[:7], np.atleast_1d(np.array([-1]))))
+    return env.warmup_action(WARMUP_STEPS, env.warmup_ee_cmd())
 
 
 def settle(env: "RealmEnvironmentDynamic", steps: int = SETTLE_STEPS) -> None:

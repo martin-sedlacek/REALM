@@ -27,8 +27,11 @@ What was ported, and how it maps onto OmniGibson:
   mirrors ``right_finger`` in ``step()``; OmniGibson's binary gripper controller sends both to the
   same limit, which is the same thing).
 * **Gripper convention.** Finger joints are prismatic, ``-0.0475`` m fully open, ``0.0`` fully
-  closed -- closed is the UPPER limit, exactly the polarity of the DROID Robotiq ``finger_joint``
-  (0 open, 0.785 closed), so the REALM/OmniGibson command mapping carries over unchanged.
+  closed -- closed is the UPPER limit. That is the OPPOSITE of what OmniGibson's stock binary
+  ``MultiFingerGripperController`` assumes (open = upper limit, close = lower limit; DROID's Robotiq
+  goes through REALM's own ``CustomGripperController``), so every YAM gripper block names
+  ``open_qpos`` / ``closed_qpos`` explicitly. Without them a close command opened the fingers
+  (measured in-container 2026-09-05, job 204583).
 * **Wrist camera.** YAMLab spawns its wrist cameras at runtime under ``<arm>/link_6/wrist_camera``
   from ``yam.yaml``; the USD has none. ``scripts/build_yam_usd.py`` authors the LEFT arm's camera
   into the REALM copy of the asset at the same offset (OmniGibson only discovers Camera prims that
@@ -356,14 +359,20 @@ class YamBimanualRobot:
         """Articulation DOF order OmniGibson reports (``dof_names_ordered``), the order of
         ``default_joint_pos`` / ``reset_joint_pos`` / ``proprio``.
 
-        PhysX numbers an articulation's joints by a depth-first walk from the root link, so with the
-        left arm authored first the left chain (6 joints, then its 2 fingers) precedes the right one.
-        Pinned here and asserted against the built robot by ``assert_proprio_layout``; the arm and
-        gripper indices REALM uses are looked up in this list by name, never assumed contiguous.
+        PhysX numbers an articulation's joints BREADTH-first from the root link, one tree level at a
+        time with the links of a level visited in authoring order (left arm first): so the two
+        ``joint1`` come first, then the two ``joint2``, ..., the two ``joint6``, and finally the fingers
+        (children of the two ``link_6``: the left arm's pair, then the right arm's). Measured on the
+        built robot in the container on 2026-09-05 (job 204581); the depth-first order assumed before
+        that was wrong. ``assert_proprio_layout`` pins this list against the built robot at
+        construction; the arm and gripper indices REALM uses are looked up in it by name, never
+        assumed contiguous -- an arm's joints are NOT contiguous here.
         """
         order = []
+        for joint in YamRobot.ARM_JOINTS:
+            for arm in cls.ARMS:
+                order.append(cls.joint_name(arm, joint))
         for arm in cls.ARMS:
-            order.extend(cls.arm_joints(arm))
             order.extend(cls.finger_joints(arm))
         return tuple(order)
 

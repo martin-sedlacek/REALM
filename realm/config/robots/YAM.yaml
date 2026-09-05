@@ -45,6 +45,12 @@ robots:
           name: "MultiFingerGripperController"
           mode: "binary"
           motor_type: "position"
+          # The stock binary controller drives "open" to the joints' UPPER limit and "close" to the LOWER
+          # one; on the YAM fingers the upper limit (0.0) is CLOSED and the lower (-0.0475) is OPEN, so the
+          # limits must be named explicitly or every command is inverted (measured in-container 2026-09-05:
+          # a close command left the fingers at -0.0475). Order: [left_finger, right_finger].
+          open_qpos: [-0.0475, -0.0475]
+          closed_qpos: [0.0, 0.0]
           # high_pd yam_gripper, both fingers.
           isaac_kp: 2000.0
           isaac_kd: 100.0

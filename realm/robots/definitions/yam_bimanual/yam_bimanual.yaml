@@ -154,12 +154,13 @@ disabled_collision_pairs:
   - ["right_camera_mount", "right_camera_frame"]
   - ["right_camera_d405", "right_camera_frame"]
 
-# In OmniGibson DOF order (YamBimanualRobot.dof_order(): left arm joints, left fingers, right arm joints,
-# right fingers -- PhysX numbers joints depth-first from the root, left arm authored first). Fingers at
-# -0.0475 m = fully open. assert_proprio_layout checks this order against the loaded robot.
+# In OmniGibson DOF order (YamBimanualRobot.dof_order(): PhysX numbers joints BREADTH-first from the root,
+# left arm first at each level -- left_joint1, right_joint1, left_joint2, ..., right_joint6, then the left
+# fingers, then the right fingers; measured in-container 2026-09-05). Fingers at -0.0475 m = fully open.
+# assert_proprio_layout checks this order against the loaded robot.
 default_joint_pos: [
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475,
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  -0.0475, -0.0475, -0.0475, -0.0475,
 ]
 
 manipulation:

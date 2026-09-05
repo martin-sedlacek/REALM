@@ -17,6 +17,7 @@ from scipy.spatial.transform import Rotation
 
 from realm.environments.task_progression import DRAWER_TASK_TYPES
 from realm.inference import extract_from_obs
+from realm.inference.utils import extract_wrist_images, gripper_action_idx, is_multi_arm, n_arm_joints
 from realm.realm_logging import append_trajectory, append_video
 
 
@@ -194,6 +195,8 @@ class PolicyObservation(NamedTuple):
     gripper_state: Any
     ee_pos: Any
     ee_quat: Any
+    #: The other arm's wrist image on a bimanual robot (YAM_bimanual: right wrist); None otherwise.
+    wrist_im_second: Any = None
 
 
 class Rollout:
@@ -211,15 +214,17 @@ class Rollout:
 
     def observe(self, obs, obs_is_fresh):
 
+        robot_name = self.env.robot.name
         base_im, _, base_im_second, _, wrist_im, robot_state, gripper_state = extract_from_obs(
-            obs, robot_name=self.env.robot.name)
+            obs, robot_name=robot_name)
+        wrist_im_second = extract_wrist_images(obs, robot_name)[1] if is_multi_arm(robot_name) else None
         ee_pos, ee_quat = self.metrics.record_step(self.env, obs, robot_state, gripper_state)
 
         if self.recorder is not None and obs_is_fresh:
-            self.recorder.add_frame(base_im, wrist_im, base_im_second)
+            self.recorder.add_frame(base_im, wrist_im, base_im_second, wrist_im_second)
 
         return PolicyObservation(base_im, base_im_second, wrist_im, robot_state, gripper_state,
-                                 ee_pos, ee_quat)
+                                 ee_pos, ee_quat, wrist_im_second)
 
     def act(self, observation, client, horizon):
         if self.action_buffer.empty():
@@ -232,13 +237,17 @@ class Rollout:
                 ee_control=env.ee_control,
                 cartesian_position=robot_frame_ee_pose(env, observation.ee_pos,
                                                        observation.ee_quat),
+                wrist_im_second=observation.wrist_im_second,
             )
             enqueue_action_chunk(self.action_buffer, chunk, horizon)
 
         action = self.action_buffer.get()
         self.metrics.record_action(action)
         command = action.copy()
-        command[-1] = binarize_gripper(action[-1], self.gripper_inverted)
+        # The last column for single-arm robots; the profile's gripper_action_idx (6 and 13 for the
+        # bimanual YAM's [left_arm, left_gripper, right_arm, right_gripper]) otherwise.
+        for i in gripper_action_idx(self.env.robot.name):
+            command[i] = binarize_gripper(action[i], self.gripper_inverted)
         self.last_command = command
         return command
 
@@ -252,8 +261,14 @@ class Rollout:
         return self.action_buffer.empty()
 
 
-def joint_space_metrics(qpos):
-    joints = qpos[:, :7]
+def joint_space_metrics(qpos, n_joints=7):
+    """Smoothness/path metrics over the first `n_joints` columns of the recorded qpos rows.
+
+    `n_joints` defaults to DROID's 7 arm joints -- every published number was computed with it. The
+    qpos row is [robot_state, gripper_state], so a 6-DOF arm passes 6 and the bimanual YAM 12
+    (see build_result_entry); the default keeps DROID bit-for-bit.
+    """
+    joints = qpos[:, :n_joints]
     if len(joints) <= SHORT_TRAJECTORY_SAMPLES:
         return {"joint_vel_var": 0.0, "joint_acc_var": 0.0,
                 "joint_jerk": 0.0, "joint_path_length": 0.0}
@@ -302,7 +317,7 @@ def build_result_entry(rollout, task, perturbation, model_type):
 
     env, metrics = rollout.env, rollout.metrics
     qpos = np.stack(metrics.qpos)
-    joint = joint_space_metrics(qpos)
+    joint = joint_space_metrics(qpos, n_arm_joints(env.robot.name))
     cartesian = cartesian_metrics(metrics.ee_positions)
 
     return {

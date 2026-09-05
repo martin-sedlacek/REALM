@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation as R
 
 from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIGHT
 from realm.config.shared import UNSUPPORTED_BY_PERTURBATION
-from realm.environments.env_base import RealmEnvironmentBase
+from realm.environments.env_base import RealmEnvironmentBase, robot_finger_link_prims
 from realm.environments.env_config import build_environment_config
 from realm.environments.perturbations.registry import PERTURBATION_FNS
 from realm.environments.perturbations.v_aug import ALPHA_RANGE, SIGMA_RANGE, apply_blur_and_contrast
@@ -22,7 +22,7 @@ from realm.geometry import (
     robot_to_world,
     world_to_robot,
 )
-from realm.inference.utils import assert_proprio_layout, assert_wrist_camera
+from realm.inference.utils import assert_proprio_layout, assert_wrist_camera, is_multi_arm
 from realm.sim_config import set_rendering_mode
 
 
@@ -114,7 +114,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
 
         assert len(self.omnigibson_env.robots) == 1
         self.robot = self.omnigibson_env.robots[0]
-        self.robot_finger_links = {self.robot._links[link] for link in self.robot.finger_link_names[self.robot.default_arm]}
+        self.robot_finger_links = robot_finger_link_prims(self.robot)
         self.wrist_camera_key = assert_wrist_camera(self.robot)
         assert_proprio_layout(self.robot)
 
@@ -137,6 +137,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         self.restore_double_duty_render_purpose()
 
     def finalize_setup(self):
+        # After rebase_initial_file(): re-initialising the prims re-runs OmniGibson's CoM override, so a
+        # restore placed any earlier is undone (Slurm 204613 vs 204615).
+        self.restore_authored_link_coms()
 
         self.disable_visual_toggles()
         set_rendering_mode(self.rendering_mode)
@@ -256,8 +259,20 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         return self._world2robot(np.concatenate([ee_pos, ee_euler]))
 
     def warmup_action(self, t, ee_cmd):
+        """Hold the reset pose while opening, then closing, the gripper(s).
 
+        Single-arm: [reset arm joints (or the EE command), gripper]. Multi-arm: per arm in controller
+        order, [that arm's reset joints looked up by name in the DOF order, gripper] -- the bimanual
+        YAM's 14-D [left_arm, left_gripper, right_arm, right_gripper].
+        """
         gripper_val = np.atleast_1d(1.0 if t < WARMUP_STEPS // 2 else -1.0)
+        if is_multi_arm(self.robot.name):
+            dof_names = list(self.robot.dof_names_ordered)
+            parts = []
+            for arm in self.robot.arm_names:
+                idx = [dof_names.index(j) for j in self.robot.arm_joint_names[arm]]
+                parts += [np.asarray(self.reset_qpos, dtype=float)[idx], gripper_val]
+            return np.concatenate(parts)
         n_arm = len(self.robot.arm_joint_names[self.robot.default_arm])
         base = ee_cmd if self.ee_control else self.reset_qpos[:n_arm]
         return np.concatenate((base, gripper_val))

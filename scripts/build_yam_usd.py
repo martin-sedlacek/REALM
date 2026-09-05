@@ -135,6 +135,93 @@ def stale_paths(layer, prefix):
     return stale
 
 
+def _xform_ops(prim):
+    return [(op.GetOpName(), op.GetPrecision(), op.Get()) for op in UsdGeom.Xformable(prim).GetOrderedXformOps()]
+
+
+def _is_identity(ops):
+    for name, _, v in ops:
+        if name == "xformOp:translate" and not Gf.IsClose(Gf.Vec3d(v), Gf.Vec3d(0, 0, 0), 1e-9):
+            return False
+        if name == "xformOp:scale" and not Gf.IsClose(Gf.Vec3d(v), Gf.Vec3d(1, 1, 1), 1e-9):
+            return False
+        if name == "xformOp:orient" and not (abs(v.GetReal() - 1.0) < 1e-9
+                                             and Gf.IsClose(Gf.Vec3d(v.GetImaginary()), Gf.Vec3d(0, 0, 0), 1e-9)):
+            return False
+        if name not in ("xformOp:translate", "xformOp:scale", "xformOp:orient"):
+            return False
+    return True
+
+
+def flatten_collision_xforms(stage, layer):
+    """Move every collision Mesh directly under its link, carrying its ancestors' transform with it.
+
+    YAMLab's export nests each convex collision piece as ``<link>/collisions/<piece>/<piece>``: a
+    ``collisions`` group (identity), a piece Xform carrying the piece's translate/orient and a small
+    non-uniform scale, and an identity-transform Mesh. OmniGibson's ``RigidPrim.update_meshes()``
+    composes a link's centre of mass from its collision meshes using only the Mesh's pose relative to
+    its PARENT and the Mesh's own scale -- every Xform above is dropped -- and then overwrites the
+    authored CoM with that centroid. On this asset that put every link's CoM metres away (link_1 at
+    (1.56, -0.11, 6.45) m; Slurm 204612), i.e. a ~100x joint inertia, and the arm hunted at its effort
+    clamp where IsaacLab on the same file is crisp (Slurm 204609). With the Mesh a direct child of the
+    link and the piece Xform's ops written onto it, the loader's one-level composition is exact.
+    Geometry is unchanged (exactly one non-identity Xform per chain, copied verbatim; the Mesh's own ops
+    were identity); the Mesh takes the piece Xform's name; relationships naming the old path are
+    remapped; the emptied Xforms are removed. Visual meshes are left where they are.
+
+    Returns the number of meshes moved.
+    """
+    root = stage.GetDefaultPrim()
+    moves = []
+    for link in root.GetChildren():
+        meshes = [p for p in Usd.PrimRange(link)
+                  if p.IsA(UsdGeom.Mesh) and p.HasAPI(UsdPhysics.CollisionAPI) and p.GetParent() != link]
+        for mesh in meshes:
+            assert _is_identity(_xform_ops(mesh)), f"{mesh.GetPath()} has non-identity xform ops; not handled"
+            chain, anc = [], mesh.GetParent()
+            while anc != link:
+                chain.append(anc)
+                anc = anc.GetParent()
+            carried = [a for a in chain if not _is_identity(_xform_ops(a))]
+            assert len(carried) <= 1, f"{mesh.GetPath()}: more than one non-identity Xform above it {[a.GetPath() for a in carried]}"
+            if carried:
+                ops = _xform_ops(carried[0])
+                assert [n for n, _, _ in ops] == ["xformOp:translate", "xformOp:orient", "xformOp:scale"], (
+                    f"{carried[0].GetPath()} xformOpOrder is {[n for n, _, _ in ops]}, not translate/orient/scale")
+                mx = UsdGeom.Xformable(mesh)
+                mx.ClearXformOpOrder()
+                mx.AddTranslateOp(ops[0][1]).Set(ops[0][2])
+                mx.AddOrientOp(ops[1][1]).Set(ops[1][2])
+                mx.AddScaleOp(ops[2][1]).Set(ops[2][2])
+            new_name = mesh.GetParent().GetName() if mesh.GetParent() != link else mesh.GetName()
+            moves.append((mesh.GetPath(), link.GetPath(), new_name, [a.GetPath() for a in chain]))
+
+    mapping = {}
+    emptied = set()
+    for mesh_path, link_path, new_name, chain_paths in moves:
+        edit = Sdf.BatchNamespaceEdit()
+        # the piece Xform usually shares the mesh's name: park it out of the way first
+        parent = mesh_path.GetParentPath()
+        parked = None
+        if parent.name == new_name:
+            parked = parent.ReplaceName(f"{new_name}__flattened")
+            edit.Add(Sdf.NamespaceEdit.Rename(parent, parked.name))
+            mesh_src = Sdf.Path(f"{parked.pathString}/{mesh_path.name}")
+        else:
+            mesh_src = mesh_path
+        edit.Add(Sdf.NamespaceEdit.ReparentAndRename(mesh_src, link_path, new_name, Sdf.NamespaceEdit.atEnd))
+        assert layer.Apply(edit), f"flattening {mesh_path} was rejected"
+        mapping[mesh_path.pathString] = f"{link_path.pathString}/{new_name}"
+        emptied.update([parked if parked is not None else parent] + [Sdf.Path(p) for p in chain_paths[1:]])
+    # remove the emptied ancestors (piece Xforms, then the collisions groups), deepest first
+    for path in sorted(emptied, key=lambda p: -len(p.pathString.split("/"))):
+        spec = layer.GetPrimAtPath(path)
+        if spec is not None and not spec.nameChildren:
+            layer.Apply(Sdf.BatchNamespaceEdit([Sdf.NamespaceEdit.Remove(path)]))
+    remap_dependents(layer, mapping)
+    return len(moves)
+
+
 def build(source, output):
     src_stage = Usd.Stage.Open(source)
     assert src_stage, f"cannot open {source}"
@@ -198,6 +285,10 @@ def build(source, output):
 
     # --- 2. physics / camera authoring on a stage over the edited layer -----------------------
     stage = Usd.Stage.Open(layer)
+    n_flat = flatten_collision_xforms(stage, layer)
+    assert n_flat > 0, "no collision Xforms flattened -- does the source still nest collision meshes?"
+    stale = stale_paths(layer, SRC_ROOT)
+    assert not stale, f"paths still pointing into {SRC_ROOT} after flattening: {stale[:5]}"
     root = stage.GetPrimAtPath(DST_ROOT)
     UsdPhysics.ArticulationRootAPI.Apply(root)
     # OmniGibson's XFormPrim._post_load reads xformOp:scale (and translate/orient) off the loaded root
@@ -295,6 +386,15 @@ def verify(output):
     for op in ("xformOp:translate", "xformOp:orient", "xformOp:scale"):
         if root.GetAttribute(op).Get() is None:
             problems.append(f"root has no {op} (OmniGibson's XFormPrim reads it at load with no fallback)")
+    n_coll = 0
+    for prim in Usd.PrimRange(root):
+        if prim.HasAPI(UsdPhysics.CollisionAPI):
+            n_coll += 1
+            if prim.GetParent().GetParent() != root:
+                problems.append(f"collision prim {prim.GetPath()} is not a direct child of its link: OmniGibson "
+                                f"composes the link CoM only one level up (see flatten_collision_xforms)")
+    if n_coll == 0:
+        problems.append("no collision prims found")
     for name in (*Y.ARM_LINKS, *Y.FINGER_LINKS, *Y.FIXED_CAMERA_LINKS, *Y.VIRTUAL_LINKS):
         link = root.GetChild(name)
         if link and link.GetAttribute("xformOp:scale").Get() is None:
@@ -435,6 +535,8 @@ def write_provenance(source, output):
         "  changes vs source: see the module docstring of scripts/build_yam_usd.py (links reparented under",
         "  /yam, base link renamed base_link, rootJoint_arm/physicsScene/Kit cameras removed, finger drive",
         "  maxForce authored, wrist camera authored under link_6, massless eef_link fixed to link_6 at the",
+        "  every collision Mesh moved up under its link with its parent Xform's translate/orient/scale (OmniGibson",
+        "  composes the link CoM only one level up -- nested Xforms put it metres off, Slurm 204612),",
         "  fingertip midpoint, identity xform ops on the root -- all from YamRobot).",
         "",
         "workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)",

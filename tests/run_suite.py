@@ -69,6 +69,20 @@ SUITE = {
         cells=r"^  \w+_(?:csv|parquet): \w+",
         note="task 8 open_drawer -- the mode-dependence control for the stock preset_name gap.",
     ),
+    "test_yam_bimanual_motion": dict(
+        argv=["tests/test_yam_bimanual_motion.py"],
+        needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d+\] .*",
+        note="YAM_bimanual: each of the 14 action columns drives its own joint/gripper (by DOF name).",
+    ),
+    "test_yamlab_adapter": dict(
+        argv=["tests/test_yamlab_adapter.py"],
+        needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d+\] .*",
+        note="--model_type yamlab end to end against tests/yamlab_sweep_server.py (starts its own server).",
+    ),
     "test_integrity": dict(
         argv=["tests/test_integrity.py"],
         needs_gpu=True, needs_server=False, timeout=10800, tier="slow",

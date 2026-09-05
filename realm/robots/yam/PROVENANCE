@@ -1,15 +1,17 @@
 realm/robots/yam/ -- YAM arm assets ported from YAMLab (https://github.com/ARISE-Initiative/yamlab)
 
-generated: 2026-09-04 by scripts/build_yam_usd.py
+generated: 2026-09-05 by scripts/build_yam_usd.py
 yamlab commit: ec0455d2b4ce35f21fc126418ea5e74ac567133d
 
 yam.usd
-  source: /home/elmo/sedlam/yamlab/yamlab/robot/yam/arm/yam.usd
+  source: /mnt/home_lustre/sedlam56/projects/yamlab/yamlab/robot/yam/arm/yam.usd
   source sha256: 8b997d9c864a53a00abba54d2381d3aebf71853f7918450305afc11e73aeb499
-  output sha256: b98c24d85b1c16bf06eb595b7e8ce2427629492900e15ac03c7b41b40b3b6dd3
+  output sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
   changes vs source: see the module docstring of scripts/build_yam_usd.py (links reparented under
   /yam, base link renamed base_link, rootJoint_arm/physicsScene/Kit cameras removed, finger drive
   maxForce authored, wrist camera authored under link_6, massless eef_link fixed to link_6 at the
+  every collision Mesh moved up under its link with its parent Xform's translate/orient/scale (OmniGibson
+  composes the link CoM only one level up -- nested Xforms put it metres off, Slurm 204612),
   fingertip midpoint, identity xform ops on the root -- all from YamRobot).
 
 workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
@@ -22,8 +24,8 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
 
 yam_bimanual.usd
   source: realm/robots/yam/yam.usd (the built single-arm file above)
-  source sha256: b98c24d85b1c16bf06eb595b7e8ce2427629492900e15ac03c7b41b40b3b6dd3
-  output sha256: 6461d462bd786cf3f9d9c386a4ff58640aae09576683fa94af59157746522e3c
+  source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
+  output sha256: fd92b8e5d944cbe47b4386fed1f223f6815057724ad7b53a7d3a9d951c7eb20b
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
   prefixes, links translated by YAMLab's arm offsets (+-0.305 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's

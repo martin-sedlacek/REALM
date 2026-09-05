@@ -60,12 +60,13 @@ realm/
 │   ├── vec_init_queue.py      init-queue repair for object-replacing perturbations
 │   └── perturbations/         one module per perturbation + registry.py + _helpers.py
 ├── robots/
-│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, ur, yam); OG 3.9.1
+│   ├── definitions/           RobotDefinition YAMLs (droid, droid_mounted, ur, yam, yam_bimanual); OG 3.9.1
 │   │                          selects robots by `model`; linked into the dataset by
 │   │                          scripts/install_robot_definitions.py
-│   ├── yam.py                 YamRobot: host-importable spec of the YAMLab port (joint names, gains,
-│   │                          camera, DOF layout) that the yam YAMLs/USD are pinned against
-│   ├── yam/                   yam.usd (rebuilt from YAMLab by scripts/build_yam_usd.py) + PROVENANCE
+│   ├── yam.py                 YamRobot / YamBimanualRobot: host-importable specs of the YAMLab port
+│   │                          (joint names, gains, cameras, DOF/action layout) the YAMLs/USDs are pinned to
+│   ├── yam/                   yam.usd + yam_bimanual.usd (rebuilt from YAMLab by scripts/build_yam*_usd.py)
+│   │                          + PROVENANCE
 │   │                          + verbatim workstation USDs (unused)
 │   ├── controller_registry.py registers the four custom controllers + default configs
 │   ├── droid_joint_controller.py / individual_joint_pd_controller.py   joint PD (impedance / plain)
@@ -106,13 +107,18 @@ inference; pass `--no-render_on_demand` when the recorded video matters.
 `realm/inference/client.py`: `InferenceClient(model_type, port, host)` dispatches to one adapter
 per model type. **Registered:** `debug` (canned actions, no server), `openpi` (Pi0 family,
 224x224 padded, websocket), `dreamzero` (320x180, requires `--multi-view` AND the robot-frame EE
-pose). **Present but deliberately disabled:** `GR00T`, `GR00T_N16`, `molmoact` — re-enabling is
+pose), `yamlab` (bimanual YAM only: YAMLab's LeRobot keys over the openpi websocket protocol, contract
+in `realm/inference/yamlab.py`, reference server `tests/yamlab_sweep_server.py`). **Present but
+deliberately disabled:** `GR00T`, `GR00T_N16`, `molmoact` — re-enabling is
 one line in `ADAPTERS`. Gripper conventions are keyed by the same strings in `realm/rollout.py`
 (`GRIPPER_OPEN_ABOVE_HALF` / `_BELOW_HALF`); an unknown `model_type` raises rather than guessing.
 
 Observations are keyed by `robot.name` (NOT always `"DROID"`), and the wrist-camera key is
 resolved per robot through `ROBOT_OBS_PROFILES` in `realm/inference/utils.py` — update that table
-when adding a robot asset. Actions are **absolute joint positions** (7) + gripper; models emit
+when adding a robot asset. A profile with an `arms` key is multi-arm (YAM_bimanual): state and
+gripper are per-arm lookups by joint name in `dof_order`, `gripper_action_idx` names the action
+columns to binarise, and `PolicyObservation.wrist_im_second` carries the second wrist image.
+Actions are **absolute joint positions** (7) + gripper; models emit
 gripper in (0,1), the environment expects (1,-1) with the 0.5 threshold.
 
 ## Perturbations
@@ -147,7 +153,9 @@ uv run python -m pytest -q tests/test_perturbation_task_types.py \
     tests/test_robot_definition_parity.py tests/test_yam_robot.py
 ```
 
-Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation:
+Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation
+(the YAM_bimanual pair, `test_yam_bimanual_motion` and `test_yamlab_adapter`, is in the `medium` tier
+and not in either `--level`; select them by name):
 `python tests/run_suite.py --jobid <id> --mode stock --level smoke|suite --strict --out … --junit-xml …`.
 The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
@@ -183,7 +191,13 @@ default prim, identity `xformOp:translate/orient/scale` on the root, and any cam
 child of a link (OmniGibson discovers nothing deeper). `eef_link_names` must point at a
 geometry-free frame, never at a real link: OmniGibson makes the eef link invisible at init, so
 naming the gripper housing there deletes it from every render (the YAM port hit exactly this and
-authors a massless `eef_link` at the fingertip midpoint instead). A bare arm sets the REALM-only
+authors a massless `eef_link` at the fingertip midpoint instead). **Collision meshes must be DIRECT
+children of their link**: OmniGibson's `RigidPrim.update_meshes()` composes each link's centre of mass
+from its collision meshes one level up only and overwrites the authored CoM, so a mesh nested under an
+Xform lands the CoM wherever that Xform's transform is ignored (the YAM export put every link's CoM
+metres away, ~100x joint inertia, Slurm 204612); `scripts/build_yam_usd.py::flatten_collision_xforms`
+fixes the asset and `SceneSetupMixin.restore_authored_link_coms` (run from `finalize_setup`, after
+`rebase_initial_file`) guards it at load. A bare arm sets the REALM-only
 config keys `has_base_column: false`, `mount_height` (spawn/base-frame
 z offset) and `reset_joint_pos` (full-DOF). The YAM port is the template: `realm/robots/yam.py` holds
 the numbers, `scripts/build_yam_usd.py` shows the USD surgery, `tests/test_yam_robot.py` pins the

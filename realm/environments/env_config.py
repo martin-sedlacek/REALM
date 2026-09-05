@@ -98,6 +98,10 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
     if mount_height is not None:
         spawn_pos[2] += float(mount_height)
         env.base_height = float(mount_height)
+    # REALM-only key for robots that carry their own exterior camera (the YAM workstation's fixed top
+    # camera): {"cam1": {"pos", "rot"}, "focal_length"} in the arm-base frame, consumed by
+    # _apply_camera_cfg in place of the task's cam1 extrinsics. Absent for every DROID config.
+    env.robot_exterior_camera = robot_entry.pop("exterior_camera", None)
     robot_entry["position"] = spawn_pos
     robot_entry["orientation"] = omnigibson_transform_utils.euler2quat(
         torch.tensor(robot_rot, dtype=torch.float32)).tolist()
@@ -126,7 +130,10 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
 
     if env.common_freq is not None:
         cfg_robot["robots"][0]["control_freq"] = env.common_freq
-        cfg_robot["robots"][0]["controller_config"]["arm_0"]["control_freq"] = env.common_freq
+        # arm_0 for single-arm robots; arm_<name> per arm for multi-arm definitions (YAM_bimanual).
+        for group, controller_cfg in cfg_robot["robots"][0]["controller_config"].items():
+            if group.startswith("arm_"):
+                controller_cfg["control_freq"] = env.common_freq
 
     cfg.update(cfg_robot)
     env.reset_qpos = reset_joint_pos
@@ -206,11 +213,19 @@ def _apply_camera_cfg(env, cfg, task_cfg, robot_pos, robot_rot):
         else:
             ext_cam2_pose = "default" if ext_cam1_pose == "CP3" else "CP3"
 
+        # A robot that brings its own exterior camera (YAM_bimanual's fixed top camera) overrides the
+        # task's cam1 pose and focal length; the pose is in the arm-base frame like every extrinsics entry,
+        # so construct_ext_cam_pose_by_name composes it onto the spawn pose and adds base_height as usual.
+        robot_cam = getattr(env, "robot_exterior_camera", None)
+        if robot_cam is not None:
+            ext_cam1_pose = robot_cam["cam1"]
         base_cam_pos, base_cam_rot = env.construct_ext_cam_pose_by_name(ext_cam1_pose, robot_pos, robot_rot)
 
         cfg_external_sensors = yaml.load(open(f"{env.config_path}/env/external_sensors/camera_config.yaml", "r"), Loader=yaml.FullLoader)
         cfg_external_sensors["external_sensors"][0]["position"] = base_cam_pos
         cfg_external_sensors["external_sensors"][0]["orientation"] = base_cam_rot
+        if robot_cam is not None and "focal_length" in robot_cam:
+            cfg_external_sensors["external_sensors"][0]["sensor_kwargs"]["focal_length"] = robot_cam["focal_length"]
 
         if env.multi_view:
             second_base_cam_pos, second_base_cam_rot = env.construct_ext_cam_pose_by_name(ext_cam2_pose, robot_pos,

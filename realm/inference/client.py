@@ -6,6 +6,7 @@ from openpi_client import websocket_client_policy, image_tools
 
 from realm.geometry import axisangle_to_rpy
 from realm.inference.dreamzero import DreamZeroClient
+from realm.inference.yamlab import yamlab_actions_to_realm, yamlab_observation
 
 
 class _DebugAdapter:
@@ -17,11 +18,13 @@ class _DebugAdapter:
         pass
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-              use_base_im_second=False, ee_control=False, cartesian_position=None):
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
         if ee_control:
             return np.array([0.41402626, -0.13211727, 0.57253086, -3.09742367, 0.2580259, -0.24700592, -1])
-        # [arm joints, gripper]: 8 for the 7-DOF DROID, 7 for the 6-DOF YAM.
-        return np.atleast_1d(np.zeros(len(robot_state) + 1))
+        # [arm joints, gripper(s)]: 8 for the 7-DOF DROID, 7 for the 6-DOF YAM, 14 for the bimanual
+        # YAM (12 joints + one gripper per arm). Zeros are the same in every action layout.
+        return np.atleast_1d(np.zeros(len(robot_state) + np.size(gripper_state)))
 
 
 class _OpenPIAdapter:
@@ -35,7 +38,8 @@ class _OpenPIAdapter:
         )
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-              use_base_im_second=False, ee_control=False, cartesian_position=None):
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
         img_to_use = base_im_second if use_base_im_second else base_im
 
         obs_dict = {
@@ -56,7 +60,8 @@ class _DreamZeroAdapter:
         self.client = DreamZeroClient(host=host, port=port)
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-              use_base_im_second=False, ee_control=False, cartesian_position=None):
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
         assert base_im_second is not None, "DreamZero requires --multi-view (second external camera)"
         assert cartesian_position is not None, "DreamZero requires cartesian_position (robot-relative EE pose)"
 
@@ -77,6 +82,31 @@ class _DreamZeroAdapter:
         return self.client.infer(obs_dict)
 
 
+class _YamLabAdapter:
+    """A policy trained on YAMLab / LeRobot bimanual YAM data, served over openpi's websocket protocol.
+
+    Sends the LeRobot keys (`observation.state` 14-D, `observation.images.{top,left,right}_rgb`,
+    `prompt`) built by realm.inference.yamlab, and expects `{"actions": (n, 14)}` absolute joint
+    targets in the same layout with finger targets in metres. Requires a multi-arm robot
+    (`--robot YAM_bimanual`): `wrist_im_second` is the right wrist. tests/yamlab_sweep_server.py is a
+    reference server that checks the contract and answers with a joint sweep.
+    """
+
+    def __init__(self, host, port):
+        og.log.info("Connecting to YAMLab policy server...")
+        self.client = websocket_client_policy.WebsocketClientPolicy(host=host, port=port)
+
+    def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
+        assert wrist_im_second is not None, (
+            "model_type 'yamlab' needs the second wrist camera: run it with --robot YAM_bimanual")
+        obs_dict = yamlab_observation(instruction, base_im, wrist_im, wrist_im_second,
+                                      robot_state, gripper_state)
+        pred = self.client.infer(obs_dict)
+        return yamlab_actions_to_realm(pred["actions"])
+
+
 class _GR00TAdapter:
 
 
@@ -85,7 +115,8 @@ class _GR00TAdapter:
         self.client = websocket_client_policy.WebsocketClientPolicy(host=host, port=port)
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-              use_base_im_second=False, ee_control=False, cartesian_position=None):
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
         base_im_resized = np.asarray(Image.fromarray(base_im).resize((320, 180))).astype(np.uint8)
         base_im_second_resized = np.asarray(Image.fromarray(base_im_second).resize((320, 180))).astype(np.uint8)
         wrist_im_resized = np.asarray(Image.fromarray(wrist_im).resize((320, 180))).astype(np.uint8)
@@ -114,7 +145,8 @@ class _GR00TN16Adapter:
         self.client = ExternalRobotInferenceClient(host=host, port=port)
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-              use_base_im_second=False, ee_control=False, cartesian_position=None):
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
         base_im_resized = image_tools.resize_with_pad(base_im, 224, 224)[None, None]
         wrist_im_resized = image_tools.resize_with_pad(wrist_im, 224, 224)[None, None]
 
@@ -146,7 +178,8 @@ class _MolmoActAdapter:
         self.client = websocket_client_policy.WebsocketClientPolicy(host=host, port=port)
 
     def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
-              use_base_im_second=False, ee_control=False, cartesian_position=None):
+              use_base_im_second=False, ee_control=False, cartesian_position=None,
+              wrist_im_second=None):
         img_to_use = base_im_second if use_base_im_second else base_im
         obs_dict = {
             "images": [img_to_use, wrist_im],
@@ -166,6 +199,7 @@ ADAPTERS = {
     "debug": _DebugAdapter,
     "openpi": _OpenPIAdapter,
     "dreamzero": _DreamZeroAdapter,
+    "yamlab": _YamLabAdapter,
     # "GR00T": _GR00TAdapter,          # disabled -- see the block comment above
     # "GR00T_N16": _GR00TN16Adapter,   # disabled
     # "molmoact": _MolmoActAdapter,    # disabled
@@ -187,11 +221,14 @@ class InferenceClient:
         self._adapter = adapter_cls(host, port)
         self.client = self._adapter.client
 
-    def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state, use_base_im_second=False, ee_control=False, cartesian_position=None):
+    def infer(self, instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
+              use_base_im_second=False, ee_control=False, cartesian_position=None, wrist_im_second=None):
+        """`wrist_im_second` is the second arm's wrist image on a bimanual robot (None otherwise); the
+        registered single-arm adapters ignore it."""
         return self._adapter.infer(
             instruction, base_im, base_im_second, wrist_im, robot_state, gripper_state,
             use_base_im_second=use_base_im_second, ee_control=ee_control,
-            cartesian_position=cartesian_position,
+            cartesian_position=cartesian_position, wrist_im_second=wrist_im_second,
         )
 
     def reset(self):
