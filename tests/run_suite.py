@@ -37,6 +37,14 @@ SUITE = {
         cells=r"^\[\d\] .*",
         note="vendored robometer-client vs the eval-server wire format, fake transport; static, no container.",
     ),
+    "test_robometer_calibration": dict(
+        argv=["tests/test_robometer_calibration.py"],
+        local=True,
+        needs_gpu=False, needs_server=False, timeout=120, tier="local",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^\[\d\] .*",
+        note="robometer_calibration.yaml vs task configs + raw->0-1 arithmetic; static, no container.",
+    ),
     "test_rollout_camera_selection": dict(
         argv=["tests/test_rollout_camera_selection.py"],
         needs_gpu=False, needs_server=False, timeout=900, tier="fast",

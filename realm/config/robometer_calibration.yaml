@@ -1,0 +1,40 @@
+# Per-task calibration of Robometer's raw progress score to REALM's 0-1 task progression.
+#
+# Robometer's raw progress is a learned estimate in [0, 1] whose scale differs by task: a completed
+# put_green_block_into_bowl reads ~0.8, a completed put_banana_into_box ~0.7-0.8, and nothing
+# reaches 1.0. So `--robometer` maps raw -> (raw - floor) / (ceiling - floor), clipped to [0, 1]:
+#
+#   ceiling   raw score at which the task counts as DONE. Calibrated progress 1.0 == raw >= ceiling,
+#             and that is what binary_SR and the terminal countdown key on (the default
+#             --robometer_success_threshold is 1.0, in calibrated units).
+#   floor     raw score of the untouched start state (0.0 = a pure rescale by the ceiling). The
+#             observed first-query values in the runs below were 0.15-0.21; raising floor to that
+#             makes calibrated 0 mean "nothing done yet" instead of the model's resting bias.
+#
+# A task with NO entry is passed through uncalibrated (floor 0, ceiling 1): its task_progression is
+# the raw score and it can never count as a success. The scorer says so once per run.
+#
+# THE NUMBERS DEPEND ON THE CAMERA SETUP. "raw" here is the FUSED raw of the scorer's default
+# configuration: base (exterior) AND wrist camera, fused by max (--robometer_cameras base,wrist
+# --robometer_fusion max). Base-only plateaus were 0.05-0.10 lower (0.81 / 0.70 / 0.76 for the
+# three tasks below). Re-fit this file whenever the cameras, the fusion, the frame subsampling, the
+# checkpoint or the camera placement changes.
+#
+# PROVENANCE. These are seeds, not fits: one local pi0.5 rollout per task on 2026-09-05 (DROID_mounted,
+# Default perturbation, rubric SUCCESS on all three), scored causally from the recording with
+# scripts/robometer_replay_video.py --cameras base,wrist --fusion max; ceiling = the fused trace's
+# final plateau, rounded. The 5-task x 8-rollout cluster fit (2026-09-05, per-task best thresholds
+# 0.641-0.860, base camera only, whole clips) is NOT directly transferable to this setup.
+#
+# realm/robometer_calibration.py reads this file; tests/test_robometer_calibration.py checks it.
+tasks:
+  put_green_block_into_bowl:
+    ceiling: 0.82     # fused plateau 0.78-0.83 after the place (rubric SUCCESS at step 149)
+    floor: 0.0
+  put_banana_into_box:
+    ceiling: 0.78     # fused 0.77-0.79 at the end; the wrist view holds after release where the
+    floor: 0.0        # exterior view alone dropped to 0.56 (rubric SUCCESS at step 177)
+  pick_spoon:
+    ceiling: 0.82     # fused plateau 0.79-0.82 with the spoon held high (rubric SUCCESS at 427).
+    floor: 0.0        # CAUTION: an early FAILED grasp attempt (rubric GRASP only at 240) read 0.81
+                      # fused at step 87, so this ceiling sits ~0.01 above a false positive; n=1.

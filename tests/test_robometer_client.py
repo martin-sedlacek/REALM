@@ -34,6 +34,7 @@ from robometer_client import (  # noqa: E402
     build_multipart_payload,
     make_progress_sample,
     parse_progress_response,
+    subsample_frames,
 )
 
 
@@ -94,6 +95,20 @@ def main():
             check(1, False, f"shape {bad.shape} is rejected")
         except ValueError:
             check(1, True, f"shape {bad.shape} is rejected")
+
+    # [1b] clip subsampling: robometer's linspace rule -------------------------------------------
+    clip = np.arange(40, dtype=np.uint8)[:, None, None, None] * np.ones((1, 2, 2, 3), np.uint8)
+    sub = subsample_frames(clip, 16)
+    picked = sub[:, 0, 0, 0].tolist()
+    check(1, sub.shape == (16, 2, 2, 3) and picked[0] == 0 and picked[-1] == 39
+          and picked == sorted(picked) and picked == np.rint(np.linspace(0, 39, 16)).astype(int).tolist(),
+          "40 frames -> 16 by rounded linspace, first and last kept, non-decreasing")
+    check(1, subsample_frames(clip[:10], 16).shape[0] == 10 and subsample_frames(clip, 0).shape[0] == 40
+          and subsample_frames(clip, None).shape[0] == 40,
+          "T <= max_frames, max_frames 0 and None leave the clip unchanged")
+    check(1, subsample_frames(clip, 1)[:, 0, 0, 0].tolist() == [39], "max_frames=1 keeps only the last frame")
+    check(1, subsample_frames(clip[:16], 16)[:, 0, 0, 0].tolist() == list(range(16)),
+          "T == max_frames is the identity")
 
     # [2] sample + multipart layout ----------------------------------------------------------------
     frames = _clip(7)

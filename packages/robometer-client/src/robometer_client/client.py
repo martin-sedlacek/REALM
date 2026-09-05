@@ -42,6 +42,19 @@ WHAT THE TRACE LENGTH MEANS -- read before wiring this into per-step scoring
                             trace has exactly T entries aligned to the input frames. Slower by a
                             factor of T; better aligned with how the model was trained.
 
+THE SERVER DOES NOT SUBSAMPLE ON THIS ENDPOINT -- send at most `max_frames` yourself
+-----------------------------------------------------------------------------------
+    /evaluate_batch_npy hands the frames straight to the collator: every frame you send becomes
+    vision tokens, and the trace has T entries because T frames went through the model. The
+    training-time rule (robometer/data/datasets/helpers.py::linspace_subsample_frames, max_frames
+    16 for Robometer-4B) is applied only by the dataset loaders, not by the server. So a growing
+    causal clip grows the forward pass with it: a 442-frame clip at 256x144 took the server past
+    the memory of a 32 GB card that it shares with a policy server (measured 2026-09-05, CUDA OOM),
+    and every frame past 16 is also outside the distribution the model was trained on.
+    `subsample_frames` is that rule, exactly, so a caller can hold the clip at max_frames while
+    keeping the first and the current frame -- ProgressResult.reward is then still the estimate
+    for the current frame.
+
 Progress is what Robometer predicts. It is a learned estimate of task completion in [0, 1], not a
 rubric stage count, so it is NOT interchangeable with realm.environments.task_progression's scores
 and must never be written into their columns.
@@ -128,6 +141,25 @@ def as_frames_array(frames: Any) -> np.ndarray:
     if arr.dtype != np.uint8:
         arr = np.clip(arr, 0, 255).astype(np.uint8)
     return np.ascontiguousarray(arr)
+
+
+def subsample_frames(frames: Any, max_frames: int) -> np.ndarray:
+    """Robometer's training-time clip rule (helpers.py::linspace_subsample_frames), so a clip sent
+    to the server matches what the model was trained on: at most `max_frames` frames, evenly spaced
+    by rounded linspace over [0, T-1], the first and the LAST frame always kept, indices
+    non-decreasing. `max_frames <= 0` or T <= max_frames returns the clip unchanged. The last frame
+    is what ProgressResult.reward reports on, so subsampling never moves the reward's subject."""
+    arr = as_frames_array(frames)
+    n = arr.shape[0]
+    if max_frames is None or max_frames <= 0 or n <= max_frames:
+        return arr
+    if max_frames == 1:
+        return arr[-1:]
+    idx = np.rint(np.linspace(0, n - 1, max_frames)).astype(int).tolist()
+    idx[0], idx[-1] = 0, n - 1
+    for k in range(1, len(idx)):
+        idx[k] = min(max(idx[k], idx[k - 1]), n - 1)
+    return arr[idx]
 
 
 def make_progress_sample(frames: np.ndarray, task: str, sample_id: str) -> Dict[str, Any]:

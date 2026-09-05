@@ -47,10 +47,14 @@ A run with `--robometer` (see [Running evaluations](Running-Evaluations)) append
 | `rubric_task_progression` | what the rubric would have recorded for the same rollout, for comparison |
 | `robometer_success_prob` | the model's success-head probability at the last query; empty if the checkpoint has none |
 | `robometer_queries` | how many times the server was asked during the rollout |
-| `robometer_query_steps`, `robometer_progress_trace`, `robometer_success_trace` | per-query lists: the control step of each query and the raw progress / success outputs at it (not the running max) — plot these against the video to judge the estimate |
+| `robometer_query_steps`, `robometer_progress_trace`, `robometer_success_trace` | per-query lists: the control step of each query and the **raw** progress / success outputs at it (not calibrated, not the running max) — plot these against the video, or re-fit the calibration from them |
+| `robometer_cameras`, `robometer_fusion`, `robometer_progress_trace_<camera>` | which cameras were scored (`base+wrist` by default), how their raw scores were fused (`max`), and each camera's own unfused raw trace |
+| `robometer_raw_max`, `robometer_floor`, `robometer_ceiling`, `robometer_calibrated` | the highest raw score seen and the per-task calibration that turned raw into `task_progression`; `robometer_calibrated` is `False` when the task had no entry (raw passed through, success unreachable) |
 
-In such a run `task_progression` is Robometer's running-max progress estimate and `binary_SR` is
-`task_progression >= success_threshold`. Do not average these rows with rubric rows.
+In such a run `task_progression` is the running max of the **calibrated** estimate,
+`clip((raw - floor) / (ceiling - floor), 0, 1)`, and `binary_SR` is
+`task_progression >= success_threshold` (default 1.0 = raw reached the ceiling). Do not average
+these rows with rubric rows.
 
 `object_drops` has one adjustment worth knowing: a successful `put` or `stack` necessarily involves
 releasing the object, so one drop is subtracted when the task succeeded.

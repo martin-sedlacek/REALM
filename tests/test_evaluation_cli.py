@@ -42,8 +42,12 @@ def test_robometer_flags_default_off_on_both_parsers():
         assert args.robometer is False
         assert args.robometer_host == "127.0.0.1"
         assert args.robometer_port == 8010
-        assert args.robometer_success_threshold == 0.9
+        assert args.robometer_success_threshold == 1.0
         assert args.robometer_frame_size == 256
+        assert args.robometer_max_frames == 16
+        assert args.robometer_calibration == "realm/config/robometer_calibration.yaml"
+        assert args.robometer_cameras == "base,wrist"
+        assert args.robometer_fusion == "max"
         assert build_scorer(args) is None
 
 

@@ -1,3 +1,4 @@
 [submodule "packages/robometer"]
 	path = packages/robometer
 	url = https://github.com/robometer/robometer.git
+	ignore = untracked

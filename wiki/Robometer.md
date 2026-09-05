@@ -129,6 +129,72 @@ Either way the **last** entry is the model's estimate for the clip's final frame
 `result.reward` returns. This is Robometer's own reward convention, and it is what `--robometer`
 records: the scorer uses the default (`use_frame_steps=False`), one forward pass per query.
 
+> **The server does not subsample, so the client must.** The measurement above is the other half
+> of this: `len(progress) == T` because all `T` frames go through the vision tower. Robometer-4B
+> was trained on clips linspace-subsampled to 16 frames, and a causal clip that keeps every
+> chunk-boundary frame is both off-distribution and unbounded in cost: on 2026-09-05 an
+> unsubsampled 442-frame prefix at 256x144 drove the server into CUDA OOM on a 32 GB card shared
+> with pi0.5. `robometer_client.subsample_frames(frames, 16)` is the training rule (first and last
+> frame always kept), `RobometerScorer` applies it (`--robometer_max_frames`, default 16), and so
+> does `scripts/robometer_replay_video.py`. The cluster measurements in the commit that found the
+> `T` rule were made before this and sent whole clips.
+
+## Calibrating raw scores to 0–1 per task
+
+Robometer's raw progress does not share a scale across tasks: on local pi0.5 rollouts that the
+rubric scored SUCCESS, scored on the exterior camera alone, a finished `put_green_block_into_bowl`
+plateaued at 0.77–0.81, a finished `put_banana_into_box` at 0.65–0.70, a finished `pick_spoon` at
+0.70–0.76, and the cluster fit over 40 rollouts put per-task best thresholds between 0.64 and 0.86.
+Nothing reaches 1.0. So `--robometer` maps raw scores per task before recording them:
+
+```
+task_progression = clip((raw - floor) / (ceiling - floor), 0, 1)
+```
+
+with `floor` and `ceiling` per task in `realm/config/robometer_calibration.yaml` (the file's header
+is the contract and the provenance). `ceiling` is the raw score that counts as done; calibrated
+`1.0` is therefore the success condition, and `--robometer_success_threshold` defaults to `1.0`.
+`floor` is the raw score of the untouched start state; `0.0` gives a pure rescale by the ceiling,
+and raising it to the observed resting value (about 0.15–0.2) makes calibrated `0` mean "nothing
+done yet". A task with no entry is passed through raw, warned about, and can never succeed.
+
+The shipped entries are seeds from **one** rollout per task, fitted to the scorer's default camera
+setup (base + wrist, max fusion, see below); the reports keep the raw traces
+(`robometer_progress_trace`, `robometer_progress_trace_<camera>`) precisely so the table can be
+re-fitted from many. Re-fit whenever the checkpoint, the cameras, the fusion or the frame
+subsampling changes. `realm/robometer_calibration.py` is host-importable and
+`tests/test_robometer_calibration.py` checks the file against the task configs.
+
+## Which cameras are scored
+
+`--robometer_cameras` (default `base,wrist`) and `--robometer_fusion` (default `max`). `base` is
+the exterior view the policy is shown; `wrist` is the gripper camera, which `VideoRecorder` also
+tiles into every recording. All cameras of a query go to the server in one request and their raw
+scores are fused before calibration; each camera's own trace is kept in the report.
+
+What the three local rollouts showed (causal replay, 16-frame clips):
+
+| task | base max / final | wrist max / final | note |
+|---|---|---|---|
+| put_green_block_into_bowl | 0.81 / 0.80 | 0.83 / 0.83 | both agree; wrist a touch higher |
+| put_banana_into_box | 0.70 / **0.57** | 0.79 / 0.79 | exterior view drops after the release, wrist holds |
+| pick_spoon | 0.76 / 0.75 | 0.82 / 0.82 | wrist read **0.81 during an early failed grasp** (rubric GRASP only at step 240) |
+
+So the wrist view fixes the banana's post-release drop but is the more optimistic camera, and `max`
+inherits that optimism: the spoon's early failed attempt sits one hundredth below its ceiling. If
+false positives matter more than recall, `mean` or `min` are the conservative choices; whichever is
+used, the calibration table has to be fitted with the same setting.
+
+## Replaying a recorded rollout with the score drawn on the video
+
+`scripts/robometer_replay_video.py <run_dir> --task <task> --port 8010 --out <mp4>` re-scores a
+recorded rollout's base-camera frames **causally** (prefix by prefix at the action-chunk cadence,
+same downscale, same subsampling, the report's own instruction) and renders the Robometer trace
+unrolling above the video, with the rubric's stage completions as green ticks. It needs the server
+and the run's `videos/*.parquet` and report, not the simulator, so it also works when the policy
+server, Isaac and Robometer do not fit on one GPU together: record with the rubric, then replay.
+The scored trace is written next to the video as `<out>.json`.
+
 Unlike the openpi client, a connection failure raises immediately (`requests.ConnectionError`).
 Do a preflight with `wait_until_healthy()` before starting an eval, as REALM's launchers already do
 for the policy port.

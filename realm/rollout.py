@@ -162,6 +162,8 @@ class RolloutMetrics:
         self.scorer_query_steps = []
         self.scorer_progress_trace = []
         self.scorer_success_trace = []
+        # Per-camera raw traces when a scorer fuses several views: {camera: [raw, ...]}.
+        self.scorer_camera_traces = {}
         self.terminal_steps = TERMINAL_STEPS
         self.collisions_self = 0
         self.collisions_env = 0
@@ -233,9 +235,9 @@ class Rollout:
         self.action_buffer = Queue()
         self.last_command = None
         self.active = True
-        #: Exterior frames handed to a video-based progress scorer, in step order. Empty under the
-        #: rubric scorer; realm/progress_scorer.py's RobometerScorer appends to it.
-        self.clip = []
+        #: Frames handed to a video-based progress scorer, per camera name, in step order. Empty
+        #: under the rubric scorer; realm/progress_scorer.py's RobometerScorer appends to it.
+        self.clips = {}
 
     def observe(self, obs, obs_is_fresh):
 

@@ -69,6 +69,7 @@ def evaluate_vectorized(
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
                                        name_includes_config=False)
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
+    scorer.configure(task)
 
     print(f"[vec_eval] building {num_envs} environments...", flush=True)
     vec_env = RealmVectorEnvironment(

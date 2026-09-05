@@ -1,6 +1,6 @@
 [project]
 name = "robometer-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "HTTP client for a running Robometer (RBM) reward-model eval server; no robometer dependency"
 requires-python = ">=3.8"
 dependencies = [

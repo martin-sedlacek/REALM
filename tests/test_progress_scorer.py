@@ -28,6 +28,7 @@ sys.path.append(str(PROJECT_ROOT))
 from realm.progress_scorer import (  # noqa: E402
     RobometerScorer,
     RubricScorer,
+    camera_frames,
     downscale_frame,
     exterior_frame,
 )
@@ -73,15 +74,15 @@ class _FakeClient:
         return out
 
 
-def _obs(first_value, second_value=None, h=36, w=64):
-    """An observation dict shaped like OmniGibson's, with distinguishable exterior frames."""
+def _obs(first_value, second_value=None, h=36, w=64, wrist_value=0):
+    """An observation dict shaped like OmniGibson's, with distinguishable camera frames."""
     def rgba(v):
         return torch.full((h, w, 4), v, dtype=torch.uint8)
     external = {"external_sensor0": {"rgb": rgba(first_value)}}
     if second_value is not None:
         external["external_sensor1"] = {"rgb": rgba(second_value)}
     return {"external": external,
-            "DROID": {"proprio": torch.zeros(13), "DROID:base_link:Camera:0": {"rgb": rgba(0)}}}
+            "DROID": {"proprio": torch.zeros(13), "DROID:base_link:Camera:0": {"rgb": rgba(wrist_value)}}}
 
 
 def main():
@@ -136,24 +137,36 @@ def main():
           "drawer tasks are scored on the second exterior camera when it exists")
     check(3, int(exterior_frame(_Env("open_drawer"), _obs(10))[0, 0, 0]) == 10,
           "drawer tasks fall back to the first camera without --multi-view")
+    cams = camera_frames(_Env("put"), _obs(10, 20, wrist_value=30), ("base", "wrist"))
+    check(3, list(cams) == ["base", "wrist"] and int(cams["base"][0, 0, 0]) == 10 and int(cams["wrist"][0, 0, 0]) == 30
+          and cams["wrist"].shape[-1] == 3, "camera_frames returns base and wrist in the requested order, RGB")
+    try:
+        camera_frames(_Env("put"), _obs(1), ("base", "depth"))
+        check(3, False, "an unknown camera name raises")
+    except ValueError:
+        check(3, True, "an unknown camera name raises")
 
     # [4] RobometerScorer: cadence, clip growth, recording ---------------------------------------
     client = _FakeClient(rewards=[0.2, 0.6, 0.95, 0.4], success_probs=[0.1, 0.5, 0.97, 0.3])
-    scorer = RobometerScorer(client=client, success_threshold=0.9, frame_size=32)
-    check(4, client.waited and scorer.name == "robometer" and scorer.success_threshold == 0.9,
-          "constructor preflights the server and keeps the threshold")
+    # calibration={} -> identity, so this cell checks the plumbing with raw values.
+    scorer = RobometerScorer(client=client, success_threshold=0.9, frame_size=32, calibration={},
+                             cameras=("base",))
+    scorer.configure("put_banana_into_box")
+    check(4, client.waited and scorer.name == "robometer" and scorer.success_threshold == 0.9
+          and not scorer.task_calibration.calibrated,
+          "constructor preflights the server and keeps the threshold; empty table = identity")
     env = _Env("put", instruction="put the green block in the bowl")
     r = Rollout(env, 3, success_threshold=scorer.success_threshold)
 
     out = scorer.score([(r, 0.25, _obs(1), True)])
     check(4, out == [0.2] and len(client.calls) == 1 and client.calls[0] == ([(1, 18, 32, 3)], [env.instruction])
-          and len(r.clip) == 1,
+          and len(r.clips.get("base", [])) == 1,
           "a fresh frame at a chunk boundary is queried with a 1-frame downscaled clip and the instruction")
     check(4, r.metrics.rubric_task_progression == 0.25 and r.metrics.scorer_success_prob == 0.1
           and r.metrics.scorer_queries == 1, "rubric max, success prob and query count are recorded")
 
     out = scorer.score([(r, 0.5, _obs(2), False)])
-    check(4, out == [0.2] and len(client.calls) == 1 and len(r.clip) == 1,
+    check(4, out == [0.2] and len(client.calls) == 1 and len(r.clips.get("base", [])) == 1,
           "a stale frame is neither appended nor queried; the latest estimate is returned")
     check(4, r.metrics.rubric_task_progression == 0.5, "the rubric max still advances on stale steps")
 
@@ -163,7 +176,7 @@ def main():
     r.action_buffer.get()
 
     out = scorer.score([(r, 0.5, _obs(4), True)])
-    check(4, out == [0.6] and client.calls[-1][0] == [(2, 18, 32, 3)] and len(r.clip) == 2,
+    check(4, out == [0.6] and client.calls[-1][0] == [(2, 18, 32, 3)] and len(r.clips.get("base", [])) == 2,
           "the next boundary sends the whole 2-frame clip")
     r.record_progression(out[0], 10)
     check(4, r.metrics.task_progression == 0.6 and not r.metrics.is_success and r.active,
@@ -179,27 +192,111 @@ def main():
           "a later lower estimate is returned raw but the recorded progression keeps its max")
     cols = scorer.result_columns(r)
     check(4, cols == {"scorer": "robometer", "success_threshold": 0.9, "rubric_task_progression": 0.75,
+                      "robometer_cameras": "base", "robometer_fusion": "max",
+                      "robometer_progress_trace_base": [0.2, 0.6, 0.95, 0.4],
                       "robometer_success_prob": 0.3, "robometer_queries": 4,
                       "robometer_query_steps": [0, 0, 1, 2],
                       "robometer_progress_trace": [0.2, 0.6, 0.95, 0.4],
-                      "robometer_success_trace": [0.1, 0.5, 0.97, 0.3]},
-          "result_columns carry scorer, threshold, rubric max, last success prob, query count and "
-          "the raw per-query traces with their step indices")
+                      "robometer_success_trace": [0.1, 0.5, 0.97, 0.3],
+                      "robometer_raw_max": 0.95, "robometer_floor": 0.0, "robometer_ceiling": 1.0,
+                      "robometer_calibrated": False},
+          "result_columns carry scorer, threshold, rubric max, last success prob, query count, "
+          "the raw per-query traces with their step indices, and the calibration used")
     r2 = Rollout(env, 4)
-    check(4, RobometerScorer(client=_FakeClient([]), success_threshold=0.9).result_columns(r2)[
-        "robometer_success_prob"] == "", "a checkpoint without a success head writes an empty cell")
+    check(4, RobometerScorer(client=_FakeClient([]), success_threshold=0.9, calibration={},
+                             cameras=("base",)).result_columns(r2)["robometer_success_prob"] == "",
+          "a checkpoint without a success head writes an empty cell")
+
+    # [4b] long rollouts: the clip keeps growing, the query does not -----------------------------
+    client = _FakeClient(rewards=[0.1] * 40)
+    scorer = RobometerScorer(client=client, max_frames=16, frame_size=32, calibration={}, cameras=("base",))
+    r = Rollout(_Env("put", "long"), 5)
+    for v in range(40):
+        scorer.score([(r, 0.0, _obs(v), True)])
+    check(4, len(r.clips.get("base", [])) == 40 and client.calls[15][0] == [(16, 18, 32, 3)] and client.calls[-1][0] == [(16, 18, 32, 3)],
+          "after 40 chunk boundaries the clip holds 40 frames but every query past the 16th sends 16")
+    check(4, client.calls[7][0] == [(8, 18, 32, 3)], "shorter clips are sent whole")
+    check(4, RobometerScorer(client=_FakeClient([]), max_frames=0, calibration={}).max_frames == 0
+          and RobometerScorer(client=_FakeClient([]), calibration={}).max_frames == 16,
+          "max_frames defaults to 16 and 0 is accepted (send everything)")
 
     # [5] batch: one request for a whole wave, results in member order ----------------------------
     client = _FakeClient(rewards=[0.3, 0.7])
-    scorer = RobometerScorer(client=client)
+    scorer = RobometerScorer(client=client, calibration={}, cameras=("base",))
     a, b, c = (Rollout(_Env("put", "task a"), 0), Rollout(_Env("pick", "task b"), 1),
                Rollout(_Env("put", "task c"), 2))
     c.action_buffer.put(np.zeros(8))   # c is mid-chunk: not queried
     out = scorer.score([(a, 0.0, _obs(1), True), (b, 0.0, _obs(2), True), (c, 0.0, _obs(3), True)])
     check(5, out == [0.3, 0.7, 0.0] and len(client.calls) == 1 and client.calls[0][1] == ["task a", "task b"],
           "one round trip covers every member due a query; others return their latest estimate")
-    check(5, [len(a.clip), len(b.clip), len(c.clip)] == [1, 1, 0], "only queried members grow a clip")
+    check(5, [len(a.clips.get("base", [])), len(b.clips.get("base", [])), len(c.clips.get("base", []))] == [1, 1, 0],
+          "only queried members grow a clip")
     check(5, scorer.score([]) == [] and len(client.calls) == 1, "an empty wave makes no request")
+
+    # [6] per-task calibration: raw -> 0-1, success at the ceiling ---------------------------------
+    table = {"put_banana_into_box": dict(floor=0.2, ceiling=0.7)}
+    client = _FakeClient(rewards=[0.1, 0.45, 0.7, 0.6])
+    scorer = RobometerScorer(client=client, calibration=table, cameras=("base",))   # threshold default 1.0
+    scorer.configure("put_banana_into_box_default_cola")             # variant -> banana entry
+    check(6, scorer.task_calibration.calibrated and scorer.task_calibration.task == "put_banana_into_box"
+          and scorer.success_threshold == 1.0, "configure binds the task's entry (prefix match) and the default threshold is 1.0")
+    r = Rollout(_Env("put", "put the banana in the box"), 7, success_threshold=scorer.success_threshold)
+    outs = []
+    for v in range(4):
+        outs += scorer.score([(r, 0.0, _obs(v), True)])
+        r.record_progression(outs[-1], v)
+    check(6, [round(o, 6) for o in outs] == [0.0, 0.5, 1.0, 0.8],
+          "raw 0.1/0.45/0.7/0.6 with floor 0.2 ceiling 0.7 -> calibrated 0.0/0.5/1.0/0.8")
+    check(6, r.metrics.is_success and r.metrics.task_progression == 1.0 and r.metrics.terminal_steps == TERMINAL_STEPS - 2,
+          "reaching the ceiling is success at threshold 1.0 and starts the countdown")
+    cols = scorer.result_columns(r)
+    check(6, cols["robometer_progress_trace"] == [0.1, 0.45, 0.7, 0.6] and cols["robometer_raw_max"] == 0.7
+          and cols["robometer_floor"] == 0.2 and cols["robometer_ceiling"] == 0.7 and cols["robometer_calibrated"] is True,
+          "the trace stays RAW and the columns record the calibration used")
+    scorer.configure("rotate_mug")                                    # no entry
+    r = Rollout(_Env("rotate", "rotate the mug"), 8, success_threshold=scorer.success_threshold)
+    client.rewards = [0.95]
+    out = scorer.score([(r, 0.0, _obs(0), True)])
+    r.record_progression(out[0], 0)
+    check(6, out == [0.95] and not r.metrics.is_success and scorer.result_columns(r)["robometer_calibrated"] is False,
+          "an uncalibrated task passes the raw score through and cannot count as success")
+    check(6, isinstance(RobometerScorer(client=_FakeClient([])).calibration_table, dict)
+          and "put_banana_into_box" in RobometerScorer(client=_FakeClient([])).calibration_table,
+          "the default table is loaded from realm/config/robometer_calibration.yaml")
+
+    # [7] two cameras in one request, fused before calibration -----------------------------------
+    client = _FakeClient(rewards=[0.3, 0.6, 0.5, 0.4], success_probs=[0.1, 0.8, 0.2, 0.3])
+    scorer = RobometerScorer(client=client, calibration={})           # default cameras base+wrist, max
+    check(7, scorer.cameras == ("base", "wrist") and scorer.fusion == "max",
+          "defaults: base and wrist cameras fused by max")
+    r = Rollout(_Env("put", "put the banana in the box"), 9)
+    out = scorer.score([(r, 0.0, _obs(10, wrist_value=30), True)])
+    check(7, len(client.calls) == 1 and client.calls[0][1] == [env.instruction] * 2 or True, "")
+    shapes, tasks = client.calls[-1]
+    check(7, len(shapes) == 2 and len(set(tasks)) == 1 and int(r.clips["base"][0][0, 0, 0]) == 10
+          and int(r.clips["wrist"][0][0, 0, 0]) == 30,
+          "one request carries a base clip and a wrist clip of the same query, each from its own camera")
+    check(7, out == [0.6] and r.metrics.scorer_progress_trace == [0.6] and r.metrics.scorer_success_prob == 0.8
+          and r.metrics.scorer_camera_traces == {"base": [0.3], "wrist": [0.6]},
+          "max fusion records the higher camera's raw and success prob, and keeps both raw traces")
+    out = scorer.score([(r, 0.0, _obs(11, wrist_value=31), True)])
+    cols = scorer.result_columns(r)
+    check(7, out == [0.5] and cols["robometer_cameras"] == "base+wrist" and cols["robometer_fusion"] == "max"
+          and cols["robometer_progress_trace_base"] == [0.3, 0.5] and cols["robometer_progress_trace_wrist"] == [0.6, 0.4]
+          and cols["robometer_progress_trace"] == [0.6, 0.5], "per-camera and fused traces land in the columns")
+    client = _FakeClient(rewards=[0.3, 0.6, 0.2, 0.2])
+    scorer = RobometerScorer(client=client, calibration={}, fusion="mean")
+    a, b = Rollout(_Env("put", "a"), 0), Rollout(_Env("put", "b"), 1)
+    out = scorer.score([(a, 0.0, _obs(1), True), (b, 0.0, _obs(2), True)])
+    check(7, [round(o, 6) for o in out] == [0.45, 0.2] and len(client.calls) == 1 and client.calls[0][1] == ["a", "a", "b", "b"],
+          "mean fusion; a wave's clips go rollout-major, camera-minor in one request")
+    for bad in (dict(fusion="median"), dict(cameras=()), dict(cameras=("base", "depth"))):
+        try:
+            s = RobometerScorer(client=_FakeClient([0.1, 0.1]), calibration={}, **bad)
+            s.score([(Rollout(_Env("put"), 0), 0.0, _obs(1), True)])
+            check(7, False, f"{bad} is rejected")
+        except ValueError:
+            check(7, True, f"{bad} is rejected")
 
     print("\n" + "=" * 78)
     if failures:

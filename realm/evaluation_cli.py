@@ -63,11 +63,25 @@ def build_evaluation_parser(*, vectorized=False):
                          help="Robometer server host")
     scoring.add_argument("--robometer_port", type=int, default=8010,
                          help="Robometer server port (keep it distinct from --port)")
-    scoring.add_argument("--robometer_success_threshold", type=float, default=0.9,
-                         help="Robometer progress at or above which a rollout counts as a success "
-                              "(binary_SR, and the terminal countdown)")
+    scoring.add_argument("--robometer_success_threshold", type=float, default=1.0,
+                         help="CALIBRATED Robometer progress at or above which a rollout counts as a "
+                              "success (binary_SR, and the terminal countdown). 1.0 = the raw score "
+                              "reached the task's calibrated ceiling")
+    scoring.add_argument("--robometer_cameras", type=str, default="base,wrist",
+                         help="Comma-separated cameras scored per query: base (the exterior view the "
+                              "policy sees) and/or wrist")
+    scoring.add_argument("--robometer_fusion", type=str, default="max", choices=["max", "min", "mean"],
+                         help="How the cameras' raw scores are combined before calibration")
+    scoring.add_argument("--robometer_calibration", type=str,
+                         default="realm/config/robometer_calibration.yaml",
+                         help="Per-task raw->0-1 calibration table (floor/ceiling per task). "
+                              "Relative paths resolve against the repo root")
     scoring.add_argument("--robometer_frame_size", type=int, default=256,
                          help="Longest side, in pixels, of the frames sent to the server")
+    scoring.add_argument("--robometer_max_frames", type=int, default=16,
+                         help="Frames per query: the clip so far is linspace-subsampled to this many "
+                              "(first and current frame kept). 16 is the model's training clip "
+                              "length; 0 sends every frame (grows without bound)")
 
     return parser
 
@@ -81,12 +95,23 @@ def build_scorer(args):
     """
     if not getattr(args, "robometer", False):
         return None
+    import os
+
     from realm.progress_scorer import RobometerScorer
+
+    calibration = args.robometer_calibration
+    if not os.path.isabs(calibration):
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        calibration = os.path.join(repo_root, calibration)
     return RobometerScorer(
         host=args.robometer_host,
         port=args.robometer_port,
         success_threshold=args.robometer_success_threshold,
         frame_size=args.robometer_frame_size,
+        max_frames=args.robometer_max_frames,
+        cameras=tuple(c.strip() for c in args.robometer_cameras.split(",") if c.strip()),
+        fusion=args.robometer_fusion,
+        calibration=calibration,
     )
 
 

@@ -13,9 +13,10 @@ from robometer_client.client import (
     build_multipart_payload,
     make_progress_sample,
     parse_progress_response,
+    subsample_frames,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "DEFAULT_PORT",
@@ -27,4 +28,5 @@ __all__ = [
     "build_multipart_payload",
     "make_progress_sample",
     "parse_progress_response",
+    "subsample_frames",
 ]

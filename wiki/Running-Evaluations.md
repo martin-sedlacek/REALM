@@ -67,8 +67,12 @@ Relevant optional environment variables are:
 | `--robometer` | flag | off — score `task_progression` with a [Robometer](Robometer) server instead of the rubric |
 | `--robometer_host` | str | `127.0.0.1` |
 | `--robometer_port` | int | `8010` — keep it distinct from `--port` |
-| `--robometer_success_threshold` | float | `0.9` — Robometer progress at or above which a rollout is a success |
+| `--robometer_success_threshold` | float | `1.0` — *calibrated* progress at or above which a rollout is a success; 1.0 = raw reached the task's ceiling |
+| `--robometer_calibration` | str | `realm/config/robometer_calibration.yaml` — per-task floor/ceiling table |
 | `--robometer_frame_size` | int | `256` — longest side of the frames sent to the server |
+| `--robometer_max_frames` | int | `16` — frames per query after linspace subsampling; `0` sends every frame |
+| `--robometer_cameras` | str | `base,wrist` — cameras scored per query (`base` = the exterior view the policy sees) |
+| `--robometer_fusion` | str | `max` — how the cameras' raw scores combine; `min` or `mean` |
 
 Note the inconsistent separators: `--multi-view` has a dash, `--no_record` and `--no_render` have
 underscores, and the negation of `--render_on_demand` is spelled `--no-render_on_demand`. These are
@@ -92,16 +96,36 @@ exterior camera the policy sees. The rubric is still computed, and kept in a sid
 What changes, concretely:
 
 - **Cadence.** Once per action chunk: at every step whose observation is a fresh frame *and* whose
-  action buffer has just run dry, the frames seen so far (downscaled to `--robometer_frame_size`)
-  plus the current instruction go to the server in one request. Between queries the last estimate
-  stands. The recorded value is the running maximum, as it is for the rubric.
+  action buffer has just run dry, the frames seen so far (downscaled to `--robometer_frame_size`,
+  then linspace-subsampled to `--robometer_max_frames` with the first and current frame kept) plus
+  the current instruction go to the server in one request. Between queries the last estimate
+  stands. The recorded value is the running maximum, as it is for the rubric. The subsampling is
+  Robometer's own training rule and is not optional in practice: the server processes every frame
+  it is sent, and an unsubsampled 500-step clip drove it out of GPU memory.
+- **Cameras.** By default both the exterior view the policy sees (`base`) and the wrist camera are
+  scored, as two clips in the same request, and their raw scores are fused by `--robometer_fusion`
+  (`max` by default) before calibration. The wrist view sees the grasp and the object up close: on
+  the banana task it held 0.79 after the release where the exterior view alone fell to 0.56. It is
+  also the more optimistic view, and `max` inherits that: on a spoon rollout an early *failed*
+  grasp read 0.81 fused. Each camera's own raw trace is kept in the report. The second exterior
+  camera of `--multi-view` is not scored separately.
+- **Calibration.** Raw Robometer scores plateau at task-dependent levels (a finished
+  block-in-bowl reads about 0.8, a finished banana-in-box about 0.7, and nothing reaches 1.0), so
+  the raw score is mapped per task: `task_progression = clip((raw - floor) / (ceiling - floor),
+  0, 1)` with `floor`/`ceiling` from `realm/config/robometer_calibration.yaml`
+  (`--robometer_calibration`). A task without an entry is passed through raw, warned about at
+  start, and can never count as a success. The file's header says where the numbers come from and
+  how to re-fit them.
 - **Success.** `binary_SR`, the 15-step terminal countdown and the placement drop correction all
-  trigger at `task_progression >= --robometer_success_threshold` (default `0.9`), not at exactly
-  `1.0`.
+  trigger at calibrated `task_progression >= --robometer_success_threshold` (default `1.0`, i.e.
+  the raw score reached the task's ceiling).
 - **Report columns.** `scorer`, `success_threshold`, `rubric_task_progression`,
-  `robometer_success_prob`, `robometer_queries` and the per-query traces
-  (`robometer_query_steps`, `robometer_progress_trace`, `robometer_success_trace`) are appended;
-  see [Logging](Logging). `stage` is still the rubric's first incomplete stage.
+  `robometer_success_prob`, `robometer_queries`, the per-query **raw** traces
+  (`robometer_query_steps`, `robometer_progress_trace`, `robometer_success_trace`), the camera
+  setup (`robometer_cameras`, `robometer_fusion`, one `robometer_progress_trace_<camera>` per
+  camera) and the calibration used (`robometer_raw_max`, `robometer_floor`, `robometer_ceiling`,
+  `robometer_calibrated`) are appended; see [Logging](Logging). `stage` is still the rubric's
+  first incomplete stage.
 - **Failure mode.** The scorer is built before Isaac boots and waits for the server's `/health`, so
   a dead server fails the run in seconds. A server that dies mid-run raises on the next query.
 

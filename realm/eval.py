@@ -111,6 +111,7 @@ def evaluate(
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
                                        name_includes_config=True)
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
+    scorer.configure(task)
     os.makedirs(log_dir, exist_ok=True)
 
     client = InferenceClient(model_type, host=host, port=port)
