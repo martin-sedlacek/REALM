@@ -190,14 +190,14 @@ def test_sim_config_and_env_config_recognise_the_robot():
 
 def test_spawn_offset_moves_the_robot_toward_the_workspace_in_its_own_frame():
     """The offset is (forward, left, up) in the robot frame, whatever the scene's yaw: a robot facing +y
-    world with the YAM offset lands 0.40 m further along +y and 0.20 m along +x (its right)."""
+    world with the YAM offset lands 0.30 m further along +y and nowhere else."""
     import math
 
     from realm.geometry import offset_spawn_pose
 
     d = Y.SPAWN_OFFSET_POS
     assert d[0] > 0, "forward, toward the table"
-    assert d[1] < 0, "to the robot's right (-y in its frame)"
+    assert d[1] == 0.0, "no lateral offset"
     assert d[2] == 0.0 and Y.SPAWN_OFFSET_YAW_DEG == 0.0, "height stays mount_height, no yaw"
     pos, rpy = offset_spawn_pose([1.0, 2.0, 0.5], [0.0, 0.0, math.radians(90)], d, 0.0)
     assert pos == pytest.approx([1.0 - d[1], 2.0 + d[0], 0.5])

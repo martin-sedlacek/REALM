@@ -174,11 +174,11 @@ class YamRobot:
     MOUNT_HEIGHT = 0.863891
     #: Rigid offset of the robot from the DROID spawn pose, in the robot's own frame (forward, left, up)
     #: metres and yaw degrees: the YAM's reach (~0.6 m) is well short of the Franka's, so it is moved
-    #: 0.40 m toward the workspace and 0.20 m to its right. Chosen by eye in the Isaac GUI on 2026-09-05
+    #: 0.30 m straight toward the workspace. Chosen by eye in the Isaac GUI on 2026-09-05
     #: (the bimanual robot, whose frame is the midpoint of the two arm bases); the same offset is applied
     #: to the single arm so both YAM robots see the same scene. `spawn_offset` key in every YAM config;
     #: env_config moves the spawn, the robot-frame cameras and the EE transforms together.
-    SPAWN_OFFSET_POS = (0.40, -0.20, 0.0)
+    SPAWN_OFFSET_POS = (0.30, 0.0, 0.0)
     SPAWN_OFFSET_YAW_DEG = 0.0
 
     # ------------------------------------------------------------------------------------------

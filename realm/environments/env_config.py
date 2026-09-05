@@ -87,7 +87,7 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
     env.ee_control = robot_entry.get("ee_control", False)
     # REALM-only key: a rigid offset of the whole robot from the scene's spawn pose, in the robot's own
     # frame ({"pos": [forward, left, up] m, "yaw_deg"}). The YAM's reach is shorter than the Franka's, so
-    # its configs move it 0.40 m toward the workspace and 0.20 m to its right (chosen in the GUI,
+    # its configs move it 0.30 m straight toward the workspace (chosen in the GUI,
     # 2026-09-05). The objects stay where the scene puts them; everything expressed in the robot frame --
     # the spawn, robot-attached and task exterior cameras, the EE-control transforms -- follows the robot.
     # Absent for every DROID config, whose pose is the scene pose unchanged.
