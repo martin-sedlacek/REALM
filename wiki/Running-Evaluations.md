@@ -161,6 +161,9 @@ registered for OmniGibson 3.9.1 are:
 
 `UR5*` and `WidowX` configs exist but have no registered definition on 3.9.1 and do not load.
 
+The state of the YAM port -- what is verified, what is not, the controller-gap analysis and the plan -- is kept
+in [YAM port status](YAM-Port-Status).
+
 **YAM.** Ported from [YAMLab](https://github.com/ARISE-Initiative/yamlab): the spec is
 `realm/robots/yam.py`, the definition `realm/robots/definitions/yam/yam.yaml`, the asset
 `realm/robots/yam/yam.usd` (rebuilt from YAMLab's export by `scripts/build_yam_usd.py`; see

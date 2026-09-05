@@ -84,7 +84,7 @@ examples/   01_pi0_eval.py (hardcoded), 02_evaluate.py (the CLI),
 tests/      script-style tests + run_suite.py driver (see Testing below)
 scripts/    portable container launchers and evaluation utilities
 wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
-            Cluster-and-Parallel-Runs
+            Cluster-and-Parallel-Runs; YAM-Port-Status is the add-yam handoff
 ```
 
 ## Evaluation pipeline
