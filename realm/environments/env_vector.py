@@ -2,6 +2,7 @@
 import omnigibson as og
 
 from realm.environments.env_dynamic import RealmEnvironmentDynamic, WARMUP_STEPS
+from realm.environments.foam_ball_reset import run_foam_ball_placements
 from realm.environments.joint_reset import run_joint_resets
 from realm.environments.perturbations._helpers import (
     NEEDS_STOPPED_SIM,
@@ -47,6 +48,11 @@ class RealmVectorEnvironment:
         for env in self.envs:
             env.finalize_setup()
         self._drain_joint_resets()
+        # After the joint drain and after rebase_initial_file above: this ends by re-snapshotting
+        # each member's initial file with the balls inside its settled source, which has to be the
+        # last word on what reset() restores. One batched call for all members -- see
+        # foam_ball_reset for why a per-member loop would be wrong here.
+        run_foam_ball_placements(self.envs)
         og.log.info(f"{num_envs} environments ready.")
 
     def reset(self):
@@ -82,6 +88,7 @@ class RealmVectorEnvironment:
 
         for env in self.envs:
             env.capture_mo_reference()
+            env.capture_foam_ball_reference()
 
         stuck = [i for i, env in enumerate(self.envs) if env.pending_joint_reset is not None]
         assert not stuck, (
@@ -131,6 +138,7 @@ class RealmVectorEnvironment:
 
         for env in self.envs:
             env.capture_mo_reference()
+            env.capture_foam_ball_reference()
         og.log.info("Vector warmup finished.")
         return results
 

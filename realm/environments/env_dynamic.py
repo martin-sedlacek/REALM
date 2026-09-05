@@ -14,6 +14,7 @@ from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIG
 from realm.config.shared import UNSUPPORTED_BY_PERTURBATION
 from realm.environments.env_base import RealmEnvironmentBase
 from realm.environments.env_config import build_environment_config
+from realm.environments.foam_ball_reset import FoamBallMixin, foam_ball_cfgs
 from realm.environments.perturbations.registry import PERTURBATION_FNS
 from realm.environments.perturbations.v_aug import ALPHA_RANGE, SIGMA_RANGE, apply_blur_and_contrast
 from realm.environments.scene_setup import SceneSetupMixin
@@ -27,7 +28,7 @@ from realm.sim_config import set_rendering_mode
 
 
 
-class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
+class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBase):
     def __init__(
         self,
         config_path="/app/realm/config",
@@ -83,9 +84,31 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         self.mo_rot_orig = np.array(mo_cfgs[0]["orientation"] if "orientation" in mo_cfgs[0] else [0, 0, 0, 1])
         self.mo_bbox_orig = np.array(mo_cfgs[0]["bounding_box"])
 
+        # `bidirectional: true` (IMPACT/stack_plates) means the task is satisfied by EITHER object
+        # ending up on the other -- two plates are interchangeable in a way a green block and a
+        # yellow block are not. The stage checks in TaskProgressionMixin then have to score the
+        # target object as well, which needs its authored pose here beside the main object's.
+        self.bidirectional = bool(cfg.get("bidirectional", False)) and len(to_cfgs) > 0
+        if self.bidirectional:
+            self.to_pos_orig = np.array(to_cfgs[0]["position"])
+            self.to_rot_orig = np.array(to_cfgs[0]["orientation"] if "orientation" in to_cfgs[0] else [0, 0, 0, 1])
+            self.to_bbox_orig = np.array(to_cfgs[0]["bounding_box"])
+        else:
+            self.to_pos_orig = None
+            self.to_rot_orig = None
+            self.to_bbox_orig = None
+
         self.cfg = copy.deepcopy(cfg)
         self.task_type = self.cfg["task_type"]
         self.instruction = self.cfg["instruction"]
+
+        # After build_environment_config, so the balls never reach placement.place_within: they
+        # belong inside the source bottle, not scattered over the spawn region as distractors.
+        # They ride in dist_cfgs from here so they get scene handles and init_poses like any other
+        # object -- V-SC is told to leave them alone by name (foam_ball_names).
+        for ball_cfg in foam_ball_cfgs(cfg, mo_cfgs):
+            cfg["objects"].append(ball_cfg)
+            dist_cfgs.append(ball_cfg)
 
         self.in_vec_env = in_vec_env
         self.deferred_post_play = []
@@ -126,6 +149,8 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         if "VSB-NOBJ" in self.active_perturbations and self.task_type in ["open_drawer", "close_drawer"]:
             self.init_poses[self.main_objects[0]._relative_prim_path]["pos"][-1] += 0.3
 
+        self.bind_foam_balls()
+
         self.v_aug_sigma = None
         self.v_aug_alpha = None
 
@@ -136,6 +161,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
 
         self.disable_visual_toggles()
         set_rendering_mode(self.rendering_mode)
+        self.place_foam_balls()
 
         super().__init__(
             main_objects=self.main_objects,
@@ -195,6 +221,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         # Replacements change which object anchors progression metrics.
         if not self.in_vec_env:
             self.capture_mo_reference()
+            self.capture_foam_ball_reference()
         return obs
 
     def step(self, action, n_render_iterations=1):

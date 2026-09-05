@@ -85,8 +85,13 @@ def is_placed_on_target(env):
     if getattr(env, "task_type", None) not in PLACEMENT_TASK_TYPES or len(env.target_objects) == 0:
         return False
     main_object, target = env.main_objects[0], env.target_objects[0]
-    return bool(main_object.states[og.object_states.Inside].get_value(target)
-                or main_object.states[og.object_states.OnTop].get_value(target))
+    placed = bool(main_object.states[og.object_states.Inside].get_value(target)
+                  or main_object.states[og.object_states.OnTop].get_value(target))
+    # A bidirectional task (see RealmEnvironmentDynamic) is placed either way round, so releasing
+    # the target onto the main object is a completed placement, not a dropped object.
+    if not placed and getattr(env, "bidirectional", False):
+        placed = bool(target.states[og.object_states.OnTop].get_value(main_object))
+    return placed
 
 
 class RenderSchedule:

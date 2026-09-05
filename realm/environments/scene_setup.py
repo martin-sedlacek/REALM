@@ -3,6 +3,8 @@ import numpy as np
 import yaml
 
 import omnigibson as og
+
+from realm.environments.foam_ball_reset import prepare_pour_proxy_physics
 import omnigibson.lazy as lazy
 from omnigibson.utils.usd_utils import create_joint
 
@@ -116,6 +118,11 @@ class SceneSetupMixin:
 
             if manage_sim_state:
                 og.sim.play()
+
+        # Hollowing the source and authoring its masses needs the simulator stopped, and this is
+        # the one setup hook both paths enter in that state: the vector build stops once for every
+        # member and calls in with manage_sim_state=False.
+        prepare_pour_proxy_physics(self)
 
     def rebase_initial_file(self):
 

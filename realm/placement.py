@@ -52,7 +52,23 @@ def _half_footprint(cfg):
     return cfg["bounding_box"][0] / 2, cfg["bounding_box"][1] / 2
 
 
-def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim):
+def _fits_in_region(half_width, half_depth, region_width, region_depth):
+    """Could this footprint sit anywhere inside the spawn region at all?
+
+    A pinned object that fails this is not tabletop clutter -- it is the furniture the spawn region
+    is measured ON, or something surrounding it. open_drawer's `breakfast_table_support` immutable
+    is 1.0 x 1.0 m against a 0.70 x 0.80 m Drawers_Near_Table region: the support surface itself.
+    Registering that as a 2D obstacle blankets the whole region, so every later footprint collides
+    with it and `get_non_colliding_positions_for_objects` drops each one from DROP_HEIGHT --
+    measured 2026-09-04 as three V-SC distractors failing 25000 attempts at build and 2500 at
+    perturbation time on task 8. Such an object still keeps its authored pose; it just stops
+    pretending to compete for tabletop area with the objects standing on top of it.
+    """
+    return 2 * half_width <= region_width and 2 * half_depth <= region_depth
+
+
+def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim,
+                       region_width, region_depth):
 
     placed_objects_info = []
     objects_to_randomly_place = []
@@ -65,8 +81,18 @@ def _partition_configs(obj_cfg, main_object_names, objects_to_skip, maximum_dim)
                     f"placement -- backfill them from the live object first "
                     f"(perturbations/_helpers.backfill_object_cfgs)")
             half_width_main, half_depth_main = _half_footprint(cfg)
-            placed_objects_info.append(
-                (cfg["position"][0], cfg["position"][1], half_width_main, half_depth_main))
+            if _fits_in_region(half_width_main, half_depth_main, region_width, region_depth):
+                placed_objects_info.append(
+                    (cfg["position"][0], cfg["position"][1], half_width_main, half_depth_main))
+            else:
+                # warning, not info: og.log's effective level in the REALM image is WARNING, so
+                # an info line here is invisible -- and a placement decision this load-bearing
+                # should not be.
+                og.log.warning(
+                    f"'{cfg.get('name', 'Unnamed Object')}' keeps its authored pose but is too "
+                    f"large for the spawn region ({2 * half_width_main:.2f} x "
+                    f"{2 * half_depth_main:.2f} m vs {region_width:.2f} x {region_depth:.2f} m), "
+                    f"so it is not treated as an obstacle for the objects placed on it.")
         elif cfg["name"] in objects_to_skip:
             if "bounding_box" not in cfg:
                 cfg["bounding_box"] = list(DEFAULT_BBOX_EXTENT)
@@ -122,7 +148,8 @@ def get_non_colliding_positions_for_objects(
         objects_to_skip = []
 
     placed_objects_info, objects_to_randomly_place = _partition_configs(
-        obj_cfg, main_object_names, objects_to_skip, maximum_dim)
+        obj_cfg, main_object_names, objects_to_skip, maximum_dim,
+        region_width=xmax - xmin, region_depth=ymax - ymin)
 
     np.random.shuffle(objects_to_randomly_place)
 

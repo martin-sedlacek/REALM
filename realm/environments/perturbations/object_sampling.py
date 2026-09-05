@@ -184,12 +184,16 @@ def replace_obj(env: "RealmEnvironmentDynamic", obj: DatasetObject, included_cat
     )
     env.omnigibson_env.scene.add_object(new_obj)
 
+    # init_poses holds live tensors from get_position_orientation(); torch.tensor() on a tensor
+    # warns and is what filled the logs. as_tensor().clone() copies without warning, and the copy
+    # matters -- the stored initial pose must not alias the pose handed to the new object.
+    init_pose = env.init_poses[new_obj._relative_prim_path]
+    init_pos = torch.as_tensor(init_pose["pos"]).detach().clone()
     if preserve_ori:
-        new_obj.set_bbox_center_position_orientation(torch.tensor(env.init_poses[new_obj._relative_prim_path]["pos"]),
-                                                     torch.tensor(env.init_poses[new_obj._relative_prim_path]["rot"]))
+        init_rot = torch.as_tensor(init_pose["rot"]).detach().clone()
     else:
-        new_obj.set_bbox_center_position_orientation(torch.tensor(env.init_poses[new_obj._relative_prim_path]["pos"]),
-                                                     torch.tensor([0, 0, 0, 1]))
+        init_rot = torch.tensor([0, 0, 0, 1])
+    new_obj.set_bbox_center_position_orientation(init_pos, init_rot)
 
     rescale_to_max_dim(new_obj, nobj_cfg, maximum_dim)
     nobj_cfg["fixed_base"] = fixed_base

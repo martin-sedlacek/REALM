@@ -26,7 +26,7 @@ def build_evaluation_parser(*, vectorized=False):
     parser.add_argument("--experiment_name", type=str, required=True)
     parser.add_argument("--run_id", type=str, default=None)
     parser.add_argument("--log_dir", type=str, default="/logs" if vectorized else None)
-    parser.add_argument("--robot", type=str, default="DROID", help="Robot type")
+    parser.add_argument("--robot", type=str, default="DROID_mounted", help="Robot type")
     parser.add_argument("--rendering_mode", type=str, default="rt" if vectorized else None,
                         help="OmniGibson rendering mode (pt, rt, r)")
     parser.add_argument("--multi-view", dest="multi_view", action="store_true",

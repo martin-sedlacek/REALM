@@ -122,6 +122,13 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
         obj_list += task_cfg["distractors"]
     if "immutables" in task_cfg:
         obj_list += task_cfg["immutables"]
+
+    # Immutables are authored fixtures -- a support surface, a light -- placed by their fixed
+    # relative_bbox_position. They ride in the distractor list from here on, and env.distractors,
+    # env.init_poses and the skip lists in vb_pose/sb_vrb all rely on that, so the list is left
+    # alone. What needs their names is the passes that must NOT treat them as distractors: see
+    # perturbations/v_sc.py, where placement and the model swap both consult this.
+    env.immutable_names = [o["name"] for o in task_cfg.get("immutables", [])]
     if scene_cfg is not None:
         obj_list += scene_cfg["objects"]
 

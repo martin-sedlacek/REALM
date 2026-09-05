@@ -1,0 +1,130 @@
+task:
+  type: "DummyTask"
+  termination_config: {}
+  reward_config: {}
+
+task_type: "pour_proxy" #"pour"
+instruction: "pour the water from the bottle into the bowl"
+instruction_obj_to_replace: "bottle"
+instruction_target_to_replace: "bowl"
+instruction_verb_to_replace: "pour"
+
+# Number of foam_balls procedurally spawned inside the source bottle for the
+# pour_proxy check. Read by env_dynamic at construction time.
+n_foam_balls: 15
+
+supported_scenes:
+  IMPACT:
+    - "default"
+
+use_droid_with_base: false
+
+bbox_shift_away_from_robot: 0.15
+
+camera_extrinsics:
+  cam1: "default"
+  cam2: "CP3"
+
+#  cam1: "IMPACT_pouring_task_cam1"
+#  cam2: "IMPACT_pouring_task_cam2"
+
+reset_joint_pos: [ 0.0055956,  -0.46229482, -0.10837201, -2.22445,   -0.02223617,  1.6368663, -0.28468588]
+
+main_objects:
+    - type: "USDObject"
+      usd_path: "/app/custom_assets/bottle6789/bottle7_obj/bottle_v3.usd"
+      name: "cola_bottle"
+      scale: [0.16, 0.16, 0.193]
+      bounding_box: [0.07, 0.07, 0.22 ]
+      relative_bbox_position: [0.325, 0.2, 0.125]
+      #relative_bbox_position: [0.275, 0.42, 0.125] # debug
+      #relative_bbox_position: [0.1, 0.38, 0.125] # debug
+
+#      category: "cola_bottle" #"reagent_bottle" #"soda_water_bottle" #"mug"
+#      model: "oyqdtz" #"trtrsl" #"upfssc" #"ehnmxj"
+# water_bottle-ackxiy
+# water_bottle-lzdzkk
+# beer_bottle-nigfha
+#      category: "water_glass"
+#      model: "lvqgvn"
+
+target_objects:
+    - type: "DatasetObject"
+      name: "bowl"
+      category: "bowl"
+      model: "bexgtn"
+      bounding_box: [ 0.20, 0.20, 0.07 ]
+      #relative_bbox_position: [0.125, 0.3, 0 ]
+      relative_bbox_position: [0.3, 0.43, 0 ]
+
+distractors:
+    - type: "DatasetObject"
+      name: "sponge"
+      category: "sponge"
+      model: "qewotb"
+      bounding_box: [ 0.10, 0.07, 0.02 ]
+      relative_bbox_position: [0.11, 0.55, 0.055 ]
+    - type: "DatasetObject"
+      name: "coffee_cup"
+      category: "coffee_cup"
+      model: "ckkwmj"
+      bounding_box: [ 0.09, 0.07, 0.07 ]
+      relative_bbox_position: [0.065, 0.45, 0.175]
+
+
+cached_semantic_perturbations:
+    S-LANG:
+      - "Pour the water from the cup into the bowl."
+      - "Empty the water in the cup into the bowl."
+      - "Tip the cup so the water flows into the bowl."
+      - "Transfer the water from the cup to the bowl."
+      - "Pour out the contents of the cup into the bowl."
+      - "Decant the water from the cup into the bowl."
+      - "Pour the liquid from the cup into the bowl."
+      - "Empty the cup of water into the bowl."
+      - "Drain the water from the cup into the bowl."
+      - "Pour the water in the cup into the dish."
+    S-AFF:
+      - "Pour the water into the bowl as if serving a meal."
+      - "Tip the cup into the bowl, like pouring a drink."
+      - "Empty the water into the bowl as you would when watering a plant."
+      - "Pour the water into the bowl, like rinsing a fruit."
+      - "Pour the water into the bowl, as if filling a pet's dish."
+      - "Tip the cup into the bowl as if measuring an ingredient."
+      - "Pour the water into the bowl like preparing soup."
+      - "Empty the cup into the bowl, as if cleaning out a glass."
+      - "Pour the water into the bowl as if topping up a saucer."
+      - "Pour the water into the bowl, like a barista refilling water."
+    S-INT:
+      - "Pour the H2O from the drinking vessel into the deeper container."
+      - "Transfer the liquid from the cylindrical glass into the rounded ceramic dish."
+      - "Empty the contents of the transparent vessel into the bowl-shaped container."
+      - "Pour the colorless fluid from the glass into the open ceramic vessel."
+      - "Tip the drinking glass so its liquid contents end up in the bowl."
+      - "Move the water, a polar liquid, from the cup to the receiving dish."
+      - "Pour the potable liquid from the small vessel into the larger one."
+      - "Empty the contents of the cup, a hydration vessel, into the bowl."
+      - "Pour the aqueous content from the cup into the porcelain dish."
+      - "Transfer the liquid in the drinking cup to the eating bowl."
+    S-PROP:
+      - "Pour the water from the tall, clear cup into the round brown bowl."
+      - "Tip the slender glass cup so the water lands in the wide ceramic bowl."
+      - "Empty the small cylindrical cup into the large shallow bowl."
+      - "Pour the water from the upright glass into the deep textured bowl."
+      - "Tip the transparent cup so its water flows into the brown patterned bowl."
+      - "Pour the water from the narrow cup into the wide rounded dish."
+      - "Empty the clear glass cup into the shallow brown bowl on the table."
+      - "Tip the slim glass cup over the wide ceramic bowl and pour."
+      - "Pour the water from the smooth tall glass into the textured bowl."
+      - "Empty the upright glass cup into the broad bowl with a rough surface."
+    S-MO:
+      - "Pour the water from the cup nearest the corkscrew into the bowl."
+      - "Tip the cup that is to the left of the wineglass and pour into the bowl."
+      - "Empty the cup standing closer to the robot arm into the bowl on the table."
+      - "Pour from the cup near the wine bottle into the bowl across from it."
+      - "Tip the upright cup beside the corkscrew into the bowl behind it."
+      - "Pour the water from the cup near the center of the table into the far bowl."
+      - "Empty the cup nearer the front of the table into the bowl on the back side."
+      - "Pour from the cup that sits between the corkscrew and the wineglass into the bowl."
+      - "Tip the cup closer to the wine bottle into the bowl in the back of the table."
+      - "Pour from the cup beside the wineglass into the bowl that's across from it."

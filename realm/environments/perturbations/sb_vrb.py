@@ -29,6 +29,7 @@ from realm.config.shared import (
     UNSUPPORTED_BY_PERTURBATION,
     VERB_PHRASE,
 )
+from realm.environments.foam_ball_reset import refresh_foam_ball_cfg_positions
 from realm.environments.utils import load_task_progressions
 from realm.placement import place_within
 
@@ -118,6 +119,10 @@ def _spawn_receiver(env: "RealmEnvironmentDynamic", included_categories) -> None
     n_non_receiver = len(obj_cfgs) - 1
 
     backfill_object_cfgs(env.main_objects + env.distractors + env.target_objects, obj_cfgs)
+    # SB-VRB rewrites a pour into pick/put/rotate/stack, so the balls stop being scored -- but they
+    # are still in the bottle and would spill out of it when set_scene_positions writes their
+    # provisional spawn column back.
+    refresh_foam_ball_cfg_positions(env, obj_cfgs)
 
     env.cfg["objects"] = place_within(
         env.spawn_bbox,

@@ -5,8 +5,18 @@ import numpy as np
 
 import omnigibson as og
 
+from realm.config.shared import (
+    POUR_LIFT_THRESHOLD,
+    POUR_LIQUID_MIN_PARTICLES,
+    POUR_MOVE_CLOSE_XY_DIST,
+    POUR_PROXY_MIN_BALLS_INSIDE,
+)
 from realm.environments.utils import load_task_progressions
 from realm.geometry import compute_rot_diff_magnitude
+
+
+def _as_numpy(value):
+    return value.cpu().numpy() if hasattr(value, "cpu") else value
 
 TASK_PROGRESS_RUBRICS = load_task_progressions()
 
@@ -46,7 +56,10 @@ class TaskProgressionMixin:
             "MOVE_JOINT_LARGE": self.check_moved_mo_joint_large,
             "MOVE_JOINT_FULL": self.check_moved_mo_joint_full,
             "TOGGLED_ON": self.check_toggled_on_condition,
-            "POUR": self.check_pour,  # TODO: pouring
+            "POUR": self.check_pour,
+            "LIFT_POUR": self.check_lift_pour_condition,
+            "MOVE_CLOSE_XY": self.check_move_close_xy_condition,
+            "POURED_PROXY": self.check_pour_proxy,
         }
 
     def recompute_task_progression(self, obs):
@@ -65,14 +78,17 @@ class TaskProgressionMixin:
             assert 0.0 <= reward <= 1.0
         return reward
 
-    def check_reach_condition(self, obs):
+    def _is_bidirectional(self):
+        """Does this task score the target object as an alternative to the main object?
 
-        mo = self.main_objects[0]
+        See RealmEnvironmentDynamic for the `bidirectional: true` config key. getattr, because the
+        mixin is also reachable from envs built before that attribute is set.
+        """
+        return bool(getattr(self, "bidirectional", False)) and len(self.target_objects) > 0
 
-        if self.task_type in DRAWER_TASK_TYPES:
-            return self.is_touching(obs, mo)
+    def _reach_for_object(self, obs, obj):
 
-        pos1 = mo.get_position_orientation()[0]
+        pos1 = obj.get_position_orientation()[0]
         finger1 = list(self.robot_finger_links)[0]
         pos_finger1 = finger1.get_position_orientation()[0]
         finger2 = list(self.robot_finger_links)[1]
@@ -82,9 +98,23 @@ class TaskProgressionMixin:
         distance_2 = np.linalg.norm(pos1 - pos_finger2)
 
         dist = 0.1
-        return distance_1 < dist or distance_2 < dist or self.check_touch_condition(obs)
+        return distance_1 < dist or distance_2 < dist or self.is_touching(obs, obj)
+
+    def check_reach_condition(self, obs):
+
+        mo = self.main_objects[0]
+
+        if self.task_type in DRAWER_TASK_TYPES:
+            return self.is_touching(obs, mo)
+
+        if self._is_bidirectional():
+            return self._reach_for_object(obs, mo) or self._reach_for_object(obs, self.target_objects[0])
+        return self._reach_for_object(obs, mo)
 
     def check_grasp_condition(self, obs):
+        if self._is_bidirectional():
+            return (self.is_grasping(obs, self.main_objects[0])
+                    or self.is_grasping(obs, self.target_objects[0]))
         return self.is_grasping(obs, self.main_objects[0])
 
     def check_touch_condition(self, obs):
@@ -98,20 +128,35 @@ class TaskProgressionMixin:
 
         return abs(rot_diff) > rot_threshold
 
+    def _object_lifted_and_moved(self, obj, pos_orig, distance_threshold, lift_threshold):
+
+        pos_curr = obj.get_position_orientation()[0]
+        distance = np.linalg.norm(pos_curr - pos_orig)
+
+        return pos_curr[2] - pos_orig[2] > lift_threshold and distance > distance_threshold
+
     def check_lift_and_distance_condition(self, distance_threshold=0.05, lift_threshold=0.01):
 
-        mo = self.main_objects[0]
-        mo_pos_curr = mo.get_position_orientation()[0]
-
-        distance = np.linalg.norm(mo_pos_curr - self.mo_pos_orig)
-
-        return mo_pos_curr[2] - self.mo_pos_orig[2] > lift_threshold and distance > distance_threshold
+        if self._object_lifted_and_moved(self.main_objects[0], self.mo_pos_orig,
+                                         distance_threshold, lift_threshold):
+            return True
+        if self._is_bidirectional() and getattr(self, "to_pos_orig", None) is not None:
+            return self._object_lifted_and_moved(self.target_objects[0], self.to_pos_orig,
+                                                 distance_threshold, lift_threshold)
+        return False
 
     def check_lift_slight_condition(self, obs):
         return self.check_lift_and_distance_condition()
 
     def check_lift_large_condition(self, obs):
         return self.check_lift_and_distance_condition(distance_threshold=0.1, lift_threshold=0.075)
+
+    def check_lift_pour_condition(self, obs):
+        # Pouring needs the source clear of the table before the pour is credited, so this asks
+        # for more height than LIFT_SLIGHT and less travel than LIFT_LARGE: a bottle lifted
+        # straight up over the target has barely moved horizontally.
+        return self.check_lift_and_distance_condition(distance_threshold=0.05,
+                                                      lift_threshold=POUR_LIFT_THRESHOLD)
 
     def check_push(self, obs):
         mo = self.main_objects[0]
@@ -134,6 +179,19 @@ class TaskProgressionMixin:
         distance = np.linalg.norm(pos1 - pos2)
         return distance < 0.125
 
+    def check_move_close_xy_condition(self, obs):
+        # Planar distance only. MOVE_CLOSE cannot serve a pour: the source is held ABOVE the
+        # target while pouring, so its 3D distance stays large exactly when the policy is doing
+        # the right thing. What matters is that the source is over the target's footprint.
+        assert len(self.main_objects) == 1
+        assert len(self.target_objects) == 1
+
+        pos1 = self.main_objects[0].get_position_orientation()[0]
+        pos2 = self.target_objects[0].get_position_orientation()[0]
+        distance_xy = float(np.linalg.norm(np.asarray(_as_numpy(pos1))[:2]
+                                           - np.asarray(_as_numpy(pos2))[:2]))
+        return distance_xy < POUR_MOVE_CLOSE_XY_DIST
+
     def check_place_condition(self, obs):
         mo = self.main_objects[0]
         target = self.target_objects[0]
@@ -143,15 +201,57 @@ class TaskProgressionMixin:
     def check_place_onto_condition(self, obs):
         mo = self.main_objects[0]
         target = self.target_objects[0]
-        return mo.states[og.object_states.OnTop].get_value(target) and not self.is_grasping(obs, mo)
+        mo_on_target = (mo.states[og.object_states.OnTop].get_value(target)
+                        and not self.is_grasping(obs, mo))
+        if self._is_bidirectional():
+            target_on_mo = (target.states[og.object_states.OnTop].get_value(mo)
+                            and not self.is_grasping(obs, target))
+            return mo_on_target or target_on_mo
+        return mo_on_target
 
     def check_toggled_on_condition(self, obs):
         mo = self.main_objects[0]
         return mo.states[og.object_states.ToggledOn].get_value()
 
-    def check_pour(self, obs):
+    def check_pour(self, obs, min_particles=POUR_LIQUID_MIN_PARTICLES):
+        """Liquid pour: enough water particles now inside the target's container volume.
 
-        return False
+        Kept, and kept inert: nothing seeds `water_system`, because fluid particles need the
+        simulator settings realm/sim_config.py now switches OFF for speed (see
+        realm/environments/foam_ball_reset.py). With no water system this returns False, exactly as
+        the stub it replaces did, so the `pour` rubric behaves as before -- but the checker is now
+        real for whoever ports `pour_liquid`.
+        """
+        water_system = getattr(self, "water_system", None)
+        if water_system is None or water_system.n_particles == 0:
+            return False
+        if not self.target_objects:
+            return False
+        contained = self.target_objects[0].states.get(og.object_states.ContainedParticles)
+        if contained is None:
+            return False
+        n_in = contained.get_value(water_system).n_in_volume
+        return int(n_in.item() if hasattr(n_in, "item") else n_in) >= min_particles
+
+    def check_pour_proxy(self, obs, min_balls_inside=POUR_PROXY_MIN_BALLS_INSIDE):
+        """Proxy pour: balls arrived in the target AND left the source.
+
+        Both halves are needed. A target-side count alone would credit a policy for balls that
+        were never in the bottle -- and, more practically, for a bottle knocked over onto the
+        target. `_initial_balls_in_source` is captured at the start of every episode by
+        FoamBallMixin.capture_foam_ball_reference.
+        """
+        if not self.target_objects or not self.main_objects or not self.foam_balls:
+            return False
+        if self.count_balls_inside(self.target_objects[0]) < min_balls_inside:
+            return False
+        initial = self._initial_balls_in_source
+        if initial is None:
+            # No reference captured yet: fall back to the target-side count alone.
+            return True
+        # count_balls_in_source, not count_balls_inside: the custom bottle carries no `fillable`
+        # meta link for OG's Inside state to test against. See FoamBallMixin.count_balls_in_source.
+        return self.count_balls_in_source() < initial
 
     def get_mo_joint_openness_fraction(self):
         assert self.mo_joint is not None
