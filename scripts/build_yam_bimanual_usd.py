@@ -13,7 +13,10 @@ composed into one asset:
   is added to each link's own ``xformOp:translate``);
 * a ``PhysicsFixedJoint`` ``<arm>_mount`` from ``base_link`` to each ``<arm>_base_link``, so
   OmniGibson's root-link inference finds exactly ``base_link`` and fixes it to the world;
-* the right arm's wrist camera moved to YAMLab's separately calibrated ``cameras.right_wrist`` offset.
+* the right arm's wrist camera moved to YAMLab's separately calibrated ``cameras.right_wrist`` offset;
+* a visual-only ``frame`` link fixed to ``base_link`` carrying YAMLab's aluminium-extrusion gate (the
+  structure the arms bolt onto, from ``workstation/workstation.usd``), so the arms do not float; the part
+  below the arm plates is stretched in z to reach the floor at REALM's ``mount_height``.
 
 Everything else (drive limits, the massless ``eef_link`` frames, the wrist cameras, the physics
 material) is inherited from the single-arm file, which is the ONLY input -- rebuild that first
@@ -52,7 +55,7 @@ from build_yam_usd import (  # noqa: E402
 )
 
 try:
-    from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics  # noqa: E402
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, Vt  # noqa: E402
 except ImportError as exc:  # pragma: no cover - host tooling
     sys.exit(f"pxr is required (pip install usd-core): {exc}")
 
@@ -79,7 +82,85 @@ def _identity_ops(prim):
     xf.AddScaleOp().Set(Gf.Vec3f(1.0, 1.0, 1.0))
 
 
-def build(source, output):
+def load_frame_mesh(workstation_usd=None):
+    """Read YAMLab's gate mesh (triangle soup, one vertex per corner) off the composed workstation stage.
+
+    Returns (points (N, 3) float32 in YAMLab's world frame, faceVertexCounts, faceVertexIndices). The
+    mesh lives in Props/instanceable_meshes.usd behind an instanceable reference, so it is read through
+    the composed stage rather than the layer.
+    """
+    import numpy as np
+
+    path = os.path.join(REPO_ROOT, B.FRAME_SOURCE_USD) if workstation_usd is None else workstation_usd
+    stage = Usd.Stage.Open(path)
+    assert stage, f"cannot open {path}"
+    prim = stage.GetPrimAtPath(B.FRAME_SOURCE_PRIM)
+    assert prim and prim.GetTypeName() == "Mesh", f"{B.FRAME_SOURCE_PRIM} is not a Mesh in {path}"
+    mesh = UsdGeom.Mesh(prim)
+    xf = UsdGeom.XformCache().GetLocalToWorldTransform(prim)
+    pts = np.array([xf.Transform(Gf.Vec3d(p)) for p in mesh.GetPointsAttr().Get()], dtype=np.float64)
+    counts = list(mesh.GetFaceVertexCountsAttr().Get())
+    indices = list(mesh.GetFaceVertexIndicesAttr().Get())
+    assert set(counts) == {3}, "expected a triangle mesh"
+    lo, hi = pts.min(axis=0), pts.max(axis=0)
+    # YAMLab's frame: x +-0.30, y +-0.65, z 0..1.68 with the arm plates at 0.76 (arms.<side>.position).
+    assert abs(lo[2]) < 0.01 and 1.6 < hi[2] < 1.8 and 0.55 < hi[1] < 0.75, f"unexpected gate extent {lo} .. {hi}"
+    return pts, counts, indices
+
+
+def author_frame_link(stage, base_prim, frame_source):
+    """Author the visual-only workstation frame as a link fixed to base_link.
+
+    The mesh is copied (not referenced) so the asset stays a single file; its points are moved into the
+    mount frame with the part below the arm plates stretched by B.FRAME_STRETCH_BELOW_MOUNT so the
+    frame's feet reach the floor at REALM's mount_height (B.frame_z_in_mount). Authored normals are
+    dropped: the soup has its own vertices per face, so flat shading falls out for free and the file
+    stays ~9 MB smaller. No CollisionAPI anywhere under the link.
+    """
+    import numpy as np
+
+    pts, counts, indices = frame_source
+    origin = np.array(B.frame_origin_in_mount(), dtype=np.float64)
+    z = np.array([B.frame_z_in_mount(v) for v in pts[:, 2]], dtype=np.float64)
+    local = np.column_stack([pts[:, 0] + origin[0], pts[:, 1] + origin[1], z])
+
+    link = UsdGeom.Xform.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}")
+    UsdPhysics.RigidBodyAPI.Apply(link.GetPrim())
+    UsdPhysics.MassAPI.Apply(link.GetPrim()).GetMassAttr().Set(1.0)
+    _identity_ops(link.GetPrim())
+    visuals = UsdGeom.Xform.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals")
+    _identity_ops(visuals.GetPrim())
+    mesh = UsdGeom.Mesh.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals/gate")
+    _identity_ops(mesh.GetPrim())
+    mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(local.astype(np.float32)))
+    mesh.GetFaceVertexCountsAttr().Set(Vt.IntArray(counts))
+    mesh.GetFaceVertexIndicesAttr().Set(Vt.IntArray(indices))
+    mesh.GetSubdivisionSchemeAttr().Set(UsdGeom.Tokens.none)
+    mesh.GetDoubleSidedAttr().Set(True)
+    lo, hi = local.min(axis=0), local.max(axis=0)
+    mesh.GetExtentAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*[float(v) for v in lo]), Gf.Vec3f(*[float(v) for v in hi])]))
+
+    material = UsdShade.Material.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals/aluminium")
+    shader = UsdShade.Shader.Define(stage, f"{DST_ROOT}/{B.FRAME_LINK}/visuals/aluminium/shader")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*B.FRAME_MATERIAL["diffuse"]))
+    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(B.FRAME_MATERIAL["metallic"])
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(B.FRAME_MATERIAL["roughness"])
+    material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+    UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(material)
+
+    joint = UsdPhysics.FixedJoint.Define(stage, f"{DST_ROOT}/joints/{B.FRAME_LINK}")
+    joint.CreateBody0Rel().SetTargets([base_prim.GetPath()])
+    joint.CreateBody1Rel().SetTargets([link.GetPrim().GetPath()])
+    for attr, value in (("LocalPos0", Gf.Vec3f(0, 0, 0)), ("LocalPos1", Gf.Vec3f(0, 0, 0))):
+        getattr(joint, f"Create{attr}Attr")().Set(value)
+    for attr in ("LocalRot0", "LocalRot1"):
+        getattr(joint, f"Create{attr}Attr")().Set(Gf.Quatf(1.0, Gf.Vec3f(0.0, 0.0, 0.0)))
+    return lo, hi
+
+
+def build(source, output, workstation_usd=None):
+    frame_source = load_frame_mesh(workstation_usd)
     src_stage = Usd.Stage.Open(source)
     assert src_stage, f"cannot open {source}"
     src_root = src_stage.GetDefaultPrim()
@@ -147,6 +228,8 @@ def build(source, output):
         assert cam and cam.GetTypeName() == "Camera", f"{arm}: wrist camera missing after copy"
         cam.GetAttribute("xformOp:translate").Set(Gf.Vec3d(*B.WRIST_CAMERA_POSITIONS[arm]))
 
+    author_frame_link(stage, base.GetPrim(), frame_source)
+
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
     stage.SetDefaultPrim(root)
@@ -172,7 +255,7 @@ def verify(output):
         if root.GetAttribute(op).Get() is None:
             problems.append(f"root has no {op}")
 
-    expected_links = {B.BASE_LINK}
+    expected_links = {B.BASE_LINK, B.FRAME_LINK}
     for arm in B.ARMS:
         expected_links.update(B.all_links(arm))
     xform_children = {c.GetName() for c in root.GetChildren() if c.GetTypeName() == "Xform"}
@@ -267,6 +350,39 @@ def verify(output):
     if set(driven) != set(B.dof_order()):
         problems.append(f"driven joints {sorted(driven)} != YamBimanualRobot.dof_order() {sorted(B.dof_order())}")
 
+    # The workstation frame: a visual-only link (no CollisionAPI anywhere -- check_collisions would count a
+    # colliding frame as an environment collision every step) fixed to base_link, standing on the floor
+    # (lowest point at -MOUNT_HEIGHT) with YAMLab's arm plates at the mount plane (z ~ 0).
+    frame_bbox = None
+    frame = root.GetChild(B.FRAME_LINK)
+    if not frame or not frame.HasAPI(UsdPhysics.RigidBodyAPI):
+        problems.append(f"{B.FRAME_LINK} missing or not a rigid body")
+    else:
+        meshes = [p for p in Usd.PrimRange(frame) if p.GetTypeName() == "Mesh"]
+        if not meshes:
+            problems.append(f"{B.FRAME_LINK} has no visual mesh")
+        if any(p.HasAPI(UsdPhysics.CollisionAPI) for p in Usd.PrimRange(frame)):
+            problems.append(f"{B.FRAME_LINK} carries collision geometry; it must be visual-only")
+        fj = joints.get(B.FRAME_LINK)
+        if fj is None or fj.GetTypeName() != "PhysicsFixedJoint" or \
+                [t.name for t in fj.GetRelationship("physics:body0").GetTargets()] != [B.BASE_LINK]:
+            problems.append(f"{B.FRAME_LINK} is not fixed to {B.BASE_LINK}")
+        if meshes:
+            ext = UsdGeom.Mesh(meshes[0]).GetExtentAttr().Get()
+            if ext is None:
+                problems.append(f"{B.FRAME_LINK} mesh has no extent")
+            else:
+                lo, hi = ext
+                frame_bbox = (tuple(round(float(v), 3) for v in lo), tuple(round(float(v), 3) for v in hi))
+                if abs(lo[2] + B.MOUNT_HEIGHT) > 0.005:
+                    problems.append(f"{B.FRAME_LINK} foot at z={lo[2]:.3f}, expected -MOUNT_HEIGHT={-B.MOUNT_HEIGHT:.3f} (the floor)")
+                if not (0.8 < hi[2] < 1.0):
+                    problems.append(f"{B.FRAME_LINK} top at z={hi[2]:.3f}; YAMLab's top bar is ~0.92 above the plates")
+                if not (abs(abs(lo[1]) - abs(hi[1])) < 0.01 and 0.6 < hi[1] < 0.7):
+                    problems.append(f"{B.FRAME_LINK} is not centred on the mount frame in y: {lo[1]:.3f} .. {hi[1]:.3f}")
+                if not any(p.GetTypeName() == "Material" for p in Usd.PrimRange(frame)):
+                    problems.append(f"{B.FRAME_LINK} has no material")
+
     stale = stale_paths(stage.GetRootLayer(), SRC_ROOT + "/")
     if stale:
         problems.append(f"stale single-arm paths: {stale[:5]}")
@@ -278,6 +394,7 @@ def verify(output):
         "mount_offsets_m": mounts,
         "wrist_cameras": cameras,
         "exterior_camera": B.exterior_camera(),
+        "frame_bbox_in_mount_m": frame_bbox,
     }
     return problems, summary
 
@@ -292,6 +409,10 @@ def write_provenance(source, output):
         "  prefixes, links translated by YAMLab's arm offsets (+-0.305 m in y), geometry-free root base_link at",
         "  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's",
         "  right_wrist offset. Numbers from realm/robots/yam.py::YamBimanualRobot.",
+        f"  frame link: visual-only copy of {B.FRAME_SOURCE_PRIM} from workstation/workstation.usd (sha256 above),",
+        f"  moved into the mount frame, the part below the arm plates stretched x{B.FRAME_STRETCH_BELOW_MOUNT:.4f} in z",
+        "  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped",
+        "  for a UsdPreviewSurface with the same aluminium constants.",
     ]
     replace_provenance_section(OUT_PROVENANCE, "yam_bimanual.usd", lines)
 

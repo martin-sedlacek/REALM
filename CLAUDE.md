@@ -67,7 +67,7 @@ realm/
 │   │                          (joint names, gains, cameras, DOF/action layout) the YAMLs/USDs are pinned to
 │   ├── yam/                   yam.usd + yam_bimanual.usd (rebuilt from YAMLab by scripts/build_yam*_usd.py)
 │   │                          + PROVENANCE
-│   │                          + verbatim workstation USDs (unused)
+│   │                          + verbatim workstation USDs (source of yam_bimanual's visual-only frame link)
 │   ├── controller_registry.py registers the four custom controllers + default configs
 │   ├── droid_joint_controller.py / individual_joint_pd_controller.py   joint PD (impedance / plain)
 │   ├── droid_ee_controller.py   cartesian EE control; SUPPORTED_MODES = absolute_pose,

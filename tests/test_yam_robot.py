@@ -411,6 +411,21 @@ def test_bimanual_usd_has_the_structure_omnigibson_needs():
     import build_yam_bimanual_usd
     problems, summary = build_yam_bimanual_usd.verify(str(B_USD))
     assert not problems, "\n".join(problems)
+    lo, hi = summary["frame_bbox_in_mount_m"]
+    assert lo[2] == pytest.approx(-B.MOUNT_HEIGHT, abs=0.005), "the workstation frame stands on the floor"
+    assert hi[0] < 0.1 and lo[0] < -0.5, "the gate is behind the arm plates (x <= 0.05 in the mount frame)"
+
+
+def test_frame_stretch_keeps_the_plates_under_the_arms():
+    """The frame's arm plates (YAMLab z = 0.76) stay at the mount plane, its foot lands on the floor, and
+    the posts above the plates keep YAMLab's height so the top camera (0.944 above the plates) clears
+    the top bar (0.92)."""
+    assert B.frame_z_in_mount(B.YAMLAB_MOUNT_IN_WORLD[2]) == pytest.approx(0.0)
+    assert B.frame_z_in_mount(0.0) == pytest.approx(-B.MOUNT_HEIGHT)
+    assert B.frame_z_in_mount(1.68) == pytest.approx(1.68 - 0.76)
+    assert B.frame_z_in_mount(1.68) < B.EXTERIOR_CAMERA_POSITION[2]
+    assert B.frame_origin_in_mount() == (-0.2525, 0.0, -0.76)
+    assert B.FRAME_STRETCH_BELOW_MOUNT == pytest.approx(B.MOUNT_HEIGHT / 0.76)
 
 
 def test_bimanual_provenance_records_the_source():

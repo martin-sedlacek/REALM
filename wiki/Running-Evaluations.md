@@ -198,8 +198,11 @@ the block to paste if it needs retuning. Only the `debug` model type has been ex
 `realm/robots/yam/yam_bimanual.usd` composed from the single-arm file by
 `scripts/build_yam_bimanual_usd.py`). The two arms sit 0.61 m apart in y on a geometry-free
 `base_link` at their midpoint, which is the robot frame; the midpoint is spawned `mount_height` above the
-scene's robot pose and shifted by the same `spawn_offset` as the single arm (0.30 m forward). Links and
-joints carry the arm as a prefix (`left_link_6`,
+scene's robot pose and shifted by the same `spawn_offset` as the single arm (0.30 m forward). The arms
+stand on YAMLab's aluminium-extrusion frame, carried as the visual-only link `frame` (no collision, so it
+never counts as an environment collision): the mesh is YAMLab's `gate_visual`, with the part below the
+arm plates stretched in z so the feet reach the floor at `mount_height` while the posts and top bar above
+the plates keep their real dimensions. Links and joints carry the arm as a prefix (`left_link_6`,
 `right_joint1`, `left_left_finger`), and the arms collide with each other but not with themselves
 (`self_collisions: true` + every within-arm pair filtered, matching YAMLab's per-arm articulations with
 self-collisions off).

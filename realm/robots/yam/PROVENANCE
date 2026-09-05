@@ -25,8 +25,12 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
 yam_bimanual.usd
   source: realm/robots/yam/yam.usd (the built single-arm file above)
   source sha256: 85704550d0a61fb6f8833094fdc729f2f7222613f7fbc133069fdbb7cb2caa1b
-  output sha256: fd92b8e5d944cbe47b4386fed1f223f6815057724ad7b53a7d3a9d951c7eb20b
+  output sha256: 6773b67678fd0d37f0092f287352a3f8e1a91bbbdb464c727b742d803a05fdba
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
   prefixes, links translated by YAMLab's arm offsets (+-0.305 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
   right_wrist offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
+  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
+  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
+  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
+  for a UsdPreviewSurface with the same aluminium constants.

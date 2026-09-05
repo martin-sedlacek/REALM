@@ -3,7 +3,9 @@
 # realm/robots/yam.py::YamBimanualRobot by tests/test_yam_robot.py -- change them there first.
 #
 # The USD is two copies of the single-arm asset composed by scripts/build_yam_bimanual_usd.py (links and
-# joints prefixed left_/right_, arms 0.61 m apart in y, geometry-free root base_link at the midpoint).
+# joints prefixed left_/right_, arms 0.61 m apart in y, geometry-free root base_link at the midpoint, plus
+# the visual-only `frame` link: YAMLab's aluminium gate the arms stand on -- no collision, so it is in no
+# collision pair below and never counts as a collision).
 # Controller order = YAMLab's 14-D action [left_arm(6), left_gripper(1), right_arm(6), right_gripper(1)].
 # The top camera is not on the robot: realm/config/robots/YAM_bimanual.yaml places external_sensor0.
 
