@@ -172,6 +172,14 @@ class YamRobot:
     #: 0.80-1.05 m, so YAMLab's value would bury the arm. Tune per scene if needed via the
     #: `mount_height` key in realm/config/robots/YAM*.yaml.
     MOUNT_HEIGHT = 0.863891
+    #: Rigid offset of the robot from the DROID spawn pose, in the robot's own frame (forward, left, up)
+    #: metres and yaw degrees: the YAM's reach (~0.6 m) is well short of the Franka's, so it is moved
+    #: 0.40 m toward the workspace and 0.20 m to its right. Chosen by eye in the Isaac GUI on 2026-09-05
+    #: (the bimanual robot, whose frame is the midpoint of the two arm bases); the same offset is applied
+    #: to the single arm so both YAM robots see the same scene. `spawn_offset` key in every YAM config;
+    #: env_config moves the spawn, the robot-frame cameras and the EE transforms together.
+    SPAWN_OFFSET_POS = (0.40, -0.20, 0.0)
+    SPAWN_OFFSET_YAW_DEG = 0.0
 
     # ------------------------------------------------------------------------------------------
 
@@ -193,6 +201,11 @@ class YamRobot:
         """(kp, kd) shared by both finger joints."""
         gains = cls.GAIN_SETS[cls.DEFAULT_GAIN_SET if gain_set is None else gain_set]
         return gains[cls.GRIPPER_GAIN_GROUP]
+
+    @classmethod
+    def spawn_offset(cls):
+        """The robot config's `spawn_offset` entry (REALM-only key, read by env_config)."""
+        return {"pos": list(cls.SPAWN_OFFSET_POS), "yaw_deg": cls.SPAWN_OFFSET_YAW_DEG}
 
     @classmethod
     def wrist_camera_focal_length(cls, horizontal_aperture=None):
@@ -283,6 +296,9 @@ class YamBimanualRobot:
     CONTROL_FREQ_HZ = YamRobot.CONTROL_FREQ_HZ
     PHYSICS_FREQ_HZ = YamRobot.PHYSICS_FREQ_HZ
     MOUNT_HEIGHT = YamRobot.MOUNT_HEIGHT
+    SPAWN_OFFSET_POS = YamRobot.SPAWN_OFFSET_POS
+    SPAWN_OFFSET_YAW_DEG = YamRobot.SPAWN_OFFSET_YAW_DEG
+    spawn_offset = YamRobot.spawn_offset
     RENDER_RESOLUTION = YamRobot.RENDER_RESOLUTION
 
     # --- top camera (YAMLab configs/robot/yam.yaml: cameras.top) -------------------------------

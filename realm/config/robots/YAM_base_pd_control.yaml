@@ -6,6 +6,13 @@ robots:
     dof: 8
     has_base_column: false
     mount_height: 0.863891
+    # REALM-only: rigid offset from the DROID spawn pose in the robot's own frame (forward, left, up in
+    # metres; yaw about the robot's z). The YAM reaches ~0.6 m, far less than the Franka, so it sits
+    # 0.40 m closer to the workspace and 0.20 m to its right (chosen in the GUI, 2026-09-05). Cameras and
+    # EE transforms expressed in the robot frame move with it; the objects do not. See YamRobot.SPAWN_OFFSET_POS.
+    spawn_offset:
+      pos: [0.40, -0.20, 0.0]
+      yaw_deg: 0.0
     reset_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.0475, -0.0475]
     include_sensor_names: ["wrist_camera"]
     obs_modalities: ["rgb", "proprio"]

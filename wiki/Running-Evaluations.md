@@ -169,7 +169,13 @@ wrist camera under `link_6`. The eef frame is a massless `eef_link` 14.3 cm out 
 flange axis (the midpoint of YAMLab's fingertip keypoints); `get_ee_pose` and the Cartesian metrics
 report that point. The arm base is spawned `mount_height` (0.863891 m, the DROID column
 height) above the scene's robot pose so the exterior cameras frame the workspace as for DROID; the
-value is a config key, not a measurement. Only the `debug` model type has been exercised with a
+value is a config key, not a measurement. On top of that, every YAM config carries a REALM-only
+`spawn_offset` (`pos: [0.40, -0.20, 0.0]`, `yaw_deg: 0.0`): a rigid shift of the whole robot in its own
+frame, 0.40 m toward the workspace and 0.20 m to its right, because the YAM's reach is well short of
+the Franka's. Objects stay where the scene places them; the robot-frame cameras (the YAM_bimanual top
+camera, the task extrinsics) and the EE-control transforms move with the robot. The value was chosen by
+eye in the GUI on 2026-09-05; `scripts/yam_placement_gui.py` nudges the robot with the keyboard and prints
+the block to paste if it needs retuning. Only the `debug` model type has been exercised with a
 6-DOF state: `openpi`/`dreamzero` policy servers must accept a 6-entry `observation/joint_position`.
 
 > **Verified so far (2026-09-04, RTX 5090, `debug` model, 90 steps, `--no-render_on_demand`; task 0
@@ -192,7 +198,8 @@ value is a config key, not a measurement. Only the `debug` model type has been e
 `realm/robots/yam/yam_bimanual.usd` composed from the single-arm file by
 `scripts/build_yam_bimanual_usd.py`). The two arms sit 0.61 m apart in y on a geometry-free
 `base_link` at their midpoint, which is the robot frame; the midpoint is spawned `mount_height` above the
-scene's robot pose like the single arm. Links and joints carry the arm as a prefix (`left_link_6`,
+scene's robot pose and shifted by the same `spawn_offset` as the single arm (0.40 m forward, 0.20 m to
+the robot's right). Links and joints carry the arm as a prefix (`left_link_6`,
 `right_joint1`, `left_left_finger`), and the arms collide with each other but not with themselves
 (`self_collisions: true` + every within-arm pair filtered, matching YAMLab's per-arm articulations with
 self-collisions off).

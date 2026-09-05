@@ -171,3 +171,18 @@ def calculate_new_camera_pose_mixed_rotations(
     )
     T_world_new_camera = T_world_new_base.dot(T_base_camera)
     return get_xyz_quaternion_from_homogeneous_transform(T_world_new_camera)
+
+
+def offset_spawn_pose(pos_xyz, rpy_rad, offset_xyz, yaw_rad=0.0):
+    """Shift a robot spawn pose by an offset expressed in the robot's OWN frame.
+
+    `pos_xyz` / `rpy_rad` are the scene's robot pose (scenes.yaml `pos` / `rot`, radians); `offset_xyz`
+    is (forward, left, up) in that frame and `yaw_rad` an extra rotation about the robot's z. Returns
+    (pos list, rpy list) in the same encodings, so the result can replace the scene pose everywhere it
+    is used -- spawn, exterior-camera composition, robot-frame EE transforms. The REALM-only robot config
+    key `spawn_offset` (YAM configs) goes through here; DROID configs carry no key and never call it.
+    """
+    R_nominal = Rotation.from_euler("xyz", np.asarray(rpy_rad, dtype=float))
+    pos = np.asarray(pos_xyz, dtype=float) + R_nominal.apply(np.asarray(offset_xyz, dtype=float))
+    rot = R_nominal * Rotation.from_euler("z", float(yaw_rad))
+    return pos.tolist(), rot.as_euler("xyz").tolist()

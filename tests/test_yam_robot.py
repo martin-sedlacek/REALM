@@ -96,6 +96,7 @@ def test_robot_config_matches_spec(gain_set, path):
     assert r["dof"] == Y.N_DOF
     assert r["has_base_column"] is False, "bare arm; test_robot_base_column pins this against the USD name"
     assert r["mount_height"] == Y.MOUNT_HEIGHT
+    assert r["spawn_offset"] == Y.spawn_offset()
     assert r["reset_joint_pos"] == list(Y.DEFAULT_JOINT_POS)
     assert r["control_freq"] == Y.CONTROL_FREQ_HZ
     assert r["action_normalize"] is False
@@ -181,6 +182,31 @@ def test_sim_config_and_env_config_recognise_the_robot():
     assert int(m.group(1)) == int(m.group(2)) == Y.CONTROL_FREQ_HZ
     env_cfg = (PROJECT_ROOT / "realm" / "environments" / "env_config.py").read_text()
     assert 'pop("mount_height"' in env_cfg and '"reset_joint_pos"' in env_cfg
+    # spawn_offset must be popped (OmniGibson rejects unknown robot kwargs) and applied to the pose that
+    # the exterior cameras and EE transforms are composed from, i.e. BEFORE env.robot_pos is set.
+    assert 'pop("spawn_offset"' in env_cfg
+    assert env_cfg.index('pop("spawn_offset"') < env_cfg.index("env.robot_pos = np.array(robot_pos")
+
+
+def test_spawn_offset_moves_the_robot_toward_the_workspace_in_its_own_frame():
+    """The offset is (forward, left, up) in the robot frame, whatever the scene's yaw: a robot facing +y
+    world with the YAM offset lands 0.40 m further along +y and 0.20 m along +x (its right)."""
+    import math
+
+    from realm.geometry import offset_spawn_pose
+
+    d = Y.SPAWN_OFFSET_POS
+    assert d[0] > 0, "forward, toward the table"
+    assert d[1] < 0, "to the robot's right (-y in its frame)"
+    assert d[2] == 0.0 and Y.SPAWN_OFFSET_YAW_DEG == 0.0, "height stays mount_height, no yaw"
+    pos, rpy = offset_spawn_pose([1.0, 2.0, 0.5], [0.0, 0.0, math.radians(90)], d, 0.0)
+    assert pos == pytest.approx([1.0 - d[1], 2.0 + d[0], 0.5])
+    assert rpy == pytest.approx([0.0, 0.0, math.radians(90)])
+    # identity offset is the identity map, which is what every DROID config (no key) gets
+    pos, rpy = offset_spawn_pose([1.0, 2.0, 0.5], [0.0, 0.0, 0.3], [0.0, 0.0, 0.0], 0.0)
+    assert pos == pytest.approx([1.0, 2.0, 0.5]) and rpy == pytest.approx([0.0, 0.0, 0.3])
+    for path in sorted((PROJECT_ROOT / "realm" / "config" / "robots").glob("DROID*.yaml")):
+        assert "spawn_offset" not in _load(path)["robots"][0], f"{path.name}: DROID must keep the scene pose"
 
 
 # --- the USD ------------------------------------------------------------------------------------
@@ -291,6 +317,7 @@ def test_bimanual_config_matches_spec():
     assert r["name"] == B.NAME and r["model"] == B.MODEL
     assert r["dof"] == B.N_DOF
     assert r["has_base_column"] is False and r["mount_height"] == B.MOUNT_HEIGHT
+    assert r["spawn_offset"] == B.spawn_offset() == Y.spawn_offset(), "both YAM robots see the same scene"
     assert r["reset_joint_pos"] == list(B.default_joint_pos())
     assert r["control_freq"] == B.CONTROL_FREQ_HZ and r["action_normalize"] is False
     assert any(s in Y.WRIST_CAMERA_PRIM for s in r["include_sensor_names"]), "must match BOTH <arm>_link_6/wrist_camera prims"

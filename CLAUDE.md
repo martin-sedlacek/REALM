@@ -199,7 +199,10 @@ metres away, ~100x joint inertia, Slurm 204612); `scripts/build_yam_usd.py::flat
 fixes the asset and `SceneSetupMixin.restore_authored_link_coms` (run from `finalize_setup`, after
 `rebase_initial_file`) guards it at load. A bare arm sets the REALM-only
 config keys `has_base_column: false`, `mount_height` (spawn/base-frame
-z offset) and `reset_joint_pos` (full-DOF). The YAM port is the template: `realm/robots/yam.py` holds
+z offset), `reset_joint_pos` (full-DOF) and optionally `spawn_offset` (a rigid shift of the whole robot in
+its own frame, applied to the spawn AND to everything expressed in the robot frame -- cameras, EE
+transforms; the YAM sits 0.40 m forward / 0.20 m right of the DROID pose because of its shorter reach;
+`scripts/yam_placement_gui.py` tunes it interactively). The YAM port is the template: `realm/robots/yam.py` holds
 the numbers, `scripts/build_yam_usd.py` shows the USD surgery, `tests/test_yam_robot.py` pins the
 YAMLs to the spec. `assert_wrist_camera` and `assert_proprio_layout` fail at construction if the
 profile disagrees with what OmniGibson actually built.

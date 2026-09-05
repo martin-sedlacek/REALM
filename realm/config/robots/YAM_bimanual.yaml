@@ -15,6 +15,13 @@ robots:
     # REALM-only: height of the mount frame (the arm-base midpoint) above the scene's robot spawn point.
     # Same as the single arm, so the exterior-camera extrinsics and workspace match the DROID setup.
     mount_height: 0.863891
+    # REALM-only: rigid offset from the DROID spawn pose in the robot's own frame (forward, left, up in
+    # metres; yaw about the robot's z). The YAM reaches ~0.6 m, far less than the Franka, so it sits
+    # 0.40 m closer to the workspace and 0.20 m to its right (chosen in the GUI, 2026-09-05). Cameras and
+    # EE transforms expressed in the robot frame move with it; the objects do not. See YamRobot.SPAWN_OFFSET_POS.
+    spawn_offset:
+      pos: [0.40, -0.20, 0.0]
+      yaw_deg: 0.0
     # Full-DOF reset pose in OmniGibson DOF order (breadth-first: left_joint1, right_joint1, ..., right_joint6,
     # then left fingers, then right fingers; fingers -0.0475 m = open). YAMLab's initial state for both arms.
     reset_joint_pos: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,

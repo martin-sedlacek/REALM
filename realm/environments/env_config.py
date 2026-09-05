@@ -16,6 +16,7 @@ from realm.environments.constants import (
 )
 from realm.config.shared import env_flag, env_value
 from realm.environments.perturbations.object_sampling import sample_objects
+from realm.geometry import offset_spawn_pose
 from realm.placement import place_within
 
 
@@ -80,12 +81,25 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
     assert "pos" in scene_data and "rot" in scene_data
     robot_pos = scene_data['pos']
     robot_rot = [math.radians(angle_deg) for angle_deg in scene_data['rot']]
-    env.robot_pos = np.array(robot_pos, dtype=float)
-    env.robot_rot_rad = np.array(robot_rot, dtype=float)
 
     cfg_robot = yaml.load(open(f"{env.config_path}/robots/{env.robot_name}.yaml", "r"), Loader=yaml.FullLoader)
     robot_entry = cfg_robot["robots"][0]
     env.ee_control = robot_entry.get("ee_control", False)
+    # REALM-only key: a rigid offset of the whole robot from the scene's spawn pose, in the robot's own
+    # frame ({"pos": [forward, left, up] m, "yaw_deg"}). The YAM's reach is shorter than the Franka's, so
+    # its configs move it 0.40 m toward the workspace and 0.20 m to its right (chosen in the GUI,
+    # 2026-09-05). The objects stay where the scene puts them; everything expressed in the robot frame --
+    # the spawn, robot-attached and task exterior cameras, the EE-control transforms -- follows the robot.
+    # Absent for every DROID config, whose pose is the scene pose unchanged.
+    spawn_offset = robot_entry.pop("spawn_offset", None)
+    env.spawn_offset = {"pos": [0.0, 0.0, 0.0], "yaw_deg": 0.0}
+    if spawn_offset is not None:
+        env.spawn_offset = {"pos": [float(v) for v in spawn_offset.get("pos", (0.0, 0.0, 0.0))],
+                            "yaw_deg": float(spawn_offset.get("yaw_deg", 0.0))}
+        robot_pos, robot_rot = offset_spawn_pose(robot_pos, robot_rot, env.spawn_offset["pos"],
+                                                 math.radians(env.spawn_offset["yaw_deg"]))
+    env.robot_pos = np.array(robot_pos, dtype=float)
+    env.robot_rot_rad = np.array(robot_rot, dtype=float)
     # Column-free assets have their origin at the arm base.
     spawn_pos = list(robot_pos)
     has_base_column = robot_entry.pop("has_base_column", True)
