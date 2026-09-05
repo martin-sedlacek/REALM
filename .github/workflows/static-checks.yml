@@ -19,8 +19,19 @@ jobs:
           enable-cache: true
       - name: Install host-only tools
         run: uv sync --locked
-      - name: Run lint and static tests
-        run: uv run --locked make check
+      - name: Run lint
+        run: uv run --locked ruff check realm examples tests scripts
+      - name: Run container-free static tests
+        if: ${{ !cancelled() }}
+        run: uv run --locked python tests/run_suite.py --only local --strict --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
+      - name: Run host-safe pytest modules
+        if: ${{ !cancelled() }}
+        run: >-
+          uv run --locked python -m pytest -q
+          tests/test_perturbation_task_types.py
+          tests/test_cell_classification.py
+          tests/test_robot_base_column.py
+          tests/test_robot_definition_parity.py
       - name: Upload static-test report
         if: always()
         uses: actions/upload-artifact@v4
