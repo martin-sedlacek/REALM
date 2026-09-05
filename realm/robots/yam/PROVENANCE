@@ -22,13 +22,26 @@ workstation/ (workstation.usd, Props/instanceable_meshes.usd, mesh/*.usd)
   workstation/mesh/gate_horizontal_bar.usd sha256: b0ac6ceea1f88b017859e3a4981679edd1a89e16265d6e57d7e0540a2c9b6dd9
   workstation/mesh/gate_vertical_bar.usd sha256: 3c47c63ebd8577a2df4156b0976708cc3c7ff62f4fd3b726ae8d3487336690d2
 
+yam_bimanual.usd
+  source: realm/robots/yam/yam.usd (the built single-arm file above)
+  source sha256: e0f20d6406b28570c9c2176831e7e4f816228e4d5d20b5f952f8dd8c2b18e396
+  output sha256: 3b8697fbba6560bc1c01f201a0c974d9102c665f96381461a9f1299c60b45b22
+  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
+  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
+  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
+  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
+  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
+  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
+  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
+  for a UsdPreviewSurface with the same aluminium constants.
+
 yam_crank.usd
   source: realm/robots/yam/yam.usd (the built YAMLab arm above) + ABC's MJCF
   source sha256: e0f20d6406b28570c9c2176831e7e4f816228e4d5d20b5f952f8dd8c2b18e396
   mjcf: /home/elmo/sedlam/abc/assets/put_bottles/assets/i2rt_yam/yam.xml
   mjcf sha256: a797c4c27d1c074eb24b04d9cf13cef9a66589f135ebf35bb22f2be3b86f7d28
   abc commit: 6bc6586721cf0c409ccee80f675a28de9b9b2f5e
-  output sha256: 92e3da81441af3c3acd9257b84ff1f0a95868f0b0f679be02d8250dc844dabbd
+  output sha256: c9494618f7810d8b6bfbb290e6b1b96e3e5d9cc3a4e6b41e3ae305920f790fa5
   built by scripts/build_yam_crank_usd.py: link_6 housing, both fingers (visuals, capsule/box collision
   pads, inertials, prismatic joints), the wrist D405 links and camera, and the eef frame re-authored from
   the MJCF; the six arm links are YAMLab's. Numbers from realm/robots/yam.py::YamCrankRobot.
@@ -51,23 +64,10 @@ yam_crank.usd
   model2__9.stl sha256: 74969d09b8b7f75cc984c5c7e5526d2941c6724f48b3efa1fa8730cc7820f4f5
   d405.stl sha256: 8a9a84dd9c9a67687e5ad0b37a7ed334dbfea6b0f995fef28524cc8da5f21ed2
 
-yam_bimanual.usd
-  source: realm/robots/yam/yam.usd (the built single-arm file above)
-  source sha256: e0f20d6406b28570c9c2176831e7e4f816228e4d5d20b5f952f8dd8c2b18e396
-  output sha256: 3b8697fbba6560bc1c01f201a0c974d9102c665f96381461a9f1299c60b45b22
-  built by scripts/build_yam_bimanual_usd.py: every link/joint of yam.usd copied twice with left_/right_
-  prefixes, links translated by the arm offsets (+-0.305 m in y), geometry-free root base_link at
-  the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's
-  wrist-camera offset. Numbers from realm/robots/yam.py::YamBimanualRobot.
-  frame link: visual-only copy of /workstation_only/workstation/visuals/gate_visual from workstation/workstation.usd (sha256 above),
-  moved into the mount frame, the part below the arm plates stretched x1.1367 in z
-  so the feet reach the floor at REALM's mount_height; normals and the OmniPBR/emissive material dropped
-  for a UsdPreviewSurface with the same aluminium constants.
-
 yam_crank_bimanual.usd
   source: realm/robots/yam/yam_crank.usd (the built single-arm file above)
-  source sha256: 92e3da81441af3c3acd9257b84ff1f0a95868f0b0f679be02d8250dc844dabbd
-  output sha256: d12121d54ce526dee243c32d0c4844036d2dab6d80c8610986854321855d234c
+  source sha256: c9494618f7810d8b6bfbb290e6b1b96e3e5d9cc3a4e6b41e3ae305920f790fa5
+  output sha256: cf88fa6845eaf04dc741bcc15abba252d57e695d826f03f2cf67568799c42b7e
   built by scripts/build_yam_bimanual_usd.py: every link/joint of yam_crank.usd copied twice with left_/right_
   prefixes, links translated by the arm offsets (+-0.31 m in y), geometry-free root base_link at
   the arm-base midpoint with a fixed <arm>_mount joint per arm, right wrist camera at YAMLab's

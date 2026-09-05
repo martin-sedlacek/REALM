@@ -357,12 +357,13 @@ class YamCrankRobot(YamRobot):
     #: it lands here); USD/OpenGL convention, looks 50 degrees below the flange axis.
     WRIST_CAMERA_POSITION = (-0.0017, 0.095, 0.062)
     WRIST_CAMERA_QUAT_WXYZ = (0.0, 0.0, 0.906106, 0.42305)
-    #: ABC's MuJoCo camera: ``fovy="58"`` rendered at 224x168 (abc_minimal/config.py camera_width/height),
-    #: i.e. 72.9 deg horizontal. Expressed as the equivalent pinhole intrinsics at that resolution so the
-    #: base class's focal-length formula applies unchanged: fx = (H/2) / tan(fovy/2).
-    WRIST_CAMERA_FOVY_DEG = 58.0
-    WRIST_CAMERA_CALIB_RESOLUTION = (224, 168)
-    WRIST_CAMERA_INTRINSICS = {"fx": 151.54, "fy": 151.54, "cx": 112.0, "cy": 84.0}
+    #: Intrinsics: INHERITED from YamRobot -- the D405 calibration YAMLab measured at 640x480 (78.6 x 63.1
+    #: deg). ABC's MuJoCo camera is the nominal ``fovy="58"`` at 224x168 (72.9 deg horizontal), ~6 deg
+    #: narrower than the measured device; ABC's real 4:3 recordings of the put-bottles task come from the
+    #: same D405, and the measured value is also what matched the operator's view in the GUI
+    #: (2026-09-05). ABC_SIM_FOVY_DEG is kept for reference / an exact match to their renderer.
+    ABC_SIM_FOVY_DEG = 58.0
+    ABC_SIM_RESOLUTION = (224, 168)
     #: MJCF bodies whose contents become REALM links (link_6's children in yam.xml).
     MJCF_FINGER_BODIES = {"left_finger": "link_left_finger", "right_finger": "link_right_finger"}
     MJCF_FLANGE_BODY = "link_6"
