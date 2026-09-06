@@ -7,7 +7,7 @@
 #
 # Numbers are pinned against realm/robots/yam.py::YamRobot by tests/test_yam_robot.py.
 robots:
-  - name: "YAM"
+  - name: "YAM_single_arm"
     model: "yam"
     dof: 8
     # Bare arm: no column in the asset (test_robot_base_column pins this against the USD name).

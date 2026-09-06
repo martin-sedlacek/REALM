@@ -32,8 +32,8 @@ from realm.robots.yam import YamRobot as Y  # noqa: E402
 DEFINITION = PROJECT_ROOT / "realm" / "robots" / "definitions" / Y.MODEL / f"{Y.MODEL}.yaml"
 USD = PROJECT_ROOT / "realm" / "robots" / "yam" / "yam.usd"
 CONFIGS = {
-    "high_pd": PROJECT_ROOT / "realm" / "config" / "robots" / "YAM.yaml",
-    "base": PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_base_pd_control.yaml",
+    "high_pd": PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_single_arm.yaml",
+    "base": PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_single_arm_base_pd_control.yaml",
 }
 
 
@@ -517,8 +517,8 @@ def test_wrist_camera_pose_override_is_plumbed():
 
 
 def test_bimanual_molmoact_config_differs_only_in_cameras():
-    """YAM_bimanual_molmoact.yaml = YAM_bimanual.yaml with the MolmoAct2-like top camera and wrist camera pose."""
-    path = PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact.yaml"
+    """YAM_molmoact2_rest_pose.yaml = YAM_bimanual.yaml with the MolmoAct2-like top camera and wrist camera pose."""
+    path = PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_molmoact2_rest_pose.yaml"
     default, molmo = _load(B_CONFIG)["robots"][0], _load(path)["robots"][0]
     assert molmo["name"] == B.NAME
     cam = molmo["exterior_camera"]
@@ -532,21 +532,21 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     assert tuple(wp["pos"]) == Y.YAMLAB_WRIST_CAMERA_POSITION and tuple(wp["quat_wxyz"]) == Y.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
     molmo.pop("wrist_camera_pose"); molmo.pop("exterior_camera"); default.pop("exterior_camera")
     assert molmo == default
-    reach = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach.yaml")["robots"][0]
+    reach = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_molmoact2.yaml")["robots"][0]
     rp = reach.pop("reset_joint_pos")
     order = B.dof_order()
     assert rp[order.index("left_joint2")] == 0.76 and rp[order.index("right_joint2")] == 1.27, "arms out over the table"
     assert all(rp[order.index(j)] == Y.GRIPPER_OPEN_QPOS for a in B.ARMS for j in B.finger_joints(a))
     reach.pop("wrist_camera_pose"); reach.pop("exterior_camera"); default.pop("reset_joint_pos")
     assert reach == default
-    sticky = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach_sticky.yaml")["robots"][0]
+    sticky = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_molmoact2_sticky.yaml")["robots"][0]
     assert sticky.pop("grasping_mode") == "sticky"
     for k in ("reset_joint_pos", "wrist_camera_pose", "exterior_camera"):
         sticky.pop(k)
     assert sticky == default
     for path in (*CONFIGS.values(), B_CONFIG, CB_CONFIG):
         assert "grasping_mode" not in _load(path)["robots"][0], f"{path.name}: benchmark configs grasp physically"
-    wabc = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach_wristabc.yaml")["robots"][0]
+    wabc = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_molmoact2_wrist_abc.yaml")["robots"][0]
     assert "wrist_camera_pose" not in wabc
     for k in ("reset_joint_pos", "exterior_camera"):
         wabc.pop(k)
@@ -722,8 +722,8 @@ def test_crank_bimanual_definition_and_config_match_spec():
 
 
 def test_crank_bimanual_aligned_config_differs_only_in_gains():
-    """YAM_crank_bimanual_aligned_pd_control.yaml is the crank robot with GAIN_SETS["abc_aligned"] on the arms."""
-    aligned_path = PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_crank_bimanual_aligned_pd_control.yaml"
+    """YAM_ABC_aligned_pd_control.yaml is the crank robot with GAIN_SETS["abc_aligned"] on the arms."""
+    aligned_path = PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_ABC_aligned_pd_control.yaml"
     default, aligned = _load(CB_CONFIG)["robots"][0], _load(aligned_path)["robots"][0]
     for arm in CB.ARMS:
         arm_cfg = aligned["controller_config"][f"arm_{arm}"]

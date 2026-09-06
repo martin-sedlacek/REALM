@@ -1,3 +1,10 @@
+# YAM_molmoact2 + OmniGibson sticky grasping (see the grasping_mode comment). For evaluating what the
+# pi05-yam-molmoact2 policy does AFTER a grasp when its sim grasps keep missing by a couple of centimetres.
+# YAM_molmoact2_rest_pose with the arms STARTING in MolmoAct2's mid-episode working pose (median episode-mean state
+# over 66 episodes: L -0.11 0.76 0.68 -0.62 0.04 -0.20, R 0.33 1.27 1.15 -0.82 0.0 0.30 -- arms out over the table,
+# wrist cameras looking down at it) instead of the episode-start rest pose. Diagnostic (2026-09-06): at rest the
+# pi05 policy emits a 'go' chunk only ~1 in 10 times in REALM and never sustains it; from a working pose the
+# offline replay shows it tracks and continues motion. Everything else as YAM_molmoact2_rest_pose.yaml.
 # YAM bimanual workstation configured to look like the MolmoAct2-BimanualYAM recording rig (AllenAI), for the
 # robocurve/pi05-yam-molmoact2 policy (--model_type openpi_yam). Identical to YAM_bimanual.yaml (same robot,
 # same gains, same start pose) except the two camera keys below, picked by eye against dataset frames with
@@ -10,10 +17,15 @@
 #   * wrist_camera_pose: YAMLab's calibrated D405 pose (~25 deg below the flange axis). The USD carries ABC's 50 deg
 #     bracket; closed-loop A/B on put_green_block_into_bowl (2026-09-06, physical grasps, 3 repeats each): 50 deg 0/3,
 #     37 deg (slerp 0.5) 0/6, **25 deg 3/3** -- the policy's hand-eye calibration is YAMLab's.
-# Selected with --robot YAM_bimanual_molmoact; the robot name stays YAM_bimanual.
+# The robot name stays YAM_bimanual (obs profile); the file name is the --robot selector.
 robots:
   - name: "YAM_bimanual"
     model: "yam_bimanual"
+    # OmniGibson assisted grasping: "sticky" magnetises any object touching the closing fingers. SIM-USABILITY
+    # setting (2026-09-06): with physical grasps the pi05 policy closes the fingers 1-3 cm beside the block in
+    # 15/15 repeats (fingers read fully closed while "grasping"), a hand-eye offset a guessed wrist-camera pose
+    # cannot remove. Numbers from this config are not comparable with physical-grasp runs.
+    grasping_mode: "sticky"
     dof: 16
     # Bare arms on a geometry-free mount frame: no column in the asset.
     has_base_column: false
@@ -31,7 +43,7 @@ robots:
     # then left fingers, then right fingers; fingers -0.0475 m = open). YAMLab's initial state for both arms.
     # YamBimanualRobot.default_joint_pos(): MolmoAct2's episode start pose per arm, in PhysX DOF order
     # (left_joint1, right_joint1, left_joint2, ...), then the four fingers open.
-    reset_joint_pos: [0.0, 0.1, 0.0, 0.0, 0.16, 0.18, -0.53, -0.79, 0.0, 0.0, -0.05, 0.03,
+    reset_joint_pos: [-0.11, 0.33, 0.76, 1.27, 0.68, 1.15, -0.62, -0.82, 0.04, 0.0, -0.2, 0.3,
                       -0.0475, -0.0475, -0.0475, -0.0475]
     # Substring filter: matches left_link_6/wrist_camera AND right_link_6/wrist_camera.
     include_sensor_names: ["wrist_camera"]

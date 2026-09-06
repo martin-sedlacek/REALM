@@ -59,7 +59,7 @@ class YamRobot:
     #: `name` in realm/config/robots/YAM*.yaml; also the observation-dict key and the
     #: ROBOT_OBS_PROFILES key. `--robot` values must start with this so sim_config and env_config
     #: recognise the robot.
-    NAME = "YAM"
+    NAME = "YAM_single_arm"
     #: Path OmniGibson loads inside the container (definition `usd_path`).
     USD_PATH = "/app/realm/robots/yam/yam.usd"
 
@@ -131,7 +131,7 @@ class YamRobot:
         },
         # REALM: one (kp, kd) for every arm joint, fitted 2026-09-05 by open-loop replay of the six real
         # put-bottles episodes of the ABC preview set (states_actions.bin, 5240 steps at 30 Hz, both arms)
-        # on YAM_crank_bimanual: RMSE 0.0239 rad vs 0.0277 for high_pd and base. kd/kp ~ 0.125 makes the
+        # on YAM_ABC: RMSE 0.0239 rad vs 0.0277 for high_pd and base. kd/kp ~ 0.125 makes the
         # PhysX drive a uniform ~93 ms first-order lag on every joint (real robot: 100-143 ms shoulder,
         # 194-218 ms wrist -- a shared gain cannot reproduce the wrists' extra lag). Chosen over the
         # marginally better 40/5 (0.0231, same lag) for stiffness under load. Gripper gains as high_pd.
@@ -348,7 +348,7 @@ class YamCrankRobot(YamRobot):
     """
 
     MODEL = "yam_crank"
-    NAME = "YAM_crank"
+    NAME = "YAM_single_arm_crankshaft"
     USD_PATH = "/app/realm/robots/yam/yam_crank.usd"
     #: ABC MJCF: link_6 -> body camera_d405 (the housing mesh) -> body camera_frame (+9 mm) -> camera.
     FIXED_CAMERA_LINKS = ("camera_d405", "camera_frame")
@@ -687,7 +687,7 @@ class YamCrankBimanualRobot(YamBimanualRobot):
     #: ABC's ``home`` keyframe on both arms (YamCrankRobot.DEFAULT_JOINT_POS), not the MolmoAct2 start.
     DEFAULT_ARM_JOINT_POS = None
     MODEL = "yam_crank_bimanual"
-    NAME = "YAM_crank_bimanual"
+    NAME = "YAM_ABC"
     USD_PATH = "/app/realm/robots/yam/yam_crank_bimanual.usd"
     ARM_OFFSETS = {"left": (0.0, 0.31, 0.0), "right": (0.0, -0.31, 0.0)}
     WRIST_CAMERA_POSITIONS = {"left": YamCrankRobot.WRIST_CAMERA_POSITION,

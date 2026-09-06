@@ -6,7 +6,7 @@
 #
 # Numbers are pinned against realm/robots/yam.py::YamCrankBimanualRobot by tests/test_yam_robot.py.
 robots:
-  - name: "YAM_crank_bimanual"
+  - name: "YAM_ABC"
     model: "yam_crank_bimanual"
     dof: 16
     # Bare arms on a geometry-free mount frame: no column in the asset.

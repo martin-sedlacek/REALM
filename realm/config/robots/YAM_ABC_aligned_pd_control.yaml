@@ -1,16 +1,10 @@
-# YAM bimanual workstation (YAMLab port): two YAM arms on a shared mount, REALM's `abc_aligned` arm gains
-# (kp 160 / kd 20 on every arm joint, fitted 2026-09-05 on ABC's real episodes -- see GAIN_SETS in
-# realm/robots/yam.py), YAMLab's `high_pd` gripper gains, both wrist cameras, and YAMLab's fixed top camera
-# as the exterior view.
-#
-# One OmniGibson robot (model yam_bimanual, realm/robots/definitions/yam_bimanual/) whose controllers
-# run in YAMLab's action order: [left_arm(6), left_gripper(1), right_arm(6), right_gripper(1)].
-# Each arm is the single-arm YAM config (YAM_single_arm.yaml) with the arm gains swapped for `abc_aligned`.
-#
-# Numbers are pinned against realm/robots/yam.py::YamBimanualRobot by tests/test_yam_robot.py.
+# YAM_ABC.yaml with the ABC-aligned unified PD gains (realm/robots/yam.py GAIN_SETS["abc_aligned"]):
+# kp 160 / kd 20 on all twelve arm joints, fitted by replaying the ABC preview set's real put-bottles episodes
+# (scripts/yam_pd_search.py, 2026-09-05). Identical to YAM_ABC.yaml apart from the arm isaac_kp /
+# isaac_kd; tests/test_yam_robot.py pins both.
 robots:
-  - name: "YAM_bimanual"
-    model: "yam_bimanual"
+  - name: "YAM_ABC"
+    model: "yam_crank_bimanual"
     dof: 16
     # Bare arms on a geometry-free mount frame: no column in the asset.
     has_base_column: false
@@ -25,11 +19,10 @@ robots:
       pos: [0.30, 0.0, 0.0]
       yaw_deg: 0.0
     # Full-DOF reset pose in OmniGibson DOF order (breadth-first: left_joint1, right_joint1, ..., right_joint6,
-    # then left fingers, then right fingers; fingers -0.0475 m = open). YAMLab's initial state for both arms.
-    # YamBimanualRobot.default_joint_pos(): MolmoAct2's episode start pose per arm, in PhysX DOF order
-    # (left_joint1, right_joint1, left_joint2, ...), then the four fingers open.
-    reset_joint_pos: [0.0, 0.1, 0.0, 0.0, 0.16, 0.18, -0.53, -0.79, 0.0, 0.0, -0.05, 0.03,
-                      -0.0475, -0.0475, -0.0475, -0.0475]
+    # then left fingers, then right fingers). ABC's `home` keyframe with the fingers OPEN (+0.0475 left finger,
+    # -0.0475 right finger, on both arms).
+    reset_joint_pos: [0.0, 0.0, 1.047, 1.047, 1.047, 1.047, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                      0.0475, -0.0475, 0.0475, -0.0475]
     # Substring filter: matches left_link_6/wrist_camera AND right_link_6/wrist_camera.
     include_sensor_names: ["wrist_camera"]
     obs_modalities: ["rgb", "proprio"]
@@ -48,18 +41,17 @@ robots:
             use_impedances: False
             command_input_limits: null
             command_output_limits: null
-            # high_pd: shoulder joint1-3 + elbow joint4 = 800/50, wrist joint5-6 = 30/5.
+            # abc_aligned: 160/20 on every arm joint.
             isaac_kp: [160.0, 160.0, 160.0, 160.0, 160.0, 160.0]
             isaac_kd: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]
         gripper_left:
           name: "MultiFingerGripperController"
           mode: "binary"
           motor_type: "position"
-          # The stock binary controller drives "open" to the joints' UPPER limit and "close" to the LOWER
-          # one; on the YAM fingers the upper limit (0.0) is CLOSED and the lower (-0.0475) is OPEN, so the
-          # limits must be named explicitly or every command is inverted (measured in-container 2026-09-05:
-          # a close command left the fingers at -0.0475). Order: [left_finger, right_finger].
-          open_qpos: [-0.0475, -0.0475]
+          # ABC's crank fingers: closed at 0, open at the far limit, which is +0.0475 for the left finger and
+          # -0.0475 for the right (the MJCF equality mirrors them). Named per finger so the stock binary
+          # controller's open/close map onto the right ends of each joint. Order: [left_finger, right_finger].
+          open_qpos: [0.0475, -0.0475]
           closed_qpos: [0.0, 0.0]
           isaac_kp: 2000.0
           isaac_kd: 100.0
@@ -77,11 +69,10 @@ robots:
           name: "MultiFingerGripperController"
           mode: "binary"
           motor_type: "position"
-          # The stock binary controller drives "open" to the joints' UPPER limit and "close" to the LOWER
-          # one; on the YAM fingers the upper limit (0.0) is CLOSED and the lower (-0.0475) is OPEN, so the
-          # limits must be named explicitly or every command is inverted (measured in-container 2026-09-05:
-          # a close command left the fingers at -0.0475). Order: [left_finger, right_finger].
-          open_qpos: [-0.0475, -0.0475]
+          # ABC's crank fingers: closed at 0, open at the far limit, which is +0.0475 for the left finger and
+          # -0.0475 for the right (the MJCF equality mirrors them). Named per finger so the stock binary
+          # controller's open/close map onto the right ends of each joint. Order: [left_finger, right_finger].
+          open_qpos: [0.0475, -0.0475]
           closed_qpos: [0.0, 0.0]
           isaac_kp: 2000.0
           isaac_kd: 100.0
@@ -92,10 +83,13 @@ robots:
           # square policy input comes out ~25% smaller than the training frames).
           image_height: 720
           image_width: 960
-          # Both wrist cameras share the D405 calibration (fx = 390.666 at 640 px -> 78.6 deg hfov).
+          # Same D405 and calibration as YAMLab (fx = 390.666 at 640 px -> 78.6 x 63.1 deg at 4:3), on ABC's
+          # steeper wrist bracket. ABC's own sim renders the nominal fovy 58 (72.9 deg hfov), ~6 deg narrower.
           focal_length: 12.7913
           horizontal_aperture: 20.955
-          clipping_range: [0.04, 10000000.0]
+          # 0.02 m, not YAMLab's 0.1: on ABC's bracket the housing is behind the lens and the finger bases are
+          # 3-4 cm away -- a 0.1 m near plane clipped 70% of the finger geometry (see-through fingers).
+          clipping_range: [0.02, 10000000.0]
     # REALM-only: YAMLab's fixed top camera (configs/robot/yam.yaml cameras.top), expressed in the mount
     # frame like every camera_extrinsics entry (xyz + xyzw quaternion, USD camera looks down -Z).
     # env_config places external_sensor0 here instead of the task's cam1 extrinsics, and sets its focal

@@ -9,9 +9,9 @@ Three robots, all `--robot` values, all sharing `realm/robots/yam.py` as the sin
 
 | `--robot` | What | Asset |
 |---|---|---|
-| `YAM` (+ `YAM_base_pd_control`) | single YAMLab arm | `realm/robots/yam/yam.usd` |
+| `YAM` (+ `YAM_single_arm_base_pd_control`) | single YAMLab arm | `realm/robots/yam/yam.usd` |
 | `YAM_bimanual` | YAMLab's two-arm workstation | `yam_bimanual.usd` |
-| `YAM_crank_bimanual` | the same workstation with I2RT's crank gripper from ABC's MuJoCo model | `yam_crank_bimanual.usd` (from `yam_crank.usd`) |
+| `YAM_ABC` | the same workstation with I2RT's crank gripper from ABC's MuJoCo model | `yam_crank_bimanual.usd` (from `yam_crank.usd`) |
 
 Build chain (host, needs `pxr` + numpy; the scratch venv used so far is not part of the repo):
 
@@ -45,8 +45,8 @@ grippers open); on DROID it is the historical zero action.
 
 ## Not verified
 
-- `YAM_crank_bimanual` has **not run on a GPU** since it was created. First check:
-  `tests/test_yam_bimanual_motion.py --robot YAM_crank_bimanual` (each action column moves exactly its joint;
+- `YAM_ABC` has **not run on a GPU** since it was created. First check:
+  `tests/test_yam_bimanual_motion.py --robot YAM_ABC` (each action column moves exactly its joint;
   gripper phases reach normalised 0 open / 1 closed — note the inverted finger sign).
 - Trained policy: `--model_type openpi_yam` wires robocurve/pi05-yam-molmoact2 (openpi `yam_pi05`, branch
   `yam-pi05` of `~/projects/openpi`, checkpoint at `~/ckpt/pi05_yam_molmoact2`) to `YAM_bimanual` -- state
@@ -81,7 +81,7 @@ than the real robot; and REALM's YAM configs use YAMLab's stiff `high_pd` gains 
 wrist), tighter still. The gripper state in the data almost never reaches fully closed — grasps stop at 0.4–0.6
 (bottle width) — so a closed-gripper comparison against the sim has to be made holding an object.
 
-**Plan.** (1) On Clara, run step responses on `YAM_crank_bimanual` for the two gain sets already in the repo
+**Plan.** (1) On Clara, run step responses on `YAM_ABC` for the two gain sets already in the repo
 (`high_pd`, and the MJCF/`base` set 40/2.5 – 10/1 – 100/10, which are the DM motors' MIT-mode gains) and
 measure tau per joint with the `test_yam_bimanual_motion.py` machinery; (2) pick/fit `isaac_kp`/`isaac_kd` per
 actuator group so tau matches the real column above (target ~120–140 ms shoulder, ~210 ms wrist); if PD alone
@@ -92,14 +92,14 @@ resulting joint trajectory with the recorded states as the acceptance test. Keep
 ## Control alignment result (2026-09-05, Clara)
 
 Step (3) of the plan above was run first and directly: `scripts/yam_pd_search.py` replays the 6 real
-put-bottles episodes (5240 steps, both arms) open-loop on `YAM_crank_bimanual` at 30 Hz / 120 Hz physics,
+put-bottles episodes (5240 steps, both arms) open-loop on `YAM_ABC` at 30 Hz / 120 Hz physics,
 sets one shared (kp, kd) on all 12 arm joints per cell, and scores RMSE against the recorded states.
 Host report: `scripts/yam_pd_search_report.py`. Data on Clara: `~/abc_preview`. Details and the full
 grid: runbook stream `yam_bimanual_port`.
 
 | cell (kp / kd, every arm joint) | RMSE (rad) | sim tau j1..j6 (ms) |
 |---|---|---|
-| **160 / 20 -> `GAIN_SETS["abc_aligned"]`, `--robot YAM_crank_bimanual_aligned_pd_control`** | **0.0239** | 93 93 93 95 95 95 |
+| **160 / 20 -> `GAIN_SETS["abc_aligned"]`, `--robot YAM_ABC_aligned_pd_control`** | **0.0239** | 93 93 93 95 95 95 |
 | 40 / 5 | 0.0231 | 93 103 93 94 95 95 |
 | 20 / 2 | 0.0269 | 78 126 81 69 70 70 |
 | `high_pd` (default, per group) | 0.0277 | 29 29 29 31 140 137 |
@@ -112,8 +112,8 @@ A shared gain cannot reproduce the real wrists being 2x slower than the shoulder
 mean; the floor (~0.023 rad = 1.3 deg) is set by segments where the real arm sits 0.2-0.3 rad off its own
 command (contact), which no gain changes. 160/20 was chosen over 40/5 (same lag, within cell-to-cell noise)
 for stiffness under load. `YAM_bimanual.yaml` (the YAMLab-gripper workstation) now carries these arm gains
-directly (Martin, 2026-09-05: the non-crank bimanual robot should use the same kp/kd); `YAM.yaml` and
-`YAM_crank_bimanual.yaml` keep `high_pd`, with the aligned set as `YAM_crank_bimanual_aligned_pd_control`.
+directly (Martin, 2026-09-05: the non-crank bimanual robot should use the same kp/kd); `YAM_single_arm.yaml` and
+`YAM_ABC.yaml` keep `high_pd`, with the aligned set as `YAM_ABC_aligned_pd_control`.
 `GAIN_SETS` default is unchanged; DROID untouched.
 
 ## Start state, grippers and wrist cameras (2026-09-05 evening, Martin)
@@ -130,18 +130,18 @@ the recorded qpos went closed -> open exactly when the policy commanded open.
 
 ## pi05-yam-molmoact2 in REALM: what works (2026-09-06)
 
-**Recipe:** `--robot YAM_bimanual_molmoact_reach --model_type openpi_yam --horizon 16 --max_steps 1200` against
+**Recipe:** `--robot YAM_molmoact2 --model_type openpi_yam --horizon 16 --max_steps 1200` against
 openpi's `yam_pi05` server. Results (physical grasps, 1200 steps, 2026-09-06): `put_green_block_into_bowl` **SR 5/9**
 (9/9 grasp and carry; jobs 204922/204923), `pick_water_bottle` 1/3, `put_banana_into_box` / `pick_spoon` /
 `stack_cubes` 0/3 each (reach only -- far from its block/box/charging training set). Details in the runbook stream
 `yam_bimanual_port`. Launcher:
-`~/runbook/streams/yam_pi05_banana.sbatch` (`ROBOT=YAM_bimanual_molmoact_reach TASK=0 REPEATS=6 MAX_STEPS=1200 HORIZON=16`).
+`~/runbook/streams/yam_pi05_banana.sbatch` (`ROBOT=YAM_molmoact2 TASK=0 REPEATS=6 MAX_STEPS=1200 HORIZON=16`).
 
 What the config is, and why each piece (every step was isolated with a run or an offline probe):
 
 * `YAM_bimanual` with the `abc_aligned` 160/20 arm gains and the warm-up ending with the grippers **open**
   (every YAM dataset starts open; REALM's DROID warm-up ends closed).
-* **Top camera like the MolmoAct2 rig** (`YAM_bimanual_molmoact.yaml`): 0.30 m ahead of the arm bases, 1.26 m
+* **Top camera like the MolmoAct2 rig** (`YAM_molmoact2_rest_pose.yaml`): 0.30 m ahead of the arm bases, 1.26 m
   above them, straight down, 15 mm focal; picked by rendering candidates next to dataset frames
   (`scripts/yam_camera_sweep.py`). YAMLab's own top camera sees the whole room.
 * **Wrist cameras at YAMLab's calibrated 25-deg pose** via the REALM-only `wrist_camera_pose` key (the USD authors
@@ -152,7 +152,7 @@ What the config is, and why each piece (every step was isolated with a run or an
   rest frames offline); from the working pose it acts immediately. `--horizon 16` executes whole chunks.
 
 What did NOT matter: the prompt wording (task text vs MolmoAct2 vocabulary), horizon 8 vs 16 from the rest pose,
-histogram-matching the images. `YAM_bimanual_molmoact_reach_sticky.yaml` (OmniGibson sticky grasps) exists for
+histogram-matching the images. `YAM_molmoact2_sticky.yaml` (OmniGibson sticky grasps) exists for
 diagnosing post-grasp behaviour and is not benchmark-comparable. The wiring itself was verified offline on a
 MolmoAct2 episode (openpi `scripts/yam_pi05_replay.py`: nMSE 0.0025 vs 0.0058 for holding still).
 
@@ -170,10 +170,10 @@ MolmoAct2 episode (openpi `scripts/yam_pi05_replay.py`: nMSE 0.0025 vs 0.0058 fo
 ```sh
 # GUI look at a robot (Docker on the laptop; Apptainer on Clara per scripts/run_apptainer.sh)
 python /app/examples/04_vector_evaluate.py --num_envs 1 --repeats 1 --max_steps 9999 --task_id 0 --perturbation_id 0 \
-    --robot YAM_crank_bimanual --model_type debug --model_name yam_view --port 0 --experiment_name yam_placement \
+    --robot YAM_ABC --model_type debug --model_name yam_view --port 0 --experiment_name yam_placement \
     --log_dir /app/tmp/yam_logs --no_record --no-render_on_demand
 # nudge the robot with the keyboard and print a spawn_offset block
-OMNIGIBSON_HEADLESS=0 python /app/scripts/yam_placement_gui.py --robot YAM_crank_bimanual --task_id 0
+OMNIGIBSON_HEADLESS=0 python /app/scripts/yam_placement_gui.py --robot YAM_ABC --task_id 0
 # host tier-1
 uv run ruff check realm examples tests scripts
 uv run python -m pytest -q tests/test_perturbation_task_types.py tests/test_cell_classification.py \

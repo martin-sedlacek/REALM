@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Nudge the YAM around a REALM scene in the Isaac GUI and read off its offset from the DROID spawn pose.
 
-    OMNIGIBSON_HEADLESS=0 python /app/scripts/yam_placement_gui.py --robot YAM --task_id 1
+    OMNIGIBSON_HEADLESS=0 python /app/scripts/yam_placement_gui.py --robot YAM_single_arm --task_id 1
 
 Builds the real evaluation environment (same scene, table, objects and exterior cameras a rollout
 would get), holds the reset pose, and moves the WHOLE robot with the keyboard while the Kit window has
@@ -198,7 +198,7 @@ def smoke(env, placement, hold, steps=15, tol_m=0.005, tol_deg=0.5):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--robot", default="YAM", help="realm/config/robots/<robot>.yaml (YAM, YAM_bimanual, ...)")
+    parser.add_argument("--robot", default="YAM_single_arm", help="realm/config/robots/<robot>.yaml (YAM_single_arm, YAM_bimanual, YAM_molmoact2, ...)")
     parser.add_argument("--task_id", type=int, default=1)
     parser.add_argument("--task_cfg_path", default=None, help="overrides --task_id")
     parser.add_argument("--multi-view", dest="multi_view", action="store_true", help="also spawn the second exterior camera")

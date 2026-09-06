@@ -1,9 +1,8 @@
-# YAM_bimanual_molmoact_reach with the wrist cameras at the USD pose (ABC bracket, 50 deg) -- hand-eye A/B (2026-09-06).
-# YAM_bimanual_molmoact with the arms STARTING in MolmoAct2's mid-episode working pose (median episode-mean state
+# YAM_molmoact2_rest_pose with the arms STARTING in MolmoAct2's mid-episode working pose (median episode-mean state
 # over 66 episodes: L -0.11 0.76 0.68 -0.62 0.04 -0.20, R 0.33 1.27 1.15 -0.82 0.0 0.30 -- arms out over the table,
 # wrist cameras looking down at it) instead of the episode-start rest pose. Diagnostic (2026-09-06): at rest the
 # pi05 policy emits a 'go' chunk only ~1 in 10 times in REALM and never sustains it; from a working pose the
-# offline replay shows it tracks and continues motion. Everything else as YAM_bimanual_molmoact.yaml.
+# offline replay shows it tracks and continues motion. Everything else as YAM_molmoact2_rest_pose.yaml.
 # YAM bimanual workstation configured to look like the MolmoAct2-BimanualYAM recording rig (AllenAI), for the
 # robocurve/pi05-yam-molmoact2 policy (--model_type openpi_yam). Identical to YAM_bimanual.yaml (same robot,
 # same gains, same start pose) except the two camera keys below, picked by eye against dataset frames with
@@ -13,10 +12,10 @@
 #     mount height, so its "z 0.40" candidates rendered from 0.40 + 0.864 m; job 204846 at a true 0.40 m saw only
 #     a 0.6 m patch of table with no arms. 1.264 reproduces the view that was picked.) -- the dataset's top view has both arm bases at the bottom corners and the
 #     table filling the frame; YAMLab's camera (0.17 m behind, 0.94 m up, 60 deg) sees the whole room.
-#   * wrist_camera_pose: halfway (slerp 0.5) between YAMLab's calibration (~25 deg below the flange axis) and
-#     ABC's bracket (50 deg): the dataset's wrist views show the fingertips small at the bottom corners and the
-#     table 30-60 cm ahead; ABC's pose fills the lower half with fingers, YAMLab's loses the fingertips.
-# Selected with --robot YAM_bimanual_molmoact; the robot name stays YAM_bimanual.
+#   * wrist_camera_pose: YAMLab's calibrated D405 pose (~25 deg below the flange axis). The USD carries ABC's 50 deg
+#     bracket; closed-loop A/B on put_green_block_into_bowl (2026-09-06, physical grasps, 3 repeats each): 50 deg 0/3,
+#     37 deg (slerp 0.5) 0/6, **25 deg 3/3** -- the policy's hand-eye calibration is YAMLab's.
+# The robot name stays YAM_bimanual (obs profile); the file name is the --robot selector.
 robots:
   - name: "YAM_bimanual"
     model: "yam_bimanual"
@@ -115,3 +114,7 @@ robots:
         pos: [0.30, -0.009, 1.264]
         rot: [-0.000002, 0.000002, -0.707107, 0.707107]
       focal_length: 15.0
+    # REALM-only (env_config -> scene_setup.place_wrist_cameras): both wrist cameras' local pose in link_6.
+    wrist_camera_pose:
+      pos: [-0.0004, 0.069638, 0.073063]
+      quat_wxyz: [-0.003227, 0.002817, 0.975619, 0.219430]

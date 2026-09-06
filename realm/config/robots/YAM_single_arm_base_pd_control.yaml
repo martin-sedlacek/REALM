@@ -1,7 +1,7 @@
 # YAM arm (YAMLab port) with YAMLab's softer `base` gain set (controller.base in YAMLab's yam.yaml).
-# Identical to YAM.yaml apart from isaac_kp / isaac_kd; tests/test_yam_robot.py pins both.
+# Identical to YAM_single_arm.yaml apart from isaac_kp / isaac_kd; tests/test_yam_robot.py pins both.
 robots:
-  - name: "YAM"
+  - name: "YAM_single_arm"
     model: "yam"
     dof: 8
     has_base_column: false

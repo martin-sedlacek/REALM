@@ -1,7 +1,7 @@
 """Brute-force search for ONE (kp, kd) shared by every YAM arm joint, scored by replaying ABC's real
 episodes. Container + GPU; no rendering.
 
-    python scripts/yam_pd_search.py --robot YAM_crank_bimanual --data /abc --out /app/tmp/yam_pd_search/<tag>
+    python scripts/yam_pd_search.py --robot YAM_ABC --data /abc --out /app/tmp/yam_pd_search/<tag>
 
 WHAT IT MEASURES. ABC's `states_actions.bin` holds the commanded joint targets a[t] next to the measured
 joints s[t] at 30 Hz, so the real controller's lag is recorded. This boots one environment, sets the
@@ -68,7 +68,7 @@ def fit_tau(states, actions, targets_are_next=True):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--robot", default="YAM_crank_bimanual")
+    ap.add_argument("--robot", default="YAM_ABC")
     ap.add_argument("--task_cfg_path", default="REALM_DROID10/put_green_block_into_bowl/default.yaml")
     ap.add_argument("--data", default="/abc", help="abc_preview root (train/, val/)")
     ap.add_argument("--out", required=True)
