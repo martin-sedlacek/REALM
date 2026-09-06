@@ -516,6 +516,25 @@ def test_wrist_camera_pose_override_is_plumbed():
         assert "wrist_camera_pose" not in _load(path)["robots"][0], f"{path.name}: the default configs keep the USD pose"
 
 
+def test_bimanual_molmoact_config_differs_only_in_cameras():
+    """YAM_bimanual_molmoact.yaml = YAM_bimanual.yaml with the MolmoAct2-like top camera and wrist camera pose."""
+    path = PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact.yaml"
+    default, molmo = _load(B_CONFIG)["robots"][0], _load(path)["robots"][0]
+    assert molmo["name"] == B.NAME
+    cam = molmo["exterior_camera"]
+    assert cam["cam1"]["pos"] == [0.30, -0.009, 0.40] and cam["focal_length"] == 15.0
+    from scipy.spatial.transform import Rotation as Rot
+    fwd = Rot.from_quat(cam["cam1"]["rot"]).apply([0.0, 0.0, -1.0])
+    assert abs(fwd[2] + 1.0) < 1e-3, "top camera looks straight down"
+    wp = molmo["wrist_camera_pose"]
+    assert len(wp["pos"]) == 3 and len(wp["quat_wxyz"]) == 4 and abs(np.linalg.norm(wp["quat_wxyz"]) - 1) < 1e-3
+    # halfway between YAMLab's and ABC's camera positions
+    mid = (np.array(Y.YAMLAB_WRIST_CAMERA_POSITION) + np.array(Y.WRIST_CAMERA_POSITION)) / 2
+    assert np.allclose(wp["pos"], mid, atol=1e-3)
+    molmo.pop("wrist_camera_pose"); molmo.pop("exterior_camera"); default.pop("exterior_camera")
+    assert molmo == default
+
+
 def test_openpi_yam_contract_round_trip():
     """realm/inference/openpi_yam.py: the yam_pi05 policy's state/images/actions contract (gripper 1 = open)."""
     path = PROJECT_ROOT / "realm" / "inference" / "openpi_yam.py"
