@@ -130,20 +130,29 @@ the recorded qpos went closed -> open exactly when the policy commanded open.
 
 ## pi05-yam-molmoact2 in REALM: what works (2026-09-06)
 
-The offline replay of a MolmoAct2 episode proved the openpi `yam_pi05` wiring correct (nMSE 0.0025 vs 0.0058 for
-holding still; swapping wrist images or zeroing the state breaks it). In REALM the policy held still from the
-rest pose in every configuration -- YAMLab cameras, MolmoAct2-like cameras (`YAM_bimanual_molmoact.yaml`: top
-camera 0.30 m ahead / 1.26 m above the arm bases looking down, wrist cameras at 37 deg via the REALM-only
-`wrist_camera_pose` key), horizon 8 or 16, task 0 or 6, either prompt. Offline probes on the dumped REALM
-observations (openpi `scripts/yam_pi05_probe_dump.py`) showed the "hold" is the model's own at-rest behaviour:
-even the dataset's own rest frames yield a moving chunk only ~1 in 10 samples, and those ramp up late in the chunk.
+**Recipe:** `--robot YAM_bimanual_molmoact_reach --model_type openpi_yam --horizon 16 --max_steps 1200` against
+openpi's `yam_pi05` server. On `put_green_block_into_bowl` this scored **3/3 successes with physical grasps**
+(job 204922); a wider confirmation sweep is in the runbook stream `yam_bimanual_port`. Launcher:
+`~/runbook/streams/yam_pi05_banana.sbatch` (`ROBOT=YAM_bimanual_molmoact_reach TASK=0 REPEATS=6 MAX_STEPS=1200 HORIZON=16`).
 
-**What works: start the arms in the dataset's mid-episode working pose** (`YAM_bimanual_molmoact_reach.yaml`,
-reset pose L -0.11 0.76 0.68 -0.62 0.04 -0.20 / R 0.33 1.27 1.15 -0.82 0.0 0.30, out over the table) with
-`--horizon 16`. From there the policy reaches, grasps and carries: on `put_green_block_into_bowl` with 1200 steps it
-grasped and moved the block in 3/3 repeats and completed the task in 1/3 (job 204881, 2026-09-06); `put_banana_into_box`
-and `stack_cubes` only reach so far. Larger estimates and other tasks are in the runbook stream `yam_bimanual_port`. Launcher: `~/runbook/streams/yam_pi05_banana.sbatch`
-(`ROBOT=YAM_bimanual_molmoact_reach TASK=0 REPEATS=3 MAX_STEPS=1200 HORIZON=16`).
+What the config is, and why each piece (every step was isolated with a run or an offline probe):
+
+* `YAM_bimanual` with the `abc_aligned` 160/20 arm gains and the warm-up ending with the grippers **open**
+  (every YAM dataset starts open; REALM's DROID warm-up ends closed).
+* **Top camera like the MolmoAct2 rig** (`YAM_bimanual_molmoact.yaml`): 0.30 m ahead of the arm bases, 1.26 m
+  above them, straight down, 15 mm focal; picked by rendering candidates next to dataset frames
+  (`scripts/yam_camera_sweep.py`). YAMLab's own top camera sees the whole room.
+* **Wrist cameras at YAMLab's calibrated 25-deg pose** via the REALM-only `wrist_camera_pose` key (the USD authors
+  ABC's 50-deg bracket). This is the policy's hand-eye calibration: closed-loop A/B on task 0 gave 50 deg 0/3,
+  37 deg 0/12, 25 deg 3/3 -- with the steeper brackets the fingers closed 1-3 cm beside the block every time.
+* **Arms start in the dataset's mid-episode working pose** (`_reach`: out over the table). From the rest pose the
+  model emits a "go" chunk only ~1 in 10 samples and never sustains it in REALM (also true on the dataset's own
+  rest frames offline); from the working pose it acts immediately. `--horizon 16` executes whole chunks.
+
+What did NOT matter: the prompt wording (task text vs MolmoAct2 vocabulary), horizon 8 vs 16 from the rest pose,
+histogram-matching the images. `YAM_bimanual_molmoact_reach_sticky.yaml` (OmniGibson sticky grasps) exists for
+diagnosing post-grasp behaviour and is not benchmark-comparable. The wiring itself was verified offline on a
+MolmoAct2 episode (openpi `scripts/yam_pi05_replay.py`: nMSE 0.0025 vs 0.0058 for holding still).
 
 ## Data
 
