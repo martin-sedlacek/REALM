@@ -21,18 +21,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # (name, x forward of the mount midpoint [m], z above it [m], pitch below horizontal [deg], focal length [mm])
 CANDIDATES = [
     ("yamlab", -0.1664949, 0.9443205, 60.0, 12.8413),
-    # MolmoAct2-like guesses: the dataset top view shows ~0.75 m of table width with both arm bases at the
-    # bottom corners, i.e. a camera ~0.55 m above the table plane, ~0.3 m ahead of the bases, looking down,
-    # ~70 deg hfov (focal 15 mm at the 20.955 mm aperture; 12.8 = 78 deg, 18 = 60 deg).
-    ("D1_x0.3_z0.55_p90_f15", 0.3, 0.55, 90.0, 15.0),
-    ("D2_x0.3_z0.55_p80_f15", 0.3, 0.55, 80.0, 15.0),
+    # v2 pick D3 (x0.25 z0.45 p85 f15) framed the table like MolmoAct2's top camera; refine around it
     ("D3_x0.25_z0.45_p85_f15", 0.25, 0.45, 85.0, 15.0),
-    ("D4_x0.35_z0.7_p90_f15", 0.35, 0.7, 90.0, 15.0),
-    ("D5_x0.3_z0.55_p90_f12.8", 0.3, 0.55, 90.0, 12.8413),
-    ("D6_x0.2_z0.6_p80_f12.8", 0.2, 0.6, 80.0, 12.8413),
-    ("D7_x0.4_z0.5_p90_f18", 0.4, 0.5, 90.0, 18.0),
-    ("G_x0.1_z1.0_p80_f7", 0.1, 1.0, 80.0, 7.0),
-    ("B_x0_z0.8_p75_f9.8", 0.0, 0.8, 75.0, 9.825),
+    ("E1_x0.25_z0.40_p85_f15", 0.25, 0.40, 85.0, 15.0),
+    ("E2_x0.30_z0.40_p90_f15", 0.30, 0.40, 90.0, 15.0),
+    ("E3_x0.20_z0.45_p80_f15", 0.20, 0.45, 80.0, 15.0),
+    ("E4_x0.25_z0.45_p85_f13", 0.25, 0.45, 85.0, 13.0),
+    ("E5_x0.25_z0.50_p85_f16.5", 0.25, 0.50, 85.0, 16.5),
+    ("E6_x0.30_z0.45_p85_f15", 0.30, 0.45, 85.0, 15.0),
 ]
 
 
@@ -64,16 +60,20 @@ def main():
     og_env = env.omnigibson_env
 
     def grab():
-        # a moved camera needs a few frames before the RT render product shows the new view (the first
-        # sweep's 3 renders gave uniform smears for most candidates); step twice and render several times
-        for _ in range(2):
-            og.sim.step()
-        for _ in range(12):
-            og.sim.render()
-        o = og_env.get_obs()[0]
-        base_im = extract_from_obs(o, robot.name)[0]
-        wrists = extract_wrist_images(o, robot.name)
-        return np.asarray(base_im)[..., :3], [np.asarray(w)[..., :3] for w in wrists]
+        # a moved camera needs a few frames before the RT render product shows the new view; some renders
+        # still come back as a uniform smear (sweeps 204837/204838) -- detect (low pixel std) and retry
+        for attempt in range(4):
+            for _ in range(2):
+                og.sim.step()
+            for _ in range(12 * (attempt + 1)):
+                og.sim.render()
+            o = og_env.get_obs()[0]
+            base_im = np.asarray(extract_from_obs(o, robot.name)[0])[..., :3]
+            wrists = [np.asarray(w)[..., :3] for w in extract_wrist_images(o, robot.name)]
+            if base_im.std() > 15 and all(w.std() > 15 for w in wrists):
+                return base_im, wrists
+            print(f"[sweep] uniform render (std top {base_im.std():.1f}), retrying", flush=True)
+        return base_im, wrists
 
     def tile(im):
         return image_tools.resize_with_pad(crop_to_aspect(np.ascontiguousarray(im)), 224, 224)
@@ -122,15 +122,25 @@ def main():
     wrist_sensors = {k: s for k, s in robot.sensors.items() if ":Camera:" in k and "link_6" in k}
     print("[sweep] all robot sensors:", sorted(robot.sensors))
     print("[sweep] wrist sensors:", sorted(wrist_sensors))
-    wrist_rows = [("abc_bracket", [tile(w) for w in base_wrists])]
+    wrist_rows = [("abc_bracket_50deg", [tile(w) for w in base_wrists])]
     saved = {k: s.get_local_pose() for k, s in wrist_sensors.items()}
-    qw, qx, qy, qz = YamRobot.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
-    for k, s in wrist_sensors.items():
-        s.set_local_pose(np.array(YamRobot.YAMLAB_WRIST_CAMERA_POSITION), np.array([qx, qy, qz, qw]))
-    _, wrists = grab()
-    wrist_rows.append(("yamlab_calib", [tile(w) for w in wrists]))
-    for k, s in wrist_sensors.items():
-        s.set_local_pose(*saved[k])
+    # interpolate between YAMLab's calibration (~25 deg below the flange axis) and ABC's bracket (50 deg)
+    from scipy.spatial.transform import Slerp
+    yw = YamRobot.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
+    aw = YamRobot.WRIST_CAMERA_QUAT_WXYZ
+    key = R.from_quat([[yw[1], yw[2], yw[3], yw[0]], [aw[1], aw[2], aw[3], aw[0]]])
+    slerp = Slerp([0.0, 1.0], key)
+    p0, p1 = np.array(YamRobot.YAMLAB_WRIST_CAMERA_POSITION), np.array(YamRobot.WRIST_CAMERA_POSITION)
+    for frac, label in ((0.0, "yamlab_25deg"), (0.25, "mix25_31deg"), (0.5, "mix50_37deg"), (0.75, "mix75_44deg")):
+        q = slerp([frac])[0].as_quat()  # xyzw
+        pos = p0 + frac * (p1 - p0)
+        for k, s_ in wrist_sensors.items():
+            s_.set_local_pose(pos, q)
+        _, wrists = grab()
+        wrist_rows.append((label, [tile(w) for w in wrists]))
+        print(f"[sweep] wrist {label}: pos {np.round(pos, 4).tolist()} quat_xyzw {np.round(q, 4).tolist()}", flush=True)
+    for k, s_ in wrist_sensors.items():
+        s_.set_local_pose(*saved[k])
     for label, tiles in wrist_rows:
         for arm, t in zip(("left", "right"), tiles):
             Image.fromarray(t).save(out / f"tile_{arm}_{label}.png")
