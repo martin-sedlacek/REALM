@@ -140,9 +140,9 @@ even the dataset's own rest frames yield a moving chunk only ~1 in 10 samples, a
 
 **What works: start the arms in the dataset's mid-episode working pose** (`YAM_bimanual_molmoact_reach.yaml`,
 reset pose L -0.11 0.76 0.68 -0.62 0.04 -0.20 / R 0.33 1.27 1.15 -0.82 0.0 0.30, out over the table) with
-`--horizon 16`. From there the policy reaches, closes the gripper on the object and lifts (task 0: stage
-LIFT_SLIGHT, progression 0.4 in the first 900-step run; task 6 reaches and closes). Success-rate runs are in the
-runbook stream `yam_bimanual_port`. Launcher: `~/runbook/streams/yam_pi05_banana.sbatch`
+`--horizon 16`. From there the policy reaches, grasps and carries: on `put_green_block_into_bowl` with 1200 steps it
+grasped and moved the block in 3/3 repeats and completed the task in 1/3 (job 204881, 2026-09-06); `put_banana_into_box`
+and `stack_cubes` only reach so far. Larger estimates and other tasks are in the runbook stream `yam_bimanual_port`. Launcher: `~/runbook/streams/yam_pi05_banana.sbatch`
 (`ROBOT=YAM_bimanual_molmoact_reach TASK=0 REPEATS=3 MAX_STEPS=1200 HORIZON=16`).
 
 ## Data
