@@ -1,4 +1,6 @@
 
+import os
+
 import numpy as np
 from PIL import Image
 import omnigibson as og
@@ -142,7 +144,28 @@ class _OpenPIYamAdapter:
         obs_dict = policy_observation(instruction, base_im, wrist_im, wrist_im_second, robot_state,
                                       gripper_state, resize=image_tools.resize_with_pad)
         pred = self.client.infer(obs_dict)
+        self._maybe_dump(obs_dict, pred["actions"])
         return policy_actions_to_realm(pred["actions"])
+
+    # Diagnostics: REALM_OPENPI_YAM_DUMP=<file.npz> records exactly what was sent and what came back for the
+    # first REALM_OPENPI_YAM_DUMP_N (default 40) calls, for offline replay (openpi scripts/yam_pi05_probe_dump.py).
+    _dump = None
+
+    def _maybe_dump(self, obs_dict, actions):
+        path = os.environ.get("REALM_OPENPI_YAM_DUMP")
+        if not path:
+            return
+        if self._dump is None:
+            self._dump = {"top": [], "left": [], "right": [], "state": [], "prompt": [], "actions": []}
+        d = self._dump
+        if len(d["state"]) >= int(os.environ.get("REALM_OPENPI_YAM_DUMP_N", "40")):
+            return
+        for k in ("top", "left", "right"):
+            d[k].append(np.asarray(obs_dict["images"][k]))
+        d["state"].append(np.asarray(obs_dict["state"]))
+        d["prompt"].append(str(obs_dict["prompt"]))
+        d["actions"].append(np.asarray(actions))
+        np.savez(path, **{k: np.stack(v) if k != "prompt" else np.array(v) for k, v in d.items()})
 
 
 class _GR00TAdapter:
