@@ -540,6 +540,13 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     assert all(rp[order.index(j)] == Y.GRIPPER_OPEN_QPOS for a in B.ARMS for j in B.finger_joints(a))
     reach.pop("wrist_camera_pose"); reach.pop("exterior_camera"); default.pop("reset_joint_pos")
     assert reach == default
+    sticky = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach_sticky.yaml")["robots"][0]
+    assert sticky.pop("grasping_mode") == "sticky"
+    for k in ("reset_joint_pos", "wrist_camera_pose", "exterior_camera"):
+        sticky.pop(k)
+    assert sticky == default
+    for path in (*CONFIGS.values(), B_CONFIG, CB_CONFIG):
+        assert "grasping_mode" not in _load(path)["robots"][0], f"{path.name}: benchmark configs grasp physically"
 
 
 def test_openpi_yam_contract_round_trip():
