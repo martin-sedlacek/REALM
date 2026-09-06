@@ -73,7 +73,8 @@ def main():
     # --- exterior camera candidates -------------------------------------------------------------
     sensor_cfg = env.cfg["env"]["external_sensors"][0]
     sensor = og_env.external_sensors[sensor_cfg["name"]]
-    robot_pos, robot_rot = env.cfg["robots"][0]["position"], env.cfg["robots"][0]["orientation"]
+    # construct_ext_cam_pose_by_name wants the base pose as xyz + rpy radians (env_config keeps the rpy)
+    robot_pos, robot_rot = env.cfg["robots"][0]["position"], np.asarray(env.robot_rot_rad, dtype=float).tolist()
     r_yam = R.from_quat(list(YamBimanualRobot.EXTERIOR_CAMERA_QUAT_XYZW))  # looks +x, 60 deg down
 
     def quat_for_pitch(pitch_deg):
