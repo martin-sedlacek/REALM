@@ -538,7 +538,7 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     order = B.dof_order()
     assert rp[order.index("left_joint2")] == 0.76 and rp[order.index("right_joint2")] == 1.27, "arms out over the table"
     assert all(rp[order.index(j)] == Y.GRIPPER_OPEN_QPOS for a in B.ARMS for j in B.finger_joints(a))
-    reach.pop("wrist_camera_pose"); reach.pop("exterior_camera")
+    reach.pop("wrist_camera_pose"); reach.pop("exterior_camera"); default.pop("reset_joint_pos")
     assert reach == default
 
 
