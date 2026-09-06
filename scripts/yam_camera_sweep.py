@@ -21,14 +21,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # (name, x forward of the mount midpoint [m], z above it [m], pitch below horizontal [deg], focal length [mm])
 CANDIDATES = [
     ("yamlab", -0.1664949, 0.9443205, 60.0, 12.8413),
-    ("A_x0_z0.8_p75_f12.8", 0.0, 0.8, 75.0, 12.8413),
-    ("B_x0_z0.8_p75_f9.8", 0.0, 0.8, 75.0, 9.825),
-    ("C_x0.1_z0.7_p80_f9.8", 0.1, 0.7, 80.0, 9.825),
-    ("D_x-0.1_z0.9_p70_f9.8", -0.1, 0.9, 70.0, 9.825),
-    ("E_x0.2_z0.9_p90_f9.8", 0.2, 0.9, 90.0, 9.825),
-    ("F_x0_z0.6_p70_f9.8", 0.0, 0.6, 70.0, 9.825),
+    # MolmoAct2-like guesses: the dataset top view shows ~0.75 m of table width with both arm bases at the
+    # bottom corners, i.e. a camera ~0.55 m above the table plane, ~0.3 m ahead of the bases, looking down,
+    # ~70 deg hfov (focal 15 mm at the 20.955 mm aperture; 12.8 = 78 deg, 18 = 60 deg).
+    ("D1_x0.3_z0.55_p90_f15", 0.3, 0.55, 90.0, 15.0),
+    ("D2_x0.3_z0.55_p80_f15", 0.3, 0.55, 80.0, 15.0),
+    ("D3_x0.25_z0.45_p85_f15", 0.25, 0.45, 85.0, 15.0),
+    ("D4_x0.35_z0.7_p90_f15", 0.35, 0.7, 90.0, 15.0),
+    ("D5_x0.3_z0.55_p90_f12.8", 0.3, 0.55, 90.0, 12.8413),
+    ("D6_x0.2_z0.6_p80_f12.8", 0.2, 0.6, 80.0, 12.8413),
+    ("D7_x0.4_z0.5_p90_f18", 0.4, 0.5, 90.0, 18.0),
     ("G_x0.1_z1.0_p80_f7", 0.1, 1.0, 80.0, 7.0),
-    ("H_x0.3_z0.8_p85_f9.8", 0.3, 0.8, 85.0, 9.825),
+    ("B_x0_z0.8_p75_f9.8", 0.0, 0.8, 75.0, 9.825),
 ]
 
 
@@ -60,7 +64,11 @@ def main():
     og_env = env.omnigibson_env
 
     def grab():
-        for _ in range(3):
+        # a moved camera needs a few frames before the RT render product shows the new view (the first
+        # sweep's 3 renders gave uniform smears for most candidates); step twice and render several times
+        for _ in range(2):
+            og.sim.step()
+        for _ in range(12):
             og.sim.render()
         o = og_env.get_obs()[0]
         base_im = extract_from_obs(o, robot.name)[0]
@@ -94,6 +102,9 @@ def main():
         pos, rot = env.construct_ext_cam_pose_by_name({"pos": [x, YamBimanualRobot.EXTERIOR_CAMERA_POSITION[1], z], "rot": quat},
                                                       robot_pos, robot_rot)
         sensor.set_position_orientation(pos, rot, sensor_cfg["pose_frame"])
+        got_pos, got_rot = sensor.get_position_orientation()
+        print(f"[sweep] {name}: set world pos {np.round(pos, 3).tolist()} -> read back {np.round(np.asarray(got_pos), 3).tolist()} "
+              f"rot {np.round(np.asarray(got_rot), 3).tolist()}", flush=True)
         try:
             sensor.focal_length = focal
         except Exception as e:  # noqa: BLE001
@@ -108,7 +119,8 @@ def main():
             base_wrists = wrists
 
     # --- wrist camera poses: current USD (ABC bracket) vs YAMLab's calibration -------------------
-    wrist_sensors = {k: s for k, s in robot.sensors.items() if "wrist_camera" in k}
+    wrist_sensors = {k: s for k, s in robot.sensors.items() if ":Camera:" in k and "link_6" in k}
+    print("[sweep] all robot sensors:", sorted(robot.sensors))
     print("[sweep] wrist sensors:", sorted(wrist_sensors))
     wrist_rows = [("abc_bracket", [tile(w) for w in base_wrists])]
     saved = {k: s.get_local_pose() for k, s in wrist_sensors.items()}
