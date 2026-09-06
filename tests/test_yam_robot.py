@@ -547,6 +547,16 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     assert sticky == default
     for path in (*CONFIGS.values(), B_CONFIG, CB_CONFIG):
         assert "grasping_mode" not in _load(path)["robots"][0], f"{path.name}: benchmark configs grasp physically"
+    wabc = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach_wristabc.yaml")["robots"][0]
+    assert "wrist_camera_pose" not in wabc
+    for k in ("reset_joint_pos", "exterior_camera"):
+        wabc.pop(k)
+    assert wabc == default
+    w25 = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach_wrist25.yaml")["robots"][0]
+    assert tuple(w25.pop("wrist_camera_pose")["quat_wxyz"]) == Y.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
+    for k in ("reset_joint_pos", "exterior_camera"):
+        w25.pop(k)
+    assert w25 == default
 
 
 def test_openpi_yam_contract_round_trip():
