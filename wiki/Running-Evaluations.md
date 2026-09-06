@@ -157,6 +157,8 @@ registered for OmniGibson 3.9.1 are:
 | `YAM` | `yam.usd` (YAMLab arm, bare) | 6 | stock `JointController`, YAMLab `high_pd` gains | see below |
 | `YAM_base_pd_control` | `yam.usd` | 6 | stock `JointController`, YAMLab `base` gains | |
 | `YAM_bimanual` | `yam_bimanual.usd` (two YAM arms on a shared mount) | 2 x 6 | stock `JointController` x2 + `MultiFingerGripperController` x2, `abc_aligned` arm gains (kp 160 / kd 20, fitted on ABC's real episodes 2026-09-05), `high_pd` gripper gains | 14-D action, two wrist cameras, YAMLab top camera as the exterior view; see below |
+| `YAM_bimanual_molmoact` | `yam_bimanual.usd` | 2 x 6 | as `YAM_bimanual` | MolmoAct2-like cameras: top camera 0.30 m ahead / 1.26 m above the arm bases looking straight down (15 mm), wrist cameras at 37 deg (`wrist_camera_pose`); for `--model_type openpi_yam` |
+| `YAM_bimanual_molmoact_reach` | `yam_bimanual.usd` | 2 x 6 | as `YAM_bimanual` | `YAM_bimanual_molmoact` + arms start in MolmoAct2's mid-episode working pose (out over the table); **the configuration in which pi05-yam-molmoact2 acts** -- see [YAM-Port-Status](YAM-Port-Status) |
 | `YAM_crank_bimanual` | `yam_crank_bimanual.usd` (the same workstation with I2RT's crank gripper) | 2 x 6 | as `YAM_bimanual` but YAMLab's `high_pd` arm gains (the aligned set is the row below) | ABC-project gripper: inverted finger sign, steeper wrist camera, ABC home pose; see below |
 | `YAM_crank_bimanual_aligned_pd_control` | `yam_crank_bimanual.usd` | 2 x 6 | stock `JointController`, `abc_aligned` gains (kp 160 / kd 20 on every arm joint) | Fitted by replaying ABC's real put-bottles episodes (`scripts/yam_pd_search.py`): a uniform ~93 ms lag, RMSE 0.024 rad vs 0.028 for `high_pd`; see [YAM-Port-Status](YAM-Port-Status) |
 

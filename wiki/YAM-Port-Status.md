@@ -128,6 +128,23 @@ crank arm), near plane 0.04 m; `yam.usd` / `yam_bimanual.usd` rebuilt on Clara f
 (PROVENANCE updated; crank USDs untouched). Not an inverted gripper: the polarity was verified in-container and
 the recorded qpos went closed -> open exactly when the policy commanded open.
 
+## pi05-yam-molmoact2 in REALM: what works (2026-09-06)
+
+The offline replay of a MolmoAct2 episode proved the openpi `yam_pi05` wiring correct (nMSE 0.0025 vs 0.0058 for
+holding still; swapping wrist images or zeroing the state breaks it). In REALM the policy held still from the
+rest pose in every configuration -- YAMLab cameras, MolmoAct2-like cameras (`YAM_bimanual_molmoact.yaml`: top
+camera 0.30 m ahead / 1.26 m above the arm bases looking down, wrist cameras at 37 deg via the REALM-only
+`wrist_camera_pose` key), horizon 8 or 16, task 0 or 6, either prompt. Offline probes on the dumped REALM
+observations (openpi `scripts/yam_pi05_probe_dump.py`) showed the "hold" is the model's own at-rest behaviour:
+even the dataset's own rest frames yield a moving chunk only ~1 in 10 samples, and those ramp up late in the chunk.
+
+**What works: start the arms in the dataset's mid-episode working pose** (`YAM_bimanual_molmoact_reach.yaml`,
+reset pose L -0.11 0.76 0.68 -0.62 0.04 -0.20 / R 0.33 1.27 1.15 -0.82 0.0 0.30, out over the table) with
+`--horizon 16`. From there the policy reaches, closes the gripper on the object and lifts (task 0: stage
+LIFT_SLIGHT, progression 0.4 in the first 900-step run; task 6 reaches and closes). Success-rate runs are in the
+runbook stream `yam_bimanual_port`. Launcher: `~/runbook/streams/yam_pi05_banana.sbatch`
+(`ROBOT=YAM_bimanual_molmoact_reach TASK=0 REPEATS=3 MAX_STEPS=1200 HORIZON=16`).
+
 ## Data
 
 - `logs/abc_preview/` on the laptop (also rsynced to Clara, see the handoff message): the public preview tar
