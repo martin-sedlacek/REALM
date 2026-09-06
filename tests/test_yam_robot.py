@@ -528,9 +528,8 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     assert abs(fwd[2] + 1.0) < 1e-3, "top camera looks straight down"
     wp = molmo["wrist_camera_pose"]
     assert len(wp["pos"]) == 3 and len(wp["quat_wxyz"]) == 4 and abs(np.linalg.norm(wp["quat_wxyz"]) - 1) < 1e-3
-    # halfway between YAMLab's and ABC's camera positions
-    mid = (np.array(Y.YAMLAB_WRIST_CAMERA_POSITION) + np.array(Y.WRIST_CAMERA_POSITION)) / 2
-    assert np.allclose(wp["pos"], mid, atol=1e-3)
+    # YAMLab's calibrated pose (the policy's hand-eye calibration): 3/3 vs 0/3 (ABC) and 0/6 (slerp 0.5) on task 0
+    assert tuple(wp["pos"]) == Y.YAMLAB_WRIST_CAMERA_POSITION and tuple(wp["quat_wxyz"]) == Y.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
     molmo.pop("wrist_camera_pose"); molmo.pop("exterior_camera"); default.pop("exterior_camera")
     assert molmo == default
     reach = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach.yaml")["robots"][0]
@@ -552,11 +551,6 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     for k in ("reset_joint_pos", "exterior_camera"):
         wabc.pop(k)
     assert wabc == default
-    w25 = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach_wrist25.yaml")["robots"][0]
-    assert tuple(w25.pop("wrist_camera_pose")["quat_wxyz"]) == Y.YAMLAB_WRIST_CAMERA_QUAT_WXYZ
-    for k in ("reset_joint_pos", "exterior_camera"):
-        w25.pop(k)
-    assert w25 == default
 
 
 def test_openpi_yam_contract_round_trip():

@@ -7,9 +7,9 @@
 #     mount height, so its "z 0.40" candidates rendered from 0.40 + 0.864 m; job 204846 at a true 0.40 m saw only
 #     a 0.6 m patch of table with no arms. 1.264 reproduces the view that was picked.) -- the dataset's top view has both arm bases at the bottom corners and the
 #     table filling the frame; YAMLab's camera (0.17 m behind, 0.94 m up, 60 deg) sees the whole room.
-#   * wrist_camera_pose: halfway (slerp 0.5) between YAMLab's calibration (~25 deg below the flange axis) and
-#     ABC's bracket (50 deg): the dataset's wrist views show the fingertips small at the bottom corners and the
-#     table 30-60 cm ahead; ABC's pose fills the lower half with fingers, YAMLab's loses the fingertips.
+#   * wrist_camera_pose: YAMLab's calibrated D405 pose (~25 deg below the flange axis). The USD carries ABC's 50 deg
+#     bracket; closed-loop A/B on put_green_block_into_bowl (2026-09-06, physical grasps, 3 repeats each): 50 deg 0/3,
+#     37 deg (slerp 0.5) 0/6, **25 deg 3/3** -- the policy's hand-eye calibration is YAMLab's.
 # Selected with --robot YAM_bimanual_molmoact; the robot name stays YAM_bimanual.
 robots:
   - name: "YAM_bimanual"
@@ -111,5 +111,5 @@ robots:
       focal_length: 15.0
     # REALM-only (env_config -> scene_setup.place_wrist_cameras): both wrist cameras' local pose in link_6.
     wrist_camera_pose:
-      pos: [-0.0010, 0.0823, 0.0675]
-      quat_wxyz: [-0.0016, 0.0014, 0.9464, 0.3231]
+      pos: [-0.0004, 0.069638, 0.073063]
+      quat_wxyz: [-0.003227, 0.002817, 0.975619, 0.219430]
