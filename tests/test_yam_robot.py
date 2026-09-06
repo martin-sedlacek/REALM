@@ -502,6 +502,20 @@ def test_bimanual_start_pose_and_open_warmup():
     assert 'get("warmup_gripper_closed", True)' in env_dyn, "DROID (no key) must keep closing the gripper"
 
 
+def test_wrist_camera_pose_override_is_plumbed():
+    """The REALM-only robot-config key wrist_camera_pose must be popped by env_config (OmniGibson rejects unknown
+    robot kwargs) and applied in finalize_setup after the CoM restore, to every ':Camera:' sensor."""
+    env_cfg = (PROJECT_ROOT / "realm" / "environments" / "env_config.py").read_text()
+    assert 'pop("wrist_camera_pose"' in env_cfg
+    setup = (PROJECT_ROOT / "realm" / "environments" / "scene_setup.py").read_text()
+    assert "def place_wrist_cameras" in setup and "set_local_pose(pos, quat_xyzw)" in setup
+    env_dyn = (PROJECT_ROOT / "realm" / "environments" / "env_dynamic.py").read_text()
+    finalize = env_dyn.split("def finalize_setup(self):")[1].split("\n    def ")[0]
+    assert finalize.index("restore_authored_link_coms()") < finalize.index("place_wrist_cameras()")
+    for path in (*CONFIGS.values(), B_CONFIG):
+        assert "wrist_camera_pose" not in _load(path)["robots"][0], f"{path.name}: the default configs keep the USD pose"
+
+
 def test_openpi_yam_contract_round_trip():
     """realm/inference/openpi_yam.py: the yam_pi05 policy's state/images/actions contract (gripper 1 = open)."""
     path = PROJECT_ROOT / "realm" / "inference" / "openpi_yam.py"

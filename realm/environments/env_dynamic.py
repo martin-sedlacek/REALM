@@ -140,6 +140,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, RealmEnvironmentBase):
         # After rebase_initial_file(): re-initialising the prims re-runs OmniGibson's CoM override, so a
         # restore placed any earlier is undone (Slurm 204613 vs 204615).
         self.restore_authored_link_coms()
+        self.place_wrist_cameras()
 
         self.disable_visual_toggles()
         set_rendering_mode(self.rendering_mode)

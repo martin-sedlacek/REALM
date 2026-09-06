@@ -167,6 +167,22 @@ class SceneSetupMixin:
 
         self.omnigibson_env.scene.update_initial_file()
 
+    def place_wrist_cameras(self):
+        """Apply the robot config's REALM-only ``wrist_camera_pose`` (see env_config) to every wrist camera:
+        each ``<robot>:<link>:Camera:<i>`` sensor gets ``set_local_pose(pos, quat_xyzw)`` in its parent link's
+        frame. No-op when the key is absent (every DROID config, and the YAM configs that keep the USD pose)."""
+        pose = getattr(self, "robot_wrist_camera_pose", None)
+        if not pose:
+            return
+        pos = np.asarray(pose["pos"], dtype=float)
+        w, x, y, z = pose["quat_wxyz"]
+        quat_xyzw = np.array([x, y, z, w], dtype=float)
+        cameras = {k: s for k, s in self.robot.sensors.items() if ":Camera:" in k}
+        assert cameras, "wrist_camera_pose set but the robot has no Camera sensors"
+        for key, sensor in cameras.items():
+            sensor.set_local_pose(pos, quat_xyzw)
+            og.log.info(f"[wrist_camera_pose] {key}: local pose set to {pos.tolist()} / wxyz {list(pose['quat_wxyz'])}")
+
     def disable_visual_toggles(self):
         for obj in self.omnigibson_env.scene.objects:
             if og.object_states.ToggledOn in obj.states:

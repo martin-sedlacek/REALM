@@ -116,6 +116,11 @@ def _apply_robot_cfg(env, cfg, task_cfg, scene_data):
     # camera): {"cam1": {"pos", "rot"}, "focal_length"} in the arm-base frame, consumed by
     # _apply_camera_cfg in place of the task's cam1 extrinsics. Absent for every DROID config.
     env.robot_exterior_camera = robot_entry.pop("exterior_camera", None)
+    # REALM-only key overriding the wrist cameras' pose authored in the USD: {"pos": [x, y, z],
+    # "quat_wxyz": [w, x, y, z]} in the flange (link_6) frame, applied to every wrist VisionSensor in
+    # finalize_setup (scene_setup.place_wrist_cameras). Lets a policy's training rig be matched without a USD
+    # rebuild. Absent for every DROID config.
+    env.robot_wrist_camera_pose = robot_entry.pop("wrist_camera_pose", None)
     robot_entry["position"] = spawn_pos
     robot_entry["orientation"] = omnigibson_transform_utils.euler2quat(
         torch.tensor(robot_rot, dtype=torch.float32)).tolist()
