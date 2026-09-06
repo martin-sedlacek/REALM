@@ -533,6 +533,13 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     assert np.allclose(wp["pos"], mid, atol=1e-3)
     molmo.pop("wrist_camera_pose"); molmo.pop("exterior_camera"); default.pop("exterior_camera")
     assert molmo == default
+    reach = _load(PROJECT_ROOT / "realm" / "config" / "robots" / "YAM_bimanual_molmoact_reach.yaml")["robots"][0]
+    rp = reach.pop("reset_joint_pos")
+    order = B.dof_order()
+    assert rp[order.index("left_joint2")] == 0.76 and rp[order.index("right_joint2")] == 1.27, "arms out over the table"
+    assert all(rp[order.index(j)] == Y.GRIPPER_OPEN_QPOS for a in B.ARMS for j in B.finger_joints(a))
+    reach.pop("wrist_camera_pose"); reach.pop("exterior_camera")
+    assert reach == default
 
 
 def test_openpi_yam_contract_round_trip():
