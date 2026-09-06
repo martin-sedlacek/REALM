@@ -131,8 +131,10 @@ the recorded qpos went closed -> open exactly when the policy commanded open.
 ## pi05-yam-molmoact2 in REALM: what works (2026-09-06)
 
 **Recipe:** `--robot YAM_bimanual_molmoact_reach --model_type openpi_yam --horizon 16 --max_steps 1200` against
-openpi's `yam_pi05` server. On `put_green_block_into_bowl` this scored **3/3 successes with physical grasps**
-(job 204922); a wider confirmation sweep is in the runbook stream `yam_bimanual_port`. Launcher:
+openpi's `yam_pi05` server. Results (physical grasps, 1200 steps, 2026-09-06): `put_green_block_into_bowl` **SR 5/9**
+(9/9 grasp and carry; jobs 204922/204923), `pick_water_bottle` 1/3, `put_banana_into_box` / `pick_spoon` /
+`stack_cubes` 0/3 each (reach only -- far from its block/box/charging training set). Details in the runbook stream
+`yam_bimanual_port`. Launcher:
 `~/runbook/streams/yam_pi05_banana.sbatch` (`ROBOT=YAM_bimanual_molmoact_reach TASK=0 REPEATS=6 MAX_STEPS=1200 HORIZON=16`).
 
 What the config is, and why each piece (every step was isolated with a run or an offline probe):
