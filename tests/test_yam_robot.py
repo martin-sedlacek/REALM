@@ -522,7 +522,7 @@ def test_bimanual_molmoact_config_differs_only_in_cameras():
     default, molmo = _load(B_CONFIG)["robots"][0], _load(path)["robots"][0]
     assert molmo["name"] == B.NAME
     cam = molmo["exterior_camera"]
-    assert cam["cam1"]["pos"] == [0.30, -0.009, 0.40] and cam["focal_length"] == 15.0
+    assert cam["cam1"]["pos"] == [0.30, -0.009, 1.264] and cam["focal_length"] == 15.0
     from scipy.spatial.transform import Rotation as Rot
     fwd = Rot.from_quat(cam["cam1"]["rot"]).apply([0.0, 0.0, -1.0])
     assert abs(fwd[2] + 1.0) < 1e-3, "top camera looks straight down"

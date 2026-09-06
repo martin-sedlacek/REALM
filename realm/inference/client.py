@@ -141,6 +141,9 @@ class _OpenPIYamAdapter:
               wrist_im_second=None):
         assert wrist_im_second is not None, (
             "model_type 'openpi_yam' needs the second wrist camera: run it with --robot YAM_bimanual")
+        # Diagnostics: REALM_OPENPI_YAM_PROMPT replaces the task instruction (e.g. with a phrase from the
+        # policy's own training vocabulary) without touching the task config.
+        instruction = os.environ.get("REALM_OPENPI_YAM_PROMPT") or instruction
         obs_dict = policy_observation(instruction, base_im, wrist_im, wrist_im_second, robot_state,
                                       gripper_state, resize=image_tools.resize_with_pad)
         pred = self.client.infer(obs_dict)
