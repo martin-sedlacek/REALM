@@ -165,7 +165,6 @@ If you use REALM or found our results useful for your research, please consider 
 ```
 @article{sedlacek2025realm,
     title = {REALM: A Real-to-Sim Validated Benchmark for Generalization in Robotic Manipulation},
-    show_bib = {true},
     author = {Martin Sedlacek, Pavlo Yefanov, Georgy Ponimatkin, Jai Bardhan, Simon Pilc, Mederic Fourmy, Evangelos Kazakos, Cees G. M. Snoek, Josef Sivic, Vladimir Petrik},
     year = {2026},
     journal = {IEEE Robotics and Automation Letters (RA-L)}
