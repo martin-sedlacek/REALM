@@ -1,6 +1,10 @@
 from __future__ import annotations
 from realm.config.shared import MAX_POS_DEVIATION, MAX_PITCH_DEVIATION, MAX_YAW_DEVIATION
 
+from functools import lru_cache
+from pathlib import Path
+
+import yaml
 import numpy as np
 import torch
 from typing import TYPE_CHECKING
@@ -39,11 +43,19 @@ def _opposite_side_keys(
     return [key for key in keys if extrinsics[key]["pos"][1] * first_camera_y < 0]
 
 
+@lru_cache(maxsize=None)
+def _load_view_extrinsics(config_path: str) -> dict:
+    """Load the rectified robot-base-relative catalogue once per config root."""
+    path = Path(config_path) / "env/external_sensors/camera_extrinsics_droid_realm.yaml"
+    with path.open() as stream:
+        return yaml.load(stream, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+
+
 def v_view(env: "RealmEnvironmentDynamic") -> None:
     """Re-draw both external cameras' poses from the extrinsics catalogue, plus jitter.
 
-    Each external sensor gets a pose picked from env.cfg_camera_extrinsics (drawer tasks pin the
-    standard episode pair) with _perturb_camera_pose's jitter on top. Mutates only the external
+    Each external sensor samples the rectified DROID catalogue, including drawer tasks,
+    with _perturb_camera_pose's jitter on top. Mutates only the external
     VisionSensor prims; nothing else on @env changes.
     """
     # TODO: in some cases, the objects are not fully visible - add a look_at or similar to minimize these cases
@@ -61,35 +73,31 @@ def v_view(env: "RealmEnvironmentDynamic") -> None:
     robot_rot = omnigibson_transform_utils.quat2euler(
         torch.tensor(robot_rot, dtype=torch.float32)
     ).tolist()
+    extrinsics = _load_view_extrinsics(str(env.config_path))
     first_camera_y = None
 
     for i in range(sensor_count):
 
-        cam_pose_keys = list(env.cfg_camera_extrinsics.keys())
+        cam_pose_keys = list(extrinsics.keys())
         filtered_cam_pose_keys = [
             key for key in cam_pose_keys
             if (
                     not key.startswith('CP') and
                     not (i == 0 and 'cam2' in key) and
                     not (i == 1 and 'cam1' in key) and
-                    not (sensor_count > 1 and i == 0 and env.cfg_camera_extrinsics[key]["pos"][1] == 0)
+                    not (sensor_count > 1 and i == 0 and extrinsics[key]["pos"][1] == 0)
             )
         ]
-        if env.task_type in ["open_drawer", "close_drawer"]:
-            cam_pose_name = "ep_001042_cam1" if i == 0 else "ep_001042_cam2" # TODO: scene specific, just get the extrinsic key dynamically
-        else:
-            if i == 1:
-                filtered_cam_pose_keys = _opposite_side_keys(
-                    filtered_cam_pose_keys,
-                    env.cfg_camera_extrinsics,
-                    first_camera_y,
-                )
-                if not filtered_cam_pose_keys:
-                    raise ValueError("V-VIEW has no camera extrinsic on the opposite side of the robot")
-            cam_pose_name = np.random.choice(filtered_cam_pose_keys)
+        if i == 1:
+            filtered_cam_pose_keys = _opposite_side_keys(
+                filtered_cam_pose_keys, extrinsics, first_camera_y,
+            )
+        if not filtered_cam_pose_keys:
+            raise ValueError("V-VIEW has no eligible DROID camera extrinsics")
+        cam_pose_name = np.random.choice(filtered_cam_pose_keys)
         if i == 0:
-            first_camera_y = env.cfg_camera_extrinsics[cam_pose_name]["pos"][1]
-        cam_pos, cam_orientation = env.construct_ext_cam_pose_by_name(cam_pose_name, robot_pos, robot_rot)
+            first_camera_y = extrinsics[cam_pose_name]["pos"][1]
+        cam_pos, cam_orientation = env.construct_ext_cam_pose_by_name(extrinsics[cam_pose_name], robot_pos, robot_rot)
         new_cam_pos, new_cam_orientation = _perturb_camera_pose(cam_pos, cam_orientation)
         base_cam_config = env.cfg["env"]["external_sensors"][i]
         pose_frame = base_cam_config["pose_frame"]

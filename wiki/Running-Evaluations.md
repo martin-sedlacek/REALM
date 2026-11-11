@@ -196,3 +196,11 @@ rendering at action-chunk boundaries.
 
 These defaults can change policy observations and benchmark scores. Re-evaluate
 checkpoints under 1.0.2 before comparing them with results produced by older versions.
+
+### V-VIEW camera catalogue in 1.0.3
+
+V-VIEW samples the rectified `camera_extrinsics_droid_realm.yaml` catalogue
+(141,408 robot-base-relative poses) for every task, including drawers. The existing
+camera-role filtering, opposite-side constraint, and pose jitter still apply.
+Ordinary episode camera configuration continues to use its configured poses.
+V-VIEW scores from earlier versions require re-evaluation for comparison.
