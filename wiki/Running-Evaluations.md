@@ -205,7 +205,7 @@ camera-role filtering, opposite-side constraint, and pose jitter still apply.
 Ordinary episode camera configuration continues to use its configured poses.
 V-VIEW scores from earlier versions require re-evaluation for comparison.
 
-### Task RNG identities
+### Task RNG identities in 1.0.4
 
 Every bundled task YAML has a persistent `task_uuid`. Each evaluation seeds Python,
 NumPy, and Torch with `(1234 + UUID.int) % 2**32` before environment construction.
