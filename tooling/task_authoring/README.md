@@ -34,3 +34,8 @@ support-plane clearance, uniform scaling, yaw-first alignment, and receiver-capa
 
 Three.js 0.128.0 and its OrbitControls helper are vendored so the embedded workspace runs without
 a CDN connection. Three.js is distributed under the MIT license; see `THREE-LICENSE.txt`.
+
+Camera sampling excludes poses whose image-right axis tilts more than 21 degrees
+relative to the robot-base XY plane. This applies to initial random cameras,
+shuffle requests, and generated task camera pairs. Existing saved poses remain
+available for editing.

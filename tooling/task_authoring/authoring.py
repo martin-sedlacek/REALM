@@ -215,6 +215,16 @@ def load_camera_extrinsics(path: Path) -> dict[str, dict[str, list[float]]]:
     }
 
 
+def _within_camera_tilt_limit(pose: dict[str, list[float]]) -> bool:
+    """Keep image-right-axis elevation within 21 degrees of the base XY plane."""
+    x, y, z, w = pose["rot"]
+    norm_squared = x*x + y*y + z*z + w*w
+    if norm_squared == 0:
+        return False
+    right_z = 2 * (x*z - w*y) / norm_squared
+    return abs(right_z) <= math.sin(math.radians(21)) + 1e-12
+
+
 def sample_opposite_camera_pair(
     poses: dict[str, dict[str, list[float]]], rng: random.Random
 ) -> dict[str, dict[str, list[float]]]:
@@ -234,7 +244,8 @@ def sample_opposite_camera_pair(
             if set(cameras) != {"cam1", "cam2"}:
                 continue
             pair = [cameras["cam1"], cameras["cam2"]]
-            if all(_plausible_droid_camera(pose) for _, pose in pair):
+            if all(_plausible_droid_camera(pose) and _within_camera_tilt_limit(pose)
+                   for _, pose in pair):
                 canonical = _canonicalize_droid_pair(pair)
                 canonical_poses = [pose for _, pose in canonical]
                 if canonical_poses[0]["pos"][1] * canonical_poses[1]["pos"][1] < 0:
@@ -254,7 +265,8 @@ def sample_opposite_camera_pair(
     for cameras in curated_episodes.values():
         if set(cameras) == {"cam1", "cam2"}:
             pair = [cameras["cam1"], cameras["cam2"]]
-            if pair[0][1]["pos"][1] * pair[1][1]["pos"][1] < 0:
+            if (pair[0][1]["pos"][1] * pair[1][1]["pos"][1] < 0
+                    and all(_within_camera_tilt_limit(pose) for _, pose in pair)):
                 curated_pairs.append(pair)
     if curated_pairs:
         return dict(rng.choice(curated_pairs))
@@ -273,14 +285,15 @@ def sample_opposite_camera_pair(
             [cameras["cam1"], cameras["cam2"]]
             for cameras in realm_episodes.values()
             if set(cameras) == {"cam1", "cam2"}
+            and all(_within_camera_tilt_limit(pose) for _, pose in cameras.values())
         ]
         _REALM_PAIR_CACHE[id(poses)] = (len(poses), realm_pairs)
     if realm_pairs:
         return dict(rng.choice(realm_pairs))
 
     # Small synthetic or curated pools do not necessarily carry episode names.
-    negative = sorted(name for name, pose in poses.items() if pose["pos"][1] < 0)
-    positive = sorted(name for name, pose in poses.items() if pose["pos"][1] > 0)
+    negative = sorted(name for name, pose in poses.items() if pose["pos"][1] < 0 and _within_camera_tilt_limit(pose))
+    positive = sorted(name for name, pose in poses.items() if pose["pos"][1] > 0 and _within_camera_tilt_limit(pose))
     if not negative or not positive:
         raise ValueError("camera pool must contain poses on both sides of the robot")
     names = [rng.choice(negative), rng.choice(positive)]
