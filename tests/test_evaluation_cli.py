@@ -27,7 +27,7 @@ def test_vector_evaluation_defaults():
     assert args.repeats == 25
     assert args.log_dir == "/logs"
     assert args.rendering_mode == "rt"
-    assert args.n_pre_obs_renders == 2
+    assert args.n_pre_obs_renders == 5
     assert args.max_render_interval == 8
     assert not hasattr(args, "resume")
     assert not hasattr(args, "no_render")

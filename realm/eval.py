@@ -82,7 +82,7 @@ def evaluate(
         task_cfg_path=None,
         robot="DROID",
         render_on_demand=True,
-        n_pre_obs_renders=2,
+        n_pre_obs_renders=5,
         max_render_interval=8,
 ):
     """Evaluate one policy on one (task, perturbation) for `repeats` rollouts.

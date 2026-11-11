@@ -1,5 +1,6 @@
 
 import random
+import sys
 
 import numpy as np
 import torch
@@ -36,6 +37,13 @@ def set_sim_config(robot="DROID"):
     gm.RENDER_VIEWER_CAMERA=False
     # OmniGibson requires at least 60 Hz for HQ isosurface rendering.
     gm.ENABLE_HQ_RENDERING = False
+
+    # Make camera reads wait for Hydra's GPU work before returning an observation.
+    # set_sim_config runs before Kit is launched, so SimulationApp consumes this from argv.
+    # Remove any caller-supplied duplicate so the repo default cannot silently be shadowed.
+    sys.argv = [arg for arg in sys.argv if not arg.startswith("--/app/hydraEngine/waitIdle=")]
+    sys.argv.append("--/app/hydraEngine/waitIdle=true")
+    print("[REALM_RENDER_SYNC] /app/hydraEngine/waitIdle=True", flush=True)
 
     seed = 1234
     random.seed(seed)
