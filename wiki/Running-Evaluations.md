@@ -204,3 +204,11 @@ V-VIEW samples the rectified `camera_extrinsics_droid_realm.yaml` catalogue
 camera-role filtering, opposite-side constraint, and pose jitter still apply.
 Ordinary episode camera configuration continues to use its configured poses.
 V-VIEW scores from earlier versions require re-evaluation for comparison.
+
+### V-VIEW tilt filtering
+
+V-VIEW excludes catalogue poses with absolute tilt above 21 degrees. Tilt is the
+elevation of camera-local +X (image right) relative to the robot-base XY plane,
+computed from the rectified XYZW quaternion. The filter excludes 5,026 of 141,408
+poses (3.55%), leaving 136,382 before camera-role and opposite-side filtering.
+It applies before the existing pose jitter. This changes V-VIEW draws and scores.
