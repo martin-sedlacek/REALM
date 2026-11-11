@@ -1,3 +1,5 @@
+task_uuid: "0a993913-545c-4986-8c16-c4d5fb8eca66"
+
 task:
   type": "DummyTask"
   termination_config: {}

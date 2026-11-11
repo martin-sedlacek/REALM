@@ -22,7 +22,7 @@ import numpy as np
 import omnigibson as og
 
 from realm.environments.env_vector import RealmVectorEnvironment
-from realm.eval import SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
+from realm.eval import CONFIG_ROOT, SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.inference import InferenceClient
 from realm.realm_logging import VideoRecorder, save_results
 from realm.rollout import (
@@ -33,6 +33,7 @@ from realm.rollout import (
     write_rollout_artifacts,
 )
 from realm.sim_config import set_sim_config
+from realm.task_seed import task_seed
 
 
 def evaluate_vectorized(
@@ -59,10 +60,9 @@ def evaluate_vectorized(
       dreamzero, and all three are (1, 0) on the single-env path too.
     """
     start = time.perf_counter()
-    set_sim_config(robot=robot)
-
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
                                        name_includes_config=False)
+    set_sim_config(robot=robot, seed=task_seed(task_cfg_path, CONFIG_ROOT))
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
 
     print(f"[vec_eval] building {num_envs} environments...", flush=True)
