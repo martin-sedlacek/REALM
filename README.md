@@ -150,8 +150,7 @@ Bundled third-party code retains its own licenses. Simulator assets, datasets, a
 external runtime components have separate terms described in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-We build on top of essential simulation tooling and the dataset from BEHAVIOR-1K and adhere to their licensing and terms of usage. 
-For more information, please see https://behavior.stanford.edu/.
+Most importantly, please note that we build on top of essential simulation tooling and the dataset from BEHAVIOR-1K, which adheres to its own licensing and terms of usage prohibiting e.g., commercial usage. For more information, please see https://behavior.stanford.edu/.
 
 This work was supported by the European Union's Horizon Europe projects AGIMUS (No. 101070165), euROBIN (No. 101070596), 
 ERC FRONTIER (No. 101097822), and ELLIOT (No. 101214398). Pavlo Yefanov (PY) and Georgy Ponimatkin (GP) were also partly 
