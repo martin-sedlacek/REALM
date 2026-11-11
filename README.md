@@ -145,9 +145,10 @@ The paper results and the exact evaluation conditions are documented on the
 
 
 # Acknowledgments and Licensing
-REALM's own source-code license has not yet been selected. Until a `LICENSE` file is added, no
-open-source license should be inferred from repository visibility. Third-party simulator, dataset,
-and asset terms apply independently.
+REALM-authored source code is available under the [MIT License](LICENSE).
+Bundled third-party code retains its own licenses. Simulator assets, datasets, and
+external runtime components have separate terms described in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 We build on top of essential simulation tooling and the dataset from BEHAVIOR-1K and adhere to their licensing and terms of usage. 
 For more information, please see https://behavior.stanford.edu/.
