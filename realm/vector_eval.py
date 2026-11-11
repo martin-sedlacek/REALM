@@ -40,7 +40,7 @@ def evaluate_vectorized(
         model_type="openpi", model_name="model", port=8000, host="127.0.0.1",
         log_dir="/logs", rendering_mode="rt", robot="DROID", multi_view=False,
         no_record=False, task_cfg_path=None,
-        render_on_demand=True, n_pre_obs_renders=2, max_render_interval=8,
+        render_on_demand=True, n_pre_obs_renders=5, max_render_interval=8,
 ):
     """Run `repeats` rollouts of one (task, perturbation) in waves of `num_envs` concurrent members.
 

@@ -71,7 +71,7 @@ as-is in the source.
 
 ### `examples/04_vector_evaluate.py` — the differences
 
-Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`2`) and
+Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`5`) and
 `--max_render_interval` (`8`). Its `--repeats` defaults to `25` rather than `5`, and its `--log_dir`
 defaults to `/logs` rather than `/app/logs`.
 
@@ -186,3 +186,13 @@ vectorized entry point does not support `--resume`.
 - [Reproducibility](Reproducibility)
 - [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
+
+### Observation rendering in 1.0.2
+
+Single and vector evaluation now default to five pre-observation render passes.
+Simulation startup enables `/app/hydraEngine/waitIdle=true` so camera reads wait for
+Hydra GPU rendering to finish. This addresses stale camera frames during on-demand
+rendering at action-chunk boundaries.
+
+These defaults can change policy observations and benchmark scores. Re-evaluate
+checkpoints under 1.0.2 before comparing them with results produced by older versions.
