@@ -43,12 +43,26 @@ def _opposite_side_keys(
     return [key for key in keys if extrinsics[key]["pos"][1] * first_camera_y < 0]
 
 
+def _camera_tilt_degrees(quaternion):
+    """Elevation of camera-local +X (image right) in the robot-base frame."""
+    x, y, z, w = quaternion
+    norm_squared = x*x + y*y + z*z + w*w
+    if norm_squared == 0:
+        raise ValueError("Camera quaternion must be nonzero")
+    right_z = 2 * (x*z - w*y) / norm_squared
+    return float(np.degrees(np.arcsin(np.clip(right_z, -1.0, 1.0))))
+
+
 @lru_cache(maxsize=None)
 def _load_view_extrinsics(config_path: str) -> dict:
-    """Load the rectified robot-base-relative catalogue once per config root."""
+    """Cache rectified poses whose image-right axis tilts at most 21 degrees."""
     path = Path(config_path) / "env/external_sensors/camera_extrinsics_droid_realm.yaml"
     with path.open() as stream:
-        return yaml.load(stream, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+        extrinsics = yaml.load(stream, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+    return {
+        key: pose for key, pose in extrinsics.items()
+        if abs(_camera_tilt_degrees(pose["rot"])) <= 21.0
+    }
 
 
 def v_view(env: "RealmEnvironmentDynamic") -> None:

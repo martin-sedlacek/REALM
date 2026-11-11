@@ -1,3 +1,4 @@
+import math
 import tempfile
 import random
 import struct
@@ -37,6 +38,20 @@ from tooling.task_authoring.generate_realm_droid100 import (
 
 
 class AuthoringTest(unittest.TestCase):
+    def test_camera_sampling_excludes_tilt_over_21_degrees(self):
+        for prefix in ('droid_realm_ep_', 'ep_', 'synthetic_'):
+            poses = {}
+            for episode, angle in [('000001', 0), ('000002', 30)]:
+                half = math.radians(angle) / 2
+                for camera, side in [('cam1', -1), ('cam2', 1)]:
+                    poses[f'{prefix}{episode}_{camera}'] = {
+                        'pos': [0.3, side * 0.3, 0.5],
+                        'rot': [0, -math.sin(half), 0, math.cos(half)],
+                    }
+            for seed in range(20):
+                pair = sample_opposite_camera_pair(poses, random.Random(seed))
+                self.assertTrue(all('000001' in name for name in pair))
+
     def test_batch_authoring_resolves_plural_stack_and_preserves_color_order(self):
         self.assertEqual(concepts("Stack the cups", "stack"), ["cup", "cup"])
         orange = primitive("block", "Put the orange block on the green block", 0)
