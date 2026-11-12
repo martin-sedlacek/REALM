@@ -10,7 +10,7 @@ from omnigibson.macros import gm
 from realm.config.shared import env_flag, env_is_set
 
 
-def set_sim_config(robot="DROID"):
+def set_sim_config(robot="DROID", seed=1234):
     if robot == "WidowX":
         gm.DEFAULT_SIM_STEP_FREQ = 5
         gm.DEFAULT_RENDERING_FREQ = 5
@@ -45,7 +45,6 @@ def set_sim_config(robot="DROID"):
     sys.argv.append("--/app/hydraEngine/waitIdle=true")
     print("[REALM_RENDER_SYNC] /app/hydraEngine/waitIdle=True", flush=True)
 
-    seed = 1234
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

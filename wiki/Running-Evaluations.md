@@ -205,6 +205,22 @@ camera-role filtering, opposite-side constraint, and pose jitter still apply.
 Ordinary episode camera configuration continues to use its configured poses.
 V-VIEW scores from earlier versions require re-evaluation for comparison.
 
+### Task RNG identities in 1.0.4
+
+Every bundled task YAML has a persistent `task_uuid`. Each evaluation seeds Python,
+NumPy, and Torch with `(1234 + UUID.int) % 2**32` before environment construction.
+Different tasks therefore use distinct reproducible RNG streams, including NOBJ
+object draws. Individual draws can still coincide by chance. Repeats share the
+task's stream. The UUID and effective seed are printed at startup.
+
+Preserve UUIDs when editing or moving a task. Assign a new UUID to a newly created
+task configuration. Each bundled variant has its own UUID. Legacy/custom YAMLs
+without a UUID derive a deterministic UUID from their canonical parsed contents.
+Adding an explicit UUID makes that identity stable across content changes.
+
+This changes random draws and benchmark results. Re-evaluate older checkpoints
+with task UUID seeding enabled for comparisons.
+
 ### V-VIEW tilt filtering
 
 V-VIEW excludes catalogue poses with absolute tilt above 21 degrees. Tilt is the

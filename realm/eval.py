@@ -26,6 +26,7 @@ from realm.rollout import (
     write_rollout_artifacts,
 )
 from realm.sim_config import set_sim_config
+from realm.task_seed import task_seed
 
 #: Task and robot configs, at the path the repo is bound to inside the container.
 CONFIG_ROOT = "/app/realm/config"
@@ -99,10 +100,9 @@ def evaluate(
     """
     if rendering_mode is None:
         rendering_mode = "rt"
-    set_sim_config(robot=robot)
-
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
                                        name_includes_config=True)
+    set_sim_config(robot=robot, seed=task_seed(task_cfg_path, CONFIG_ROOT))
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
     os.makedirs(log_dir, exist_ok=True)
 
