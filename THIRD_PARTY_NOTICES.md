@@ -7,12 +7,7 @@ simulator assets, and external runtime components retain their own applicable te
 ## OmniGibson and BEHAVIOR-1K code
 
 REALM builds on [BEHAVIOR-1K / OmniGibson](https://github.com/StanfordVL/BEHAVIOR-1K).
-The OmniGibson revision used to derive the patches in `.docker/patches/` is
-`26f2c7ef7b9cf96bd0414f81e1e751e493762779`, as recorded in that directory's
-`PROVENANCE`. Its MIT copyright and permission notice are preserved in
-[LICENSES/OmniGibson-MIT.txt](LICENSES/OmniGibson-MIT.txt) and alongside the patches
-in [.docker/patches/LICENSE](.docker/patches/LICENSE). These notices also apply to
-any upstream-derived source included in REALM.
+Its MIT copyright and permission notice are preserved in [LICENSES/OmniGibson-MIT.txt](LICENSES/OmniGibson-MIT.txt).
 
 Upstream copyright is (c) 2023 Stanford Vision and Learning Group.
 
@@ -22,7 +17,17 @@ Upstream copyright is (c) 2023 Stanford Vision and Learning Group.
 Its MIT notice, copyright (c) 2021 Stanford Vision and Learning Lab, is preserved
 in [LICENSES/BDDL-MIT.txt](LICENSES/BDDL-MIT.txt) for upstream-derived task material.
 
-## Vendored OpenPI client
+## BEHAVIOR datasets and simulator assets
+
+BEHAVIOR's dataset agreement is separate from its software license. It restricts
+use to non-commercial academic research within OmniGibson, restricts extraction
+and reverse engineering, and prohibits redistribution of the data or decryption
+key. Users must accept the applicable dataset agreement when obtaining assets.
+See the [upstream installer and dataset agreement](https://github.com/StanfordVL/BEHAVIOR-1K/blob/main/setup.sh)
+and [asset documentation](https://behavior.stanford.edu/getting_started/important_concepts.html).
+The root source-code license grants no additional rights to these assets.
+
+## openpi client
 
 `packages/openpi-client/` contains code from
 [Physical Intelligence's OpenPI](https://github.com/Physical-Intelligence/openpi/tree/main/packages/openpi-client).
@@ -35,22 +40,6 @@ files, as required by that license. The Apache terms continue to govern this cod
 
 The bundled task-authoring viewer uses Three.js. Its MIT notice is retained in
 [tooling/task_authoring/THREE-LICENSE.txt](tooling/task_authoring/THREE-LICENSE.txt).
-
-## BEHAVIOR datasets and simulator assets
-
-BEHAVIOR's dataset agreement is separate from its software license. It restricts
-use to non-commercial academic research within OmniGibson, restricts extraction
-and reverse engineering, and prohibits redistribution of the data or decryption
-key. Users must accept the applicable dataset agreement when obtaining assets.
-See the [upstream installer and dataset agreement](https://github.com/StanfordVL/BEHAVIOR-1K/blob/main/setup.sh)
-and [asset documentation](https://behavior.stanford.edu/getting_started/important_concepts.html).
-The root source-code license grants no additional rights to these assets.
-
-`custom_assets/`, robot USDs, textures, and other binary or media assets need
-asset-specific provenance and licensing. Their presence in this repository does
-not establish redistribution rights. The provenance of the currently bundled
-custom assets has not been fully established. Consult the original rights holder
-and applicable asset terms before redistributing them.
 
 ## External runtimes, models, and other dependencies
 
