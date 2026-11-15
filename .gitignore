@@ -196,3 +196,5 @@ realm/config/tasks/REALM_DROID100/
 realm/robots/r1lite/
 realm/robots/widowx/
 
+# HDRI maps
+*.exr

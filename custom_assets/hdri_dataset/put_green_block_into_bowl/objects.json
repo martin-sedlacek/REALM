@@ -1,0 +1,242 @@
+[
+  {
+    "type": "PrimitiveObject",
+    "name": "cube",
+    "category": "object",
+    "position": [
+      -0.2199999988079071,
+      -2.0399999618530273,
+      0.9729572534561157
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.029999999329447746,
+      0.029999999329447746,
+      0.029999999329447746
+    ],
+    "fixed_base": false,
+    "primitive_type": "Cube",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "bowl",
+    "category": "bowl",
+    "position": [
+      -0.2499999850988388,
+      -1.75,
+      0.8479564189910889
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      1.0075788497924805,
+      1.0069278478622437,
+      1.0752615928649902
+    ],
+    "fixed_base": false,
+    "model": "jpvcjv",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "corkscrew",
+    "category": "corkscrew",
+    "position": [
+      -0.375,
+      -2.2249999046325684,
+      0.8779572248458862
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.9809654951095581,
+      1.0199609994888306,
+      0.9546687602996826
+    ],
+    "fixed_base": false,
+    "model": "gqocna",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "table_knife",
+    "category": "table_knife",
+    "position": [
+      -0.30000001192092896,
+      -1.899999976158142,
+      0.8479563593864441
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      -0.3826833665370941,
+      0.9238795638084412
+    ],
+    "scale": [
+      1.017103672027588,
+      1.0689430236816406,
+      1.7999858856201172
+    ],
+    "fixed_base": false,
+    "model": "eebpap",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "wineglass",
+    "category": "wineglass",
+    "position": [
+      -0.2750018537044525,
+      -2.24999737739563,
+      0.8950207829475403
+    ],
+    "orientation": [
+      -9.599047189112753e-06,
+      -9.029648936120793e-06,
+      -1.6283520380966365e-06,
+      1.0
+    ],
+    "scale": [
+      0.9495037794113159,
+      0.9506992697715759,
+      1.0040175914764404
+    ],
+    "fixed_base": false,
+    "model": "hxccge",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "water_glass",
+    "category": "water_glass",
+    "position": [
+      -0.10000000149011612,
+      -1.8200000524520874,
+      0.8879562616348267
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.9648227095603943,
+      0.9700324535369873,
+      1.029616355895996
+    ],
+    "fixed_base": false,
+    "model": "lvqgvn",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "bottle_of_wine",
+    "category": "bottle_of_wine",
+    "position": [
+      -0.4749999940395355,
+      -2.125,
+      0.9729572534561157
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.7774129509925842,
+      0.7482860088348389,
+      0.8588702082633972
+    ],
+    "fixed_base": false,
+    "model": "tisclo",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "breakfast_table_uhrsex_0",
+    "category": "breakfast_table",
+    "position": [
+      -0.4119455814361572,
+      -1.9556083679199219,
+      0.6193121075630188
+    ],
+    "orientation": [
+      -1.519064880994847e-05,
+      -9.537419600746944e-07,
+      0.7071084976196289,
+      0.7071050405502319
+    ],
+    "scale": [
+      1.3223319053649902,
+      0.7033842206001282,
+      1.8239399194717407
+    ],
+    "fixed_base": true,
+    "model": "uhrsex",
+    "role": "furniture"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "straight_chair_pmpwwi_1",
+    "category": "straight_chair",
+    "position": [
+      -0.3965336084365845,
+      -2.4412999153137207,
+      0.4355011582374573
+    ],
+    "orientation": [
+      1.7593260182025006e-08,
+      1.7593260182025006e-08,
+      0.7071068286895752,
+      0.7071067094802856
+    ],
+    "scale": [
+      1.0890883207321167,
+      1.2548717260360718,
+      1.0650818347930908
+    ],
+    "fixed_base": false,
+    "model": "pmpwwi",
+    "role": "furniture"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "carpet_ctclvd_1",
+    "category": "carpet",
+    "position": [
+      -0.49850893020629883,
+      -1.6834259033203125,
+      0.0023728522937744856
+    ],
+    "orientation": [
+      -2.7659605161822753e-10,
+      3.418520932996216e-08,
+      0.9999672770500183,
+      -0.00809084065258503
+    ],
+    "scale": [
+      2.4231598377227783,
+      2.2988665103912354,
+      0.24480189383029938
+    ],
+    "fixed_base": true,
+    "model": "ctclvd",
+    "role": "furniture"
+  }
+]

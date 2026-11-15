@@ -7,6 +7,10 @@ from openpi_client import websocket_client_policy, image_tools
 from realm.geometry import axisangle_to_rpy
 from realm.inference.dreamzero import DreamZeroClient
 
+# # -- for policy eval run on l40s
+# import functools
+# import websockets.sync.client as _wsc
+# _wsc.connect = functools.partial(_wsc.connect, ping_interval=20, ping_timeout=300)
 
 class _DebugAdapter:
 

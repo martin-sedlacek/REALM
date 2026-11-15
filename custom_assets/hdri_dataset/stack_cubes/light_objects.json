@@ -1,0 +1,218 @@
+[
+  {
+    "type": "LightObject",
+    "name": "hdri_light_1",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      -1.477779358625412,
+      8.44464872777462,
+      2.3687861561775208
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_axfptw_0/meta__base_link_lights_0_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_2",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      -0.597779271134641,
+      8.044648386538029,
+      2.3687861412763596
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_dofmgw_0/meta__base_link_lights_0_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_3",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000195801261,
+    "position": [
+      1.6822207272052765,
+      4.944648332893848,
+      2.3687861561775208
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_dtjmrf_0/meta__base_link_lights_0_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_4",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023232,
+    "position": [
+      1.6822206798678943,
+      7.744648170361719,
+      2.3687861561775208
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_gblyms_0/meta__base_link_lights_0_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_5",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      -1.477779284119606,
+      1.0446484088897705,
+      2.3687861412763596
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_wdxynv_0/meta__base_link_lights_0_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_6",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      -1.477779284119606,
+      3.444648504257202,
+      2.3687861561775208
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_wdxynv_0/meta__base_link_lights_1_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_7",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      -1.477779284119606,
+      6.244648456573486,
+      2.3687861561775208
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_wdxynv_0/meta__base_link_lights_2_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_8",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      1.6822207570075989,
+      3.4446483850479126,
+      2.368786171078682
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_yrqbbo_0/meta__base_link_lights_0_0_link/lights/light_0"
+  },
+  {
+    "type": "LightObject",
+    "name": "hdri_light_9",
+    "light_type": "Disk",
+    "intensity": 150000.0,
+    "radius": 0.20000000298023224,
+    "position": [
+      1.6822207570075989,
+      1.7446485310792923,
+      2.3687861561775208
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color": [
+      1.0,
+      0.8249753713607788,
+      0.6272900700569153
+    ],
+    "source": "/World/scene_0/ceilings_yrqbbo_0/meta__base_link_lights_1_0_link/lights/light_0"
+  }
+]

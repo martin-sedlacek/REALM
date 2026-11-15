@@ -1,0 +1,194 @@
+[
+  {
+    "type": "PrimitiveObject",
+    "name": "cube",
+    "category": "object",
+    "position": [
+      2.0,
+      5.0,
+      0.8979572057723999
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.029999999329447746,
+      0.029999999329447746,
+      0.029999999329447746
+    ],
+    "fixed_base": false,
+    "primitive_type": "Cube",
+    "role": "task"
+  },
+  {
+    "type": "PrimitiveObject",
+    "name": "cube2",
+    "category": "object",
+    "position": [
+      1.875,
+      5.150000095367432,
+      0.8979572057723999
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.029999999329447746,
+      0.029999999329447746,
+      0.029999999329447746
+    ],
+    "fixed_base": false,
+    "primitive_type": "Cube",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "toy_dice2",
+    "category": "toy_dice",
+    "position": [
+      1.7999999523162842,
+      5.099999904632568,
+      0.9579572081565857
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      1.2026422023773193,
+      1.20703125,
+      1.207033634185791
+    ],
+    "fixed_base": false,
+    "model": "gcevml",
+    "role": "task"
+  },
+  {
+    "type": "PrimitiveObject",
+    "name": "cube4",
+    "category": "object",
+    "position": [
+      2.0999999046325684,
+      5.150000095367432,
+      0.9979572296142578
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.029999999329447746,
+      0.029999999329447746,
+      0.029999999329447746
+    ],
+    "fixed_base": false,
+    "primitive_type": "Cube",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "toy_dice1",
+    "category": "toy_dice",
+    "position": [
+      1.7999999523162842,
+      5.099999904632568,
+      0.8979572057723999
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      1.2070338726043701,
+      1.2070331573486328,
+      1.2070337533950806
+    ],
+    "fixed_base": false,
+    "model": "eqwazv",
+    "role": "task"
+  },
+  {
+    "type": "PrimitiveObject",
+    "name": "cube3",
+    "category": "object",
+    "position": [
+      2.0999999046325684,
+      5.150000095367432,
+      0.8979572057723999
+    ],
+    "orientation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "scale": [
+      0.029999999329447746,
+      0.029999999329447746,
+      0.029999999329447746
+    ],
+    "fixed_base": false,
+    "primitive_type": "Cube",
+    "role": "task"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "breakfast_table_idnnmz_0",
+    "category": "breakfast_table",
+    "position": [
+      1.9217733144760132,
+      4.952544689178467,
+      0.6417208909988403
+    ],
+    "orientation": [
+      3.26048947840718e-08,
+      5.8830007532151285e-08,
+      -0.7071068286895752,
+      0.7071067094802856
+    ],
+    "scale": [
+      1.439886212348938,
+      0.9523371458053589,
+      1.770556926727295
+    ],
+    "fixed_base": false,
+    "model": "idnnmz",
+    "role": "furniture"
+  },
+  {
+    "type": "DatasetObject",
+    "name": "straight_chair_pmpwwi_0",
+    "category": "straight_chair",
+    "position": [
+      2.4608848094940186,
+      4.935420513153076,
+      0.40493035316467285
+    ],
+    "orientation": [
+      3.1620173146507113e-10,
+      2.4878620052959377e-08,
+      0.9999192357063293,
+      0.012708758004009724
+    ],
+    "scale": [
+      0.8765443563461304,
+      0.9820853471755981,
+      1.014443039894104
+    ],
+    "fixed_base": false,
+    "model": "pmpwwi",
+    "role": "furniture"
+  }
+]

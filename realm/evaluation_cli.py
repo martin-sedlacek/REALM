@@ -32,6 +32,7 @@ def build_evaluation_parser(*, vectorized=False):
     parser.add_argument("--multi-view", dest="multi_view", action="store_true",
                         help="Enable second external camera")
     parser.add_argument("--no_record", action="store_true", help="Do not record rollout videos")
+    parser.add_argument("--hdri_background", action="store_true", help="Replace the house with an HDRI background")
     parser.add_argument(
         "--render_on_demand",
         action=argparse.BooleanOptionalAction,
@@ -56,16 +57,23 @@ def run_evaluation_cli(*, vectorized=False):
 
     args = build_evaluation_parser(vectorized=vectorized).parse_args()
 
+    if args.hdri_background:
+        print("[MODE] Running with HDRI background")
+    else:
+        print("[MODE] Running with standard OmniGibson rendering")
+
+
     # Heavy simulator imports stay behind argument parsing so --help remains lightweight.
     import omnigibson as og
 
     from realm.paths import run_log_dir
-
+    
     if vectorized:
         from realm.vector_eval import evaluate_vectorized
 
         log_dir = run_log_dir(args.log_dir, args.experiment_name, args.model_name,
                               args.run_id or "vec")
+
         evaluate_vectorized(
             num_envs=args.num_envs,
             task_id=args.task_id,
@@ -86,12 +94,14 @@ def run_evaluation_cli(*, vectorized=False):
             render_on_demand=args.render_on_demand,
             n_pre_obs_renders=args.n_pre_obs_renders,
             max_render_interval=args.max_render_interval,
+            hdri_background=args.hdri_background
         )
     else:
         from realm.eval import evaluate
 
         log_root = args.log_dir if args.log_dir is not None else "/app/logs"
         log_dir = run_log_dir(log_root, args.experiment_name, args.model_name, args.run_id)
+
         evaluate(
             task_id=args.task_id,
             perturbation_id=args.perturbation_id,
@@ -110,6 +120,7 @@ def run_evaluation_cli(*, vectorized=False):
             task_cfg_path=args.task_cfg_path,
             robot=args.robot,
             render_on_demand=args.render_on_demand,
+            hdri_background=args.hdri_background
         )
 
     og.shutdown()

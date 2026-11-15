@@ -1,12 +1,15 @@
 from realm.config.shared import WARMUP_STEPS
 
 import copy
+import json
+import os
 from functools import partial
 
 import numpy as np
 import yaml
 
 import omnigibson as og
+import omnigibson.lazy as lazy
 from omnigibson.controllers.controller_view import ControllerView
 from scipy.spatial.transform import Rotation as R
 
@@ -43,14 +46,17 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         rendering_mode: str = "rt",
         robot: str = "DROID",
         in_vec_env: bool = False,
+        hdri_background=False
     ) -> None:
         assert not (multi_view and no_rendering), f"Multi-view rendering was enabled during no_rendering mode. Either one is likely a mistake."
         self.task_cfg_path = "/".join(task_cfg_path.split("/")[-3:])
+        self.task = task_cfg_path.split("/")[-2]
         self.use_droid_with_base = robot.startswith("DROID")
         self.robot_name = robot
         self.multi_view = multi_view
         self.no_rendering = no_rendering
         self.rendering_mode = rendering_mode
+        self.hdri_background = hdri_background
         self.config_path = config_path
         self.scene_model = scene_model
         self.scene_part = scene_part
@@ -162,6 +168,28 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         self.disable_visual_toggles()
         set_rendering_mode(self.rendering_mode)
         self.place_foam_balls()
+
+        if self.hdri_background:
+            HDRI_INTENSITY_SCALE = 65
+
+            dome_path = f'/app/custom_assets/hdri_dataset/{self.task}/dome_light.json'
+            intensity, color = 1000.0, (1.0, 1.0, 1.0)
+            if os.path.exists(dome_path):
+                d = json.load(open(dome_path))[0]
+                intensity, color = d["intensity"], tuple(d["color"])
+
+            with og.sim.editing_usd():
+                """The EXR file is reuquired for the HDRI mode.
+                EXR files can be obtained from house environment,
+                or can be created/customized according to specific requirements.
+            
+                - hdri_wc: HDRI map captured from the robot's wrist camera position
+                - hdri_rb: HDRI map captured from the robot's base position"""
+                dome = lazy.pxr.UsdLux.DomeLight.Define(og.sim.stage, "/World/hdri_dome")
+                dome.CreateTextureFileAttr(f"/app/custom_assets/hdri_dataset/{self.task}/hdri_wc.exr")
+                dome.CreateTextureFormatAttr("latlong")
+                dome.CreateIntensityAttr(intensity * HDRI_INTENSITY_SCALE / 100)
+                dome.CreateColorAttr(tuple(color))
 
         super().__init__(
             main_objects=self.main_objects,

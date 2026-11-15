@@ -52,19 +52,28 @@ def _perturb_tabletop(env: "RealmEnvironmentDynamic") -> None:
     backfill_object_cfgs(env.main_objects + env.distractors + env.target_objects,
                          env.cfg["objects"])
 
-    env.cfg["objects"] = place_within(
+    # -- HDRI objects (extra and light sources)
+    hdri = set(getattr(env, "hdri_names", []))
+    hdri_cfgs = [c for c in env.cfg["objects"] if c["name"] in hdri] 
+    obj_cfgs = [c for c in env.cfg["objects"] if c["name"] not in hdri]
+
+    placed = place_within(
         env.spawn_bbox,
-        env.cfg["objects"],
+        obj_cfgs,
         objects_to_skip=[obj.name for obj in env.distractors + env.target_objects],
         main_object_names=[],
         max_attempts_per_object=25000
     )
 
-    for obj_cfg in env.cfg["objects"]:
+    # -- only REALM's own objects are moved
+    for obj_cfg in placed:
         if env.task_type in ["open_drawer", "close_drawer"] and obj_cfg["name"] == "drawer":
             obj_cfg["position"][-1] -= DRAWER_Z_OFFSET
         _place(env.omnigibson_env.scene.object_registry("name", obj_cfg["name"]),
                position=obj_cfg["position"])
+
+    # -- HDRI objects are perserved
+    env.cfg["objects"] = placed + hdri_cfgs 
 
     for o in env.main_objects:
         if env.task_type in ["open_drawer", "close_drawer"]:
