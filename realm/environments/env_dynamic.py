@@ -1,5 +1,6 @@
 from realm.config.shared import WARMUP_STEPS
 
+import contextlib
 import copy
 from functools import partial
 
@@ -10,6 +11,7 @@ import omnigibson as og
 from omnigibson.controllers.controller_view import ControllerView
 from scipy.spatial.transform import Rotation as R
 
+from realm import frame_mode
 from realm.environments.constants import DEFAULT_RESET_JOINTPOS, DROID_BASE_HEIGHT
 from realm.config.shared import UNSUPPORTED_BY_PERTURBATION
 from realm.environments.env_base import RealmEnvironmentBase
@@ -43,7 +45,11 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         rendering_mode: str = "rt",
         robot: str = "DROID",
         in_vec_env: bool = False,
+        wait_idle: bool = False,
     ) -> None:
+        if in_vec_env and wait_idle:
+            raise ValueError("wait_idle is set for the whole simulator by RealmVectorEnvironment(wait_idle=...), "
+                             "not per member")
         assert not (multi_view and no_rendering), f"Multi-view rendering was enabled during no_rendering mode. Either one is likely a mistake."
         self.task_cfg_path = "/".join(task_cfg_path.split("/")[-3:])
         self.use_droid_with_base = robot.startswith("DROID")
@@ -116,10 +122,15 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         self._mo_cfgs = mo_cfgs
         self._to_cfgs = to_cfgs
         self._dist_cfgs = dist_cfgs
-        self.omnigibson_env = og.Environment(configs=[cfg], in_vec_env=in_vec_env)
+        # Isaac Sim launches with the first environment; see realm.frame_mode for the render
+        # settings and `wait_idle`. A vector member is launched by RealmVectorEnvironment.
+        launch = contextlib.nullcontext() if in_vec_env else frame_mode.launch_settings()
+        with launch:
+            self.omnigibson_env = og.Environment(configs=[cfg], in_vec_env=in_vec_env)
 
         if not in_vec_env:
             self.post_play_setup()
+            frame_mode.apply(wait_idle)
 
     def post_play_setup(self):
 
@@ -241,6 +252,19 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
         task_progression = self.recompute_task_progression(obs)
         return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
+
+    def read_obs(self):
+        """Re-read the observation (no step, no render), through `step`'s V-AUG hook."""
+        obs, _ = self.omnigibson_env.get_obs()
+        return self._distort_if_v_aug(obs)
+
+    def current_obs(self):
+        """One waited render pass, then `read_obs()`: the current frame."""
+        assert not self.in_vec_env, (
+            "A render pass is global: in a vector environment call "
+            "RealmVectorEnvironment.current_obs(), which makes one for all members.")
+        frame_mode.render_current()
+        return self.read_obs()
 
     def _distort_if_v_aug(self, obs):
 
