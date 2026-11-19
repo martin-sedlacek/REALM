@@ -71,7 +71,7 @@ as-is in the source.
 
 ### `examples/04_vector_evaluate.py` — the differences
 
-Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`5`) and
+Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`1`) and
 `--max_render_interval` (`8`). Its `--repeats` defaults to `25` rather than `5`, and its `--log_dir`
 defaults to `/logs` rather than `/app/logs`.
 
@@ -88,6 +88,9 @@ rollout yields on the order of 39 frames instead of 300. If the video matters �
 eyeballing a failure — pass `--no-render_on_demand`.
 
 It also means results are not step-for-step comparable against baselines recorded before it existed.
+
+In both modes the policy gets the current camera frame; see "Current camera frames in
+1.0.5" below.
 
 ## Model types
 
@@ -192,7 +195,8 @@ vectorized entry point does not support `--resume`.
 Single and vector evaluation now default to five pre-observation render passes.
 Simulation startup enables `/app/hydraEngine/waitIdle=true` so camera reads wait for
 Hydra GPU rendering to finish. This addresses stale camera frames during on-demand
-rendering at action-chunk boundaries.
+rendering at action-chunk boundaries. (Measured later: the waitIdle argument never
+reached Kit in 1.0.2-1.0.4; see "Current camera frames in 1.0.5".)
 
 These defaults can change policy observations and benchmark scores. Re-evaluate
 checkpoints under 1.0.2 before comparing them with results produced by older versions.
@@ -228,3 +232,53 @@ elevation of camera-local +X (image right) relative to the robot-base XY plane,
 computed from the rectified XYZW quaternion. The filter excludes 5,026 of 141,408
 poses (3.55%), leaving 136,382 before camera-role and opposite-side filtering.
 It applies before the existing pose jitter. This changes V-VIEW draws and scores.
+
+### Current camera frames in 1.0.5
+
+By default Kit hands a camera the frame finished before the update's render
+(`/app/updateOrder/checkForHydraRenderComplete` = -100) and does not wait for the GPU
+(`/app/hydraEngine/waitIdle` = false). In 1.0.1 (2 passes) the on-demand frame was one
+chunk old; 1.0.2-1.0.4's 5 passes were current in our checks, but not guaranteed and
+slower than waiting with 1 pass. Every step, the frame was one or two steps old in all
+versions. 1.0.5 launches Isaac Sim with the check order at 1000 in every run. The
+evaluators then set waitIdle by mode:
+
+- **render-on-demand (default):** waitIdle on; one pass gives the current frame, so
+  `--n_pre_obs_renders` defaults to `1` (was `5`).
+- **`--no-render_on_demand`:** waitIdle off, plus one waited pass before each inference,
+  whose re-read observation goes to the policy (one pass per vector batch). The video
+  shows every control step once. `--n_pre_obs_renders` is ignored.
+
+An environment built directly takes `wait_idle` (default `False`). With it off, the frame
+at a rendered step is 1 step old (1 scene, every step), 1-3 steps (5 scenes), or as old
+as the last render (8 steps when rendering every 8th). For a current frame, pass
+`wait_idle=True` (every step rendered: 41.6 -> 64.0 ms per step with 1 scene, 116 -> 225
+ms with 5) or call `env.current_obs()` / `vec_env.current_obs()` when the frame is
+needed. The check order alone costs 1-4 %. The log prints both settings as read back
+(`[REALM_RENDER_SYNC] ...`). If Isaac Sim was launched before the first REALM
+environment, construction raises; a second REALM environment is fine.
+
+1.0.2-1.0.4 never had waitIdle on: OmniGibson resets `sys.argv` before launching Kit, so
+the argument 1.0.2 added was dropped.
+
+Measured with pi0.5 (ten DROID10 tasks x 50, L40S, branches with the same settings):
+
+| | 1.0.1 on demand | 1.0.1 every step | on demand, 1 pass | on demand, 5 passes | every step, current |
+|---|---|---|---|---|---|
+| successes of 500 | 228\* | 297 | 302\* | 325\* | 315 |
+| ms per 8-step chunk, single | 515 | 896 | 526 | 718 | 957 |
+| ms per chunk, vector of 5 | 1230 | 2865 | 1338 | 2188 | 3165 |
+
+\* On-demand totals include a `stack_cubes` scoring artefact: the PLACE_ONTO check reads `OnTop` on
+steps that are not rendered and latches while the cube is still tipping (also in 1.0.1's on demand;
+separate fix, not in 1.0.5). `stack_cubes` successes of 50: 38 (1 pass), 38 (5 passes), 23 (every
+step). Without it, of 450: 264, 287, 292, so 5 passes leads every step by 10 with the task and trails
+by 5 without it. Replaying the same recorded actions (40 rollouts) scores 18 successes on demand vs 9
+every step, while the stack is actually standing at the end in 6 vs 8.
+
+A chunk-old frame is the large effect (tasks 0-6: flat to 4 steps of age, 253-260 of 350;
+182 at one chunk). A 1-pass frame is current but shaded differently: pi0.5 grasps later
+(task 0 median 76 steps vs 44.5 with 5 passes) and scores 302 vs 325 (CMH p 0.026). It
+stays the default as the cheapest current mode.
+
+This changes observations and scores against 1.0.4. Re-evaluate before comparing.

@@ -93,7 +93,9 @@ wiki/       the operator docs: Quick-Start, Running-Evaluations, Logging,
 
 Shared semantics live in `realm/rollout.py`; anything the two paths must agree on goes there,
 never copy-adapted. Render-on-demand (default ON) renders only the steps whose observation feeds
-inference; pass `--no-render_on_demand` when the recorded video matters.
+inference; pass `--no-render_on_demand` when the recorded video matters. Either way the policy gets
+the current camera frame (`realm/frame_mode.py`: Kit settings at launch, one waited pass before each
+inference when every step renders).
 
 ## Inference clients
 
@@ -138,15 +140,17 @@ uv run python tests/run_suite.py --only local --strict \
     --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
 uv run python -m pytest -q tests/test_perturbation_task_types.py \
     tests/test_cell_classification.py tests/test_robot_base_column.py \
-    tests/test_robot_definition_parity.py
+    tests/test_robot_definition_parity.py tests/test_evaluation_cli.py \
+    tests/test_frame_mode.py
 ```
 
 Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation:
 `python tests/run_suite.py --jobid <id> --mode stock --level smoke|suite --strict --out … --junit-xml …`.
 The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
-four real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
-`test_robot_base_column`, `test_robot_definition_parity` — all host-safe, ast/yaml based) are run
+six real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
+`test_robot_base_column`, `test_robot_definition_parity`, `test_evaluation_cli`, `test_frame_mode`
+— all host-safe: ast/yaml based, or with the simulator modules stubbed) are run
 directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.
 
