@@ -14,6 +14,7 @@ import os
 
 import omnigibson as og
 
+from realm import frame_mode
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.inference import InferenceClient
 from realm.realm_logging import VideoRecorder, save_results
@@ -117,6 +118,7 @@ def evaluate(
         rendering_mode=rendering_mode,
         robot=robot,
     )
+    frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
 
     if resume:
         results, first_run_id, results_filename = _load_previous_results(log_dir, task, perturbation)
@@ -129,6 +131,7 @@ def evaluate(
             run_id,
             recorder=None if no_record else _new_recorder(log_dir, run_id, task, perturbation),
             gripper_inverted=gripper_is_inverted(model_type),
+            late_frames=not render_on_demand,
         )
         _run_rollout(rollout, client, max_steps, horizon,
                      render_on_demand, n_pre_obs_renders, max_render_interval)
@@ -151,6 +154,7 @@ def _run_rollout(rollout, client, max_steps, horizon,
 
     Ends once the task has been complete for `realm.rollout.TERMINAL_STEPS` control steps, or at
     `max_steps`, whichever comes first.
+    With every step rendered, the policy gets `env.current_obs()`; metrics and video use `obs`.
     """
     env = rollout.env
     obs, _ = env.reset()
@@ -159,7 +163,10 @@ def _run_rollout(rollout, client, max_steps, horizon,
     renders = RenderSchedule(max_render_interval, n_pre_obs_renders)
     step = 0
     while step < max_steps and rollout.active:
-        observation = rollout.observe(obs, renders.obs_is_fresh)
+        current_obs = None
+        if not render_on_demand and rollout.needs_fresh_obs():
+            current_obs = env.current_obs()
+        observation = rollout.observe(obs, renders.obs_is_fresh, current_obs)
         command = rollout.act(observation, client, horizon)
 
         if render_on_demand:
@@ -172,6 +179,7 @@ def _run_rollout(rollout, client, max_steps, horizon,
 
         rollout.record_progression(task_progression, step)
         step += 1
+    rollout.finish(obs)
 
 
 def _new_recorder(log_dir, run_id, task, perturbation):
