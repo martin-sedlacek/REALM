@@ -107,13 +107,8 @@ class RenderSchedule:
     far was a source of instability on the pre-3.9.1 OG-lite path.
 
     `n_pre_obs_renders` is how many render passes a rendering step makes before its observation is
-    read. The extra passes flush the pipeline: after a run of blind steps the scene has moved, and
-    one render() does not fully propagate that before the sensors are read -- OmniGibson's own
-    `Simulator.step()` notes that a stage change "will take two `_sim_context.step(render=True)` for
-    the result to propagate to the rendering", so two is the documented minimum. 2 means one in-step
-    render plus one explicit `og.sim.render()`. It was 3, inherited unmeasured from the pre-3.9.1
-    OG-lite path; the third pass cost ~14 ms per render step (1.9% of stepping time) with no
-    evidence it was needed. 2 has never been verified as sufficient -- only that 3 was unjustified.
+    read (the in-step render plus explicit `og.sim.render()` calls). One gives the current frame
+    (`realm.frame_mode`); more change the shading, so the count moves numbers.
 
     `obs_is_fresh` says whether the observation the most recent step returned carries a new camera
     frame. It starts True because both entry points warm up with rendering on every step.
@@ -204,27 +199,46 @@ class PolicyObservation(NamedTuple):
 class Rollout:
 
 
-    def __init__(self, env, run_id, recorder=None, gripper_inverted=False):
+    def __init__(self, env, run_id, recorder=None, gripper_inverted=False, late_frames=False):
         self.env = env
         self.run_id = run_id
         self.recorder = recorder
         self.gripper_inverted = gripper_inverted
+        # --no-render_on_demand: a step's frame shows the step before, so the video lags one obs.
+        self.late_frames = late_frames
+        self._observed = 0
         self.metrics = RolloutMetrics()
         self.action_buffer = Queue()
         self.last_command = None
         self.active = True
 
-    def observe(self, obs, obs_is_fresh):
+    def observe(self, obs, obs_is_fresh, current_obs=None):
+        """Record `obs` (metrics, video); the policy's camera frames come from `current_obs` if given.
 
+        With `late_frames` the first, pre-rollout frame is left out of the video; `finish` adds the last.
+        """
         base_im, _, base_im_second, _, wrist_im, robot_state, gripper_state = extract_from_obs(
             obs, robot_name=self.env.robot.name)
         ee_pos, ee_quat = self.metrics.record_step(self.env, obs, robot_state, gripper_state)
 
-        if self.recorder is not None and obs_is_fresh:
+        if self.recorder is not None and obs_is_fresh and not (
+                self.late_frames and self._observed == 0):
             self.recorder.add_frame(base_im, wrist_im, base_im_second)
+        self._observed += 1
+
+        if current_obs is not None:
+            base_im, _, base_im_second, _, wrist_im, _, _ = extract_from_obs(
+                current_obs, robot_name=self.env.robot.name)
 
         return PolicyObservation(base_im, base_im_second, wrist_im, robot_state, gripper_state,
                                  ee_pos, ee_quat)
+
+    def finish(self, obs):
+        """With `late_frames`, add the last step's frame to the video. Call once, when the rollout ends."""
+        if self.recorder is not None and self.late_frames:
+            base_im, _, base_im_second, _, wrist_im, _, _ = extract_from_obs(
+                obs, robot_name=self.env.robot.name)
+            self.recorder.add_frame(base_im, wrist_im, base_im_second)
 
     def act(self, observation, client, horizon):
         if self.action_buffer.empty():

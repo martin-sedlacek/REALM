@@ -21,6 +21,7 @@ import time
 import numpy as np
 import omnigibson as og
 
+from realm import frame_mode
 from realm.environments.env_vector import RealmVectorEnvironment
 from realm.eval import CONFIG_ROOT, SUPPORTED_PERTURBATIONS, SUPPORTED_TASKS
 from realm.inference import InferenceClient
@@ -41,7 +42,7 @@ def evaluate_vectorized(
         model_type="openpi", model_name="model", port=8000, host="127.0.0.1",
         log_dir="/logs", rendering_mode="rt", robot="DROID", multi_view=False,
         no_record=False, task_cfg_path=None,
-        render_on_demand=True, n_pre_obs_renders=5, max_render_interval=8,
+        render_on_demand=True, n_pre_obs_renders=1, max_render_interval=8,
 ):
     """Run `repeats` rollouts of one (task, perturbation) in waves of `num_envs` concurrent members.
 
@@ -71,6 +72,7 @@ def evaluate_vectorized(
         robot=robot, rendering_mode=rendering_mode, multi_view=multi_view,
     )
     print(f"[vec_eval] {num_envs} envs ready at {time.perf_counter() - start:.1f}s", flush=True)
+    frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
 
     # One client per member. Inference is still strictly sequential -- this only avoids sharing one
     # websocket's state across concurrent rollouts.
@@ -86,7 +88,8 @@ def evaluate_vectorized(
               f"({n_record} of {num_envs} members recorded)", flush=True)
 
         members, step_results = _start_wave(vec_env, clients, run_id, n_record, log_dir, task,
-                                            perturbation, no_record)
+                                            perturbation, no_record,
+                                            late_frames=not render_on_demand)
         wave_start = time.perf_counter()
         steps = _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
                            render_on_demand, n_pre_obs_renders, max_render_interval)
@@ -115,7 +118,8 @@ def evaluate_vectorized(
     return results
 
 
-def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturbation, no_record):
+def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturbation, no_record,
+                late_frames=False):
     """Settle the whole batch and open one `Rollout` per recorded member.
 
     Returns (members, the warmup's per-member step results). A wave shorter than `num_envs` -- the
@@ -136,7 +140,7 @@ def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturb
         # gripper_inverted=False for every model_type, which is what this path has always
         # done -- see evaluate_vectorized's docstring.
         members.append(Rollout(vec_env.envs[i], first_run_id + i, recorder=recorder,
-                               gripper_inverted=False))
+                               gripper_inverted=False, late_frames=late_frames))
 
     for client in clients:
         client.reset()
@@ -148,17 +152,25 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
     """Step every member of one wave until all have finished or `max_steps` is reached.
 
     Returns how many steps the wave took.
+    With every step rendered, inferring members get `vec_env.current_obs()` (one pass for the
+    batch); metrics and video use the step's own observation.
     """
     renders = RenderSchedule(max_render_interval, n_pre_obs_renders)
 
     step = 0
     while step < max_steps and any(m is not None and m.active for m in members):
+        inferring = [m is not None and m.active and m.needs_fresh_obs() for m in members]
+        current = None
+        if not render_on_demand and any(inferring):
+            current = vec_env.current_obs()
         commands = []
         for i, member in enumerate(members):
             if member is None or not member.active:
                 commands.append(_hold_command(vec_env.envs[i], member))
             else:
-                observation = member.observe(step_results[i][0], renders.obs_is_fresh)
+                observation = member.observe(
+                    step_results[i][0], renders.obs_is_fresh,
+                    current[i] if current is not None and inferring[i] else None)
                 commands.append(member.act(observation, clients[i], horizon))
 
         if render_on_demand:
@@ -181,8 +193,12 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
             if not member.record_progression(step_results[i][1], step):
                 print(f"[vec_eval]   member {i} (run {member.run_id}) finished at step {step}, "
                       f"TP={member.metrics.task_progression}", flush=True)
+                member.finish(step_results[i][0])
         step += 1
 
+    for i, member in enumerate(members):        # the members that `max_steps` ended
+        if member is not None and member.active:
+            member.finish(step_results[i][0])
     return step
 
 
