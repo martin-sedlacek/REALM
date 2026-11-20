@@ -45,6 +45,7 @@ realm/
 ├── paths.py           run_log_dir(): the <root>/<experiment>/<model>[/<run_id>] convention
 ├── realm_logging.py   CSV reports, consolidated parquets, VideoRecorder
 ├── scoring_geometry.py the rubric's OnTop/Inside reads on PhysX poses on steps that do not render
+├── stage_hold.py      StageHold: a stage latches after N consecutive true steps (host-importable)
 ├── geometry.py        pure pose/rotation math (no omnigibson/torch — host-importable)
 ├── placement.py       collision-free placement (rejection sampling); place_within()
 ├── categories.py      object-category catalogue helpers
@@ -142,15 +143,16 @@ uv run python tests/run_suite.py --only local --strict \
 uv run python -m pytest -q tests/test_perturbation_task_types.py \
     tests/test_cell_classification.py tests/test_robot_base_column.py \
     tests/test_robot_definition_parity.py tests/test_evaluation_cli.py \
-    tests/test_frame_mode.py
+    tests/test_frame_mode.py tests/test_stage_hold.py
 ```
 
 Tier 2 needs the container/GPU and is the same driver against a RUNNING Slurm allocation:
 `python tests/run_suite.py --jobid <id> --mode stock --level smoke|suite --strict --out … --junit-xml …`.
 The tests are
 **script-style with printed verdicts** — do NOT run `pytest tests/` (collection boots Isaac); the
-six real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
-`test_robot_base_column`, `test_robot_definition_parity`, `test_evaluation_cli`, `test_frame_mode`
+seven real pytest modules (`test_perturbation_task_types`, `test_cell_classification`,
+`test_robot_base_column`, `test_robot_definition_parity`, `test_evaluation_cli`, `test_frame_mode`,
+`test_stage_hold`
 — all host-safe: ast/yaml based, or with the simulator modules stubbed) are run
 directly by filename. Exit codes are never
 trusted: Isaac exits 0 on unhandled exceptions and segfaults at teardown on passing runs.

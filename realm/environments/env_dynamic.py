@@ -216,6 +216,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         self.was_lifted = False
         for k in self.task_progression.keys():
             self.task_progression[k] = False
+        self.reset_stage_hold()
 
         self.deferred_post_play.clear()
         self.wants_settle = False

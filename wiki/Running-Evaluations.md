@@ -64,6 +64,7 @@ Relevant optional environment variables are:
 | `--no_record` | flag | off |
 | `--no_render` | flag | off |
 | `--render_on_demand` / `--no-render_on_demand` | flag | **on** |
+| `--stage_hold_steps` | int | `5` — a rubric stage counts only after its condition held this many consecutive control steps; REACH, TOUCH and TOUCH_AND_MOVE_JOINT always count on the first true step; `1` counts every stage on its first true step. Also on `04_vector_evaluate.py`. |
 
 Note the inconsistent separators: `--multi-view` has a dash, `--no_record` and `--no_render` have
 underscores, and the negation of `--render_on_demand` is spelled `--no-render_on_demand`. These are
