@@ -50,6 +50,20 @@ SUITE = {
         cells=r"^\[\d\] .*",
         note="stubbed og.sim; no simulator, no GPU. Asserts scheduling only.",
     ),
+    "test_scoring_geometry": dict(
+        argv=["tests/test_scoring_geometry.py"],
+        needs_gpu=True, needs_server=False, timeout=1200, tier="medium",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^non-rendered steps .*",
+        note="scoring geometry: PhysX poses inside the scoring context, nothing changed outside.",
+    ),
+    "test_scoring_geometry_vector": dict(
+        argv=["tests/test_scoring_geometry_vector.py", "--num_envs", "2"],
+        needs_gpu=True, needs_server=False, timeout=1200, tier="medium",
+        verdict=[(r"^FAILED -- \d+ problem", "FAIL"), (r"^PASSED -- ", "PASS")],
+        cells=r"^member \d+: .*",
+        note="scoring geometry in a 2-member vector env: per-member PhysX poses, OnTop vs a forced render.",
+    ),
     "test_single_task": dict(
         argv=["tests/test_single_task.py", "--task_id", "0"],
         needs_gpu=True, needs_server=False, timeout=1800, tier="medium",
@@ -169,6 +183,8 @@ LEVELS = {
               "test_single_task",                #   223.3 s
               "test_scene_object_placement",     #   329.2 s
               "test_single_task_drawer",         #   301.3 s
+              "test_scoring_geometry",           #   209 s (L40S)
+              "test_scoring_geometry_vector",    #   ~150 s (RTX 5090)
               "test_vector_integrity_drawers",   #   635.7 s
               "test_integrity",                  #  1834.8 s
               "test_perturbations_integrity"],   #  2584.3 s   -> ~1.7 h total

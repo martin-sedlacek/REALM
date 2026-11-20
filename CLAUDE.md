@@ -44,6 +44,7 @@ realm/
 ├── sim_config.py      OmniGibson macros + seeding (before env build) and carb render modes
 ├── paths.py           run_log_dir(): the <root>/<experiment>/<model>[/<run_id>] convention
 ├── realm_logging.py   CSV reports, consolidated parquets, VideoRecorder
+├── scoring_geometry.py the rubric's OnTop/Inside reads on PhysX poses on steps that do not render
 ├── geometry.py        pure pose/rotation math (no omnigibson/torch — host-importable)
 ├── placement.py       collision-free placement (rejection sampling); place_within()
 ├── categories.py      object-category catalogue helpers
