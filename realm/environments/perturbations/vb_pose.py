@@ -54,7 +54,7 @@ def _perturb_tabletop(env: "RealmEnvironmentDynamic") -> None:
 
     # -- HDRI objects (extra and light sources)
     hdri = set(getattr(env, "hdri_names", []))
-    hdri_cfgs = [c for c in env.cfg["objects"] if c["name"] in hdri] 
+    hdri_cfgs = [c for c in env.cfg["objects"] if c["name"] in hdri]
     obj_cfgs = [c for c in env.cfg["objects"] if c["name"] not in hdri]
 
     placed = place_within(
@@ -73,7 +73,7 @@ def _perturb_tabletop(env: "RealmEnvironmentDynamic") -> None:
                position=obj_cfg["position"])
 
     # -- HDRI objects are perserved
-    env.cfg["objects"] = placed + hdri_cfgs 
+    env.cfg["objects"] = placed + hdri_cfgs
 
     for o in env.main_objects:
         if env.task_type in ["open_drawer", "close_drawer"]:

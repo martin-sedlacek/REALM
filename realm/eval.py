@@ -10,12 +10,11 @@ would boot an Isaac instance in the test driver just to read two lists of string
 """
 import csv
 import datetime
-import time
-import json
 import os
 
 import omnigibson as og
 
+from realm import frame_mode
 from realm.environments.env_dynamic import RealmEnvironmentDynamic
 from realm.inference import InferenceClient
 from realm.realm_logging import VideoRecorder, save_results
@@ -29,8 +28,6 @@ from realm.rollout import (
 )
 from realm.sim_config import set_sim_config
 from realm.task_seed import task_seed
-import realm.profiling as prof
-from realm.gpu_monitor import GPUMonitor
 
 #: Task and robot configs, at the path the repo is bound to inside the container.
 CONFIG_ROOT = "/app/realm/config"
@@ -87,9 +84,9 @@ def evaluate(
         task_cfg_path=None,
         robot="DROID",
         render_on_demand=True,
-        n_pre_obs_renders=5,
+        n_pre_obs_renders=1,
         max_render_interval=8,
-        hdri_background=False
+        hdri_background=False,
 ):
     """Evaluate one policy on one (task, perturbation) for `repeats` rollouts.
 
@@ -103,11 +100,6 @@ def evaluate(
     `model_type` selects the inference client and the policy's gripper convention. It is taken
     verbatim and never inferred from the model's name.
     """
-    prof.set_ctx(task_id=task_id, perturbation_id=perturbation_id, hdri=hdri_background, phase="setup")
-    gpu = GPUMonitor().start()
-
-    start = time.perf_counter()
-
     if rendering_mode is None:
         rendering_mode = "rt"
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
@@ -116,23 +108,19 @@ def evaluate(
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
     os.makedirs(log_dir, exist_ok=True)
 
-    prof_dir = log_dir + f"/profile/{task}_{perturbation}_{'hdri' if hdri_background else 'house'}"
-    prof.set_folder(prof_dir)
-    gpu.set_path(f"{prof_dir}/gpu.csv")
-
     client = InferenceClient(model_type, host=host, port=port)
 
-    with prof.timer(level="environment", stage="realm_env_dyn_init"):
-        env = RealmEnvironmentDynamic(
-            config_path=CONFIG_ROOT,
-            task_cfg_path=task_cfg_path,
-            perturbations=[perturbation],
-            multi_view=multi_view,
-            no_rendering=no_render,
-            rendering_mode=rendering_mode,
-            robot=robot,
-            hdri_background=hdri_background
-        )
+    env = RealmEnvironmentDynamic(
+        config_path=CONFIG_ROOT,
+        task_cfg_path=task_cfg_path,
+        perturbations=[perturbation],
+        multi_view=multi_view,
+        no_rendering=no_render,
+        rendering_mode=rendering_mode,
+        robot=robot,
+        hdri_background=hdri_background,
+    )
+    frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
 
     if resume:
         results, first_run_id, results_filename = _load_previous_results(log_dir, task, perturbation)
@@ -145,9 +133,10 @@ def evaluate(
             run_id,
             recorder=None if no_record else _new_recorder(log_dir, run_id, task, perturbation),
             gripper_inverted=gripper_is_inverted(model_type),
+            late_frames=not render_on_demand,
         )
         _run_rollout(rollout, client, max_steps, horizon,
-                     render_on_demand, n_pre_obs_renders, max_render_interval, run_id)
+                     render_on_demand, n_pre_obs_renders, max_render_interval)
 
         entry = build_result_entry(rollout, task, perturbation, model_type)
         write_rollout_artifacts(rollout, entry, log_dir, task, perturbation)
@@ -161,44 +150,25 @@ def evaluate(
     og.log.info("Done!")
 
 
-    prof.add(level="experiment", stage="total_eval", dt=time.perf_counter() - start, phase="done")
-    prof.save()
-    gpu.stop()
-
-    config = {
-        "task_id": task_id,
-        "perturbation_id": perturbation_id,
-        "repeats": repeats,
-        "max_steps": max_steps,
-        "horizon": horizon,
-    }
-
-    with open(prof_dir + "/config.json", "w") as f:
-        json.dump(config, f, indent=4)
-
 def _run_rollout(rollout, client, max_steps, horizon,
-                 render_on_demand, n_pre_obs_renders, max_render_interval, run_id):
+                 render_on_demand, n_pre_obs_renders, max_render_interval):
     """Reset, warm up and step one rollout to its end.
 
     Ends once the task has been complete for `realm.rollout.TERMINAL_STEPS` control steps, or at
     `max_steps`, whichever comes first.
+    With every step rendered, the policy gets `env.current_obs()`; metrics and video use `obs`.
     """
     env = rollout.env
+    obs, _ = env.reset()
+    obs, _, _, _, _ = env.warmup(obs)
 
-    prof.set_ctx(phase="warmup")
-    with prof.timer(level="episode", stage="reset", run_id=run_id):
-        obs, _ = env.reset()
-
-    with prof.timer(level="episode", stage="warmup", run_id=run_id):
-        obs, _, _, _, _ = env.warmup(obs)
-
-    prof.set_ctx(phase="rollout")
     renders = RenderSchedule(max_render_interval, n_pre_obs_renders)
     step = 0
-    start = time.perf_counter()
     while step < max_steps and rollout.active:
-        _t0 = time.perf_counter()
-        observation = rollout.observe(obs, renders.obs_is_fresh)
+        current_obs = None
+        if not render_on_demand and rollout.needs_fresh_obs():
+            current_obs = env.current_obs()
+        observation = rollout.observe(obs, renders.obs_is_fresh, current_obs)
         command = rollout.act(observation, client, horizon)
 
         if render_on_demand:
@@ -211,9 +181,7 @@ def _run_rollout(rollout, client, max_steps, horizon,
 
         rollout.record_progression(task_progression, step)
         step += 1
-
-        prof.add(level="step", stage="rollout", dt=time.perf_counter()-_t0, run_id=run_id)
-    prof.add(level="episode", stage="rollout", dt=time.perf_counter() - start, run_id=run_id)
+    rollout.finish(obs)
 
 
 def _new_recorder(log_dir, run_id, task, perturbation):

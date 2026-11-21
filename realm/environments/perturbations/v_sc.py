@@ -45,7 +45,7 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
 
     # --------------- Translation ---------------
     obj_cfgs = copy.deepcopy(env.cfg["objects"])
-    
+
     # -- HDRI objects (extra and light sources)
     hdri = set(getattr(env, "hdri_names", []))
     hdri_cfgs = [c for c in obj_cfgs if c["name"] in hdri]

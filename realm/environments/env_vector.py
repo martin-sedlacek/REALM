@@ -1,8 +1,8 @@
 import contextlib
-import time
 
 import omnigibson as og
 
+from realm import frame_mode
 from realm.environments.env_dynamic import RealmEnvironmentDynamic, WARMUP_STEPS
 from realm.environments.foam_ball_reset import run_foam_ball_placements
 from realm.environments.joint_reset import run_joint_resets
@@ -12,7 +12,7 @@ from realm.environments.perturbations._helpers import (
     settle_action,
 )
 from realm.environments.vec_init_queue import repair_init_queue
-import realm.profiling as prof
+
 
 def real_scene_bbox(idx):
     """Real bbox (min, max) of /World/scene_<idx> right now, or None if it is empty."""
@@ -52,8 +52,7 @@ def use_template_bbox(template):
 class RealmVectorEnvironment:
 
 
-    def __init__(self, num_envs, on_first_env_built=None, hdri_background=False, **env_kwargs):
-        prof.set_ctx(hdri=hdri_background)
+    def __init__(self, num_envs, on_first_env_built=None, wait_idle=False, hdri_background=False, **env_kwargs):
 
         assert num_envs >= 1, f"num_envs must be >= 1, got {num_envs}"
         self.num_envs = num_envs
@@ -63,23 +62,22 @@ class RealmVectorEnvironment:
 
         og.log.info(f"Loading {num_envs} parallel environments...")
         self.envs = []
-        # install_scene_load_inspector()
-        for i in range(num_envs):
-            _t0 = time.perf_counter()
-            og.log.info(f"  environment {i + 1}/{num_envs}")
-            if i == 0:
-                self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
-                size = real_scene_bbox(0)
-                og.sim._last_scene_edge = size[1][0]
-            else:
-                with use_template_bbox(size):   # empty scene i -> measured as scene 0's size
-                    self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
-            # print(f"[WORLD] last_scene_edge = {og.sim._last_scene_edge}", flush=True)
-            # debug_world()
-            prof.add(level="episode", stage="realm_env_dyn_init", dt=time.perf_counter() - _t0, env_id=i)
-            if i == 0 and on_first_env_built is not None:
-                on_first_env_built()
-
+        # Isaac Sim launches with the first member (realm.frame_mode).
+        with frame_mode.launch_settings():
+            for i in range(num_envs):
+                og.log.info(f"  environment {i + 1}/{num_envs}")
+                # HDRI scenes are empty when OmniGibson computes their spacing.
+                bbox_context = use_template_bbox(size) if hdri_background and i > 0 else contextlib.nullcontext()
+                with bbox_context:
+                    self.envs.append(RealmEnvironmentDynamic(
+                        in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
+                if hdri_background and i == 0 and num_envs > 1:
+                    size = real_scene_bbox(0)
+                    if size is None:
+                        raise RuntimeError("Cannot determine spacing for HDRI vector scenes.")
+                    og.sim._last_scene_edge = size[1][0]
+                if i == 0 and on_first_env_built is not None:
+                    on_first_env_built()
 
         og.sim.play()
         for env in self.envs:
@@ -103,6 +101,7 @@ class RealmVectorEnvironment:
         # last word on what reset() restores. One batched call for all members -- see
         # foam_ball_reset for why a per-member loop would be wrong here.
         run_foam_ball_placements(self.envs)
+        frame_mode.apply(wait_idle)
         og.log.info(f"{num_envs} environments ready.")
 
     def reset(self):
@@ -172,6 +171,11 @@ class RealmVectorEnvironment:
         for _ in range(n_render_iterations - 1):
             og.sim.render()
         return [env.post_step(action) for env, action in zip(self.envs, actions)]
+
+    def current_obs(self):
+        """One waited render pass for the whole batch, then every member's `read_obs()`."""
+        frame_mode.render_current()
+        return [env.read_obs() for env in self.envs]
 
     def warmup(self):
 

@@ -32,6 +32,8 @@ jobs:
           tests/test_cell_classification.py
           tests/test_robot_base_column.py
           tests/test_robot_definition_parity.py
+          tests/test_evaluation_cli.py
+          tests/test_frame_mode.py
       - name: Upload static-test report
         if: always()
         uses: actions/upload-artifact@v4
