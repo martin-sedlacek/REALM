@@ -49,10 +49,18 @@ def _apply_scene_cfg(env, cfg, task_cfg):
     assert env.scene_part in task_cfg["supported_scenes"][env.scene_model]
     cfg.update(task_cfg["task"])
 
-    scene_cfg_path = f"{env.config_path}/scenes/{env.scene_model}/{env.scene_part}/scene_definition.yaml"
     scene_cfg = None
+    scene_cfg_path = f"{env.config_path}/scenes/{env.scene_model}/{env.scene_part}/scene_definition.yaml"
     if os.path.exists(scene_cfg_path):
         scene_cfg = yaml.load(open(scene_cfg_path, "r"), Loader=yaml.FullLoader)
+
+    if env.hdri_background:
+        cfg["scene"] = {
+            "type": "Scene",
+            "use_floor_plane": False,
+            "use_skybox": False,
+        }
+    elif scene_cfg is not None:
         cfg["scene"] = copy.deepcopy(scene_cfg["scene"])
     else:
         cfg["scene"] = {
@@ -173,6 +181,37 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
 
     for obj in cfg["objects"]:
         assert "position" in obj
+
+    if env.hdri_background:
+        HDRI_INTENSITY_SCALE = 65
+        HDRI_DIR = f"/app/custom_assets/hdri_dataset/{env.task}"
+        
+        light_list = yaml.safe_load(open(f"{HDRI_DIR}/light_objects.yaml"))
+        for L in light_list:
+            L["intensity"] *= HDRI_INTENSITY_SCALE / 100
+
+        saved = yaml.safe_load(open(f"{HDRI_DIR}/objects.yaml"))
+        existing = {o["name"] for o in (cfg["objects"] or [])}
+
+        extra = []
+        for o in saved:
+            if o["name"] in existing:
+                continue
+            item = {k: v for k, v in o.items() if k != "role"}
+
+            if o.get("role") == "furniture":
+                item["fixed_base"] = True
+            extra.append(item)
+
+        print(f"[HDRI] extra objects: {[o['name'] for o in extra]}  "
+            f"(skipped, already loaded: {sorted(existing & {o['name'] for o in saved})})", flush=True)
+
+        cfg["objects"] = (cfg["objects"] or []) + extra + light_list
+
+        env.hdri_names = [o["name"] for o in extra + light_list]    # -- used in v_sc and vb_pose
+        env.immutable_names += env.hdri_names                       # -- perturbations must not move them
+        print(f"[HDRI] Protected {len(env.hdri_names)} items from perturbations", flush=True)
+
     return distractors
 
 

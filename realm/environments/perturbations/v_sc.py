@@ -45,6 +45,12 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
 
     # --------------- Translation ---------------
     obj_cfgs = copy.deepcopy(env.cfg["objects"])
+    
+    # -- HDRI objects (extra and light sources)
+    hdri = set(getattr(env, "hdri_names", []))
+    hdri_cfgs = [c for c in obj_cfgs if c["name"] in hdri]
+    obj_cfgs = [c for c in obj_cfgs if c["name"] not in hdri]
+
     num_mo_to = len(env.target_objects + env.main_objects)
 
     backfill_object_cfgs(env.target_objects + env.main_objects, obj_cfgs)
@@ -61,13 +67,14 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
     # key is what DatasetObject scales the asset by, so skipping would shrink the real fixture on
     # the next build. main_object_names only reads position and bounding_box.
     pinned_names = ([o["name"] for o in obj_cfgs[:num_mo_to]]
-                    + list(env.immutable_names) + list(env.foam_ball_names))
+                    + [n for n in env.immutable_names if n not in hdri]      # HDRI: not pinned, set aside
+                    + list(env.foam_ball_names))
 
     # pour_proxy's foam balls sit INSIDE the source bottle, and pinning alone would still let
     # set_scene_positions below write their provisional spawn column back over that.
     refresh_foam_ball_cfg_positions(env, obj_cfgs)
 
-    env.cfg["objects"] = place_within(
+    placed = place_within(
         env.spawn_bbox,
         obj_cfgs,
         objects_to_skip=[obj.name for obj in env.target_objects + env.main_objects],
@@ -76,7 +83,10 @@ def v_sc(env: "RealmEnvironmentDynamic") -> None:
     )
 
     env.distractors = [env.omnigibson_env.scene.object_registry("name", dist["name"])
-                       for dist in env.cfg["objects"][num_mo_to:]]
+                       for dist in placed[num_mo_to:]]
+
+    # -- HDRI objects are preserved
+    env.cfg["objects"] = placed + hdri_cfgs
 
     # --------------- Set Position ---------------
     set_scene_positions(env, env.cfg["objects"])

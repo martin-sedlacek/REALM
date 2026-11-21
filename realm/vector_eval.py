@@ -36,13 +36,12 @@ from realm.rollout import (
 from realm.sim_config import set_sim_config
 from realm.task_seed import task_seed
 
-
 def evaluate_vectorized(
         num_envs=4, task_id=0, perturbation_id=0, repeats=25, max_steps=500, horizon=8,
         model_type="openpi", model_name="model", port=8000, host="127.0.0.1",
         log_dir="/logs", rendering_mode="rt", robot="DROID", multi_view=False,
         no_record=False, task_cfg_path=None,
-        render_on_demand=True, n_pre_obs_renders=1, max_render_interval=8,
+        render_on_demand=True, n_pre_obs_renders=1, max_render_interval=8, hdri_background=False
 ):
     """Run `repeats` rollouts of one (task, perturbation) in waves of `num_envs` concurrent members.
 
@@ -67,9 +66,10 @@ def evaluate_vectorized(
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
 
     print(f"[vec_eval] building {num_envs} environments...", flush=True)
+    
     vec_env = RealmVectorEnvironment(
         num_envs, task_cfg_path=task_cfg_path, perturbations=[perturbation],
-        robot=robot, rendering_mode=rendering_mode, multi_view=multi_view,
+        robot=robot, rendering_mode=rendering_mode, multi_view=multi_view, hdri_background=hdri_background
     )
     print(f"[vec_eval] {num_envs} envs ready at {time.perf_counter() - start:.1f}s", flush=True)
     frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
@@ -92,9 +92,11 @@ def evaluate_vectorized(
                                             late_frames=not render_on_demand)
         wave_start = time.perf_counter()
         steps = _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
-                           render_on_demand, n_pre_obs_renders, max_render_interval)
+                           render_on_demand, n_pre_obs_renders, max_render_interval, wave)
+        wave_end = time.perf_counter()
+        
         print(f"[vec_eval] wave {wave} stepped {steps} times in "
-              f"{time.perf_counter() - wave_start:.1f}s", flush=True)
+              f"{wave_end - wave_start:.1f}s", flush=True)
 
         for member in members:
             if member is None:
@@ -115,6 +117,7 @@ def evaluate_vectorized(
     print(f"[vec_eval] DONE {len(results)} rollouts in "
           f"{time.perf_counter() - start:.1f}s -- SR={sr:.3f} TP={tp:.3f}", flush=True)
     save_results(results, log_dir + "/reports", task, perturbation)
+
     return results
 
 
@@ -144,11 +147,12 @@ def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturb
 
     for client in clients:
         client.reset()
+
     return members, step_results
 
 
 def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
-               render_on_demand, n_pre_obs_renders, max_render_interval):
+               render_on_demand, n_pre_obs_renders, max_render_interval, wave):
     """Step every member of one wave until all have finished or `max_steps` is reached.
 
     Returns how many steps the wave took.
@@ -172,7 +176,7 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
                     step_results[i][0], renders.obs_is_fresh,
                     current[i] if current is not None and inferring[i] else None)
                 commands.append(member.act(observation, clients[i], horizon))
-
+        
         if render_on_demand:
             # og.sim.render_on_step() is GLOBAL -- one flag for every scene -- so the decision has
             # to be the OR across active members: if ANY of them needs fresh images next iteration,

@@ -10,6 +10,7 @@ would boot an Isaac instance in the test driver just to read two lists of string
 """
 import csv
 import datetime
+import time
 import os
 
 import omnigibson as og
@@ -86,6 +87,7 @@ def evaluate(
         render_on_demand=True,
         n_pre_obs_renders=1,
         max_render_interval=8,
+        hdri_background=False
 ):
     """Evaluate one policy on one (task, perturbation) for `repeats` rollouts.
 
@@ -117,6 +119,7 @@ def evaluate(
         no_rendering=no_render,
         rendering_mode=rendering_mode,
         robot=robot,
+        hdri_background=hdri_background
     )
     frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
 
@@ -147,7 +150,6 @@ def evaluate(
     save_results(results, log_dir + "/reports", task, perturbation)
     og.log.info("Done!")
 
-
 def _run_rollout(rollout, client, max_steps, horizon,
                  render_on_demand, n_pre_obs_renders, max_render_interval):
     """Reset, warm up and step one rollout to its end.
@@ -157,7 +159,9 @@ def _run_rollout(rollout, client, max_steps, horizon,
     With every step rendered, the policy gets `env.current_obs()`; metrics and video use `obs`.
     """
     env = rollout.env
+
     obs, _ = env.reset()
+
     obs, _, _, _, _ = env.warmup(obs)
 
     renders = RenderSchedule(max_render_interval, n_pre_obs_renders)

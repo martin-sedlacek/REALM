@@ -1,3 +1,4 @@
+import contextlib
 
 import omnigibson as og
 
@@ -12,11 +13,45 @@ from realm.environments.perturbations._helpers import (
 )
 from realm.environments.vec_init_queue import repair_init_queue
 
+def real_scene_bbox(idx):
+    """Real bbox (min, max) of /World/scene_<idx> right now, or None if it is empty."""
+    import omni.usd
+    bmin, bmax = omni.usd.get_context().compute_path_world_bounding_box(f"/World/scene_{idx}")
+    bmin, bmax = [float(v) for v in bmin], [float(v) for v in bmax]
+    return (bmin, bmax) if bmin[0] <= bmax[0] else None
+
+
+@contextlib.contextmanager
+def use_template_bbox(template):
+    """While active: when OmniGibson measures a scene that is still empty during loading
+    (plain Scene, objects added later), answer with `template` (scene 0's real bbox).
+    Non-empty boxes (e.g. houses) are returned unchanged."""
+    import omni.usd
+    real_get_context = omni.usd.get_context
+    tmin, tmax = template
+
+    class _Ctx:
+        def __init__(self, ctx):
+            self._ctx = ctx
+        def __getattr__(self, name):
+            return getattr(self._ctx, name)
+        def compute_path_world_bounding_box(self, path):
+            bmin, bmax = self._ctx.compute_path_world_bounding_box(path)
+            if bmin[0] > bmax[0]:                       # empty box
+                return tuple(tmin), tuple(tmax)
+            return bmin, bmax
+
+    omni.usd.get_context = lambda *a, **k: _Ctx(real_get_context(*a, **k)) # -- monkey patching
+    try:
+        yield
+    finally:
+        omni.usd.get_context = real_get_context
+
 
 class RealmVectorEnvironment:
 
 
-    def __init__(self, num_envs, on_first_env_built=None, wait_idle=False, **env_kwargs):
+    def __init__(self, num_envs, on_first_env_built=None, wait_idle=False, hdri_background=False, **env_kwargs):
 
         assert num_envs >= 1, f"num_envs must be >= 1, got {num_envs}"
         self.num_envs = num_envs
@@ -26,11 +61,18 @@ class RealmVectorEnvironment:
 
         og.log.info(f"Loading {num_envs} parallel environments...")
         self.envs = []
+
         # Isaac Sim launches with the first member (realm.frame_mode).
         with frame_mode.launch_settings():
             for i in range(num_envs):
                 og.log.info(f"  environment {i + 1}/{num_envs}")
-                self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, **env_kwargs))
+                if i == 0:
+                    self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
+                    size = real_scene_bbox(0)
+                    og.sim._last_scene_edge = size[1][0]
+                else:
+                    with use_template_bbox(size):   # -- empty scene i -> measured as scene 0's size
+                        self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
                 if i == 0 and on_first_env_built is not None:
                     on_first_env_built()
 
