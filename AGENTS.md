@@ -13,7 +13,7 @@ REALM is a reproducibility-sensitive benchmark. Preserve behavior and RNG draw o
 - `uv run ruff check realm examples tests scripts` runs the narrow ruleset in `.ruff.toml`.
 - `uv run python tests/run_suite.py --only local --strict --out tmp/suite/results.json --junit-xml tmp/suite/results.xml`
   runs the container-free tests. Follow it with
-  `uv run python -m pytest -q tests/test_perturbation_task_types.py tests/test_cell_classification.py tests/test_robot_base_column.py tests/test_robot_definition_parity.py`.
+  `uv run python -m pytest -q tests/test_perturbation_task_types.py tests/test_cell_classification.py tests/test_robot_base_column.py tests/test_robot_definition_parity.py tests/test_evaluation_cli.py tests/test_frame_mode.py`.
   Those two commands plus the lint above are tier 1 in full.
 - `python tests/run_suite.py --list` displays suite entries and their runtime requirements.
 - `python tests/run_suite.py --jobid <ALLOC> --mode stock --level smoke --strict --out tmp/suite/results.json --junit-xml tmp/suite/results.xml`
@@ -35,7 +35,7 @@ Keep source comments brief and human-facing. Explain only non-obvious constraint
 
 ## Testing Guidelines
 
-Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run the tier-1 commands above, or invoke only the four host-safe pytest modules by name (`test_perturbation_task_types`, `test_cell_classification`, `test_robot_base_column`, `test_robot_definition_parity`). Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.
+Most files in `tests/` are standalone scripts whose printed verdicts are interpreted by `tests/run_suite.py`. Do **not** run `pytest tests/`; collection can boot Isaac. Run the tier-1 commands above, or invoke only the six host-safe pytest modules by name (`test_perturbation_task_types`, `test_cell_classification`, `test_robot_base_column`, `test_robot_definition_parity`, `test_evaluation_cli`, `test_frame_mode`). Name new tests `test_<behavior>.py`, register script-style tests with the suite driver, and use `--strict` for reliable gating. Record required off-cluster verification in the pull request.
 
 ## Commit & Pull Request Guidelines
 

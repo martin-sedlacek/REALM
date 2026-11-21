@@ -71,7 +71,7 @@ as-is in the source.
 
 ### `examples/04_vector_evaluate.py` — the differences
 
-Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`5`) and
+Same required flags. Adds `--num_envs` (default `4`), `--n_pre_obs_renders` (`1`) and
 `--max_render_interval` (`8`). Its `--repeats` defaults to `25` rather than `5`, and its `--log_dir`
 defaults to `/logs` rather than `/app/logs`.
 
@@ -88,6 +88,9 @@ rollout yields on the order of 39 frames instead of 300. If the video matters �
 eyeballing a failure — pass `--no-render_on_demand`.
 
 It also means results are not step-for-step comparable against baselines recorded before it existed.
+
+In both modes the policy gets the current camera frame; see "Current camera frames in
+1.0.5" below.
 
 ## Model types
 
@@ -186,45 +189,3 @@ vectorized entry point does not support `--resume`.
 - [Reproducibility](Reproducibility)
 - [Logs, outputs and the viewer](Logging)
 - [Cluster and parallel runs](Cluster-and-Parallel-Runs)
-
-### Observation rendering in 1.0.2
-
-Single and vector evaluation now default to five pre-observation render passes.
-Simulation startup enables `/app/hydraEngine/waitIdle=true` so camera reads wait for
-Hydra GPU rendering to finish. This addresses stale camera frames during on-demand
-rendering at action-chunk boundaries.
-
-These defaults can change policy observations and benchmark scores. Re-evaluate
-checkpoints under 1.0.2 before comparing them with results produced by older versions.
-
-### V-VIEW camera catalogue in 1.0.3
-
-V-VIEW samples the rectified `camera_extrinsics_droid_realm.yaml` catalogue
-(141,408 robot-base-relative poses) for every task, including drawers. The existing
-camera-role filtering, opposite-side constraint, and pose jitter still apply.
-Ordinary episode camera configuration continues to use its configured poses.
-V-VIEW scores from earlier versions require re-evaluation for comparison.
-
-### Task RNG identities in 1.0.4
-
-Every bundled task YAML has a persistent `task_uuid`. Each evaluation seeds Python,
-NumPy, and Torch with `(1234 + UUID.int) % 2**32` before environment construction.
-Different tasks therefore use distinct reproducible RNG streams, including NOBJ
-object draws. Individual draws can still coincide by chance. Repeats share the
-task's stream. The UUID and effective seed are printed at startup.
-
-Preserve UUIDs when editing or moving a task. Assign a new UUID to a newly created
-task configuration. Each bundled variant has its own UUID. Legacy/custom YAMLs
-without a UUID derive a deterministic UUID from their canonical parsed contents.
-Adding an explicit UUID makes that identity stable across content changes.
-
-This changes random draws and benchmark results. Re-evaluate older checkpoints
-with task UUID seeding enabled for comparisons.
-
-### V-VIEW tilt filtering
-
-V-VIEW excludes catalogue poses with absolute tilt above 21 degrees. Tilt is the
-elevation of camera-local +X (image right) relative to the robot-base XY plane,
-computed from the rectified XYZW quaternion. The filter excludes 5,026 of 141,408
-poses (3.55%), leaving 136,382 before camera-role and opposite-side filtering.
-It applies before the existing pose jitter. This changes V-VIEW draws and scores.

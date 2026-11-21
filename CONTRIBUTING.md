@@ -36,7 +36,8 @@ uv run python tests/run_suite.py --only local --strict \
     --out tmp/suite/results.json --junit-xml tmp/suite/results.xml
 uv run python -m pytest -q \
     tests/test_perturbation_task_types.py tests/test_cell_classification.py \
-    tests/test_robot_base_column.py tests/test_robot_definition_parity.py
+    tests/test_robot_base_column.py tests/test_robot_definition_parity.py \
+    tests/test_evaluation_cli.py tests/test_frame_mode.py
 ```
 
 Do not run `pytest tests/`: most files are standalone Isaac scripts and collection can boot the

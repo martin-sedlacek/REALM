@@ -42,7 +42,8 @@ def build_evaluation_parser(*, vectorized=False):
     )
 
     if vectorized:
-        parser.add_argument("--n_pre_obs_renders", type=int, default=5)
+        parser.add_argument("--n_pre_obs_renders", type=int, default=1,
+                            help="Render passes per rendering step (render-on-demand only).")
         parser.add_argument("--max_render_interval", type=int, default=8)
     else:
         parser.add_argument("--resume", action="store_true",
