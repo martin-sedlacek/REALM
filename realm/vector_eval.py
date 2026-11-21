@@ -17,7 +17,6 @@ action as a hold command while the others run on. Nothing about an inactive memb
 """
 import datetime
 import time
-import json 
 
 import numpy as np
 import omnigibson as og
@@ -35,8 +34,6 @@ from realm.rollout import (
 )
 from realm.sim_config import set_sim_config
 from realm.task_seed import task_seed
-import realm.profiling as prof
-from realm.gpu_monitor import GPUMonitor
 
 def evaluate_vectorized(
         num_envs=4, task_id=0, perturbation_id=0, repeats=25, max_steps=500, horizon=8,
@@ -61,26 +58,18 @@ def evaluate_vectorized(
       Unreachable in practice -- `InferenceClient.__init__` only accepts debug / openpi /
       dreamzero, and all three are (1, 0) on the single-env path too.
     """
-    prof.set_ctx(task_id=task_id, perturbation_id=perturbation_id, hdri=hdri_background, phase="setup")
-    gpu = GPUMonitor().start()
-
     start = time.perf_counter()
     task, task_cfg_path = resolve_task(task_id, task_cfg_path, SUPPORTED_TASKS,
                                        name_includes_config=False)
     set_sim_config(robot=robot, seed=task_seed(task_cfg_path, CONFIG_ROOT))
     perturbation = SUPPORTED_PERTURBATIONS[perturbation_id]
 
-    prof_dir = log_dir + f"/profile/{task}_{perturbation}_{'hdri' if hdri_background else 'house'}_n{num_envs}"
-    prof.set_folder(prof_dir)
-    gpu.set_path(f"{prof_dir}/gpu.csv")
-
     print(f"[vec_eval] building {num_envs} environments...", flush=True)
     
-    with prof.timer(level="experiment", stage="realm_vec_env_init"):
-        vec_env = RealmVectorEnvironment(
-            num_envs, task_cfg_path=task_cfg_path, perturbations=[perturbation],
-            robot=robot, rendering_mode=rendering_mode, multi_view=multi_view, hdri_background=hdri_background
-        )
+    vec_env = RealmVectorEnvironment(
+        num_envs, task_cfg_path=task_cfg_path, perturbations=[perturbation],
+        robot=robot, rendering_mode=rendering_mode, multi_view=multi_view, hdri_background=hdri_background
+    )
     print(f"[vec_eval] {num_envs} envs ready at {time.perf_counter() - start:.1f}s", flush=True)
 
     # One client per member. Inference is still strictly sequential -- this only avoids sharing one
@@ -96,9 +85,8 @@ def evaluate_vectorized(
         print(f"[vec_eval] wave {wave}: rollouts {run_id}..{run_id + n_record - 1} "
               f"({n_record} of {num_envs} members recorded)", flush=True)
 
-        with prof.timer(level="episode", stage="start_wave", wave=wave, phase="warmup"):
-            members, step_results = _start_wave(vec_env, clients, run_id, n_record, log_dir, task,
-                                                perturbation, no_record, wave)
+        members, step_results = _start_wave(vec_env, clients, run_id, n_record, log_dir, task,
+                                                perturbation, no_record)
         wave_start = time.perf_counter()
         steps = _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
                            render_on_demand, n_pre_obs_renders, max_render_interval, wave)
@@ -106,7 +94,6 @@ def evaluate_vectorized(
         
         print(f"[vec_eval] wave {wave} stepped {steps} times in "
               f"{wave_end - wave_start:.1f}s", flush=True)
-        prof.add(level="episode", stage="step_wave", dt=wave_end-wave_start, wave=wave, phase="rollout")
 
         for member in members:
             if member is None:
@@ -128,26 +115,10 @@ def evaluate_vectorized(
           f"{time.perf_counter() - start:.1f}s -- SR={sr:.3f} TP={tp:.3f}", flush=True)
     save_results(results, log_dir + "/reports", task, perturbation)
 
-    prof.add(level="experiment", stage="total_eval_vec", dt=time.perf_counter() - start, phase="done")
-    prof.save()
-    gpu.stop()
-
-    config = {
-        "num_envs": num_envs,
-        "task_id": task_id,
-        "perturbation_id": perturbation_id,
-        "repeats": repeats,
-        "max_steps": max_steps,
-        "horizon": horizon,
-    }
-
-    with open(prof_dir + "/config.json", "w") as f:
-        json.dump(config, f, indent=4)
-
     return results
 
 
-def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturbation, no_record, wave):
+def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturbation, no_record):
     """Settle the whole batch and open one `Rollout` per recorded member.
 
     Returns (members, the warmup's per-member step results). A wave shorter than `num_envs` -- the
@@ -169,10 +140,9 @@ def _start_wave(vec_env, clients, first_run_id, n_record, log_dir, task, perturb
         # done -- see evaluate_vectorized's docstring.
         members.append(Rollout(vec_env.envs[i], first_run_id + i, recorder=recorder,
                                gripper_inverted=False))
-        
-    with prof.timer(level="episode", stage="warmup_cient_reset", n_clients=len(clients), wave=wave):
-        for client in clients:
-            client.reset()
+    for client in clients:
+        client.reset()
+
     return members, step_results
 
 
@@ -186,7 +156,6 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
 
     step = 0
     while step < max_steps and any(m is not None and m.active for m in members):
-        _t0 = time.perf_counter()
         commands = []
         for i, member in enumerate(members):
             if member is None or not member.active:
@@ -194,7 +163,7 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
             else:
                 observation = member.observe(step_results[i][0], renders.obs_is_fresh)
                 commands.append(member.act(observation, clients[i], horizon))
-        _t1 = time.perf_counter()
+        
         if render_on_demand:
             # og.sim.render_on_step() is GLOBAL -- one flag for every scene -- so the decision has
             # to be the OR across active members: if ANY of them needs fresh images next iteration,
@@ -209,7 +178,6 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
         else:
             step_results = vec_env.step(commands)
 
-        _t2 = time.perf_counter()
         for i, member in enumerate(members):
             if member is None or not member.active:
                 continue
@@ -217,9 +185,6 @@ def _step_wave(vec_env, clients, members, step_results, max_steps, horizon,
                 print(f"[vec_eval]   member {i} (run {member.run_id}) finished at step {step}, "
                       f"TP={member.metrics.task_progression}", flush=True)
         step += 1
-
-        prof.add("step", "vec_policy",   _t1 - _t0, step=step, wave=wave)
-        if render_on_demand: prof.add("step", "vec_step", _t2 - _t1, step=step, wave=wave)
 
     return step
 

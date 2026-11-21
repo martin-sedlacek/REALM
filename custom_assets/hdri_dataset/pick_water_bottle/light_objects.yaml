@@ -1,0 +1,361 @@
+- type: LightObject
+  name: hdri_light_1
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -3.3000001907348633
+  - 6.299999840557575
+  - 2.3904686868190765
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_dulwkz_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_2
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - 0.19999992847442627
+  - 6.299999840557575
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_dulwkz_0/meta__base_link_lights_1_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_3
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -2.600000102072954
+  - 0.5999999940395355
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_ekhjwh_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_4
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -3.299999952316284
+  - 3.5000001192092896
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_gztsev_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_5
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - 0.19999980926513672
+  - 3.5
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_gztsev_0/meta__base_link_lights_1_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_6
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - 0.19999992847442627
+  - 0.6000001430511475
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_gztsev_0/meta__base_link_lights_2_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_7
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -3.8000000193715096
+  - -4.400000020861626
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_odgyya_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_8
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046453
+  position:
+  - 2.5210772211255414
+  - 6.299999852699369
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_ofefox_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_9
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046453
+  position:
+  - 5.899999922007545
+  - 6.2999997336441815
+  - 2.3904686868190765
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_ofefox_0/meta__base_link_lights_1_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_10
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046453
+  position:
+  - -1.999999999637566
+  - 1.9000000227346876
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_pcatii_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_11
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046453
+  position:
+  - 0.19999995281240546
+  - 11.300000445600165
+  - 2.390468716621399
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_vnstqh_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_12
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046453
+  position:
+  - -3.3000001663969325
+  - 11.300000566860039
+  - 2.3904686868190765
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_vnstqh_0/meta__base_link_lights_1_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_13
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.1500039041043877
+  position:
+  - 1.9000000171363354
+  - 8.200000220909715
+  - 2.390468940138817
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_vwwzdu_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_14
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -3.7999998331069946
+  - -1.79999996162951
+  - 2.3904686868190765
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_vyvqsb_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_15
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -1.9999998211860657
+  - -1.79999996162951
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_vyvqsb_0/meta__base_link_lights_1_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_16
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.1500000059604645
+  position:
+  - 5.9000000663754095
+  - 11.000000256071846
+  - 2.390468716621399
+  orientation:
+  - 0.0
+  - 0.0
+  - -2.5288109106536216e-07
+  - 0.999999999999968
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_wvqyit_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_17
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.1500000059604645
+  position:
+  - 2.521077484702896
+  - 11.000001279703836
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - -2.5288109106536216e-07
+  - 0.999999999999968
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_wvqyit_0/meta__base_link_lights_1_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_18
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046448
+  position:
+  - -3.7999999783933163
+  - 1.3000000640749931
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_wxbmon_0/meta__base_link_lights_0_0_link/lights/light_0
+- type: LightObject
+  name: hdri_light_19
+  light_type: Disk
+  intensity: 150000.0
+  radius: 0.15000000596046453
+  position:
+  - -1.399999943654265
+  - -5.099999592027392
+  - 2.3904687017202377
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  color:
+  - 1.0
+  - 0.8249753713607788
+  - 0.6272900700569153
+  source: /World/scene_0/ceilings_xzgtpt_0/meta__base_link_lights_0_0_link/lights/light_0

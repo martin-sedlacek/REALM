@@ -1,0 +1,133 @@
+- type: DatasetObject
+  name: banana
+  category: banana
+  position:
+  - -15.300000190734863
+  - 13.149999618530273
+  - 0.6479572057723999
+  orientation:
+  - -0.7071068286895752
+  - 0.0
+  - 0.0
+  - 0.7071067094802856
+  scale:
+  - 0.7420936822891235
+  - 0.7405412197113037
+  - 0.7080068588256836
+  fixed_base: false
+  model: vvyyyv
+  role: task
+- type: DatasetObject
+  name: box
+  category: tray
+  position:
+  - -15.274999618530273
+  - 12.850000381469727
+  - 0.49795636534690857
+  orientation:
+  - 0.0
+  - 0.0
+  - -0.3826833665370941
+  - 0.9238795638084412
+  scale:
+  - 0.9977113604545593
+  - 1.0120842456817627
+  - 1.5151737928390503
+  fixed_base: false
+  model: xzcnjq
+  role: task
+- type: DatasetObject
+  name: orange
+  category: orange
+  position:
+  - -15.274999618530273
+  - 12.899999618530273
+  - 0.5479572415351868
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  scale:
+  - 0.9626753330230713
+  - 1.0545474290847778
+  - 0.941491425037384
+  fixed_base: false
+  model: ucstpm
+  role: task
+- type: DatasetObject
+  name: lemon
+  category: lemon
+  position:
+  - -15.399999618530273
+  - 13.25
+  - 0.5279572010040283
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  scale:
+  - 0.7335094809532166
+  - 0.7399724721908569
+  - 0.7398087978363037
+  fixed_base: false
+  model: asdada
+  role: task
+- type: DatasetObject
+  name: toy_dice1
+  category: toy_dice
+  position:
+  - -15.300000190734863
+  - 13.300000190734863
+  - 0.4979562759399414
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  scale:
+  - 1.2070338726043701
+  - 1.2070331573486328
+  - 1.2070337533950806
+  fixed_base: false
+  model: eqwazv
+  role: task
+- type: DatasetObject
+  name: toy_dice2
+  category: toy_dice
+  position:
+  - -15.300000190734863
+  - 13.300000190734863
+  - 0.5579572319984436
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  scale:
+  - 1.2026422023773193
+  - 1.20703125
+  - 1.207033634185791
+  fixed_base: false
+  model: gcevml
+  role: task
+- type: DatasetObject
+  name: coffee_table_mtchfd_0
+  category: coffee_table
+  position:
+  - -15.465583801269531
+  - 13.059661865234375
+  - 0.39198940992355347
+  orientation:
+  - 0.0
+  - 0.0
+  - 0.9616673588752747
+  - -0.27421870827674866
+  scale:
+  - 1.000037670135498
+  - 1.000037431716919
+  - 1.000018835067749
+  fixed_base: false
+  model: mtchfd
+  role: furniture

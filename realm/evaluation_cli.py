@@ -62,7 +62,6 @@ def run_evaluation_cli(*, vectorized=False):
     else:
         print("[MODE] Running with standard OmniGibson rendering")
 
-
     # Heavy simulator imports stay behind argument parsing so --help remains lightweight.
     import omnigibson as og
 

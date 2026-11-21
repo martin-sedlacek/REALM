@@ -85,7 +85,7 @@ From: stanfordvl/behavior:3.9.1
 
     # Remaining REALM runtime deps not present in the base image.
     $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt \
-        wandb moviepy openai fastparquet nvidia-ml-py
+        wandb moviepy openai fastparquet
 
     $CONDA_PIP install --no-cache-dir -c /opt/realm-constraints.txt /opt/openpi-client
 

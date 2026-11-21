@@ -1,7 +1,6 @@
 from realm.config.shared import WARMUP_STEPS
 
 import copy
-import json
 import os
 from functools import partial
 
@@ -171,11 +170,12 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
 
         if self.hdri_background:
             HDRI_INTENSITY_SCALE = 65
+            dome_path = f'/app/custom_assets/hdri_dataset/{self.task}/dome_light.yaml'
 
-            dome_path = f'/app/custom_assets/hdri_dataset/{self.task}/dome_light.json'
             intensity, color = 1000.0, (1.0, 1.0, 1.0)
             if os.path.exists(dome_path):
-                d = json.load(open(dome_path))[0]
+                with open(dome_path, "r", encoding="utf-8") as f:
+                    d = yaml.safe_load(f)[0]
                 intensity, color = d["intensity"], tuple(d["color"])
 
             with og.sim.editing_usd():

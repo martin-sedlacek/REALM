@@ -1,0 +1,95 @@
+- type: DatasetObject
+  name: electric_switch
+  category: electric_switch
+  position:
+  - -1.0
+  - 0.8374999761581421
+  - 1.2000000476837158
+  orientation:
+  - 0.0
+  - 0.0
+  - -0.7071068286895752
+  - 0.7071067094802856
+  scale:
+  - 2.7477760314941406
+  - 1.4487487077713013
+  - 1.4776479005813599
+  fixed_base: true
+  model: oedwla
+  role: task
+- type: DatasetObject
+  name: bottom_cabinet_no_top_vdedzt_0
+  category: bottom_cabinet_no_top
+  position:
+  - -0.5953777432441711
+  - 0.6641013026237488
+  - 0.4740070700645447
+  orientation:
+  - 1.2048988473623012e-08
+  - 1.204899469087195e-08
+  - -0.7071066498756409
+  - 0.70710688829422
+  scale:
+  - 0.9020318984985352
+  - 1.2223000526428223
+  - 1.4746999740600586
+  fixed_base: true
+  model: vdedzt
+  role: furniture
+- type: DatasetObject
+  name: countertop_tpuwys_0
+  category: countertop
+  position:
+  - 0.0351979099214077
+  - 0.649306058883667
+  - 0.9107998609542847
+  orientation:
+  - 0.0
+  - 0.0
+  - -0.7071068286895752
+  - 0.7071067094802856
+  scale:
+  - 0.8194376230239868
+  - 1.9813475608825684
+  - 0.5574803352355957
+  fixed_base: true
+  model: tpuwys
+  role: furniture
+- type: DatasetObject
+  name: electric_switch_wseglt_0
+  category: electric_switch
+  position:
+  - -1.0278716087341309
+  - 0.8366373181343079
+  - 1.200287103652954
+  orientation:
+  - 0.70710688829422
+  - 0.7071066498756409
+  - -1.0649636124071549e-06
+  - -1.0648558372849948e-06
+  scale:
+  - 0.9988896250724792
+  - 0.9998074173927307
+  - 0.9999457001686096
+  fixed_base: true
+  model: wseglt
+  role: furniture
+- type: DatasetObject
+  name: electric_switch_wseglt_2
+  category: electric_switch
+  position:
+  - -0.9072542190551758
+  - 1.0229518413543701
+  - 1.200287103652954
+  orientation:
+  - 0.70710688829422
+  - -0.7071066498756409
+  - 8.429371689544496e-08
+  - -2.2476488226175206e-08
+  scale:
+  - 0.9988896250724792
+  - 0.9998074173927307
+  - 0.9999457001686096
+  fixed_base: true
+  model: wseglt
+  role: furniture

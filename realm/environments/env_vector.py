@@ -1,5 +1,4 @@
 import contextlib
-import time
 
 import omnigibson as og
 
@@ -12,7 +11,6 @@ from realm.environments.perturbations._helpers import (
     settle_action,
 )
 from realm.environments.vec_init_queue import repair_init_queue
-import realm.profiling as prof
 
 def real_scene_bbox(idx):
     """Real bbox (min, max) of /World/scene_<idx> right now, or None if it is empty."""
@@ -53,8 +51,6 @@ class RealmVectorEnvironment:
 
 
     def __init__(self, num_envs, on_first_env_built=None, hdri_background=False, **env_kwargs):
-        prof.set_ctx(hdri=hdri_background)
-
         assert num_envs >= 1, f"num_envs must be >= 1, got {num_envs}"
         self.num_envs = num_envs
 
@@ -63,20 +59,15 @@ class RealmVectorEnvironment:
 
         og.log.info(f"Loading {num_envs} parallel environments...")
         self.envs = []
-        # install_scene_load_inspector()
         for i in range(num_envs):
-            _t0 = time.perf_counter()
             og.log.info(f"  environment {i + 1}/{num_envs}")
             if i == 0:
                 self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
                 size = real_scene_bbox(0)
                 og.sim._last_scene_edge = size[1][0]
             else:
-                with use_template_bbox(size):   # empty scene i -> measured as scene 0's size
+                with use_template_bbox(size):   # -- empty scene i -> measured as scene 0's size
                     self.envs.append(RealmEnvironmentDynamic(in_vec_env=True, hdri_background=hdri_background, **env_kwargs))
-            # print(f"[WORLD] last_scene_edge = {og.sim._last_scene_edge}", flush=True)
-            # debug_world()
-            prof.add(level="episode", stage="realm_env_dyn_init", dt=time.perf_counter() - _t0, env_id=i)
             if i == 0 and on_first_env_built is not None:
                 on_first_env_built()
 

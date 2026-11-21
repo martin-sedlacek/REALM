@@ -2,7 +2,6 @@
 import copy
 import math
 import os
-import json
 
 import numpy as np
 import torch
@@ -61,14 +60,13 @@ def _apply_scene_cfg(env, cfg, task_cfg):
             "use_floor_plane": False,
             "use_skybox": False,
         }
+    elif scene_cfg is not None:
+        cfg["scene"] = copy.deepcopy(scene_cfg["scene"])
     else:
-        if os.path.exists(scene_cfg_path):
-            cfg["scene"] = copy.deepcopy(scene_cfg["scene"])
-        else:
-            cfg["scene"] = {
-                "type": "InteractiveTraversableScene",
-                "scene_model": env.scene_model,
-            }
+        cfg["scene"] = {
+            "type": "InteractiveTraversableScene",
+            "scene_model": env.scene_model,
+        }
 
     spawn_cfg = yaml.load(open(f"{env.config_path}/scenes/scenes.yaml", "r"), Loader=yaml.FullLoader)
     assert env.scene_model in spawn_cfg and env.scene_part in spawn_cfg[env.scene_model]
@@ -185,14 +183,14 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
         assert "position" in obj
 
     if env.hdri_background:
-        HDRI_INTENSITY_SCALE = 70
+        HDRI_INTENSITY_SCALE = 65
         HDRI_DIR = f"/app/custom_assets/hdri_dataset/{env.task}"
-
-        light_list = json.load(open(f"{HDRI_DIR}/light_objects.json"))
+        
+        light_list = yaml.safe_load(open(f"{HDRI_DIR}/light_objects.yaml"))
         for L in light_list:
             L["intensity"] *= HDRI_INTENSITY_SCALE / 100
 
-        saved = json.load(open(f"{HDRI_DIR}/objects.json"))
+        saved = yaml.safe_load(open(f"{HDRI_DIR}/objects.yaml"))
         existing = {o["name"] for o in (cfg["objects"] or [])}
 
         extra = []
@@ -212,7 +210,7 @@ def _apply_object_cfg(env, cfg, task_cfg, scene_cfg, scene_data):
 
         env.hdri_names = [o["name"] for o in extra + light_list]    # -- used in v_sc and vb_pose
         env.immutable_names += env.hdri_names                       # -- perturbations must not move them
-        print(f"[HDRI] protected from perturbations: {env.hdri_names}", flush=True)
+        print(f"[HDRI] Protected {len(env.hdri_names)} items from perturbations", flush=True)
 
     return distractors
 
