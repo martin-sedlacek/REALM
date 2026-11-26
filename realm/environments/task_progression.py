@@ -22,6 +22,13 @@ TASK_PROGRESS_RUBRICS = load_task_progressions()
 
 DRAWER_TASK_TYPES = ("open_drawer", "close_drawer")
 
+# Since 1.0.6 a rubric stage latches only after its condition has held DEFAULT_STAGE_HOLD_STEPS
+# consecutive control steps (`--stage_hold_steps`), except the short contact stages below, which a
+# quick approach or press may satisfy only briefly: they latch on the first true step, whatever the
+# hold. Changing either moves every task's score. `--stage_hold_steps 1` is one-step latching for all.
+DEFAULT_STAGE_HOLD_STEPS = 5
+SHORT_STAGES = ("REACH", "TOUCH", "TOUCH_AND_MOVE_JOINT")
+
 
 class TaskProgressionMixin:
 
@@ -61,15 +68,46 @@ class TaskProgressionMixin:
             "MOVE_CLOSE_XY": self.check_move_close_xy_condition,
             "POURED_PROXY": self.check_pour_proxy,
         }
+        self.stage_hold_steps = DEFAULT_STAGE_HOLD_STEPS
+        self.reset_stage_hold()
+
+    def configure_stage_hold(self, stage_hold_steps):
+        """Hold every stage but SHORT_STAGES `stage_hold_steps` consecutive control steps (>= 1)."""
+        if int(stage_hold_steps) < 1:
+            raise ValueError(f"stage_hold_steps must be >= 1, got {stage_hold_steps}")
+        self.stage_hold_steps = int(stage_hold_steps)
+        self.reset_stage_hold()
+
+    def reset_stage_hold(self):
+        """Start every stage's streak afresh for the current rubric: at construction, every reset, and where
+        SB-VRB swaps the rubric. Where every hold is 1 the rubric runs its original loop."""
+        from realm.stage_hold import StageHold
+        self._stage_hold = None
+        self._stage_hold_stages = None if self.task_progression is None else list(self.task_progression)
+        if self.task_progression is None:
+            return
+        holds = [1 if stage in SHORT_STAGES else self.stage_hold_steps for stage in self._stage_hold_stages]
+        if any(h != 1 for h in holds):
+            self._stage_hold = StageHold(self._stage_hold_stages, holds)
 
     def recompute_task_progression(self, obs):
 
         reward = 0.0
 
         if self.task_progression is not None:
+            stages = list(self.task_progression)
+            if stages != getattr(self, "_stage_hold_stages", stages):
+                raise RuntimeError(f"rubric stages {stages} differ from {self._stage_hold_stages}: "
+                                   "the rubric changed without reset_stage_hold()")
+            hold = getattr(self, "_stage_hold", None)
+            if hold is not None:
+                flags = hold.step([self.task_progression[s] for s in stages],
+                                  lambda i: self.success_conditions.get(stages[i])(obs))
+                for stage, flag in zip(stages, flags):
+                    self.task_progression[stage] = flag
             for stage, is_completed_flag in self.task_progression.items():
                 checker_function = self.success_conditions.get(stage)
-                if is_completed_flag or checker_function(obs):
+                if is_completed_flag or (hold is None and checker_function(obs)):
                     if not is_completed_flag:
                         self.task_progression[stage] = True
                     reward += 1 / len(self.task_progression.keys())

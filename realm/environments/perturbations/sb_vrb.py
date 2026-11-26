@@ -88,6 +88,7 @@ def _draw_new_task_type(env: "RealmEnvironmentDynamic", available_task_types) ->
     env.task_type = new_task_type
     # Progression dictionaries are mutated per environment.
     env.task_progression = copy.deepcopy(TASK_PROGRESSIONS[env.task_type])
+    env.reset_stage_hold()   # the new rubric's stages start their hold streaks afresh
     return new_task_type
 
 

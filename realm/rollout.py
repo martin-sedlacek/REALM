@@ -18,6 +18,7 @@ from scipy.spatial.transform import Rotation
 from realm.environments.task_progression import DRAWER_TASK_TYPES
 from realm.inference import extract_from_obs
 from realm.realm_logging import append_trajectory, append_video
+from realm.scoring_geometry import current_geometry
 
 
 
@@ -163,8 +164,11 @@ class RolloutMetrics:
         self._env_collision_active = is_env_collision
 
         is_grasping = env.check_grasp_condition(obs)
-        if self._was_grasping and not is_grasping and not is_placed_on_target(env):
-            self.drops += 1
+        if self._was_grasping and not is_grasping:
+            with current_geometry(env):   # PhysX poses unless the last step rendered (realm.scoring_geometry)
+                placed = is_placed_on_target(env)
+            if not placed:
+                self.drops += 1
         self._was_grasping = is_grasping
 
         self.qpos.append(np.concatenate((robot_state, np.atleast_1d(np.array(gripper_state)))))

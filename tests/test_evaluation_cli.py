@@ -1,3 +1,4 @@
+import pytest
 from realm.evaluation_cli import build_evaluation_parser
 
 
@@ -31,3 +32,14 @@ def test_vector_evaluation_defaults():
     assert args.max_render_interval == 8
     assert not hasattr(args, "resume")
     assert not hasattr(args, "no_render")
+
+
+def test_stage_hold_flag_both_evaluators():
+    for vectorized in (False, True):
+        args = build_evaluation_parser(vectorized=vectorized).parse_args(REQUIRED_ARGS)
+        assert args.stage_hold_steps is None          # None: the env's default, DEFAULT_STAGE_HOLD_STEPS
+        args = build_evaluation_parser(vectorized=vectorized).parse_args(REQUIRED_ARGS + ["--stage_hold_steps", "1"])
+        assert args.stage_hold_steps == 1
+        for bad in ("0", "-3"):
+            with pytest.raises(SystemExit):   # rejected at parse time
+                build_evaluation_parser(vectorized=vectorized).parse_args(REQUIRED_ARGS + ["--stage_hold_steps", bad])

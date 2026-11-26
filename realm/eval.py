@@ -86,6 +86,7 @@ def evaluate(
         render_on_demand=True,
         n_pre_obs_renders=1,
         max_render_interval=8,
+        stage_hold_steps=None,
 ):
     """Evaluate one policy on one (task, perturbation) for `repeats` rollouts.
 
@@ -98,6 +99,10 @@ def evaluate(
 
     `model_type` selects the inference client and the policy's gripper convention. It is taken
     verbatim and never inferred from the model's name.
+
+    `stage_hold_steps` N: a rubric stage latches only after its condition held N consecutive control
+    steps, except `SHORT_STAGES` (realm/environments/task_progression.py); None keeps the default
+    (`DEFAULT_STAGE_HOLD_STEPS`, 5); 1 is one-step latching for every stage.
     """
     if rendering_mode is None:
         rendering_mode = "rt"
@@ -119,6 +124,8 @@ def evaluate(
         robot=robot,
     )
     frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
+    if stage_hold_steps is not None:
+        env.configure_stage_hold(stage_hold_steps)
 
     if resume:
         results, first_run_id, results_filename = _load_previous_results(log_dir, task, perturbation)

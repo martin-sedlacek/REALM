@@ -26,6 +26,7 @@ from realm.geometry import (
     world_to_robot,
 )
 from realm.inference.utils import assert_wrist_camera
+from realm.scoring_geometry import current_geometry
 from realm.sim_config import set_rendering_mode
 
 
@@ -215,6 +216,7 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         self.was_lifted = False
         for k in self.task_progression.keys():
             self.task_progression[k] = False
+        self.reset_stage_hold()
 
         self.deferred_post_play.clear()
         self.wants_settle = False
@@ -240,7 +242,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
         obs, rew, terminated, truncated, info = self.omnigibson_env.step(
             action, n_render_iterations=n_render_iterations
         )
-        task_progression = self.recompute_task_progression(obs)
+        self.last_step_rendered = bool(og.sim._render_on_step)   # read by realm.scoring_geometry
+        with current_geometry(self):
+            task_progression = self.recompute_task_progression(obs)
         return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
 
     def pre_step(self, action):
@@ -250,7 +254,9 @@ class RealmEnvironmentDynamic(SceneSetupMixin, FoamBallMixin, RealmEnvironmentBa
     def post_step(self, action):
 
         obs, rew, terminated, truncated, info = self.omnigibson_env._post_step(action)
-        task_progression = self.recompute_task_progression(obs)
+        self.last_step_rendered = bool(og.sim._render_on_step)   # read by realm.scoring_geometry
+        with current_geometry(self):
+            task_progression = self.recompute_task_progression(obs)
         return self._distort_if_v_aug(obs), task_progression, terminated, truncated, info
 
     def read_obs(self):

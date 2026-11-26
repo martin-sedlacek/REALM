@@ -43,6 +43,7 @@ def evaluate_vectorized(
         log_dir="/logs", rendering_mode="rt", robot="DROID", multi_view=False,
         no_record=False, task_cfg_path=None,
         render_on_demand=True, n_pre_obs_renders=1, max_render_interval=8,
+        stage_hold_steps=None,
 ):
     """Run `repeats` rollouts of one (task, perturbation) in waves of `num_envs` concurrent members.
 
@@ -73,6 +74,9 @@ def evaluate_vectorized(
     )
     print(f"[vec_eval] {num_envs} envs ready at {time.perf_counter() - start:.1f}s", flush=True)
     frame_mode.apply(render_on_demand)   # waitIdle on for render-on-demand, off for every step
+    if stage_hold_steps is not None:     # as in realm.eval.evaluate; each member's rubric applies it
+        for env in vec_env.envs:
+            env.configure_stage_hold(stage_hold_steps)
 
     # One client per member. Inference is still strictly sequential -- this only avoids sharing one
     # websocket's state across concurrent rollouts.

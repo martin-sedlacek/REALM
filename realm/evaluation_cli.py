@@ -3,6 +3,14 @@
 import argparse
 
 
+def _positive_int(text):
+    """argparse type: an int >= 1, rejected at parse time rather than after the simulator boots."""
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {value}")
+    return value
+
+
 def build_evaluation_parser(*, vectorized=False):
 
     parser = argparse.ArgumentParser(
@@ -50,6 +58,12 @@ def build_evaluation_parser(*, vectorized=False):
         parser.add_argument("--no_render", action="store_true",
                             help="Disable rendering completely")
 
+    parser.add_argument("--stage_hold_steps", type=_positive_int, default=None,
+                        help="Scoring: a rubric stage latches only after its condition held this many "
+                             "consecutive control steps, except REACH, TOUCH and TOUCH_AND_MOVE_JOINT "
+                             "(realm/environments/task_progression.py: SHORT_STAGES). Default 5; 1 is "
+                             "one-step latching for every stage.")
+
     return parser
 
 
@@ -87,6 +101,7 @@ def run_evaluation_cli(*, vectorized=False):
             render_on_demand=args.render_on_demand,
             n_pre_obs_renders=args.n_pre_obs_renders,
             max_render_interval=args.max_render_interval,
+            stage_hold_steps=args.stage_hold_steps,
         )
     else:
         from realm.eval import evaluate
@@ -111,6 +126,7 @@ def run_evaluation_cli(*, vectorized=False):
             task_cfg_path=args.task_cfg_path,
             robot=args.robot,
             render_on_demand=args.render_on_demand,
+            stage_hold_steps=args.stage_hold_steps,
         )
 
     og.shutdown()
